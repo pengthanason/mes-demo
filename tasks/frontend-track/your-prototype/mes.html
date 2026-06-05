@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MES Routing Station Control Panel</title>
+    <link rel="stylesheet" href="mes_style.css">
+</head>
+<body>
+
+<div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px;">
+        <h2 style="border-bottom: none; padding-bottom: 0; margin: 0;">MES - Routing Station Control Panel</h2>
+        <div style="text-align: right;">
+            <span style="font-weight: bold; color: #3b82f6;" id="sessionUserBadge">Operator: Unknown</span>
+            <button onclick="handleLogout()" style="margin-left: 15px; padding: 6px 12px; background-color: #64748b; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Sign Out</button>
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <label for="serialNumber">Serial Number:</label>
+        <input type="text" id="serialNumber" placeholder="Enter serial number to execute scanning process" required>
+    </div>
+    
+    <div class="form-group">
+        <label>Master Routing Templates (Presets):</label>
+        <div class="preset-management-zone">
+            <select id="presetSelector" class="preset-select-box" onchange="loadSelectedPreset()">
+                <option value="">-- Select Template Blueprint --</option>
+            </select>
+            <button type="button" class="btn-preset-action btn-delete-preset" onclick="deleteCurrentPreset()">Delete Blueprint</button>
+            <div class="spacer"></div>
+            <input type="text" id="newPresetName" class="preset-input-box" placeholder="Enter name for new preset">
+            <button type="button" class="btn-preset-action btn-save-preset" onclick="saveCurrentAsPreset()">💾 Save Blueprint</button>
+        </div>
+
+        <label>Manufacturing Sequence & Cycle Time (Seconds):</label>
+        <div style="margin-bottom: 15px;">
+            <button type="button" class="btn-add-step" style="margin-bottom: 0;" onclick="addNewStep()">+ Add Operation Step</button>
+        </div>
+        
+        <div class="sequence-container" id="sequenceWrapper">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="result">Global Flow Result:</label>
+        <select id="result" onchange="toggleDefectZone()">
+            <option value="PASS">PASS (All routing operations verified successfully)</option>
+            <option value="FAIL">FAIL (Defect detected - Hold process for quality disposition)</option>
+        </select>
+    </div>
+
+    <div class="defect-container" id="defectZone">
+        <label class="defect-title">⚠️ Select Station(s) Responsible for Defect Failure (Multi-select allowed):</label>
+        <div class="defect-grid" id="defectListWrapper">
+        </div>
+    </div>
+
+    <button type="button" class="btn-submit" id="submitProcessBtn" onclick="recordSequentialProcess()">Record Routing Process Log</button>
+
+    <hr class="section-divider">
+
+    <h3>Execution History Log</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Serial Number</th>
+                <th>Operation Flow Sequence (Cycle Time)</th>
+                <th>Result</th>
+                <th>Total Cycle Time</th>
+            </tr>
+        </thead>
+        <tbody id="historyTableBody">
+            <tr>
+                <td colspan="5" class="empty-table-msg">No production execution history found in the system.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    let currentUser = localStorage.getItem('mes_current_session_user');
+    if (!currentUser) {
+        alert("Authorization required. Please log in before entering the control panel.");
+        window.location.href = 'login.html';
+    }
+
+    const defaultStations = [
+        { id: "R1", name: "SMT SETUP" },
+        { id: "R2", name: "IPQC 1 pcba" },
+        { id: "R3", name: "Insert manual" },
+        { id: "R4", name: "Ipqc 2 pcba" },
+        { id: "R5", name: "Test ict" },
+        { id: "R6", name: "B/B" },
+        { id: "R7", name: "Ipqc b/b" },
+        { id: "R8", name: "Test fct" },
+        { id: "R9", name: "Test fct b/b" },
+        { id: "R10", name: "Test system uat" },
+        { id: "R11", name: "Fqc packing" },
+        { id: "R12", name: "Fqc packins" }
+    ];
+
+    let stationsConfig = [];
+    let mesHistory = [];
+    let draggedRow = null; 
+    let systemPresets = {};
+
+    function handleLogout() {
+        localStorage.removeItem('mes_current_session_user');
+        window.location.href = 'login.html';
+    }
+
+    function getOptionsHtml() {
+        let options = stationsConfig.map(st => {
+            const isBase = defaultStations.some(base => base.id === st.id);
+            const labelText = isBase ? `${st.id}: ${st.name}` : `⭐ ${st.id}: ${st.name} (Custom)`;
+            return `<option value="${st.id}">${labelText}</option>`;
+        }).join('');
+        options += `<option value="ADD_NEW_POPUP" style="color:#0056b3; font-weight:bold;">+ Add New Station...</option>`;
+        return options;
+    }
+
+    function formatSecondsToMinutes(totalSeconds) {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        if (minutes > 0) {
+            return `${minutes} Min ${seconds} Sec`;
+        }
+        return `${seconds} Sec`;
+    }
+
+    function toggleDefectZone() {
+        const resultVal = document.getElementById('result').value;
+        const defectZone = document.getElementById('defectZone');
+        
+        if (resultVal === 'FAIL') {
+            defectZone.style.display = 'block';
+            generateDefectCheckboxes();
+        } else {
+            defectZone.style.display = 'none';
+        }
+    }
+
+    function generateDefectCheckboxes() {
+        const wrapper = document.getElementById('defectListWrapper');
+        const stepRows = document.querySelectorAll('.step-row');
+        wrapper.innerHTML = '';
+
+        let currentAddedStations = [];
+        stepRows.forEach(row => {
+            let stationId = row.getAttribute('data-selected-station');
+            if (stationId && !currentAddedStations.includes(stationId)) {
+                currentAddedStations.push(stationId);
+            }
+        });
+
+        if (currentAddedStations.length === 0) {
+            wrapper.innerHTML = '<div style="color: #e53e3e; font-size: 14px;">No configuration stations found in the routing active setup.</div>';
+            return;
+        }
+
+        currentAddedStations.forEach(id => {
+            wrapper.innerHTML += `
+                <label class="defect-item">
+                    <input type="checkbox" name="defectStations" value="${id}">
+                    <span><strong>${id}</strong></span>
+                </label>
+            `;
+        });
+    }
+
+    function triggerAddNewStationPopup(stepRowElement) {
+        let customName = prompt("Please enter the name of the new manufacturing station:");
+        if (customName && customName.trim() !== "") {
+            
+            let maxNumericId = 0;
+            stationsConfig.forEach(st => {
+                let numericPart = parseInt(st.id.replace("R", ""), 10);
+                if (!isNaN(numericPart) && numericPart > maxNumericId) {
+                    maxNumericId = numericPart;
+                }
+            });
+            
+            let nextId = "R" + (maxNumericId + 1);
+            stationsConfig.push({ id: nextId, name: customName.trim().toUpperCase() });
+            localStorage.setItem(`mes_stations_config_${currentUser}`, JSON.stringify(stationsConfig));
+            
+            updateRowStationSelection(stepRowElement, nextId);
+            refreshAllCustomDropdowns();
+            
+            if (document.getElementById('result').value === 'FAIL') generateDefectCheckboxes();
+        }
+    }
+
+    // [FIXED LOGIC] แก้บั๊กคลิกลบกากบาทแล้วรายชื่อไม่วิ่งหายไปในทันที โดยการบังคับ Re-render แผงลิสต์ย่อยของบรรทัดนั้นทันที
+    function executeInlineDeleteStation(stationId, event) {
+        event.stopPropagation(); // ป้องกันไม่ให้การคลิกเลือกสัญญลักษณ์ลบไปกระตุ้นลอจิกเลือกปิดแถว
+        
+        if (confirm(`Confirm permanent deletion of Custom Station "${stationId}"?`)) {
+            // สั่งกรองถอนข้อมูลออกจากหน่วยความจำหลัก
+            stationsConfig = stationsConfig.filter(st => st.id !== stationId);
+            localStorage.setItem(`mes_stations_config_${currentUser}`, JSON.stringify(stationsConfig));
+            
+            // ลอจิกตรวจสอบ: ดึงแถวที่มีอยู่บนหน้าจอทั้งหมดมาประมวลผลไล่ตรวจสอบคีย์ที่ค้างอยู่
+            const allRows = document.querySelectorAll('.step-row');
+            allRows.forEach(row => {
+                if (row.getAttribute('data-selected-station') === stationId) {
+                    updateRowStationSelection(row, stationsConfig[0] ? stationsConfig[0].id : "");
+                }
+            });
+            
+            // อัปเดตการแสดงผลของส่วนประกอบข้อความภายนอก
+            refreshAllCustomDropdowns();
+            if (document.getElementById('result').value === 'FAIL') generateDefectCheckboxes();
+
+            // [HOTFIX] ค้นหาและชี้เป้ากล่องเมนูลิสต์พาเนลย่อยของบรรทัดที่พนักงานกดคลิกค้างอยู่ เพื่อสั่งรีเรนเดอร์เนื้อหาข้างในตัวแปรใหม่ทันทีคาตา
+            const activeOptionsPanel = event.target.closest('.custom-dropdown-options-list-panel');
+            if (activeOptionsPanel) {
+                const stepRow = activeOptionsPanel.closest('.step-row');
+                renderCustomDropdownOptions(stepRow, activeOptionsPanel);
+            }
+        }
+    }
+
+    function updateRowStationSelection(rowElement, stationId) {
+        rowElement.setAttribute('data-selected-station', stationId);
+        const displayLabel = rowElement.querySelector('.dropdown-display-label');
+        const foundStation = stationsConfig.find(st => st.id === stationId);
+        
+        if (foundStation) {
+            const isBase = defaultStations.some(base => base.id === stationId);
+            displayLabel.textContent = isBase ? `${foundStation.id}: ${foundStation.name}` : ` ${foundStation.id}: ${foundStation.name}`;
+        } else {
+            displayLabel.textContent = "-- Select Station --";
+        }
+    }
+
+    function renderCustomDropdownOptions(rowElement, optionsContainer) {
+        optionsContainer.innerHTML = '';
+        
+        stationsConfig.forEach(st => {
+            const isBase = defaultStations.some(base => base.id === st.id);
+            const optionRow = document.createElement('div');
+            optionRow.className = 'custom-dropdown-option-row';
+            
+            optionRow.innerHTML = `
+                <span>${isBase ? `${st.id}: ${st.name}` : ` ${st.id}: ${st.name} (Custom)`}</span>
+                ${!isBase ? `<button type="button" class="inline-option-delete-btn" onclick="executeInlineDeleteStation('${st.id}', event)">❌</button>` : ''}
+            `;
+            
+            optionRow.addEventListener('click', (e) => {
+                // ป้องกันกรณีเผลอกดจิ้มโดนขอบปุ่มกากบาท ไม่ให้มันบันทึกรหัสข้ามไปเลือกสถานี
+                if (e.target.classList.contains('inline-option-delete-btn')) return;
+                
+                updateRowStationSelection(rowElement, st.id);
+                optionsContainer.style.display = 'none';
+                if (document.getElementById('result').value === 'FAIL') generateDefectCheckboxes();
+            });
+            
+            optionsContainer.appendChild(optionRow);
+        });
+        
+        const addBtnRow = document.createElement('div');
+        addBtnRow.className = 'custom-dropdown-option-row add-new-trigger-row';
+        addBtnRow.textContent = "+ Add New Station...";
+        addBtnRow.addEventListener('click', () => {
+            optionsContainer.style.display = 'none';
+            triggerAddNewStationPopup(rowElement);
+        });
+        optionsContainer.appendChild(addBtnRow);
+    }
+
+    function refreshAllCustomDropdowns() {
+        const allRows = document.querySelectorAll('.step-row');
+        allRows.forEach(row => {
+            let currentStation = row.getAttribute('data-selected-station');
+            updateRowStationSelection(row, currentStation);
+        });
+    }
+
+    function addNewStep(defaultStationId = "", defaultSeconds = "") {
+        const wrapper = document.getElementById('sequenceWrapper');
+        const emptyMsg = wrapper.querySelector('.empty-state-msg');
+        if (emptyMsg) emptyMsg.remove();
+
+        const stepRow = document.createElement('div');
+        stepRow.className = 'step-row';
+        stepRow.draggable = true; 
+        
+        let activeStationId = defaultStationId !== "" ? defaultStationId : (stationsConfig[0] ? stationsConfig[0].id : "");
+        stepRow.setAttribute('data-selected-station', activeStationId);
+        
+        stepRow.innerHTML = `
+            <div class="step-badge">Step X</div>
+            
+            <div class="custom-select-wrapper-box">
+                <div class="custom-dropdown-header-trigger" onclick="toggleRowDropdownMenu(this)">
+                    <span class="dropdown-display-label">-- Loading Station --</span>
+                    <span class="dropdown-arrow-indicator">▼</span>
+                </div>
+                <div class="custom-dropdown-options-list-panel" style="display: none;"></div>
+            </div>
+            
+            <input type="number" class="step-time-val time-input" min="1" placeholder="Time (Seconds)" required value="${defaultSeconds}">
+            <div class="action-area">
+                <button type="button" class="btn-delete-step" onclick="this.closest('.step-row').remove(); reindexSteps();">🗑 Delete</button>
+                <div class="drag-handle">☰</div>
+            </div>
+        `;
+        
+        wrapper.appendChild(stepRow);
+        
+        if (defaultStationId !== "") {
+            const selectEl = stepRow.querySelector('.step-select');
+            if (!stationsConfig.some(st => st.id === defaultStationId)) {
+                stationsConfig.push({ id: defaultStationId, name: "RESTORED CUSTOM STATION" });
+                localStorage.setItem(`mes_stations_config_${currentUser}`, JSON.stringify(stationsConfig));
+            }
+            refreshAllCustomDropdowns();
+            selectEl.value = defaultStationId;
+        }
+
+        updateRowStationSelection(stepRow, activeStationId);
+        addWholeRowDragEvents(stepRow);
+        reindexSteps();
+    }
+
+    function toggleRowDropdownMenu(headerElement) {
+        const wrapper = headerElement.closest('.custom-select-wrapper-box');
+        const row = headerElement.closest('.step-row');
+        const listPanel = wrapper.querySelector('.custom-dropdown-options-list-panel');
+        
+        if (listPanel.style.display === 'none') {
+            document.querySelectorAll('.custom-dropdown-options-list-panel').forEach(panel => panel.style.display = 'none');
+            renderCustomDropdownOptions(row, listPanel);
+            listPanel.style.display = 'block';
+        } else {
+            listPanel.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-select-wrapper-box')) {
+            document.querySelectorAll('.custom-dropdown-options-list-panel').forEach(panel => panel.style.display = 'none');
+        }
+    });
+
+    function reindexSteps() {
+        const rows = document.querySelectorAll('.step-row');
+        const submitBtn = document.getElementById('submitProcessBtn');
+        const wrapper = document.getElementById('sequenceWrapper');
+        
+        if (rows.length === 0) {
+            if (!wrapper.querySelector('.empty-state-msg')) {
+                wrapper.innerHTML = `<div class="empty-state-msg">⚠️ No operational steps configured. Please click the button above to add routing steps.</div>`;
+            }
+            submitBtn.classList.add('disabled-btn');
+            submitBtn.disabled = true;
+            document.getElementById('defectZone').style.display = 'none';
+            return;
+        }
+
+        submitBtn.classList.remove('disabled-btn');
+        submitBtn.disabled = false;
+
+        rows.forEach((row, index) => {
+            const badge = row.querySelector('.step-badge');
+            if (badge) badge.innerText = `Step ${index + 1}`;
+        });
+
+        if (document.getElementById('result').value === 'FAIL') {
+            generateDefectCheckboxes();
+        }
+    }
+
+    function addWholeRowDragEvents(row) {
+        const customSelect = row.querySelector('.custom-dropdown-header-trigger');
+        const timeInput = row.querySelector('.step-time-val');
+
+        [customSelect, timeInput].forEach(element => {
+            element.addEventListener('mouseenter', () => row.draggable = false);
+            element.addEventListener('mouseleave', () => row.draggable = true);
+            element.addEventListener('focus', () => row.draggable = false);
+            element.addEventListener('blur', () => row.draggable = true);
+        });
+
+        row.addEventListener('dragstart', (e) => {
+            draggedRow = row;
+            row.classList.add('dragging-row');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        row.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (draggedRow && draggedRow !== row) {
+                row.classList.add('drag-over'); 
+            }
+        });
+
+        row.addEventListener('dragleave', () => {
+            row.classList.remove('drag-over');
+        });
+
+        row.addEventListener('drop', (e) => {
+            e.preventDefault();
+            row.classList.remove('drag-over');
+            
+            if (draggedRow && draggedRow !== row) {
+                const sourceInput = draggedRow.querySelector('.step-time-val');
+                const targetInput = row.querySelector('.step-time-val');
+                
+                const tempStationVal = draggedRow.getAttribute('data-selected-station');
+                draggedRow.setAttribute('data-selected-station', row.getAttribute('data-selected-station'));
+                row.setAttribute('data-selected-station', tempStationVal);
+                
+                const tempInputVal = sourceInput.value;
+                sourceInput.value = targetInput.value;
+                targetInput.value = tempInputVal;
+
+                refreshAllCustomDropdowns();
+                draggedRow.classList.remove('dragging-row');
+                draggedRow = null;
+                if (document.getElementById('result').value === 'FAIL') generateDefectCheckboxes();
+            }
+        });
+
+        row.addEventListener('dragend', () => {
+            document.querySelectorAll('.step-row').forEach(r => r.classList.remove('drag-over', 'dragging-row'));
+            draggedRow = null;
+        });
+    }
+
+    function saveCurrentAsPreset() {
+        const presetNameInput = document.getElementById('newPresetName');
+        const name = presetNameInput.value.trim();
+        const stepRows = document.querySelectorAll('.step-row');
+
+        if (!name) { alert("Action denied. Please specify a unique Preset Blueprint name."); return; }
+        if (stepRows.length === 0) { alert("Save failed. The routing structure must contain at least one operation step."); return; }
+
+        let presetData = [];
+        let timeValidation = true;
+
+        stepRows.forEach(row => {
+            const selectVal = row.getAttribute('data-selected-station');
+            const timeVal = row.querySelector('.step-time-val').value;
+            
+            if (!timeVal || parseInt(timeVal, 10) <= 0) {
+                timeValidation = false;
+                return;
+            }
+            presetData.push({ stationId: selectVal, seconds: timeVal });
+        });
+
+        if (!timeValidation) {
+            alert("Validation Error. Please assign a valid execution cycle time for all sequence blocks before saving.");
+            return;
+        }
+
+        systemPresets[name] = presetData;
+        localStorage.setItem(`mes_presets_${currentUser}`, JSON.stringify(systemPresets));
+
+        presetNameInput.value = '';
+        updatePresetDropdown();
+        document.getElementById('presetSelector').value = name;
+        alert(`Blueprint template "${name}" has been successfully saved to your profile.`);
+    }
+
+    function loadSelectedPreset() {
+        const selector = document.getElementById('presetSelector');
+        const targetName = selector.value;
+        if (!targetName) return;
+
+        const targetData = systemPresets[targetName];
+        if (!targetData) return;
+
+        const wrapper = document.getElementById('sequenceWrapper');
+        wrapper.innerHTML = '';
+
+        targetData.forEach(item => {
+            addNewStep(item.stationId, item.seconds);
+        });
+
+        alert(`Routing Blueprint configuration loaded successfully: ${targetName}`);
+    }
+
+    function deleteCurrentPreset() {
+        const selector = document.getElementById('presetSelector');
+        const targetName = selector.value;
+        
+        if (!targetName) { alert("Invalid Request. Please select an active blueprint from the catalog to remove."); return; }
+        
+        if (confirm(`Are you certain you want to purge blueprint template "${targetName}"?`)) {
+            delete systemPresets[targetName];
+            localStorage.setItem(`mes_presets_${currentUser}`, JSON.stringify(systemPresets));
+            updatePresetDropdown();
+            document.getElementById('sequenceWrapper').innerHTML = '';
+            reindexSteps();
+            alert("The requested master blueprint has been successfully deleted.");
+        }
+    }
+
+    function updatePresetDropdown() {
+        const selector = document.getElementById('presetSelector');
+        selector.innerHTML = '<option value="">-- Select Template Blueprint --</option>';
+        
+        Object.keys(systemPresets).forEach(name => {
+            selector.innerHTML += `<option value="${name}">📁 ${name} (${systemPresets[name].length} Operations)</option>`;
+        });
+    }
+
+    function initPresetSystem() {
+        document.getElementById('sessionUserBadge').innerText = `Operator: ${currentUser.toUpperCase()}`;
+        
+        const storedStations = localStorage.getItem(`mes_stations_config_${currentUser}`);
+        if (storedStations) {
+            try { stationsConfig = JSON.parse(storedStations); } catch(e) { stationsConfig = [...defaultStations]; }
+        } else {
+            stationsConfig = [...defaultStations];
+            localStorage.setItem(`mes_stations_config_${currentUser}`, JSON.stringify(stationsConfig));
+        }
+
+        const stored = localStorage.getItem(`mes_presets_${currentUser}`);
+        if (stored) {
+            try { systemPresets = JSON.parse(stored); } catch(e) { systemPresets = {}; }
+        } else {
+            systemPresets = {
+                "DEFAULT_FLOW_SAMPLE": [
+                    { stationId: "R1", seconds: "60" },
+                    { stationId: "R2", seconds: "30" }
+                ]
+            };
+            localStorage.setItem(`mes_presets_${currentUser}`, JSON.stringify(systemPresets));
+        }
+        updatePresetDropdown();
+    }
+
+    function recordSequentialProcess() {
+        const sn = document.getElementById('serialNumber').value.trim();
+        const result = document.getElementById('result').value;
+        const stepRows = document.querySelectorAll('.step-row');
+        
+        if (stepRows.length === 0) { alert("Transaction aborted. Routing sequence cannot be empty."); return; }
+        if (!sn) { alert("Data submission required. Please scan or enter a valid Product Serial Number."); return; }
+
+        let orderedStations = [];
+        let totalTimeSeconds = 0;
+        let validationFailed = false;
+
+        stepRows.forEach((row, index) => {
+            const timeInput = row.querySelector('.step-time-val');
+            
+            if (!timeInput || timeInput.value.trim() === "" || parseInt(timeInput.value, 10) <= 0) {
+                validationFailed = true;
+                return;
+            }
+
+            const stationId = row.getAttribute('data-selected-station');
+            const secondsCost = parseInt(timeInput.value, 10);
+            
+            orderedStations.push({
+                stepIndex: index + 1,
+                stationIdOnly: stationId, 
+                seconds: secondsCost
+            });
+            totalTimeSeconds += secondsCost;
+        });
+
+        if (validationFailed) {
+            alert("Processing error. Ensure that the numeric execution value (Seconds) is accurately completed for each station step.");
+            return;
+        }
+
+        let selectedDefectIds = [];
+        if (result === 'FAIL') {
+            const checkedDefects = document.querySelectorAll('input[name="defectStations"]:checked');
+            checkedDefects.forEach(cb => selectedDefectIds.push(cb.value));
+        }
+
+        orderedStations.forEach(st => {
+            st.isDefect = selectedDefectIds.includes(st.stationIdOnly);
+        });
+
+        const timeStamp = new Date().toLocaleTimeString();
+
+        mesHistory.unshift({
+            time: timeStamp,
+            sn: sn,
+            stations: orderedStations,
+            result: result,
+            defectList: selectedDefectIds, 
+            totalTimeText: formatSecondsToMinutes(totalTimeSeconds)
+        });
+
+        if (result === 'FAIL') {
+            alert(`Process Hold Alert. Serial Number: ${sn} has been flagged as CRITICAL FAIL due to active defects.`);
+        } else {
+            alert(`Routing entry stored successfully for Serial Number: ${sn}`);
+        }
+
+        updateTable();
+    }
+
+    function updateTable() {
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '';
+
+        if (mesHistory.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="empty-table-msg">No production execution history found in the system.</td></tr>`;
+            return;
+        }
+
+        mesHistory.forEach(item => {
+            let resultBadge = '';
+            
+            if (item.result === 'PASS') {
+                resultBadge = `<span class="badge badge-pass">PASS</span>`;
+            } else if (item.result === 'FAIL') {
+                let defectDetails = item.defectList.length > 0 ? `<span class="defect-reason-text" style="color:#e53e3e;">(${item.defectList.join(', ')})</span>` : '';
+                resultBadge = `<span class="badge badge-fail">FAIL</span>${defectDetails}`;
+            }
+
+            let stationsHtml = item.stations.map(st => {
+                const convertedTime = formatSecondsToMinutes(st.seconds);
+                let failedClass = st.isDefect ? 'failed-trigger' : '';
+                return `
+                    <span class="station-tag ${failedClass}">
+                        <span class="step-index-tag">(${st.stepIndex})</span> 
+                        ${st.stationIdOnly} 
+                        <span class="station-time-text">(${convertedTime})</span>
+                    </span>
+                `;
+            }).join('<span class="flow-arrow"> ➔ </span>');
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.time}</td>
+                    <td><strong>${item.sn}</strong></td>
+                    <td><div class="flow-container-row">${stationsHtml}</div></td>
+                    <td>${resultBadge}</td>
+                    <td><strong>${item.totalTimeText}</strong></td>
+                </tr>
+            `;
+        });
+    }
+
+    window.onload = function() {
+        initPresetSystem(); 
+        addNewStep(); 
+    };
+</script>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MES System - Authentication Gateway</title>
+    <link rel="stylesheet" href="login_style.css">
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-header">
+        <h2>MES PORTAL</h2>
+        <p>Manufacturing Execution System - Sign In</p>
+    </div>
+    
+    <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-control">
+            <label for="username">Username</label>
+            <input type="text" id="username" placeholder="Enter identification account" required>
+        </div>
+        
+        <div class="form-control">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Enter security credentials" required>
+        </div>
+        
+        <button type="submit" class="btn-login">Execute Secure Access</button>
+    </form>
+    
+    <div class="login-footer">
+        <p>* Enterprise Security Notice: Authorized personnel access only.</p>
+    </div>
+</div>
+
+<script>
+    function handleLogin(event) {
+        event.preventDefault();
+        
+        const usernameInput = document.getElementById('username').value.trim();
+        const passwordInput = document.getElementById('password').value;
+        
+        // ตรวจสอบเงื่อนไขความปลอดภัยแบบเฉพาะเจาะจง (Strict Admin Control)
+        if (usernameInput === 'admin' && passwordInput === 'admin') {
+            // บันทึกสถานะผู้ใช้งานปัจจุบันลงเครื่องเบราว์เซอร์
+            localStorage.setItem('mes_current_session_user', usernameInput);
+            
+            // นำทางผู้ใช้ข้ามไปยังหน้ากระดานควบคุมระบบหลักที่เปลี่ยนชื่อใหม่ (mes.html)
+            window.location.href = 'mes.html';
+        } else {
+            // แสดงหน้าต่างแจ้งเตือนข้อผิดพลาดภาษาอังกฤษที่เป็นทางการและสุภาพ
+            alert("Authentication Denied. Invalid username or password credentials. Please verify your entries.");
+        }
+    }
+</script>
+
+</body>
+</html>
