@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cd /home/ball/syntech_mes_draft/backend/projects && pwd && ls -la\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"ls -la /home/ball/syntech_mes_draft/backend/projects/jumbo\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cat /home/ball/syntech_mes_draft/backend/projects/jumbo/index.html\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"ls -la /home/ball/syntech_mes_draft/backend/projects/jumbo/css/ && ls -la /home/ball/syntech_mes_draft/backend/projects/jumbo/js/\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cat /home/ball/syntech_mes_draft/backend/projects/jumbo/js/app.js\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"ss -tlnp | grep LISTEN\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cat /home/ball/syntech_mes_draft/MES_DESIGN.md\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cat /home/ball/syntech_mes_draft/backend/server.js\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"ls /home/ball/syntech_mes_draft/backend/migrations/ | tail -5 && cat /home/ball/syntech_mes_draft/backend/db.js\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cat /home/ball/syntech_mes_draft/backend/migrations/202602270001_baseline_placeholder.js\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cat /etc/nginx/sites-enabled/syntech\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"ls /home/ball/syntech_mes_draft/backend/envs/ && cat /home/ball/syntech_mes_draft/backend/.env 2>/dev/null || echo ''NO .env''\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"docker ps --format ''table {{.Names}}\\\\t{{.Status}}\\\\t{{.Ports}}'' 2>/dev/null | head -20\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"docker exec syntech_wms_idea_api_1 env 2>/dev/null | grep -iE ''db|pg|postgres|database''\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"mkdir -p /home/ball/syntech_mes_draft/backend/modules/13_jumbo\")",
+      "Bash(scp -o StrictHostKeyChecking=no /tmp/jumbo_migration.js ball@172.16.10.87:/home/ball/syntech_mes_draft/backend/migrations/202604010001_jumbo_traceability.js)",
+      "Bash(scp -o StrictHostKeyChecking=no /tmp/jumbo.routes.js ball@172.16.10.87:/home/ball/syntech_mes_draft/backend/modules/13_jumbo/jumbo.routes.js)",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cat /home/ball/syntech_mes_draft/backend/projects/jumbo/test_write.txt 2>/dev/null && echo EXISTS || echo NOT_FOUND\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"mkdir -p /home/ball/syntech_mes_draft/backend/modules/13_jumbo && echo OK\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"ls /home/ball/syntech_mes_draft/backend/modules/13_jumbo/ && wc -l /home/ball/syntech_mes_draft/backend/modules/13_jumbo/jumbo.routes.js\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"grep -n ''scmRoutes\\\\|pmRoutes\\\\|app.use'' /home/ball/syntech_mes_draft/backend/server.js | tail -20\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"cat /etc/nginx/sites-enabled/syntech | grep -n ''location\\\\|server_name'' | head -20\")",
+      "Bash(ssh -o StrictHostKeyChecking=no ball@172.16.10.87 \"ls -la /etc/nginx/sites-available/ && ls -la /etc/nginx/sites-enabled/ && groups ball\")",
+      "Bash(ssh -o:*)"
+    ]
+  }
+}

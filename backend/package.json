@@ -1,0 +1,30 @@
+{
+  "name": "syntech-mes-backbone",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SYNTECH MES backbone (Station 2) using Express + PostgreSQL",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/check-js.mjs', ['.'])\"",
+    "migrate:status": "npx knex --knexfile knexfile.js migrate:status",
+    "migrate:latest": "npx knex --knexfile knexfile.js migrate:latest",
+    "migrate:rollback": "npx knex --knexfile knexfile.js migrate:rollback",
+    "route:apply:production-flex": "node scripts/apply_production_flex_route.js",
+    "test:smoke": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/run-backend-test.mjs', ['tests/auth.config.test.js', 'tests/jumbo.routes.test.js', 'tests/jumbo.static.test.js'])\"",
+    "test:e2e": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/run-backend-test.mjs', ['tests/e2e.dbflow.test.js'])\"",
+    "test:pm-scm": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/run-backend-test.mjs', ['tests/e2e.pm_scm.test.js'])\"",
+    "test:jumbo:routes": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/run-backend-test.mjs', ['tests/jumbo.routes.test.js'])\"",
+    "test:jumbo:static": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/run-backend-test.mjs', ['tests/jumbo.static.test.js'])\"",
+    "test:all": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/run-backend-test.mjs', ['tests/auth.config.test.js', 'tests/e2e.dbflow.test.js', 'tests/e2e.pm_scm.test.js', 'tests/jumbo.routes.test.js', 'tests/jumbo.static.test.js'])\"",
+    "test": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/run-backend-test.mjs', ['tests/e2e.dbflow.test.js'])\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1",
+    "knex": "^3.1.0"
+  }
+}

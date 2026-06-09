@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>JUMBO QR Generator & Matching System</title>
+    <!-- CSS and Fonts -->
+    <link rel="stylesheet" href="css/style.css?v=20260409_1">
+    <!-- SweetAlert2 -->
+    <script src="vendor/sweetalert2.all.min.js?v=20260409_1"></script>
+    <!-- QRCode.js -->
+    <script src="vendor/qrcode.min.js?v=20260409_1"></script>
+</head>
+<body>
+    <div class="app-container no-print">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo">
+                <div class="logo-mark">JB</div>
+                <div class="logo-copy">
+                    <h2>JUMBO System</h2>
+                    <p>Traceability Console</p>
+                </div>
+            </div>
+            <div class="sidebar-summary">
+                <span class="summary-label">Production workspace</span>
+                <strong>Trace, assemble, and pack from one station.</strong>
+                <p>ออกแบบให้สแกนเร็ว อ่านสถานะไว และคุมงาน Jumbo ได้ครบในหน้าเดียว</p>
+            </div>
+            <ul class="nav-menu">
+                <li class="active" data-target="tab-qr">
+                    <span class="nav-icon">QR</span>
+                    <span class="nav-copy">
+                        <strong>พิมพ์สติ๊กเกอร์ QR</strong>
+                        <small>สร้าง serial และเตรียมงานพิมพ์</small>
+                    </span>
+                </li>
+                <li data-target="tab-match-main">
+                    <span class="nav-icon">M1</span>
+                    <span class="nav-copy">
+                        <strong>ประกอบ BBAS MAIN</strong>
+                        <small>จับคู่ MAIN, IO และ RS485</small>
+                    </span>
+                </li>
+                <li data-target="tab-match-rsu">
+                    <span class="nav-icon">RS</span>
+                    <span class="nav-copy">
+                        <strong>ประกอบ BBAS RSU</strong>
+                        <small>ประกอบชุด RSU แบบจุดเดียวจบ</small>
+                    </span>
+                </li>
+                <li data-target="tab-packing">
+                    <span class="nav-icon">PK</span>
+                    <span class="nav-copy">
+                        <strong>Packing</strong>
+                        <small>สแกนลงกล่องและปิดกล่องส่งต่อ</small>
+                    </span>
+                </li>
+                <li data-target="tab-history">
+                    <span class="nav-icon">HX</span>
+                    <span class="nav-copy">
+                        <strong>ประวัติข้อมูล</strong>
+                        <small>ค้นย้อนหลัง แก้ไข และ export</small>
+                    </span>
+                </li>
+            </ul>
+            <div class="sidebar-foot">
+                <div>
+                    <span class="foot-label">Station</span>
+                    <strong>Jumbo Line</strong>
+                </div>
+                <div>
+                    <span class="foot-label">Session</span>
+                    <strong>Auto Auth</strong>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content-area">
+            <div class="workspace-shell">
+            
+            <!-- TAB 1: QR Generator -->
+            <section id="tab-qr" class="tab-pane active">
+                <div class="header">
+                    <span class="section-kicker">QR + Serial Setup</span>
+                    <h1>QR Code Print Studio</h1>
+                    <p>สร้างหมายเลขซีเรียลและพิมพ์สติ๊กเกอร์ 5x5mm / 20x20mm</p>
+                </div>
+                
+                <div class="card">
+                    <form id="qr-form" class="form-grid">
+                        <div class="form-group">
+                            <label>เลือกรายการ Part (Part Number)</label>
+                            <select id="part-select" required>
+                                <optgroup label="PCBA (5x5 mm)">
+                                    <option value="1E4D25234000">1E4D25234000 - PCBA MAIN (60 ดวง)</option>
+                                    <option value="1E4D25234001">1E4D25234001 - PCBA IO (120 ดวง)</option>
+                                    <option value="1E4D25234002">1E4D25234002 - PCBA RS485 (180 ดวง)</option>
+                                    <option value="1E4D25234003">1E4D25234003 - PCBA RSU (60 ดวง)</option>
+                                </optgroup>
+                                <optgroup label="BBAS (20x20 mm - พิมพ์ 2 ชุด/หมายเลข)">
+                                    <option value="1E6D25234000">1E6D25234000 - BBAS MAIN (60 เลข/120 ดวง)</option>
+                                    <option value="1E6D25234001">1E6D25234001 - BBAS RSU (60 เลข/120 ดวง)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>เลขเริ่มต้น (Start Serial)</label>
+                            <input type="number" id="serial-start" value="1" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>จำนวนที่ต้องการสร้าง (ดวง/หมายเลข)</label>
+                            <input type="number" id="serial-qty" value="60" min="1" required>
+                        </div>
+                        <div class="form-group btn-group align-bottom">
+                            <button type="submit" class="btn btn-primary">สร้าง QR Code</button>
+                            <button type="button" id="btn-print" class="btn btn-success" disabled>พิมพ์ (Print)</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="preview-area">
+                    <h3>ผลลัพธ์การสร้าง (<span id="preview-count">0</span> รายการ)</h3>
+                    <div id="qr-preview-container" class="preview-grid">
+                        <!-- QR Codes preview will be appended here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: BBAS MAIN Matching -->
+            <section id="tab-match-main" class="tab-pane">
+                <div class="header">
+                    <span class="section-kicker">Assembly Flow</span>
+                    <h1>ประกอบ BBAS MAIN</h1>
+                    <p>สแกนจับคู่ 1 BBAS MAIN = (1 PCBA MAIN, 2 PCBA IO, 3 PCBA RS485)</p>
+                </div>
+                <div class="card scanning-card">
+                    <form id="match-main-form">
+                        <div class="scan-step primary-scan">
+                            <label>1. สแกนเลข BBAS MAIN (1E6D25234000)</label>
+                            <input type="text" id="scan-bb-main" class="scan-input" placeholder="คลิกที่นี่แล้วสแกน..." required autocomplete="off">
+                            <span class="status-icon"></span>
+                        </div>
+                        <div class="scan-grid">
+                            <div class="scan-step">
+                                <label>2. สแกน PCBA MAIN (1E4D25234000)</label>
+                                <input type="text" id="scan-pc-main-1" class="scan-input" placeholder="สแกน PCBA MAIN" disabled required autocomplete="off">
+                                <span class="status-icon"></span>
+                            </div>
+                            <div class="scan-step">
+                                <label>3. สแกน PCBA IO #1 (1E4D25234001)</label>
+                                <input type="text" id="scan-pc-io-1" class="scan-input" placeholder="สแกน PCBA IO 1" disabled required autocomplete="off">
+                                <span class="status-icon"></span>
+                            </div>
+                            <div class="scan-step">
+                                <label>4. สแกน PCBA IO #2 (1E4D25234001)</label>
+                                <input type="text" id="scan-pc-io-2" class="scan-input" placeholder="สแกน PCBA IO 2" disabled required autocomplete="off">
+                                <span class="status-icon"></span>
+                            </div>
+                            <div class="scan-step">
+                                <label>5. สแกน PCBA RS485 #1 (1E4D25234002)</label>
+                                <input type="text" id="scan-pc-rs-1" class="scan-input" placeholder="สแกน RS485 1" disabled required autocomplete="off">
+                                <span class="status-icon"></span>
+                            </div>
+                            <div class="scan-step">
+                                <label>6. สแกน PCBA RS485 #2 (1E4D25234002)</label>
+                                <input type="text" id="scan-pc-rs-2" class="scan-input" placeholder="สแกน RS485 2" disabled required autocomplete="off">
+                                <span class="status-icon"></span>
+                            </div>
+                            <div class="scan-step">
+                                <label>7. สแกน PCBA RS485 #3 (1E4D25234002)</label>
+                                <input type="text" id="scan-pc-rs-3" class="scan-input" placeholder="สแกน RS485 3" disabled required autocomplete="off">
+                                <span class="status-icon"></span>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" id="btn-reset-main" class="btn btn-secondary">เริ่มใหม่ (Reset)</button>
+                            <button type="submit" id="btn-save-main" class="btn btn-primary" disabled>บันทึกการจับคู่</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 3: BBAS RSU Matching -->
+            <section id="tab-match-rsu" class="tab-pane">
+                <div class="header">
+                    <span class="section-kicker">Assembly Flow</span>
+                    <h1>ประกอบ BBAS RSU</h1>
+                    <p>สแกนจับคู่ 1 BBAS RSU = (1 PCBA RSU)</p>
+                </div>
+                <div class="card scanning-card">
+                    <form id="match-rsu-form">
+                        <div class="scan-step primary-scan">
+                            <label>1. สแกนเลข BBAS RSU (1E6D25234001)</label>
+                            <input type="text" id="scan-bb-rsu" class="scan-input" placeholder="คลิกที่นี่แล้วสแกน..." required autocomplete="off">
+                            <span class="status-icon"></span>
+                        </div>
+                        <div class="scan-step primary-scan mt-4">
+                            <label>2. สแกน PCBA RSU (1E4D25234003)</label>
+                            <input type="text" id="scan-pc-rsu" class="scan-input" placeholder="สแกน PCBA RSU" disabled required autocomplete="off">
+                            <span class="status-icon"></span>
+                        </div>
+                        <div class="form-actions mt-4">
+                            <button type="button" id="btn-reset-rsu" class="btn btn-secondary">เริ่มใหม่ (Reset)</button>
+                            <button type="submit" id="btn-save-rsu" class="btn btn-primary" disabled>บันทึกการจับคู่</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 4: Packing -->
+            <section id="tab-packing" class="tab-pane">
+                <div class="header flex-between">
+                    <div>
+                        <span class="section-kicker">Packing Station</span>
+                        <h1>Packing</h1>
+                        <p>สแกน BBAS ใส่กล่อง และปิดกล่องก่อนส่ง</p>
+                    </div>
+                    <div>
+                        <button id="btn-new-box" class="btn btn-primary">+ สร้าง Box ใหม่</button>
+                    </div>
+                </div>
+                <div id="boxes-container" class="card" style="min-height:120px">
+                    <p style="color:#94a3b8;text-align:center;padding:2rem">กำลังโหลด...</p>
+                </div>
+            </section>
+
+            <!-- TAB 5: History & Export -->
+            <section id="tab-history" class="tab-pane">
+                <div class="header flex-between">
+                    <div>
+                        <span class="section-kicker">History + Export</span>
+                        <h1>ประวัติการจับคู่ชิ้นงาน</h1>
+                        <p>ข้อมูลถูกเก็บไว้ใน Database</p>
+                    </div>
+                    <div>
+                        <button id="btn-export-csv" class="btn btn-success">⬇️ ดาวน์โหลด Excel (CSV)</button>
+                        <button id="btn-clear-history" class="btn btn-danger">🗑️ ล้างข้อมูลทั้งหมด</button>
+                    </div>
+                </div>
+                <div class="card overflow-auto">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>เวลา (Date/Time)</th>
+                                <th>ประเภทงาน (Assembly)</th>
+                                <th>BBAS Serial</th>
+                                <th>รายการชิ้นส่วน (Components)</th>
+                                <th>จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <!-- Rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Print Container (Hidden from Screen UI, visible only in Print mode) -->
+    <div id="print-container" class="print-only"></div>
+
+    <script src="js/app.js?v=20260409_1"></script>
+</body>
+</html>

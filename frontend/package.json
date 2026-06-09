@@ -1,0 +1,26 @@
+{
+  "name": "syntech-mes-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('./node_modules/vite/bin/vite.js')\"",
+    "build": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('../scripts/build-frontend.mjs')\"",
+    "preview": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('./node_modules/vite/bin/vite.js', ['preview'])\"",
+    "typecheck": "node -e \"require(require('node:path').resolve(process.env.INIT_CWD || process.cwd(), '../scripts/run-project-bin.cjs'))('./node_modules/typescript/bin/tsc', ['--noEmit'])\""
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.100.1",
+    "lucide-react": "^0.292.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.2.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0"
+  }
+}

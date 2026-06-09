@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MES Sync Monitor</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  header { background: #1e293b; padding: 12px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #334155; }
+  header h1 { font-size: 1.1rem; margin: 0; }
+  .badge { padding: 2px 8px; border-radius: 9999px; font-size: .75rem; font-weight: 600; }
+  .b-ok      { background: #166534; color: #86efac; }
+  .b-pending { background: #78350f; color: #fcd34d; }
+  .b-failed  { background: #7f1d1d; color: #fca5a5; }
+  .summary { display: flex; gap: 12px; padding: 16px 20px; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px 20px; min-width: 120px; text-align: center; }
+  .card .num { font-size: 2rem; font-weight: 700; }
+  .card .lbl { font-size: .8rem; color: #94a3b8; margin-top: 4px; }
+  .filters { padding: 0 20px 12px; display: flex; gap: 8px; align-items: center; }
+  select, button { background: #1e293b; border: 1px solid #475569; color: #e2e8f0; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  button:hover { background: #334155; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th { background: #1e293b; text-align: left; padding: 8px 12px; color: #94a3b8; font-weight: 500; border-bottom: 1px solid #334155; position: sticky; top: 0; }
+  td { padding: 7px 12px; border-bottom: 1px solid #1e293b; vertical-align: top; }
+  tr:hover td { background: #1e293b44; }
+  .err { color: #f87171; font-size: .8rem; max-width: 300px; word-break: break-word; }
+  .tbl-wrap { overflow: auto; max-height: calc(100vh - 280px); margin: 0 20px; border: 1px solid #334155; border-radius: 8px; }
+  .ts { color: #64748b; font-size: .78rem; }
+  #status-bar { padding: 6px 20px; font-size: .8rem; color: #64748b; }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:1.4rem">🔄</span>
+  <h1>MES Sync Monitor — mes_sync_log</h1>
+  <span id="live-dot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;margin-left:auto"></span>
+  <span id="live-txt" style="font-size:.8rem;color:#64748b">Live</span>
+</header>
+<div class="summary" id="summary">
+  <div class="card"><div class="num" id="cnt-ok">—</div><div class="lbl">OK</div></div>
+  <div class="card"><div class="num" id="cnt-pending">—</div><div class="lbl">PENDING</div></div>
+  <div class="card"><div class="num" id="cnt-failed">—</div><div class="lbl">FAILED</div></div>
+  <div class="card"><div class="num" id="cnt-total">—</div><div class="lbl">Total</div></div>
+</div>
+<div class="filters">
+  <label>Status:</label>
+  <select id="filter-status">
+    <option value="">All</option>
+    <option value="PENDING">PENDING</option>
+    <option value="OK">OK</option>
+    <option value="FAILED">FAILED</option>
+  </select>
+  <button onclick="load()">Refresh</button>
+  <span style="margin-left:auto;font-size:.8rem;color:#64748b">Auto-refresh every 15s</span>
+</div>
+<div class="tbl-wrap">
+  <table>
+    <thead><tr>
+      <th>ID</th><th>Status</th><th>Type</th><th>Direction</th><th>WO</th>
+      <th>Attempts</th><th>Created</th><th>Completed</th><th>Error</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+<div id="status-bar">Loading...</div>
+<script>
+const BASE = location.origin;
+
+function fmt(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('th-TH', { hour12: false }).replace(',','');
+}
+
+function badge(s) {
+  const cls = s === 'OK' ? 'b-ok' : s === 'PENDING' ? 'b-pending' : 'b-failed';
+  return '<span class="badge ' + cls + '">' + s + '</span>';
+}
+
+async function loadSummary() {
+  const r = await fetch(BASE + '/api/mes/outbox/status').then(x => x.json());
+  if (r.outbox) {
+    document.getElementById('cnt-ok').textContent     = r.outbox.OK      ?? 0;
+    document.getElementById('cnt-pending').textContent = r.outbox.PENDING ?? 0;
+    document.getElementById('cnt-failed').textContent  = r.outbox.FAILED  ?? 0;
+  }
+}
+
+async function load() {
+  const status = document.getElementById('filter-status').value;
+  const url    = BASE + '/api/mes/outbox/logs?limit=100' + (status ? '&status=' + status : '');
+  try {
+    const r = await fetch(url).then(x => x.json());
+    document.getElementById('cnt-total').textContent = r.total ?? '—';
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    for (const row of (r.rows || [])) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + row.id + '</td>' +
+        '<td>' + badge(row.status) + '</td>' +
+        '<td style="white-space:nowrap">' + row.event_type + '</td>' +
+        '<td style="color:#94a3b8;font-size:.78rem">' + row.direction + '</td>' +
+        '<td>' + (row.wo_id ?? '—') + '</td>' +
+        '<td style="text-align:center">' + (row.attempts ?? 0) + '</td>' +
+        '<td class="ts">' + fmt(row.created_at) + '</td>' +
+        '<td class="ts">' + fmt(row.completed_at) + '</td>' +
+        '<td class="err">' + (row.error_msg || '') + '</td>';
+      tbody.appendChild(tr);
+    }
+    document.getElementById('status-bar').textContent =
+      'Showing ' + (r.rows?.length ?? 0) + ' of ' + (r.total ?? '?') + ' records — ' + new Date().toLocaleTimeString('th-TH');
+  } catch (e) {
+    document.getElementById('status-bar').textContent = 'Error: ' + e.message;
+  }
+  await loadSummary();
+}
+
+load();
+setInterval(load, 15000);
+</script>
+</body>
+</html>
