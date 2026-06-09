@@ -47,6 +47,26 @@
 
 ---
 
+## ก่อนเริ่ม Part A: Auth ใน Dev
+
+API ทุกตัวใน MES ต้องมี Bearer token ถ้าไม่ส่งจะได้ 401 ทันที
+
+**วิธีทำใน dev (ทำครั้งเดียว):**
+1. เปิด `http://172.16.10.87:5173` → Login
+2. เปิด DevTools (F12) → Application → Local Storage → `172.16.10.87`
+3. ดู key `syntech.mes.access_token` → copy ค่า
+
+**ไม่ต้องทำอะไรเพิ่ม** — `api.ts` ดึง token จาก localStorage และใส่ `Authorization: Bearer ...` header ให้อัตโนมัติ
+ตราบใดที่ login ไว้ใน browser เดียวกัน การ call API จะผ่านได้เลย
+
+```ts
+// ดู lib/api.ts บรรทัด 42 — มันทำให้แล้ว:
+const token = getAccessToken();  // อ่านจาก localStorage
+if (token) headers.Authorization = `Bearer ${token}`;
+```
+
+---
+
 ## Part A: เชื่อม `/api/wo/list` จริง
 
 ### 1. ดู response จาก API จริงก่อน
@@ -147,6 +167,52 @@ export const WO_STEPS = [
 
 > **ข้อสังเกต:** `RUNNING` ปรากฏได้สองครั้งใน lifecycle (ก่อนและหลัง FAI)
 > แสดงผลใน Stepper ได้โดยใช้ index ของ step ปัจจุบัน ไม่ใช่ชื่อ status อย่างเดียว
+
+---
+
+## Part B-2: `RoutingHistoryPage` — endpoint ยังไม่มีในระบบ
+
+`RoutingHistoryPage` เรียก `/api/routing/history` แต่ backend ยังไม่มี endpoint นี้
+(มีแค่ `/api/routing/scan-in`, `/api/routing/scan-out`, `/api/routing/jig/result/:unitSn`)
+
+**ให้ทำแบบนี้ก่อน:**
+- **ข้าม** `RoutingHistoryPage` ออกไปก่อน (ไม่ต้อง migrate)
+- ใส่ comment `// TODO: รอ backend เพิ่ม /api/routing/history` ไว้ในไฟล์
+
+เมื่อ FE-7 ส่วนอื่นเสร็จแล้วค่อยแจ้ง Iris ว่า endpoint นี้ต้องการ — จะ coordinate กับ backend ให้
+
+---
+
+## Part B-3: แปลง `useQuery` → `useEffect` (ถ้าจำเป็น)
+
+เช็คก่อนว่า mes_draft มี react-query หรือเปล่า:
+```bash
+cat /home/ball/syntech_mes_draft/frontend/package.json | grep react-query
+```
+
+**ถ้าไม่มี** → แปลง pattern นี้:
+
+```tsx
+// แบบเดิม (useQuery)
+const { data = [], isLoading, isError } = useQuery({
+  queryKey: ['routing-history'],
+  queryFn: () => api.get('/routing/history').then(r => r.data)
+});
+```
+
+```tsx
+// แบบใหม่ (useEffect — ใช้ pattern เดียวกับ WoDashboardPage)
+const [data, setData] = useState([]);
+const [isLoading, setIsLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+
+useEffect(() => {
+  api.get('/routing/history')
+    .then(r => setData(r.data))
+    .catch(e => setError(e.message))
+    .finally(() => setIsLoading(false));
+}, []);
+```
 
 ---
 

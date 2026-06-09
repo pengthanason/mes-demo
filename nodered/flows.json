@@ -1,0 +1,231 @@
+[
+  {
+    "id": "tab-warmup",
+    "type": "tab",
+    "label": "NR-0 Warmup",
+    "disabled": false,
+    "info": "ทดสอบว่า Node-RED ทำงานได้ — inject, function, debug"
+  },
+  {
+    "id": "inject-hello",
+    "type": "inject",
+    "z": "tab-warmup",
+    "name": "กด Start",
+    "props": [{ "p": "payload" }],
+    "repeat": "",
+    "once": false,
+    "payload": "สวัสดี Node-RED!",
+    "payloadType": "str",
+    "x": 160,
+    "y": 100,
+    "wires": [["fn-hello"]]
+  },
+  {
+    "id": "fn-hello",
+    "type": "function",
+    "z": "tab-warmup",
+    "name": "แปลง payload",
+    "func": "// msg.payload คือ input จาก node ก่อนหน้า\nmsg.payload = {\n    message: msg.payload,\n    timestamp: new Date().toISOString(),\n    from: 'Node-RED'\n};\nreturn msg;",
+    "outputs": 1,
+    "x": 360,
+    "y": 100,
+    "wires": [["debug-hello"]]
+  },
+  {
+    "id": "debug-hello",
+    "type": "debug",
+    "z": "tab-warmup",
+    "name": "ดูผลใน Debug tab",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "complete": "payload",
+    "x": 580,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "http-in-ping",
+    "type": "http in",
+    "z": "tab-warmup",
+    "name": "GET /ping",
+    "url": "/ping",
+    "method": "get",
+    "x": 160,
+    "y": 220,
+    "wires": [["fn-pong"]]
+  },
+  {
+    "id": "fn-pong",
+    "type": "function",
+    "z": "tab-warmup",
+    "name": "pong response",
+    "func": "msg.payload = { status: 'ok', message: 'pong', t: Date.now() };\nmsg.statusCode = 200;\nreturn msg;",
+    "outputs": 1,
+    "x": 360,
+    "y": 220,
+    "wires": [["http-out-ping", "debug-ping"]]
+  },
+  {
+    "id": "http-out-ping",
+    "type": "http response",
+    "z": "tab-warmup",
+    "name": "",
+    "statusCode": "",
+    "x": 570,
+    "y": 200,
+    "wires": []
+  },
+  {
+    "id": "debug-ping",
+    "type": "debug",
+    "z": "tab-warmup",
+    "name": "log request",
+    "active": true,
+    "tosidebar": true,
+    "complete": "payload",
+    "x": 570,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "tab-mes",
+    "type": "tab",
+    "label": "NR-2 Read MES",
+    "disabled": false,
+    "info": "ดึงข้อมูล WO จาก MES API จริง — เป็นตัวอย่างสำหรับ NR-2"
+  },
+  {
+    "id": "inject-fetch-wo",
+    "type": "inject",
+    "z": "tab-mes",
+    "name": "ดึง WO ทุก 30s",
+    "props": [{ "p": "payload" }],
+    "repeat": "30",
+    "once": true,
+    "onceDelay": "1",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 100,
+    "wires": [["fn-set-mes-req"]]
+  },
+  {
+    "id": "fn-set-mes-req",
+    "type": "function",
+    "z": "tab-mes",
+    "name": "เตรียม request",
+    "func": "// ดึง MES_API จาก global context ที่ตั้งใน settings.js\nconst MES_API = global.get('MES_API') || 'http://172.16.10.87:5100';\n\n// ดึง token จาก env (ตั้งใน .env แล้ว start node-red)\nconst token = env.get('MES_TOKEN') || '';\n\nmsg.url = MES_API + '/api/wo/list';\nmsg.headers = {\n    'Authorization': 'Bearer ' + token,\n    'Content-Type': 'application/json'\n};\nreturn msg;",
+    "outputs": 1,
+    "x": 380,
+    "y": 100,
+    "wires": [["http-get-wo"]]
+  },
+  {
+    "id": "http-get-wo",
+    "type": "http request",
+    "z": "tab-mes",
+    "name": "GET /api/wo/list",
+    "method": "GET",
+    "ret": "obj",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "x": 590,
+    "y": 100,
+    "wires": [["fn-process-wo"]]
+  },
+  {
+    "id": "fn-process-wo",
+    "type": "function",
+    "z": "tab-mes",
+    "name": "แปลงข้อมูล",
+    "func": "// statusCode 200 = สำเร็จ\nif (msg.statusCode !== 200) {\n    node.error('MES API error: ' + msg.statusCode, msg);\n    return null;\n}\n\nconst wos = msg.payload.wos || [];\n\n// นับแต่ละ status\nconst summary = wos.reduce((acc, wo) => {\n    acc[wo.status] = (acc[wo.status] || 0) + 1;\n    return acc;\n}, {});\n\nmsg.payload = {\n    total: wos.length,\n    summary: summary,\n    running: wos.filter(w => w.status === 'RUNNING'),\n    fetchedAt: new Date().toISOString()\n};\n\nreturn msg;",
+    "outputs": 1,
+    "x": 800,
+    "y": 100,
+    "wires": [["debug-wo"]]
+  },
+  {
+    "id": "debug-wo",
+    "type": "debug",
+    "z": "tab-mes",
+    "name": "WO Summary",
+    "active": true,
+    "tosidebar": true,
+    "complete": "payload",
+    "x": 990,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "comment-mes",
+    "type": "comment",
+    "z": "tab-mes",
+    "name": "วิธีใช้งาน",
+    "info": "1. ตั้ง MES_TOKEN ใน .env ก่อน (ดู README)\n2. กด Deploy แล้ว Inject node จะเริ่มทำงาน\n3. ดูผลใน Debug panel ด้านขวา\n4. ถ้าได้ statusCode 401 = token หมดอายุ ให้ login ใหม่",
+    "x": 160,
+    "y": 200,
+    "wires": []
+  },
+  {
+    "id": "tab-jig",
+    "type": "tab",
+    "label": "NR-3 Jig Events",
+    "disabled": false,
+    "info": "รับ event จาก Jig API และ forward ไป MES — skeleton สำหรับ NR-3"
+  },
+  {
+    "id": "http-in-jig",
+    "type": "http in",
+    "z": "tab-jig",
+    "name": "POST /jig-event",
+    "url": "/jig-event",
+    "method": "post",
+    "x": 160,
+    "y": 100,
+    "wires": [["fn-validate-jig"]]
+  },
+  {
+    "id": "fn-validate-jig",
+    "type": "function",
+    "z": "tab-jig",
+    "name": "validate + map",
+    "func": "const body = msg.payload;\n\n// ตรวจว่า field สำคัญครบ\nif (!body.unit_sn || !body.station || !body.result) {\n    msg.payload = { error: 'missing required fields: unit_sn, station, result' };\n    msg.statusCode = 400;\n    node.send([null, msg]); // ส่งไป output 2 (error path)\n    return;\n}\n\n// map ให้ตรงกับ MES schema\nmsg.mesPayload = {\n    unit_sn: body.unit_sn,\n    station_code: body.station,\n    result: body.result,        // 'PASS' | 'FAIL'\n    tested_at: body.tested_at || new Date().toISOString(),\n    raw: body\n};\n\nmsg.payload = { received: true };\nmsg.statusCode = 200;\nreturn msg; // ส่งไป output 1 (success path)",
+    "outputs": 2,
+    "x": 380,
+    "y": 100,
+    "wires": [["http-out-jig", "debug-jig-ok"], ["http-out-jig"]]
+  },
+  {
+    "id": "http-out-jig",
+    "type": "http response",
+    "z": "tab-jig",
+    "name": "",
+    "x": 600,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "debug-jig-ok",
+    "type": "debug",
+    "z": "tab-jig",
+    "name": "Jig event received",
+    "active": true,
+    "tosidebar": true,
+    "complete": "mesPayload",
+    "x": 620,
+    "y": 140,
+    "wires": []
+  },
+  {
+    "id": "comment-jig",
+    "type": "comment",
+    "z": "tab-jig",
+    "name": "TODO สำหรับ NR-3",
+    "info": "ต่อจาก debug-jig-ok :\n→ forward mesPayload ไป MES API /api/routing/jig/push\n→ ถ้า FAIL → trigger alert flow\n→ เพิ่ม rate-limit node ป้องกัน spam\n\nนี่คือ skeleton — น้องต้องต่อเองใน task NR-3",
+    "x": 180,
+    "y": 220,
+    "wires": []
+  }
+]

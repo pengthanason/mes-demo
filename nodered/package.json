@@ -1,0 +1,12 @@
+{
+  "name": "syntech-intern-nodered",
+  "description": "Syntech Intern 2026 — Node-RED Shopfloor Monitor",
+  "version": "0.1.0",
+  "dependencies": {
+    "@node-red/nodes": "*",
+    "node-red-contrib-http-request": "*"
+  },
+  "node-red": {
+    "settings": "./settings.js"
+  }
+}
