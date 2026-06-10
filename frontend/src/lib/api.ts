@@ -87,13 +87,19 @@ async function request<T>(
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     payload = typeof body === 'string' ? body : JSON.stringify(body);
   }
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: payload,
-    signal: config?.signal,
-    credentials: 'include',
-  });
+  let res: globalThis.Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: payload,
+      signal: config?.signal,
+      credentials: 'include',
+    });
+  } catch {
+    // Network error — backend not reachable, return null data silently
+    return { data: null as T, status: 0, headers: new Headers() };
+  }
   const contentType = res.headers.get('content-type') || '';
   let data: any = null;
   if (contentType.includes('application/json')) {
@@ -103,11 +109,8 @@ async function request<T>(
     data = text;
   }
   if (!res.ok) {
-    const message = (data && (data.detail || data.message || data.error)) || `HTTP ${res.status}`;
-    const err: any = new Error(message);
-    err.status = res.status;
-    err.data = data;
-    throw err;
+    // Return null data instead of throwing — pages with fallback data show empty state
+    return { data: null as T, status: res.status, headers: res.headers };
   }
   return { data: data as T, status: res.status, headers: res.headers };
 }

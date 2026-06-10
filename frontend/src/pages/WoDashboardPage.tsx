@@ -1,46 +1,27 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchWoList, WoSummary } from '../lib/dashboardApi';
-import { useAutoRefresh } from '../lib/useAutoRefresh';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { buildSteps } from '../lib/woLifecycle';
 import { StatusStepper } from '../components/StatusStepper';
+import { KpiCard } from '../components/KpiCard';
+import { useMockWoList } from '../lib/useMockStore';
+import { addWo, generateRandomWo, seedIfEmpty, type MockWO } from '../lib/mockStore';
 
-function KpiCard({ label, value, tone }: { label: string, value: number, tone: 'neutral' | 'busy' | 'warn' | 'done' }) {
-  const getToneStyle = () => {
-    switch (tone) {
-      case 'busy': return { borderLeft: '4px solid #3b82f6', color: '#eff6ff' };
-      case 'warn': return { borderLeft: '4px solid #f59e0b', color: '#fffbeb' };
-      case 'done': return { borderLeft: '4px solid #10b981', color: '#ecfdf5' };
-      default: return { borderLeft: '4px solid #94a3b8', color: '#f8fafc' };
-    }
-  };
-  
-  const style = getToneStyle();
-
-  return (
-    <div className="glass-panel" style={{ padding: '1.2rem', borderLeft: style.borderLeft, background: 'var(--bg-panel)' }}>
-      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-        {label}
-      </div>
-      <strong style={{ fontSize: '2rem', color: 'var(--text-main)', lineHeight: 1 }}>{value}</strong>
-    </div>
-  );
-}
-
-function WoRow({ wo }: { wo: WoSummary }) {
+function WoRow({ wo }: { wo: MockWO }) {
   const getBadgeStyle = (step: string) => {
     switch (step) {
-      case 'RUNNING': return { bg: '#dbeafe', text: '#0284c7', border: '#bae6fd' };
-      case 'WAIT_FAI_QA':
-      case 'WAIT_FAI_MGR': return { bg: '#ffedd5', text: '#d97706', border: '#fed7aa' };
-      case 'CLOSED': return { bg: '#dcfce7', text: '#0f766e', border: '#a7f3d0' };
-      default: return { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
+      case 'RUNNING':                              return { bg: '#dbeafe', text: '#0284c7', border: '#bae6fd' };
+      case 'WAIT_FAI_QA': case 'WAIT_FAI_MGR':    return { bg: '#ffedd5', text: '#d97706', border: '#fed7aa' };
+      case 'CLOSED':                               return { bg: '#dcfce7', text: '#0f766e', border: '#a7f3d0' };
+      default:                                     return { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
     }
   };
   const badge = getBadgeStyle(wo.currentStep);
 
   return (
     <tr>
-      <td style={{ fontWeight: 'bold', color: 'var(--primary)', textAlign: 'center' }}>{wo.woId}</td>
+      <td style={{ fontWeight: 'bold', textAlign: 'center' }}>
+        <Link to={`/wo/${wo.woId}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{wo.woId}</Link>
+      </td>
       <td style={{ textAlign: 'center' }}>{wo.productCode}</td>
       <td style={{ textAlign: 'center' }}>{wo.customer}</td>
       <td style={{ textAlign: 'center' }}>{wo.qty.toLocaleString()}</td>
@@ -48,73 +29,50 @@ function WoRow({ wo }: { wo: WoSummary }) {
         <span style={{ backgroundColor: badge.bg, color: badge.text, border: `1px solid ${badge.border}`, padding: '4px 8px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
           {wo.currentStep}
         </span>
-        
         <div style={{ marginTop: '8px', maxWidth: '120px', marginInline: 'auto' }}>
           <StatusStepper steps={buildSteps(wo.currentStep)} size="mini" />
         </div>
       </td>
       <td style={{ textAlign: 'center' }}>{wo.station}</td>
-      <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>{wo.updatedAt}</td>
+      <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
+        {new Date(wo.updatedAt).toLocaleString()}
+      </td>
     </tr>
   );
 }
 
 export function WoDashboardPage() {
-  const [woList, setWoList] = useState<WoSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => { seedIfEmpty(); }, []);
+
+  const woList    = useMockWoList();
   const [lastUpdate, setLastUpdate] = useState(new Date());
-
   const [customerFilter, setCustomerFilter] = useState('');
-  const [hideClosed, setHideClosed] = useState(false);
+  const [hideClosed, setHideClosed]         = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      const data = await fetchWoList();
-      setWoList(data);
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error("Failed to load WO list", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  useEffect(() => { setLastUpdate(new Date()); }, [woList]);
 
-  useEffect(() => { loadData(); }, [loadData]);
-
-  useAutoRefresh(loadData, 30000);
-
-  const kpis = useMemo(() => {
-    return {
-      total: woList.length,
-      running: woList.filter(w => w.currentStep === 'RUNNING').length,
-      waitFai: woList.filter(w => w.currentStep === 'WAIT_FAI_QA' || w.currentStep === 'WAIT_FAI_MGR').length,
-      closed: woList.filter(w => w.currentStep === 'CLOSED').length,
-    };
-  }, [woList]);
+  const kpis = useMemo(() => ({
+    total:   woList.length,
+    running: woList.filter(w => w.currentStep === 'RUNNING').length,
+    waitFai: woList.filter(w => w.currentStep === 'WAIT_FAI_QA' || w.currentStep === 'WAIT_FAI_MGR').length,
+    closed:  woList.filter(w => w.currentStep === 'CLOSED').length,
+  }), [woList]);
 
   const allCustomers = useMemo(() => Array.from(new Set(woList.map(w => w.customer))).sort(), [woList]);
 
   const processedList = useMemo(() => {
-    let filtered = woList.filter(wo => {
-      const matchCustomer = customerFilter === '' || wo.customer === customerFilter;
-      const matchHideClosed = hideClosed ? wo.currentStep !== 'CLOSED' : true;
-      return matchCustomer && matchHideClosed;
-    });
-
-    const severityMap: Record<string, number> = { 'WAIT_FAI_QA': 1, 'WAIT_FAI_MGR': 1, 'RUNNING': 2, 'OPEN': 3, 'CLOSED': 4 };
-    
-    return filtered.sort((a, b) => {
-      const scoreA = severityMap[a.currentStep] || 99;
-      const scoreB = severityMap[b.currentStep] || 99;
-
-      if (scoreA !== scoreB) {
-        return scoreA - scoreB;
-      }
-
-      const dateA = new Date(a.updatedAt).getTime();
-      const dateB = new Date(b.updatedAt).getTime();
-      return dateB - dateA;
-    });
+    const severityMap: Record<string, number> = { WAIT_FAI_QA: 1, WAIT_FAI_MGR: 1, RUNNING: 2, OPEN: 3, READY: 5, DRAFT: 6, CLOSED: 4 };
+    return woList
+      .filter(wo => {
+        const matchCustomer = customerFilter === '' || wo.customer === customerFilter;
+        const matchHide = hideClosed ? wo.currentStep !== 'CLOSED' : true;
+        return matchCustomer && matchHide;
+      })
+      .sort((a, b) => {
+        const diff = (severityMap[a.currentStep] || 99) - (severityMap[b.currentStep] || 99);
+        if (diff !== 0) return diff;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
   }, [woList, customerFilter, hideClosed]);
 
   return (
@@ -125,17 +83,26 @@ export function WoDashboardPage() {
             <h1 className="panel__title">WO Status Dashboard</h1>
             <p className="panel__subtitle">ภาพรวมสถานะ Work Order ทั้งโรงงานแบบ Real-time</p>
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            Last updated: {lastUpdate.toLocaleTimeString()} 
-            {isLoading && <span style={{ marginLeft: '8px', color: '#3b82f6' }}>⏳</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Last updated: {lastUpdate.toLocaleTimeString()}
+            </span>
+            <button
+              type="button"
+              className="btn"
+              style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}
+              onClick={() => addWo(generateRandomWo())}
+            >
+              + Add Random WO
+            </button>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
-          <KpiCard label="Total WOs" value={kpis.total} tone="neutral" />
-          <KpiCard label="Running" value={kpis.running} tone="busy" />
-          <KpiCard label="Wait FAI" value={kpis.waitFai} tone="warn" />
-          <KpiCard label="Closed (Today)" value={kpis.closed} tone="done" />
+          <KpiCard label="Total WOs"  value={kpis.total}   tone="neutral" />
+          <KpiCard label="Running"    value={kpis.running}  tone="busy"    />
+          <KpiCard label="Wait FAI"   value={kpis.waitFai}  tone="warn"    />
+          <KpiCard label="Closed"     value={kpis.closed}   tone="done"    />
         </div>
 
         <div className="filters-grid" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
@@ -160,8 +127,8 @@ export function WoDashboardPage() {
             <colgroup>
               <col style={{ width: '14%' }} />
               <col style={{ width: '16%' }} />
-              <col style={{ width: '8%' }} />
               <col style={{ width: '12%' }} />
+              <col style={{ width: '8%' }} />
               <col style={{ width: '17%' }} />
               <col style={{ width: '18%' }} />
               <col style={{ width: '15%' }} />
@@ -181,7 +148,7 @@ export function WoDashboardPage() {
               {processedList.length === 0 ? (
                 <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ไม่พบข้อมูล Work Order</td></tr>
               ) : (
-                processedList.map((wo) => <WoRow key={wo.woId} wo={wo} />)
+                processedList.map(wo => <WoRow key={wo.woId} wo={wo} />)
               )}
             </tbody>
           </table>

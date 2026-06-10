@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 type ReportItem = { id: string, code: string, customer: string, status: string, qty: number, delivery: string, stage: string, isCompleted: boolean };
 
@@ -130,7 +130,7 @@ export function ProductionReportPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
           <div className="glass-panel" style={{ padding: '1rem', borderLeft: '4px solid var(--primary)' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase' }}>Total Projects</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase' }}>Projects (Filtered)</div>
             <strong style={{ fontSize: '1.5rem', color: 'white' }}>{summary.totalProjects}</strong>
           </div>
           <div className="glass-panel" style={{ padding: '1rem', borderLeft: '4px solid #f59e0b' }}>

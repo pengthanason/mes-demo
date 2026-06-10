@@ -181,6 +181,7 @@ export function RouteAdminPage() {
     setLoading(true);
     try {
       const { data } = await api.get<RouteCatalogResponse>('/mes/routes/catalog');
+      if (!data) { return; }
       setCatalog({
         default_route_code: data.default_route_code || null,
         routes: Array.isArray(data.routes) ? data.routes : [],
@@ -311,6 +312,10 @@ export function RouteAdminPage() {
         ? await api.post<{ route: RouteCatalogRoute }>('/mes/routes', payload)
         : await api.put<{ route: RouteCatalogRoute }>(`/mes/routes/${draft.route_id}`, payload);
 
+      if (!response.data) {
+        setNotice({ kind: 'warn', message: 'Backend not connected — changes not saved to server' });
+        return;
+      }
       const savedRouteId = Number(response.data.route?.route_id || 0) || null;
       setNotice({
         kind: 'ok',
@@ -338,6 +343,10 @@ export function RouteAdminPage() {
     setNotice(null);
     try {
       const { data } = await api.delete<{ deleted: boolean; route_code: string }>(`/mes/routes/${draft.route_id}`);
+      if (!data) {
+        setNotice({ kind: 'warn', message: 'Backend not connected — route not deleted from server' });
+        return;
+      }
       setNotice({ kind: 'ok', message: `Deleted route ${data.route_code}` });
       await loadCatalog(null);
     } catch (error) {

@@ -165,10 +165,11 @@ function ResultSelect({
 }
 
 export function SequenceBuilderPage() {
-  const { data: catalog, isLoading: isCatalogLoading } = useQuery({
+  type CatalogResponse = { routes: { is_active: boolean; steps: { station_name: string }[] }[] };
+  const { data: catalog, isLoading: isCatalogLoading } = useQuery<CatalogResponse>({
     queryKey: ['routes-catalog'],
     queryFn: async () => {
-      const { data } = await api.get('/mes/routes/catalog');
+      const { data } = await api.get<CatalogResponse>('/mes/routes/catalog');
       return data;
     },
     staleTime: Infinity,
@@ -358,33 +359,21 @@ export function SequenceBuilderPage() {
         throw new Error('All steps must have a station and a valid cycle time.');
       }
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      for (const step of steps) {
+        const stationName = allStations.find(opt => opt.id === step.stationId)?.name || step.stationId;
 
-      const totalSec = steps.reduce((sum, step) => sum + (Number(step.seconds) || 0), 0);
-      const sequenceStr = steps.map(s => {
-        const stationName = allStations.find(opt => opt.id === s.stationId)?.name || s.stationId;
-        return `${stationName}(${s.seconds}s)`;
-      }).join(' → ');
+        await api.post('/routing/scan-in', {
+          woId: 1,
+          unit_sn: serialNumber.trim(),
+          station_name: stationName
+        });
 
-      try {
-        for (const step of steps) {
-          const stationName = allStations.find(opt => opt.id === step.stationId)?.name || step.stationId;
-          
-          await api.post('/routing/scan-in', {
-            woId: 1,
-            unit_sn: serialNumber.trim(),
-            station_name: stationName
-          });
-
-          await api.post('/routing/scan-out', {
-            woId: 1,
-            unit_sn: serialNumber.trim(),
-            station_name: stationName,
-            status: globalResult
-          });
-        }
-      } catch (err) {
-        console.warn("⚠️ Backend is not ready or returned an error. Falling back to Mock LocalStorage.", err);
+        await api.post('/routing/scan-out', {
+          woId: 1,
+          unit_sn: serialNumber.trim(),
+          station_name: stationName,
+          status: globalResult
+        });
       }
     },
     onSuccess: () => {

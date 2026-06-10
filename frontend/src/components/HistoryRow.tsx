@@ -1,7 +1,8 @@
 import React from 'react';
 
 // กำหนดโครงสร้างข้อมูล (TypeScript Interface) เพื่อให้เขียนโค้ดได้ง่ายและลดข้อผิดพลาด
-interface HistoryData {
+export interface HistoryData {
+  id?: string | number;
   ts: string;
   serial: string;
   sequence: string;
@@ -9,7 +10,7 @@ interface HistoryData {
   totalSec: number;
 }
 
-interface HistoryRowProps {
+export interface HistoryRowProps {
   row: HistoryData;
 }
 

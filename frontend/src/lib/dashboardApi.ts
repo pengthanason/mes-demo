@@ -1,3 +1,5 @@
+import api from './api';
+
 export type WoSummary = {
   woId: string;
   productCode: string;
@@ -8,14 +10,24 @@ export type WoSummary = {
   updatedAt: string;
 };
 
-const SAMPLE_WO: WoSummary[] = [
-  { woId: 'WO-26060012', productCode: 'E13A_STD', customer: 'THS', qty: 270, currentStep: 'RUNNING', station: 'R8 Test FCT', updatedAt: '2026-06-05 09:12' },
-  { woId: 'WO-26060015', productCode: 'ZSZ003-081A', customer: 'TAD', qty: 1200, currentStep: 'WAIT_FAI', station: 'R5 Test ICT', updatedAt: '2026-06-05 08:40' },
-  { woId: 'WO-26060018', productCode: '01489E-081', customer: 'TAD', qty: 90, currentStep: 'OPEN', station: 'R1 SMT Setup', updatedAt: '2026-06-05 07:55' },
-  { woId: 'WO-26060009', productCode: '5K45', customer: 'THS', qty: 500, currentStep: 'CLOSED', station: 'R11 FQC Packing', updatedAt: '2026-06-05 06:30' },
-];
+type ApiWo = {
+  wo_number: string;
+  part_no: string;
+  qty_target: number;
+  status: string;
+  opened_at: string | null;
+  created_at: string;
+};
 
 export async function fetchWoList(): Promise<WoSummary[]> {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return SAMPLE_WO;
+  const { data } = await api.get<{ wos: ApiWo[] }>('/wo/list');
+  return data.wos.map(wo => ({
+    woId: wo.wo_number,
+    productCode: wo.part_no,
+    qty: wo.qty_target,
+    currentStep: wo.status,
+    customer: '-',
+    station: '-',
+    updatedAt: wo.opened_at ?? wo.created_at,
+  }));
 }

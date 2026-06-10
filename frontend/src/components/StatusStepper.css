@@ -1,0 +1,125 @@
+.status-stepper-container {
+  width: 100%;
+  padding: 1rem 0;
+}
+
+.status-stepper-container.mini {
+  padding: 0;
+}
+
+.stepper-list {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  position: relative;
+}
+
+.stepper-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.stepper-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 100%;
+  height: 3px;
+  background-color: var(--border-color, #e2e8f0);
+  z-index: -1;
+}
+
+.mini .stepper-item:not(:last-child)::after {
+  top: 6px;
+  height: 2px;
+}
+
+.stepper-item.done:not(:last-child)::after {
+  background-color: var(--step-color);
+}
+
+.step-marker {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  background-color: white;
+  border: 3px solid var(--step-color);
+  color: var(--step-color);
+  transition: all 0.3s ease;
+}
+
+.mini .step-marker {
+  width: 12px;
+  height: 12px;
+  font-size: 0;
+  border-width: 2px;
+}
+
+.stepper-item.done .step-marker {
+  background-color: var(--step-color);
+  color: white;
+}
+
+.stepper-item.current .step-marker {
+  background-color: var(--step-color);
+  color: white;
+  box-shadow: 0 0 0 3px var(--bg-panel, #ffffff), 0 0 0 5px var(--step-color);
+  transform: scale(1.1);
+}
+
+.step-label {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--step-color);
+  text-align: center;
+  display: block;
+}
+
+.mini .step-label {
+  display: none;
+}
+
+.stepper-item.current .step-label {
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .status-stepper-container:not(.mini) .stepper-list {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .status-stepper-container:not(.mini) .stepper-item {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .status-stepper-container:not(.mini) .stepper-item:not(:last-child)::after {
+    width: 3px;
+    height: calc(100% + 1.5rem);
+    top: 28px;
+    left: 12.5px;
+  }
+
+  .status-stepper-container:not(.mini) .step-label {
+    margin-top: 0;
+    margin-left: 1.5rem;
+    text-align: left;
+  }
+}
