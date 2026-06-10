@@ -4,7 +4,6 @@ import { CheckCircle2, XCircle, Scan, AlertCircle } from 'lucide-react';
 export default function QcBoard() {
   const [unitSn, setUnitSn] = useState('');
   const [history, setHistory] = useState([
-    // Mock history for visual reference
     { sn: 'SN-00234', status: 'PASS', time: new Date().toLocaleTimeString() },
     { sn: 'SN-00233', status: 'NG', time: new Date(Date.now() - 60000).toLocaleTimeString(), error: 'Cannot close WO with pending NG units.' }
   ]);
@@ -20,12 +19,10 @@ export default function QcBoard() {
     setIsLoading(true);
 
     try {
-      // API integration to POST /api/qc/result
       const res = await fetch('/api/qc/result', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-role': 'QC' // Mock auth if needed
         },
         body: JSON.stringify({ unit_sn: unitSn, result })
       });
@@ -42,7 +39,7 @@ export default function QcBoard() {
       setHistory(prev => [newEntry, ...prev]);
       
       if (res.ok) {
-         setUnitSn(''); // Clear on success
+         setUnitSn('');
       }
     } catch (err) {
       setGlobalError('Network error connecting to MES Backend.');
@@ -82,7 +79,6 @@ export default function QcBoard() {
             onChange={(e) => setUnitSn(e.target.value)}
             onKeyDown={(e) => {
               if(e.key === 'Enter') {
-                // Default to pass on scanner enter if needed
                 handleQcSubmit('PASS');
               }
             }}

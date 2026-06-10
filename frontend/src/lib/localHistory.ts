@@ -1,5 +1,3 @@
-// ไฟล์จำลองฐานข้อมูลด้วย LocalStorage
-
 export type MockHistoryRecord = {
   ts: string;
   serial: string;
@@ -21,7 +19,6 @@ export function getLocalHistory(): MockHistoryRecord[] {
 
 export function addLocalHistory(record: MockHistoryRecord) {
   const current = getLocalHistory();
-  // เอาข้อมูลใหม่ล่าสุดไปต่อไว้ข้างบนสุดของ Array
   const updated = [record, ...current]; 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }

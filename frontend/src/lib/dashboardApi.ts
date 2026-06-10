@@ -3,12 +3,11 @@ export type WoSummary = {
   productCode: string;
   customer: string;
   qty: number;
-  currentStep: string;      // เช่น 'RUNNING', 'WAIT_FAI', 'OPEN', 'CLOSED'
-  station: string;          // station ปัจจุบัน เช่น 'R8 Test FCT'
+  currentStep: string;
+  station: string;
   updatedAt: string;
 };
 
-// ข้อมูลตัวอย่าง (Mock Data)
 const SAMPLE_WO: WoSummary[] = [
   { woId: 'WO-26060012', productCode: 'E13A_STD', customer: 'THS', qty: 270, currentStep: 'RUNNING', station: 'R8 Test FCT', updatedAt: '2026-06-05 09:12' },
   { woId: 'WO-26060015', productCode: 'ZSZ003-081A', customer: 'TAD', qty: 1200, currentStep: 'WAIT_FAI', station: 'R5 Test ICT', updatedAt: '2026-06-05 08:40' },
@@ -17,7 +16,6 @@ const SAMPLE_WO: WoSummary[] = [
 ];
 
 export async function fetchWoList(): Promise<WoSummary[]> {
-  // จำลองความหน่วงของเน็ต 0.5 วินาที
   await new Promise(resolve => setTimeout(resolve, 500));
   return SAMPLE_WO;
 }

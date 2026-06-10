@@ -1,7 +1,4 @@
-﻿# syntech_mes/docker-compose.yml
-# 2026-05-01 (CTO · A1): rework จาก network_mode: host → bridge + synexta_event_bus
-# - Postgres / MQTT / Jig-API / Next.js operator ยังอยู่ host → host.docker.internal
-# - WMS / MRP / APTA → service alias ผ่าน synexta_event_bus
+﻿﻿
 services:
   mes_backbone:
     build:
@@ -16,8 +13,6 @@ services:
       APP_VERSION: ${MES_APP_VERSION:-0.1.0-station2}
       MES_ENV: ${MES_ENV:-dev}
       MES_READY_STRICT: ${MES_READY_STRICT:-false}
-      # Security P0 (2026-04-21): ห้าม default เป็น '*' — ต้องระบุ origin ชัดเจนเท่านั้น
-      # ถ้าไม่ set: prod จะปฏิเสธไม่เริ่ม, dev จะเตือนแล้วรันต่อโดย CORS ปิด
       MES_CORS_ORIGINS: ${MES_CORS_ORIGINS:-}
       MES_AUTH_MODE: ${MES_AUTH_MODE:-hybrid}
       MES_JWT_ISSUER: ${MES_JWT_ISSUER:-syntech-mes-backbone}
@@ -26,7 +21,6 @@ services:
       MES_JWT_REFRESH_TTL_SEC: ${MES_JWT_REFRESH_TTL_SEC:-604800}
       MES_MAX_CONCURRENT_SESSIONS: ${MES_MAX_CONCURRENT_SESSIONS:-3}
       MES_SESSION_INACTIVITY_SEC: ${MES_SESSION_INACTIVITY_SEC:-1800}
-      # /web/* proxy target (Next.js operator UI on host network)
       NEXT_WEB_HOST: ${NEXT_WEB_HOST:-host.docker.internal}
       NEXT_WEB_PORT: ${NEXT_WEB_PORT:-3005}
       JIG_API_URL: ${JIG_API_URL:-http://host.docker.internal:3000}
@@ -36,8 +30,6 @@ services:
       WMS_SERVICE_USER: ${WMS_SERVICE_USER:-mes_service}
       WMS_SERVICE_PIN: ${WMS_SERVICE_PIN:-mes@syntech2026}
       MRP_API_URL: ${MRP_API_URL:-http://mrp-api:8001}
-      # 2026-05-04 (CLAUDY): preferred long-lived JWT (skip /auth/login round-trip).
-      # /auth/login flow was broken silent — admin DB PIN ไม่ตรงกับ MRP_API_PASSWORD ใน .env
       MRP_SERVICE_TOKEN: ${MRP_SERVICE_TOKEN:-}
       MRP_API_USER: ${MRP_API_USER:-admin}
       MRP_API_PASSWORD: ${MRP_API_PASSWORD:-mes_mrp_svc_2026!}
@@ -49,18 +41,12 @@ services:
       DB_SCHEMA: ${MES_DB_SCHEMA:-}
       DB_SSLMODE: ${MES_DB_SSLMODE:-prefer}
       DB_CONNECT_TIMEOUT: ${MES_DB_CONNECT_TIMEOUT:-5000}
-      # Phase 1 event inbox (2026-05-01) — receive WMS GR/GI + MRP MO events
-      # Falls back to STOCK_WEBHOOK_SECRET (shared with WMS) if EVENT_INBOX_SECRET not set
       EVENT_INBOX_SECRET: ${EVENT_INBOX_SECRET:-}
       STOCK_WEBHOOK_SECRET: ${STOCK_WEBHOOK_SECRET:-}
       SKIP_KITTING: ${SKIP_KITTING:-true}
       MES_RATE_LIMIT_ENABLED: ${MES_RATE_LIMIT_ENABLED:-false}
     ports:
       - "5100:5100"
-    # 2026-05-01 A1: explicit IP เพราะ ufw ยังไม่ allow bus subnet 172.21.0.0/16
-    # → ใช้ 172.18.0.1 (wms_network bridge gw) ที่ ufw allow สำหรับ DB/Jig/Next.js host
-    # extra_hosts:
-    #   - "host.docker.internal:172.18.0.1"
     networks:
       default: {}
       wms_network: {}

@@ -37,7 +37,6 @@ export function StatusStepper({ steps, size = 'normal' }: StatusStepperProps) {
           z-index: 1;
         }
 
-        /* เส้นเชื่อม (Line) แนวนอน */
         .stepper-item:not(:last-child)::after {
           content: '';
           position: absolute;
@@ -49,7 +48,7 @@ export function StatusStepper({ steps, size = 'normal' }: StatusStepperProps) {
           z-index: -1;
         }
         .stepper-item.done:not(:last-child)::after {
-          background-color: var(--step-color); /* เปลี่ยนสีเส้นเป็นสีของสเตป */
+          background-color: var(--step-color);
         }
 
         .step-marker {
@@ -62,18 +61,16 @@ export function StatusStepper({ steps, size = 'normal' }: StatusStepperProps) {
           font-size: ${isMini ? '0px' : '14px'};
           font-weight: bold;
           background-color: white;
-          border: ${isMini ? '2px' : '3px'} solid var(--step-color); /* ใช้สีประจำสเตปเสมอ */
-          color: var(--step-color); /* ใช้สีประจำสเตปเสมอ */
+          border: ${isMini ? '2px' : '3px'} solid var(--step-color);
+          color: var(--step-color);
           transition: all 0.3s ease;
         }
 
-        /* ผ่านแล้ว: ถมสีทึบ */
         .stepper-item.done .step-marker {
           background-color: var(--step-color);
           color: white;
         }
 
-        /* ปัจจุบัน: ถมสีทึบ + วงแหวนเด่นๆ */
         .stepper-item.current .step-marker {
           background-color: var(--step-color);
           color: white;
@@ -85,7 +82,7 @@ export function StatusStepper({ steps, size = 'normal' }: StatusStepperProps) {
           margin-top: ${isMini ? '0' : '0.75rem'};
           font-size: ${isMini ? '0' : '0.85rem'};
           font-weight: 600;
-          color: var(--step-color); /* สีข้อความตามสเตปเลย */
+          color: var(--step-color);
           text-align: center;
           display: ${isMini ? 'none' : 'block'};
         }
@@ -94,7 +91,6 @@ export function StatusStepper({ steps, size = 'normal' }: StatusStepperProps) {
           font-weight: 800;
         }
 
-        /* ก้าวที่ 5: Responsive มือถือ (เปลี่ยนเป็นแนวตั้ง) เฉพาะขนาด normal */
         @media (max-width: 640px) {
           .status-stepper-container:not(.mini) .stepper-list {
             flex-direction: column;
@@ -109,7 +105,7 @@ export function StatusStepper({ steps, size = 'normal' }: StatusStepperProps) {
             width: 3px;
             height: calc(100% + 1.5rem);
             top: 28px;
-            left: 12.5px; /* ให้อยู่กึ่งกลางวงกลม 28px พอดี */
+            left: 12.5px;
           }
           .status-stepper-container:not(.mini) .step-label {
             margin-top: 0;

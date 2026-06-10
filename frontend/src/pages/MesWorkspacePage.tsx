@@ -52,6 +52,21 @@ const quickActions = [
     title: 'Production Report (FE-4)',
     description: 'ดูตารางรายงานสรุปการผลิตรายวัน กรองตามลูกค้าและดูสถานะกำหนดส่ง',
   },
+  {
+    to: '/wo/WO-2026-001/close',
+    title: 'Close WO (M09)',
+    description: 'ฟอร์มสำหรับ Operator กดปิดงาน Work Order (FE-7)',
+  },
+  {
+    to: '/oba',
+    title: 'Out-of-Box Audit (M08)',
+    description: 'ฟอร์มสุ่มเปิดกล่องตรวจก่อนส่งมอบ (FE-7)',
+  },
+  {
+    to: '/fai/WO-2026-001',
+    title: 'First Article Inspection (M05)',
+    description: 'ฟอร์มตรวจชิ้นแรกก่อนเดินไลน์ (Dual-Key) (FE-7)',
+  },
 ];
 
 function moduleLink(code: string) {

@@ -2,10 +2,8 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HistoryRow } from '../components/HistoryRow';
 import api from '../lib/api';
-import { getLocalHistory } from '../lib/localHistory';
 
 export function RoutingHistoryPage() {
-  // ก้าวที่ 3 - ดึงข้อมูล History จาก API จริง
   const {
     data: history = [],
     isLoading,
@@ -14,15 +12,8 @@ export function RoutingHistoryPage() {
   } = useQuery({
     queryKey: ['routing-history'],
     queryFn: async () => {
-      // เปลี่ยนจาก LocalStorage เป็นดึงจาก API จริง
-      // (ลองถามพี่เลี้ยงอีกทีว่าใช้ Endpoint ไหนนะครับ สมมติว่าเป็น /routing/history)
-      try {
-        const { data } = await api.get('/routing/history'); // <-- รอ Endpoint จริงจากพี่เลี้ยง
-        return data || [];
-      } catch (err) {
-        // ถ้า API จริงยังไม่พร้อม ให้ดึง LocalHistory เดิมมาโชว์แก้ขัดไปก่อน
-        return getLocalHistory();
-      }
+      const { data } = await api.get('/routing/history');
+      return data || [];
     },
   });
 
@@ -43,7 +34,6 @@ export function RoutingHistoryPage() {
             No production execution history found
           </div>
         ) : (
-          /* ก้าวที่ 3 - โครงสร้างตารางและวนลูปข้อมูล */
           <table className="table table-readonly">
             <thead>
               <tr>
@@ -56,10 +46,6 @@ export function RoutingHistoryPage() {
             </thead>
             <tbody>
               {history.map((row: any) => (
-                /* 
-                  ใช้ key ที่ unique จริงๆ แทนการใช้ index (i) 
-                  เพื่อป้องกัน React จับคู่ Component ผิดพลาดเวลาตารางมีการเรียง สลับที่ หรือลบข้อมูล
-                */
                 <HistoryRow key={row.id || `${row.serial}-${row.ts}`} row={row} />
               ))}
             </tbody>

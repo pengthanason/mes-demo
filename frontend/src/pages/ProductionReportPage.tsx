@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
 
-// 1. ข้อมูลตัวอย่างเริ่มต้น (เพิ่มฟิลด์ id และ isCompleted)
 type ReportItem = { id: string, code: string, customer: string, status: string, qty: number, delivery: string, stage: string, isCompleted: boolean };
 
 const INITIAL_REPORT: ReportItem[] = [
@@ -10,27 +9,23 @@ const INITIAL_REPORT: ReportItem[] = [
   { id: '4', code: '5K45', customer: 'THS', status: 'Depanel PCBA, ส่งมอบแล้ว', qty: 500, delivery: '2026-03-27', stage: 'Depanel', isCompleted: true },
 ];
 
-// Helper: ฟังก์ชันสำหรับกำหนดสี Badge ตาม Stage
 const getStageStyle = (stage: string) => {
   switch (stage.toLowerCase()) {
-    case 'smt': return { bg: '#dbeafe', text: '#0284c7', border: '#bae6fd' }; // ฟ้า
-    case 'test': return { bg: '#fef08a', text: '#b45309', border: '#fde047' }; // เหลือง
-    case 'packing': return { bg: '#dcfce7', text: '#0f766e', border: '#a7f3d0' }; // เขียว
-    case 'depanel': return { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' }; // ม่วง
-    default: return { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' }; // เทา
+    case 'smt': return { bg: '#dbeafe', text: '#0284c7', border: '#bae6fd' };
+    case 'test': return { bg: '#fef08a', text: '#b45309', border: '#fde047' };
+    case 'packing': return { bg: '#dcfce7', text: '#0f766e', border: '#a7f3d0' };
+    case 'depanel': return { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' };
+    default: return { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
   }
 };
 
-// Helper: จัดรูปแบบวันที่และเช็กว่าเลยกำหนดหรือยัง
 const formatDateAndCheckOverdue = (dateString: string) => {
   const targetDate = new Date(dateString);
   const today = new Date();
-  // ตัดเวลาทิ้งเพื่อเทียบแค่วันที่
   today.setHours(0, 0, 0, 0); 
   
   const isOverdue = targetDate < today;
   
-  // คำนวณว่าส่งสัปดาห์นี้หรือไม่ (ภายใน 7 วันข้างหน้า)
   const diffTime = targetDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   const isDueThisWeek = diffDays >= 0 && diffDays <= 7;
@@ -43,9 +38,7 @@ const formatDateAndCheckOverdue = (dateString: string) => {
 };
 
 export function ProductionReportPage() {
-  // State หลักสำหรับเก็บข้อมูลตาราง (แก้ไขได้)
   const [reports, setReports] = useState<ReportItem[]>(() => {
-    // ตอนโหลดหน้าเว็บ ให้เช็ก LocalStorage ก่อน
     try {
       const saved = localStorage.getItem('mes_production_report_mock');
       return saved ? JSON.parse(saved) : INITIAL_REPORT;
@@ -54,23 +47,20 @@ export function ProductionReportPage() {
     }
   });
 
-  // บันทึกลง LocalStorage อัตโนมัติทุกครั้งที่ reports เปลี่ยนแปลง
   useEffect(() => {
     localStorage.setItem('mes_production_report_mock', JSON.stringify(reports));
   }, [reports]);
 
-  // State สำหรับ Filters
   const [searchText, setSearchText] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
-  const [completionFilter, setCompletionFilter] = useState('PENDING'); // ALL, PENDING, COMPLETED
+  const [completionFilter, setCompletionFilter] = useState('PENDING');
 
-  // --- ฟังก์ชันจัดการข้อมูลตาราง (CRUD) ---
   function addReport() {
     const newItem: ReportItem = {
       id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
       code: '', customer: '', status: '', qty: 0, delivery: '', stage: 'Planning', isCompleted: false
     };
-    setReports([newItem, ...reports]); // เอาของใหม่ขึ้นก่อน (prepend) เพื่อให้อยู่บรรทัดบนสุด
+    setReports([newItem, ...reports]);
   }
 
   function updateReport(id: string, field: keyof ReportItem, value: any) {
@@ -91,12 +81,10 @@ export function ProductionReportPage() {
     }
   }
 
-  // ดึงรายชื่อ Customer ทั้งหมดมาทำ Dropdown อัตโนมัติ โดยไม่ซ้ำกัน
   const allCustomers = useMemo(() => {
     return Array.from(new Set(reports.map(item => item.customer).filter(c => c.trim() !== ''))).sort();
   }, [reports]);
 
-  // 2. ใช้ useMemo คำนวณข้อมูลที่ถูกกรองตาม Search และ Filter
   const filteredData = useMemo(() => {
     const filtered = reports.filter(item => {
       const matchSearch = item.code.toLowerCase().includes(searchText.toLowerCase());
@@ -105,24 +93,20 @@ export function ProductionReportPage() {
       return matchSearch && matchCustomer && matchCompletion;
     });
 
-    // เรียงลำดับข้อมูล (Sort)
     return filtered.sort((a, b) => {
-      // กฎข้อ 1: งานที่ยังไม่เสร็จ (false) ต้องอยู่บน งานที่เสร็จแล้ว (true) อยู่ล่าง
       if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
-      // กฎข้อ 2: เรียงตามวันที่ส่งมอบ (ถ้ายากยังไม่ใส่วันที่ ให้ถือว่าเป็น 0 จะได้เด้งไปอยู่บนสุด)
       const dateA = a.delivery ? new Date(a.delivery).getTime() : 0;
       const dateB = b.delivery ? new Date(b.delivery).getTime() : 0;
       return dateA - dateB;
     });
   }, [reports, searchText, customerFilter, completionFilter]);
 
-  // 3. ใช้ useMemo คำนวณสรุปยอด (Summary)
   const summary = useMemo(() => {
     let totalQty = 0;
     let dueThisWeekCount = 0;
 
     filteredData.forEach(item => {
-      if (item.isCompleted) return; // ไม่นับงานที่เสร็จแล้วเข้าในยอดที่ต้องส่ง
+      if (item.isCompleted) return;
       totalQty += item.qty;
       const dateInfo = formatDateAndCheckOverdue(item.delivery);
       if (dateInfo.isDueThisWeek) dueThisWeekCount++;
@@ -144,7 +128,6 @@ export function ProductionReportPage() {
           </button>
         </div>
 
-        {/* แถบสรุปยอด (Summary) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
           <div className="glass-panel" style={{ padding: '1rem', borderLeft: '4px solid var(--primary)' }}>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase' }}>Total Projects</div>
@@ -160,7 +143,6 @@ export function ProductionReportPage() {
           </div>
         </div>
 
-        {/* ตัวกรอง (Filters) */}
         <div className="filters-grid" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
           <label className="field">
             <span>Search Project</span>
@@ -183,7 +165,6 @@ export function ProductionReportPage() {
           </label>
         </div>
 
-        {/* ตารางข้อมูล */}
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
           <table className="table table-readonly">
             <thead>

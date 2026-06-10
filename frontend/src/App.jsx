@@ -14,9 +14,11 @@ import { RoutingHistoryPage } from './pages/RoutingHistoryPage.tsx';
 import { SequenceBuilderPage } from './pages/SequenceBuilderPage.tsx';
 import { ProductionReportPage } from './pages/ProductionReportPage.tsx';
 import { WoDashboardPage } from './pages/WoDashboardPage.tsx';
+import { CloseWoPage } from './pages/CloseWoPage.tsx';
+import { ObaPage } from './pages/ObaPage.tsx';
+import { FaiPage } from './pages/FaiPage.tsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// ตัวดักจับ Error ระดับแอปพลิเคชัน (ป้องกันหน้าเว็บขาวทั้งหน้า)
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -47,7 +49,6 @@ function Shell({ children }) {
     <div style={{ padding: '1.5rem', maxWidth: 1400, margin: '0 auto' }}>
       
       <style>{`
-        /* ตกแต่งกล่อง Input, Select, Textarea */
         .field input, .field select, .field textarea {
           width: 100%;
           padding: 0.6rem 0.8rem;
@@ -85,7 +86,6 @@ function Shell({ children }) {
           border: 1px solid #e2e8f0;
           box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        /* ตกแต่งตาราง (Zebra Striping & Hover) */
         .table { width: 100%; border-collapse: collapse; }
         .table th {
           background-color: #f1f5f9; color: #475569; font-weight: 600;
@@ -96,18 +96,15 @@ function Shell({ children }) {
         .table tbody tr:nth-child(even) { background-color: #f8fafc; }
         .table tbody tr:hover { background-color: #f1f5f9; }
         
-        /* ล็อกสีเวลา Hover สำหรับตารางหน้า History ให้นิ่งสนิท */
         .table.table-readonly tbody tr:nth-child(odd):hover { background-color: #ffffff !important; }
         .table.table-readonly tbody tr:nth-child(even):hover { background-color: #f8fafc !important; }
         .table.table-readonly tbody tr:hover td { background-color: transparent !important; }
 
-        /* ตกแต่ง Tabs */
         .mes-module-tabs { display: flex; gap: 1.5rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
         .mes-module-tab { padding: 0.75rem 0; background: none; border: none; font-weight: 600; font-size: 1rem; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
         .mes-module-tab:hover { color: #3b82f6; }
         .mes-module-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
 
-        /* ตกแต่ง Layout กรอบการ์ดสว่าง (สำหรับหน้า History ที่ไม่อยากให้มี Hover) */
         .mes-light-card {
           background: #ffffff;
           border: 1px solid #e2e8f0;
@@ -201,6 +198,7 @@ function Shell({ children }) {
         <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.25rem' }}>
             S
+            MES
           </div>
           <div>
             <h1 style={{ fontSize: '1.25rem', fontWeight: 600 }}>SYNTECH MES</h1>
@@ -222,6 +220,9 @@ function Shell({ children }) {
           <NavLink to="/routing-history">History</NavLink>
           <NavLink to="/sequence-builder">Builder</NavLink>
           <NavLink to="/production-report">Report</NavLink>
+          <NavLink to="/wo/WO-2026-001/close">Close WO</NavLink>
+          <NavLink to="/oba">OBA</NavLink>
+          <NavLink to="/fai/WO-2026-001">FAI</NavLink>
         </nav>
       </header>
       <main>{children}</main>
@@ -258,7 +259,6 @@ function NavLink({ to, children }) {
   );
 }
 
-// สร้างตัวจัดการ React Query
 const queryClient = new QueryClient();
 
 export default function App() {
@@ -279,10 +279,13 @@ export default function App() {
               <Route path="/route-admin" element={<RouteAdminPage />} />
               <Route path="/web-check" element={<WebCheckPage />} />
               <Route path="/routing-history" element={<RoutingHistoryPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
               <Route path="/sequence-builder" element={<SequenceBuilderPage />} />
               <Route path="/production-report" element={<ProductionReportPage />} />
               <Route path="/wo-dashboard" element={<WoDashboardPage />} />
+              <Route path="/wo/:woId/close" element={<CloseWoPage />} />
+              <Route path="/oba" element={<ObaPage />} />
+              <Route path="/fai/:woId" element={<FaiPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
         </Shell>

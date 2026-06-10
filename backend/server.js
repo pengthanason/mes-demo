@@ -40,8 +40,6 @@ const outboxWorker = require('./common/outbox_worker');
 const APP_HOST = process.env.APP_HOST || '0.0.0.0';
 const APP_PORT = Number(process.env.APP_PORT || '5100');
 const APP_VERSION = process.env.APP_VERSION || '0.1.0-station2';
-// Security P0 (2026-04-21): ไม่ default เป็น '*' อีกต่อไป — ต้องระบุ origin ชัดเจน
-// การตรวจสอบ/fail-fast อยู่ใน enforceCorsPolicy() ด้านล่าง
 const MES_CORS_ORIGINS = String(process.env.MES_CORS_ORIGINS || '').trim();
 const MES_ENV = String(process.env.MES_ENV || 'dev').trim().toLowerCase();
 const MES_READY_STRICT = String(process.env.MES_READY_STRICT || '').trim().toLowerCase();
@@ -81,21 +79,14 @@ function parseCorsPolicy(rawOrigins) {
     .filter(Boolean);
   const hasWildcard = normalized.includes('*');
   if (!normalized.length) {
-    // empty → ไม่ allow origin ใดเลย (deny-by-default)
     return { allowAll: false, allowed: new Set(), hasWildcard: false, empty: true };
   }
   if (hasWildcard) {
-    // '*' → อันตราย, caller จะตัดสินใจตาม MES_ENV
     return { allowAll: true, allowed: new Set(), hasWildcard: true, empty: false };
   }
   return { allowAll: false, allowed: new Set(normalized), hasWildcard: false, empty: false };
 }
 
-/**
- * Security P0 (2026-04-21): บังคับ CORS allowlist ให้เข้มงวดก่อนเริ่ม server
- * - prod: ถ้า MES_CORS_ORIGINS = '*' หรือว่าง → throw เพื่อปฏิเสธเริ่ม service
- * - dev/test: warn ชัดๆ แต่ยังรันต่อ (deny-by-default เมื่อว่าง)
- */
 function enforceCorsPolicy(policy, envName) {
   const isProd = envName === 'prod';
   if (policy.hasWildcard) {
@@ -105,14 +96,12 @@ function enforceCorsPolicy(policy, envName) {
     }
     // eslint-disable-next-line no-console
     console.warn('\x1b[33m%s\x1b[0m', msg + ' [dev: falling back to deny-by-default]');
-    // ใน dev ถ้าเจอ '*' ให้ downgrade เป็น deny-all แทน allow-all เพื่อความปลอดภัย
     return { allowAll: false, allowed: new Set(), hasWildcard: false, empty: true };
   }
   if (policy.empty) {
     const msg = '[cors] MES_CORS_ORIGINS is unset/empty — no cross-origin requests will be accepted. '
               + "Set explicit list e.g. 'http://localhost:3000,http://172.16.10.87'";
     if (isProd) {
-      // prod อาจต้องการ CORS ได้ (frontend แยก domain) — warn เฉยๆ ไม่ throw
       // eslint-disable-next-line no-console
       console.warn('\x1b[33m%s\x1b[0m', msg);
     } else {
@@ -186,8 +175,6 @@ function evaluateSecurityBaseline(authConfig) {
   }
 
   const issues = [];
-  // Security P0 (2026-04-21): enforceCorsPolicy() ได้ปัดทิ้ง '*' / empty แล้วใน prod
-  // check ที่เหลือคือ safety net สำหรับ strict readiness
   if (corsPolicy.hasWildcard) {
     issues.push("MES_CORS_ORIGINS must not be '*' when strict readiness is enabled");
   }
@@ -230,10 +217,9 @@ function parseRouteCodeFilter(rawValue) {
 
 function createApp() {
   const app = express();
-  app.disable('x-powered-by'); // ext-review P2-6 · 2026-05-03
+  app.disable('x-powered-by');
 
   app.use((req, res, next) => {
-    // Security P0 (2026-04-21): strict allowlist only — ไม่มี wildcard path แล้ว
     const originRaw = req.headers.origin;
     const origin = originRaw ? String(originRaw).replace(/\/+$/g, '') : '';
     const isAllowed = Boolean(origin) && corsPolicy.allowed.has(origin);
@@ -247,7 +233,6 @@ function createApp() {
     }
 
     if (req.method === 'OPTIONS') {
-      // Preflight ของ origin ที่ไม่ allow → 204 แต่ไม่มี CORS header → เบราว์เซอร์จะปฏิเสธเอง
       return res.status(204).end();
     }
     return next();
@@ -255,7 +240,6 @@ function createApp() {
 
   app.use(express.json({ limit: '8mb' }));
 
-  // Admin static pages — sync monitor, debug tools
   const ADMIN_DIR = path.join(__dirname, 'public/admin');
   app.use('/admin', express.static(ADMIN_DIR, { etag: true, lastModified: true }));
 
@@ -263,17 +247,12 @@ function createApp() {
     etag: true,
     lastModified: true,
     setHeaders(res) {
-      // Jumbo is edited directly on the line-side server, so always prefer
-      // fresh assets over browser cache to avoid stale JS/CSS after hotfixes.
       res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
     },
   }));
 
-  // MES React SPA (Vite build output) — bundled via Dockerfile at /app/public/ui.
-  // Hashed asset filenames are safe to cache; index.html must revalidate so new
-  // deploys are picked up without a hard refresh.
   const UI_DIR = path.join(__dirname, 'public/ui');
   app.use('/ui', express.static(UI_DIR, {
     etag: true,
@@ -287,7 +266,6 @@ function createApp() {
       }
     },
   }));
-  // SPA fallback: any GET under /ui/* that isn't a real asset serves index.html
   app.use(/^\/ui(?:\/.*)?$/, (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     res.sendFile(path.join(UI_DIR, 'index.html'), (err) => {
@@ -295,20 +273,10 @@ function createApp() {
     });
   });
 
-  // Reverse proxy /web/* → Next.js operator UI (syntech_mes_web, :3005). Mounted
-  // BEFORE express.json so the request body stays a raw stream we can pipe.
-  // Next.js is configured with basePath='/mes-api/web', so externally users hit
-  // https://172.16.10.87/mes-api/web/ · nginx strips /mes-api · backbone
-  // receives /web/... · we rewrite back to /mes-api/web/... before forwarding to
-  // Next.js so its basePath matches.
   const httpProxyMod = require('http');
   const NEXT_WEB_HOST = String(process.env.NEXT_WEB_HOST || '127.0.0.1').trim();
   const NEXT_WEB_PORT = Number(process.env.NEXT_WEB_PORT || 3005);
   function proxyToNextWeb(req, res) {
-    // app.use('/web', ...) strips the '/web' prefix, so req.url here starts
-    // with '/'. For bare '/web' or '/web/' both arrive as '/'; forward that
-    // as '/mes-api/web' (no trailing slash) to match Next.js basePath exactly
-    // and avoid the default-trailingSlash=false redirect loop.
     const suffix = req.url === '/' ? '' : req.url;
     const targetPath = '/mes-api/web' + suffix;
     const options = {
@@ -389,7 +357,6 @@ function createApp() {
     return next();
   });
 
-  // Outbox status endpoint (C1 fix)
   app.get('/api/mes/outbox/status', async (_req, res) => {
     try {
       const result = await query(
@@ -403,8 +370,6 @@ function createApp() {
     }
   });
 
-
-  // Outbox detailed log endpoint — admin sync monitor
   app.get('/api/mes/outbox/logs', async (req, res) => {
     const limit  = Math.min(Number(req.query.limit)  || 50, 200);
     const offset = Math.max(Number(req.query.offset) || 0,  0);
@@ -810,7 +775,6 @@ function createApp() {
     }
   });
 
-  // Auth-specific rate limiter (stricter: 10 req/min per IP)
   app.use((req, res, next) => {
     if (!MES_RATE_LIMIT_ENABLED) return next();
     if (!AUTH_RATE_LIMIT_PATHS.has(req.path)) return next();
@@ -839,6 +803,37 @@ function createApp() {
     return next();
   });
 
+  app.get('/api/wo/list', (req, res) => {
+    res.json({
+      status: 'success',
+      wos: [
+        { id: 1, wo_number: 'WO-2026-001', part_no: 'PCB-ASSY-01', qty_target: 1500, status: 'RUNNING', opened_at: new Date().toISOString() },
+        { id: 2, wo_number: 'WO-2026-002', part_no: 'SMT-ASSY-02', qty_target: 500, status: 'WAIT_FAI_QA', opened_at: new Date().toISOString() },
+        { id: 3, wo_number: 'WO-2026-003', part_no: 'TEST-003', qty_target: 120, status: 'CLOSED', opened_at: new Date().toISOString() }
+      ]
+    });
+  });
+
+  app.get('/api/wo/:id', (req, res) => {
+    res.json({
+      status: 'success',
+      wo: {
+        id: 1,
+        wo_number: req.params.id,
+        part_no: 'PCB-ASSY-01',
+        qty_target: 1500,
+        qty_good: 750,
+        status: 'RUNNING'
+      }
+    });
+  });
+
+  app.get('/api/routing/history', (req, res) => {
+    res.json([
+      { id: 1, ts: new Date().toISOString(), serial: 'SN-001', sequence: 'SMT(45s)', result: 'PASS', totalSec: 45 }
+    ]);
+  });
+
   app.use(authRoutes);
   app.use(planningRoutes);
   app.use(incomingRoutes);
@@ -854,7 +849,7 @@ function createApp() {
   app.use(closeRoutes);
   app.use('/api/pm', pmRoutes);
   app.use('/api/scm', scmRoutes);
-  app.use(recallRoutes);  // P4-2: recall query (mounted at /api/scm/recall)
+  app.use(recallRoutes);
   app.use(jumboRoutes);
 
   app.use((err, req, res, next) => {
@@ -886,33 +881,13 @@ function startServer(host = APP_HOST, port = APP_PORT) {
   const server = app.listen(port, host, () => {
     // eslint-disable-next-line no-console
     console.log(`SYNTECH MES Backbone listening on ${host}:${port} (version=${APP_VERSION})`);
-    // Start outbox worker for WO Close sync events (C1 fix)
-    outboxWorker.start();
-    // Start MRP→MES polling job (auto-create WOs from CONFIRMED MOs)
-    startMRPPolling();
-
-    // เพิ่ม User สำรองสำหรับเทส ('test' / 'Syntech#123') ในโหมดที่ไม่ใช่ production
-    if (MES_ENV !== 'prod') {
-      const testHash = '$2a$10$GlK3N/1oJJmLFdYDwmkRqe7iEKz1SdyNH2TnCYg38gOoXkaSmV3HO'; // รหัสผ่านที่เข้ารหัสแล้วของ Syntech#123
-      query(`SELECT id FROM users WHERE username = 'test'`)
-        .then(res => {
-          if (res.rows.length === 0) {
-            return query(`INSERT INTO users (username, password_hash, role) VALUES ('test', $1, 'ADMIN')`, [testHash]);
-          }
-        })
-        .then(() => {
-          // eslint-disable-next-line no-console
-          console.log('[dev] Test user "test" (password: Syntech#123, role: ADMIN) is ready.');
-        })
-        .catch(err => console.error('[dev] Failed to seed test user:', err.message));
-    }
+    // outboxWorker.start(); // ปิดไว้ชั่วคราวเพื่อเทสแบบไม่มี DB
+    // startMRPPolling(); // ปิดไว้ชั่วคราวเพื่อเทสแบบไม่มี DB
   });
 
-  // Tests close the HTTP server after each run. Stop the background poller too
-  // so node:test doesn't hang on an orphaned interval handle.
   server.on('close', () => {
-    outboxWorker.stop();
-    stopMRPPolling();
+    // outboxWorker.stop();
+    // stopMRPPolling();
   });
 
   return server;
