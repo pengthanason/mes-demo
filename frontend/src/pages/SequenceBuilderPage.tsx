@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '../lib/api';
+import { addRoutingRecord } from '../lib/mockStore';
+import { showToast } from '../lib/toast';
 
 const FALLBACK_STATIONS = [
   { id: 'R1', name: 'SMT SETUP' },
@@ -236,7 +238,7 @@ export function SequenceBuilderPage() {
   const [serialNumber, setSerialNumber] = useState('');
   const [globalResult, setGlobalResult] = useState('PASS');
 
-  const queryClient = useQueryClient();
+
 
   function addStep() {
     const newStep: OperationStep = {
@@ -358,31 +360,26 @@ export function SequenceBuilderPage() {
       if (steps.some((step) => !step.stationId || String(step.seconds).trim() === '')) {
         throw new Error('All steps must have a station and a valid cycle time.');
       }
-
-      for (const step of steps) {
-        const stationName = allStations.find(opt => opt.id === step.stationId)?.name || step.stationId;
-
-        await api.post('/routing/scan-in', {
-          woId: 1,
-          unit_sn: serialNumber.trim(),
-          station_name: stationName
-        });
-
-        await api.post('/routing/scan-out', {
-          woId: 1,
-          unit_sn: serialNumber.trim(),
-          station_name: stationName,
-          status: globalResult
-        });
-      }
+      return {
+        serial: serialNumber.trim(),
+        sequence: steps.map(s => allStations.find(o => o.id === s.stationId)?.name || s.stationId).join(' → '),
+        totalSec: steps.reduce((sum, s) => sum + (Number(s.seconds) || 0), 0),
+        result: globalResult,
+      };
     },
-    onSuccess: () => {
-      alert('Process recorded successfully!');
+    onSuccess: (record) => {
+      addRoutingRecord({
+        ts: new Date().toLocaleString(),
+        serial: record.serial,
+        sequence: record.sequence,
+        result: record.result,
+        totalSec: record.totalSec,
+      }).catch(console.error);
+      showToast(`Process recorded: ${record.serial}`, 'success');
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ['routing-history'] });
     },
     onError: (error: Error) => {
-      alert(`Failed to record process: ${error.message}`);
+      showToast(error.message, 'error');
     },
   });
 

@@ -1,11 +1,12 @@
 import { useParams, Link } from 'react-router-dom';
 import { buildSteps } from '../lib/woLifecycle';
 import { StatusStepper } from '../components/StatusStepper';
-import { useMockWoList } from '../lib/useMockStore';
+import { useMockWoList, useMockAuth } from '../lib/useMockStore';
 
 export function WoDetailPage() {
   const { woId } = useParams();
   const woList = useMockWoList();
+  const auth = useMockAuth();
   const wo = woList.find(w => w.woId === woId) ?? null;
 
   if (!wo) {
@@ -20,6 +21,8 @@ export function WoDetailPage() {
   }
 
   const steps = buildSteps(wo.currentStep);
+  const canFai = (wo.currentStep === 'WAIT_FAI_QA' || wo.currentStep === 'WAIT_FAI_MGR') && !wo.faiPassed;
+  const canAct = auth.role === 'admin' || auth.role === 'member';
 
   return (
     <section className="stack-lg">
@@ -29,8 +32,14 @@ export function WoDetailPage() {
           <p className="panel__subtitle">รายละเอียดรหัส: <strong>{wo.woId}</strong></p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <Link to={`/fai/${wo.woId}`} className="btn" style={{ background: '#f59e0b', color: '#fff', border: 'none' }}>ตรวจ FAI</Link>
-          <Link to={`/wo/${wo.woId}/close`} className="btn danger">ปิดงาน (Close)</Link>
+          {canAct && canFai && (
+            <Link to={`/fai/${wo.woId}`} className="btn" style={{ background: '#f59e0b', color: '#fff', border: 'none' }}>
+              {wo.currentStep === 'WAIT_FAI_QA' ? 'ตรวจ FAI (QA)' : 'อนุมัติ FAI (MGR)'}
+            </Link>
+          )}
+          {canAct && (
+            <Link to={`/wo/${wo.woId}/close`} className="btn danger">ปิดงาน (Close)</Link>
+          )}
           <Link to="/wo-dashboard" className="btn secondary">กลับไป Dashboard</Link>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { addObaRecord } from '../lib/mockStore';
 import { useMockObaRecords } from '../lib/useMockStore';
+import { showToast } from '../lib/toast';
 
 export function ObaPage() {
   const records = useMockObaRecords();
@@ -13,14 +14,15 @@ export function ObaPage() {
   const [error,      setError]      = useState('');
   const [saved,      setSaved]      = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (result === 'FAIL' && !defectNote.trim()) {
       setError('กรุณาระบุหมายเหตุ (Defect Note) เมื่อผลการตรวจเป็น FAIL');
       return;
     }
-    addObaRecord({ woId, lotNo, sampleQty: Number(sampleQty), result: result as 'PASS' | 'FAIL', defectNote });
+    await addObaRecord({ woId, lotNo, sampleQty: Number(sampleQty), result: result as 'PASS' | 'FAIL', defectNote });
+    showToast(`OBA ${result}: ${woId} / ${lotNo}`, result === 'PASS' ? 'success' : 'error');
     setWoId(''); setLotNo(''); setSampleQty(''); setResult(''); setDefectNote('');
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);

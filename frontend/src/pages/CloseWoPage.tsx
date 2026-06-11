@@ -1,25 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getWo, updateWo } from '../lib/mockStore';
+import { getWo, updateWo, type MockWO } from '../lib/mockStore';
+import { showToast } from '../lib/toast';
 
 export function CloseWoPage() {
   const { woId }   = useParams();
   const navigate   = useNavigate();
-  const wo         = getWo(woId || '');
-  const targetQty  = wo?.qty;
 
+  const [wo,        setWo]       = useState<MockWO | null>(null);
   const [actualQty, setActualQty] = useState('');
   const [error,     setError]     = useState('');
   const [success,   setSuccess]   = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    getWo(woId || '').then(setWo);
+  }, [woId]);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     const qty = Number(actualQty);
     if (isNaN(qty) || qty <= 0) { setError('กรุณาระบุจำนวนให้ถูกต้อง'); return; }
-    if (targetQty && qty > targetQty) { setError(`จำนวนที่ผลิตได้ (${qty}) ห้ามเกินยอดสั่งผลิต (${targetQty})`); return; }
+    if (wo?.qty && qty > wo.qty) { setError(`จำนวนที่ผลิตได้ (${qty}) ห้ามเกินยอดสั่งผลิต (${wo.qty})`); return; }
 
-    updateWo(woId || '', { currentStep: 'CLOSED', actualQty: qty, qtyGood: qty });
+    await updateWo(woId || '', { currentStep: 'CLOSED', actualQty: qty, qtyGood: qty });
+    showToast(`WO ${woId} ปิดงานสำเร็จ`, 'success');
     setSuccess(true);
   }
 
@@ -39,7 +44,7 @@ export function CloseWoPage() {
       <p className="panel__subtitle">
         WO: <strong>{woId}</strong>
         {wo?.productCode && <> | {wo.productCode}</>}
-        {targetQty && <> | Target: {targetQty.toLocaleString()} pcs</>}
+        {wo?.qty && <> | Target: {wo.qty.toLocaleString()} pcs</>}
       </p>
       <div style={{ marginBottom: '0.5rem' }}>
         <Link to={`/wo/${woId}`} style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← กลับหน้า WO Detail</Link>

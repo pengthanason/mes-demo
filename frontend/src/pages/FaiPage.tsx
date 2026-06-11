@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { updateWo } from '../lib/mockStore';
+import { updateWo, getWo } from '../lib/mockStore';
+import { useMockWoList } from '../lib/useMockStore';
+import { showToast } from '../lib/toast';
 
 export function FaiPage() {
   const { woId } = useParams();
   const navigate = useNavigate();
+  const woList = useMockWoList();
+  const wo = woList.find(w => w.woId === woId) ?? null;
 
   const [checklist, setChecklist] = useState<Record<string, 'PASS' | 'FAIL' | ''>>({
     'chk-01': '', 'chk-02': '', 'chk-03': '',
@@ -12,31 +16,69 @@ export function FaiPage() {
   const [inspectorId, setInspectorId] = useState('');
   const [approverId,  setApproverId]  = useState('');
   const [error,       setError]       = useState('');
-  const [success,     setSuccess]     = useState(false);
+  const [successMsg,  setSuccessMsg]  = useState('');
 
   const isChecklistComplete = Object.values(checklist).every(v => v !== '');
   const isDualKeyValid = inspectorId.trim() !== '' && approverId.trim() !== '' && inspectorId !== approverId;
 
-  function handleSubmit(e: React.FormEvent) {
+  if (!wo) {
+    return (
+      <div className="notice err" style={{ margin: '2rem' }}>
+        WO Not Found: <strong>{woId}</strong>
+        <div style={{ marginTop: '1rem' }}>
+          <Link to="/wo-dashboard" className="btn secondary">← กลับ Dashboard</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isQaStep  = wo.currentStep === 'WAIT_FAI_QA';
+  const isMgrStep = wo.currentStep === 'WAIT_FAI_MGR';
+
+  if (!isQaStep && !isMgrStep) {
+    return (
+      <div className="panel stack" style={{ textAlign: 'center', padding: '3rem 1rem', maxWidth: '500px', margin: '0 auto' }}>
+        <div className="notice err" style={{ marginBottom: '1rem' }}>
+          WO <strong>{woId}</strong> อยู่ที่ขั้นตอน <strong>{wo.currentStep}</strong> — ไม่สามารถทำ FAI ได้
+        </div>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>FAI ทำได้เฉพาะที่ขั้นตอน WAIT_FAI_QA หรือ WAIT_FAI_MGR เท่านั้น</p>
+        <button type="button" className="btn secondary" onClick={() => navigate(`/wo/${woId}`)}>กลับ WO Detail</button>
+      </div>
+    );
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!isChecklistComplete) { setError('กรุณาตรวจให้ครบทุกรายการ'); return; }
     if (inspectorId === approverId) { setError('ผู้ตรวจและผู้รับรองต้องไม่ใช่คนเดียวกัน (Dual-Key Verification)'); return; }
 
-    updateWo(woId || '', {
-      currentStep:  'CLOSED',
-      faiPassed:    true,
-      faiInspector: inspectorId,
-      faiApprover:  approverId,
-    });
-    setSuccess(true);
+    const current = await getWo(woId || '');
+    if (!current) { setError('ไม่พบ WO'); return; }
+
+    if (current.currentStep === 'WAIT_FAI_QA') {
+      await updateWo(woId || '', {
+        currentStep:  'WAIT_FAI_MGR',
+        faiInspector: inspectorId,
+      });
+      showToast('FAI QA ผ่านแล้ว — รอผู้จัดการอนุมัติ', 'success');
+      setSuccessMsg('ผลการตรวจ FAI (QA) ถูกส่งให้ผู้จัดการอนุมัติแล้ว\nสถานะ: WAIT_FAI_QA → WAIT_FAI_MGR');
+    } else {
+      await updateWo(woId || '', {
+        faiPassed:    true,
+        faiInspector: current.faiInspector || inspectorId,
+        faiApprover:  approverId,
+      });
+      showToast('FAI อนุมัติแล้ว — พร้อมปิดงาน', 'success');
+      setSuccessMsg('ผู้จัดการอนุมัติ FAI เรียบร้อยแล้ว\nงานยังคงเปิดอยู่ — ปิดงานได้จากหน้า WO Detail');
+    }
   }
 
-  if (success) {
+  if (successMsg) {
     return (
       <div className="panel stack" style={{ textAlign: 'center', padding: '3rem 1rem', maxWidth: '500px', margin: '0 auto' }}>
-        <h2 style={{ color: 'var(--success)', marginBottom: '1rem' }}>✅ FAI Approved</h2>
-        <p style={{ marginBottom: '2rem' }}>First Article Inspection สำหรับ WO: <strong>{woId}</strong> ได้รับการอนุมัติแล้ว</p>
+        <h2 style={{ color: 'var(--success)', marginBottom: '1rem' }}>✅ FAI Complete</h2>
+        <p style={{ marginBottom: '2rem', whiteSpace: 'pre-line', color: 'var(--text-muted)' }}>{successMsg}</p>
         <button type="button" className="btn" onClick={() => navigate(`/wo/${woId}`)}>กลับ WO Detail</button>
       </div>
     );
@@ -48,7 +90,14 @@ export function FaiPage() {
         <Link to={`/wo/${woId}`} style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← กลับหน้า WO Detail</Link>
       </div>
       <h2 className="panel__title">First Article Inspection (M05)</h2>
-      <p className="panel__subtitle">ตรวจสอบชิ้นแรก | WO: <strong>{woId}</strong></p>
+      <p className="panel__subtitle">
+        {isQaStep ? '🔍 QA Inspection' : '✅ Manager Approval'} | WO: <strong>{woId}</strong>
+      </p>
+      <div className="notice info" style={{ fontSize: '0.85rem' }}>
+        {isQaStep
+          ? 'ขั้นตอนนี้: QA ตรวจสอบ → ส่งให้ผู้จัดการอนุมัติ (WAIT_FAI_MGR)'
+          : 'ขั้นตอนนี้: ผู้จัดการอนุมัติผล FAI → งานพร้อมปิด (Close WO)'}
+      </div>
 
       {error && <div className="notice err">{error}</div>}
 
@@ -81,11 +130,20 @@ export function FaiPage() {
           <p style={{ fontSize: '0.85rem', color: '#b45309', marginBottom: '1rem' }}>งานสำคัญ: จำเป็นต้องใช้รหัสพนักงาน 2 คนในการยืนยัน (ห้ามซ้ำกัน)</p>
           <div className="filters-grid">
             <label className="field">
-              <span style={{ color: '#92400e', fontWeight: 600 }}>1. ผู้ตรวจ (Inspector ID)</span>
-              <input value={inspectorId} onChange={e => setInspectorId(e.target.value)} placeholder="เช่น OP-001" required />
+              <span style={{ color: '#92400e', fontWeight: 600 }}>
+                {isQaStep ? '1. ผู้ตรวจ (Inspector ID)' : '1. ผู้ตรวจ QA (ก่อนหน้า)'}
+              </span>
+              <input
+                value={inspectorId}
+                onChange={e => setInspectorId(e.target.value)}
+                placeholder={isQaStep ? 'เช่น OP-001' : `${wo.faiInspector || 'OP-001'}`}
+                required
+              />
             </label>
             <label className="field">
-              <span style={{ color: '#92400e', fontWeight: 600 }}>2. ผู้รับรอง (Approver ID)</span>
+              <span style={{ color: '#92400e', fontWeight: 600 }}>
+                {isQaStep ? '2. ผู้รับรอง (Approver ID)' : '2. ผู้จัดการ (Manager ID)'}
+              </span>
               <input value={approverId} onChange={e => setApproverId(e.target.value)} placeholder="เช่น LD-005" required />
             </label>
           </div>
@@ -93,7 +151,7 @@ export function FaiPage() {
 
         <button className="btn" type="submit" disabled={!isChecklistComplete || !isDualKeyValid}
           style={{ marginTop: '0.5rem', padding: '1rem', fontSize: '1rem' }}>
-          ยืนยันผล FAI (Dual-Key)
+          {isQaStep ? 'ส่งผล FAI ให้ผู้จัดการ' : 'ผู้จัดการอนุมัติ FAI'}
         </button>
       </form>
     </div>

@@ -1,6 +1,14 @@
 import { FormEvent, useState } from 'react';
 import { useMockAuth } from '../lib/useMockStore';
 import { mockLogin, mockLogout } from '../lib/mockStore';
+import { showToast } from '../lib/toast';
+import { ROLE_COLOR } from '../lib/roles';
+
+const DEMO_ACCOUNTS = [
+  { username: 'admin',  password: 'admin',  role: 'admin',  desc: 'ดูและจัดการได้ทุกอย่าง' },
+  { username: 'member', password: 'member', role: 'member', desc: 'ทำงานได้ + ดู Dashboard' },
+  { username: 'viewer', password: 'viewer', role: 'viewer', desc: 'ดู Dashboard เท่านั้น' },
+];
 
 export function MesAuthPage() {
   const auth = useMockAuth();
@@ -13,10 +21,11 @@ export function MesAuthPage() {
     setError('');
     const ok = mockLogin(username.trim(), password);
     if (!ok) {
-      setError('Invalid credentials — use username: test / password: test');
+      setError('Invalid credentials — ดู Demo Accounts ด้านล่าง');
     } else {
       setUsername('');
       setPassword('');
+      showToast(`Welcome, ${username.trim()}!`, 'success');
     }
   }
 
@@ -28,8 +37,17 @@ export function MesAuthPage() {
 
         {auth.isLoggedIn ? (
           <div className="stack" style={{ marginTop: '1rem' }}>
-            <div className="notice info">
-              Logged in as: <strong>{auth.username}</strong>
+            <div className="notice info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span>Logged in as: <strong>{auth.username}</strong></span>
+              <span style={{
+                background: ROLE_COLOR[auth.role] || '#64748b',
+                color: '#fff',
+                padding: '0.2rem 0.6rem',
+                borderRadius: 999,
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+              }}>{auth.role}</span>
             </div>
             <button className="btn" type="button" onClick={() => mockLogout()}>
               Logout
@@ -63,8 +81,16 @@ export function MesAuthPage() {
                 Login
               </button>
             </form>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-              Demo: username <strong>test</strong> / password <strong>test</strong>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem', marginTop: '0.5rem' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Demo Accounts</div>
+              {DEMO_ACCOUNTS.map(acc => (
+                <div key={acc.username} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem', fontSize: '0.82rem' }}>
+                  <span style={{ background: ROLE_COLOR[acc.role], color: '#fff', padding: '0.1rem 0.45rem', borderRadius: 999, fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{acc.role}</span>
+                  <code style={{ color: '#334155' }}>{acc.username} / {acc.password}</code>
+                  <span style={{ color: '#94a3b8' }}>— {acc.desc}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}

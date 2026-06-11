@@ -1,56 +1,49 @@
-import React, { useState } from 'react';
-import { CheckCircle2, XCircle, Scan, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckCircle2, XCircle, Scan } from 'lucide-react';
+import { getQcRecords, addQcRecord } from '../../lib/mockStore';
+import { useIsViewer } from '../../lib/useMockStore';
+import { showToast } from '../../lib/toast';
 
 export default function QcBoard() {
+  const isViewer = useIsViewer();
+
   const [unitSn, setUnitSn] = useState('');
-  const [history, setHistory] = useState([
-    { sn: 'SN-00234', status: 'PASS', time: new Date().toLocaleTimeString() },
-    { sn: 'SN-00233', status: 'NG', time: new Date(Date.now() - 60000).toLocaleTimeString(), error: 'Cannot close WO with pending NG units.' }
-  ]);
+  const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [globalError, setGlobalError] = useState('');
 
+  useEffect(() => {
+    getQcRecords().then(setHistory);
+    const update = () => getQcRecords().then(setHistory);
+    window.addEventListener('mockstore', update);
+    return () => window.removeEventListener('mockstore', update);
+  }, []);
+
   const handleQcSubmit = async (result) => {
+    if (isViewer) return;
     if (!unitSn.trim()) {
-       setGlobalError('Please enter a Unit SN first.');
-       return;
+      setGlobalError('Please enter a Unit SN first.');
+      return;
     }
     setGlobalError('');
     setIsLoading(true);
 
-    try {
-      const res = await fetch('/api/qc/result', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ unit_sn: unitSn, result })
-      });
+    const entry = {
+      sn: unitSn.trim(),
+      status: result,
+      time: new Date().toLocaleTimeString(),
+      error: null,
+    };
 
-      const data = await res.json();
-      
-      const newEntry = {
-        sn: unitSn,
-        status: result,
-        time: new Date().toLocaleTimeString(),
-        error: !res.ok ? data.message || data.code : null
-      };
-
-      setHistory(prev => [newEntry, ...prev]);
-      
-      if (res.ok) {
-         setUnitSn('');
-      }
-    } catch (err) {
-      setGlobalError('Network error connecting to MES Backend.');
-    } finally {
-      setIsLoading(false);
-    }
+    await addQcRecord(entry);
+    setUnitSn('');
+    setIsLoading(false);
+    showToast(`QC ${result}: ${entry.sn}`, result === 'PASS' ? 'success' : 'error');
   };
 
   return (
     <div className="glass-panel" style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-      
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
         <div style={{ padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '12px' }}>
           <Scan color="var(--primary)" size={28} />
@@ -62,48 +55,49 @@ export default function QcBoard() {
       </div>
 
       {globalError && (
-         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-            <AlertCircle size={20} />
-            {globalError}
-         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+          {globalError}
+        </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         <div>
           <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Unit Serial Number (SN)</label>
-          <input 
-            type="text" 
-            className="form-input" 
-            placeholder="Scan barcode or type manually..." 
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Scan barcode or type manually..."
             value={unitSn}
             onChange={(e) => setUnitSn(e.target.value)}
-            onKeyDown={(e) => {
-              if(e.key === 'Enter') {
-                handleQcSubmit('PASS');
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleQcSubmit('PASS'); }}
             disabled={isLoading}
             autoFocus
             style={{ fontSize: '1.25rem', padding: '1rem' }}
           />
         </div>
 
+        {isViewer && (
+          <div style={{ background: 'rgba(100,116,139,0.12)', border: '1px solid rgba(100,116,139,0.3)', borderRadius: 8, padding: '0.75rem 1rem', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+            👁 Viewer mode — read only, cannot submit QC results
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <button 
-            className="btn btn-success" 
-            style={{ padding: '1.5rem', fontSize: '1.25rem' }}
+          <button
+            className="btn btn-success"
+            style={{ padding: '1.5rem', fontSize: '1.25rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
             onClick={() => handleQcSubmit('PASS')}
-            disabled={isLoading || !unitSn}
+            disabled={isLoading || !unitSn || isViewer}
           >
             <CheckCircle2 size={28} />
             PASS (OK)
           </button>
-          
-          <button 
-            className="btn btn-danger" 
-            style={{ padding: '1.5rem', fontSize: '1.25rem' }}
+
+          <button
+            className="btn btn-danger"
+            style={{ padding: '1.5rem', fontSize: '1.25rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
             onClick={() => handleQcSubmit('FAIL')}
-            disabled={isLoading || !unitSn}
+            disabled={isLoading || !unitSn || isViewer}
           >
             <XCircle size={28} />
             FAIL (NG)
@@ -124,8 +118,8 @@ export default function QcBoard() {
               </tr>
             </thead>
             <tbody>
-              {history.map((h, i) => (
-                <tr key={i}>
+              {history.map((h) => (
+                <tr key={h.id}>
                   <td style={{ color: 'var(--text-muted)' }}>{h.time}</td>
                   <td style={{ fontWeight: 500 }}>{h.sn}</td>
                   <td>

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { buildSteps } from '../lib/woLifecycle';
 import { StatusStepper } from '../components/StatusStepper';
 import { KpiCard } from '../components/KpiCard';
-import { useMockWoList } from '../lib/useMockStore';
+import { useIsViewer, useMockWoList } from '../lib/useMockStore';
 import { addWo, generateRandomWo, seedIfEmpty, type MockWO } from '../lib/mockStore';
+import { useAutoRefresh } from '../lib/useAutoRefresh';
 
 function WoRow({ wo }: { wo: MockWO }) {
   const getBadgeStyle = (step: string) => {
@@ -44,10 +45,16 @@ function WoRow({ wo }: { wo: MockWO }) {
 export function WoDashboardPage() {
   useEffect(() => { seedIfEmpty(); }, []);
 
+  const isViewer  = useIsViewer();
   const woList    = useMockWoList();
+
+  const refresh = useCallback(() => {
+    window.dispatchEvent(new Event('mockstore'));
+  }, []);
+  useAutoRefresh(refresh, 30_000);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [customerFilter, setCustomerFilter] = useState('');
-  const [hideClosed, setHideClosed]         = useState(false);
+  const [showClosed, setShowClosed]         = useState(false);
 
   useEffect(() => { setLastUpdate(new Date()); }, [woList]);
 
@@ -61,19 +68,21 @@ export function WoDashboardPage() {
   const allCustomers = useMemo(() => Array.from(new Set(woList.map(w => w.customer))).sort(), [woList]);
 
   const processedList = useMemo(() => {
-    const severityMap: Record<string, number> = { WAIT_FAI_QA: 1, WAIT_FAI_MGR: 1, RUNNING: 2, OPEN: 3, READY: 5, DRAFT: 6, CLOSED: 4 };
     return woList
       .filter(wo => {
         const matchCustomer = customerFilter === '' || wo.customer === customerFilter;
-        const matchHide = hideClosed ? wo.currentStep !== 'CLOSED' : true;
-        return matchCustomer && matchHide;
+        const matchClosed   = showClosed ? true : wo.currentStep !== 'CLOSED';
+        return matchCustomer && matchClosed;
       })
+      .map(w => ({ w, t: new Date(w.createdAt ?? w.updatedAt).getTime() }))
       .sort((a, b) => {
-        const diff = (severityMap[a.currentStep] || 99) - (severityMap[b.currentStep] || 99);
-        if (diff !== 0) return diff;
-        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      });
-  }, [woList, customerFilter, hideClosed]);
+        const aClosed = a.w.currentStep === 'CLOSED';
+        const bClosed = b.w.currentStep === 'CLOSED';
+        if (aClosed !== bClosed) return aClosed ? 1 : -1;
+        return b.t - a.t;
+      })
+      .map(x => x.w);
+  }, [woList, customerFilter, showClosed]);
 
   return (
     <section className="stack-lg" style={{ minHeight: '100vh' }}>
@@ -87,14 +96,16 @@ export function WoDashboardPage() {
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Last updated: {lastUpdate.toLocaleTimeString()}
             </span>
-            <button
-              type="button"
-              className="btn"
-              style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}
-              onClick={() => addWo(generateRandomWo())}
-            >
-              + Add Random WO
-            </button>
+            {!isViewer && (
+              <button
+                type="button"
+                className="btn"
+                style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}
+                onClick={() => { generateRandomWo().then(wo => addWo(wo)); }}
+              >
+                + Add Random WO
+              </button>
+            )}
           </div>
         </div>
 
@@ -116,8 +127,8 @@ export function WoDashboardPage() {
           <div className="field" style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ visibility: 'hidden' }}>Spacer</span>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '100%', cursor: 'pointer' }}>
-              <input type="checkbox" checked={hideClosed} onChange={e => setHideClosed(e.target.checked)} style={{ width: '20px', height: '20px', margin: 0, flexShrink: 0 }} />
-              <span style={{ marginBottom: 0, textTransform: 'none', letterSpacing: 'normal', fontSize: '0.95rem' }}>ซ่อนงานที่ CLOSED แล้ว</span>
+              <input type="checkbox" checked={showClosed} onChange={e => setShowClosed(e.target.checked)} style={{ width: '20px', height: '20px', margin: 0, flexShrink: 0 }} />
+              <span style={{ marginBottom: 0, textTransform: 'none', letterSpacing: 'normal', fontSize: '0.95rem' }}>แสดงงานที่ CLOSED แล้ว</span>
             </label>
           </div>
         </div>

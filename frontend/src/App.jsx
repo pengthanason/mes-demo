@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { useMockAuth } from './lib/useMockStore.ts';
 import { mockLogout } from './lib/mockStore.ts';
+import { ROLE_COLOR } from './lib/roles.ts';
 import { MesBackbonePage } from './pages/MesBackbonePage.tsx';
 import { MesAuthPage } from './pages/MesAuthPage.tsx';
 import { PmCoreFlowPage } from './pages/PmCoreFlowPage.tsx';
@@ -50,42 +51,90 @@ const SIDEBAR_HOVER_BG  = 'rgba(255,255,255,0.08)';
 const SIDEBAR_W = 220; // expanded width
 const ICON_W    = 58;  // collapsed width (icon strip)
 
-function SidebarItem({ to, label, expanded, onClick }) {
+function SidebarItem({ to, label, expanded, onClick, innerRef }) {
   const location = useLocation();
   const isActive = location.hash === `#${to}` || location.pathname === to;
+  const [hov, setHov] = useState(false);
   return (
     <Link
+      ref={innerRef}
       to={to}
       onClick={onClick}
       title={!expanded ? label : undefined}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
       style={{
         display: 'block',
         padding: '0.5rem 0.75rem',
         borderRadius: 6,
         fontSize: '0.875rem',
-        color: isActive && expanded ? '#fff' : SIDEBAR_TEXT,
-        background: isActive && expanded ? SIDEBAR_ACTIVE_BG : 'transparent',
+        color: (isActive || hov) ? '#fff' : SIDEBAR_TEXT,
+        background: 'transparent',
         fontWeight: isActive ? 600 : 400,
         textDecoration: 'none',
         marginBottom: 2,
-        transition: 'background 0.12s',
+        transition: 'color 0.15s',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         minHeight: '2rem',
+        position: 'relative',
+        zIndex: 1,
+        outline: 'none',
       }}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = SIDEBAR_HOVER_BG; }}
-      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
     >
       {expanded ? label : ''}
     </Link>
   );
 }
 
+const VIEWER_ITEMS = ['/wo-dashboard', '/production-report', '/routing-history', '/qc-board'];
+const MEMBER_ITEMS = ['/wo-dashboard', '/production-report', '/routing-history', '/sequence-builder', '/qc-board', '/oba'];
+
+function visibleMainItems(role) {
+  if (!role || role === 'viewer') return MAIN_ITEMS.filter(i => VIEWER_ITEMS.includes(i.to));
+  if (role === 'member') return MAIN_ITEMS.filter(i => MEMBER_ITEMS.includes(i.to));
+  return MAIN_ITEMS; // admin
+}
+
 function Sidebar() {
   const [expanded, setExpanded] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
-  const auth = useMockAuth();
+  const auth     = useMockAuth();
+  const location = useLocation();
+  const items    = visibleMainItems(auth.role);
+  const listRef   = useRef(null);
+  const sliderRef = useRef(null);
+  const itemRefs  = useRef({});
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    const slider = sliderRef.current;
+    const list   = listRef.current;
+    if (!slider || !list) return;
+    if (!expanded) { slider.style.opacity = '0'; return; }
+    const path = location.pathname;
+    const el   = itemRefs.current[path];
+    if (!el) { slider.style.opacity = '0'; return; }
+    const top    = el.offsetTop;
+    const height = el.offsetHeight;
+    if (!initialized.current) {
+      slider.style.transition = 'none';
+      slider.style.top    = `${top}px`;
+      slider.style.height = `${height}px`;
+      slider.style.opacity = '1';
+      requestAnimationFrame(() => {
+        if (slider) slider.style.transition = 'top 0.28s cubic-bezier(0.4,0,0.2,1), height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.15s';
+      });
+      initialized.current = true;
+    } else {
+      slider.style.top    = `${top}px`;
+      slider.style.height = `${height}px`;
+      slider.style.opacity = '1';
+    }
+  }, [location.pathname, auth.role, expanded]);
+
+  const setItemRef = (to) => (el) => { if (el) itemRefs.current[to] = el; else delete itemRefs.current[to]; };
 
   return (
     <div
@@ -118,11 +167,7 @@ function Sidebar() {
         userSelect: 'none',
         cursor: 'default',
       }}>
-        {/* Hamburger icon — always visible, centered when collapsed */}
-        <div style={{
-          display: 'flex', flexDirection: 'column', gap: 6,
-          cursor: 'default', flexShrink: 0,
-        }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, cursor: 'default', flexShrink: 0 }}>
           <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
           <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
           <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
@@ -135,43 +180,66 @@ function Sidebar() {
       </div>
 
       {/* Nav items */}
-      <div style={{ padding: '0 0.5rem', flex: 1, overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {MAIN_ITEMS.map(item => (
-          <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => {}} />
+      <div ref={listRef} style={{ padding: '0 0.5rem', flex: 1, overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', position: 'relative' }}>
+        {/* Vertical sliding pill */}
+        <div ref={sliderRef} style={{
+          position: 'absolute',
+          left: 0, right: 0,
+          borderRadius: 6,
+          background: SIDEBAR_ACTIVE_BG,
+          pointerEvents: 'none',
+          zIndex: 0,
+          opacity: 0,
+        }} />
+        {items.map(item => (
+          <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => {}} innerRef={setItemRef(item.to)} />
         ))}
 
-        {/* Divider — only visible when expanded */}
-        {expanded && <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '0.5rem 0.25rem' }} />}
-
-        {/* Dev Tools accordion trigger — only clickable when expanded */}
-        {expanded && (
-          <button
-            type="button"
-            onClick={() => setDevOpen(v => !v)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.5rem 0.75rem', width: '100%',
-              background: 'transparent', border: 'none', borderRadius: 6,
-              cursor: 'pointer', fontSize: '0.875rem',
-              color: SIDEBAR_TEXT, fontWeight: 500,
-              marginBottom: 2, transition: 'background 0.12s',
-              whiteSpace: 'nowrap', userSelect: 'none',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = SIDEBAR_HOVER_BG}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            <span style={{ flex: 1, textAlign: 'left', pointerEvents: 'none' }}>Dev Tools</span>
-            <span style={{ fontSize: '0.65rem', opacity: 0.6, pointerEvents: 'none' }}>{devOpen ? '▲' : '▼'}</span>
-          </button>
+        {/* Dev Tools — admin only */}
+        {auth.role === 'admin' && expanded && (
+          <>
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '0.5rem 0.25rem' }} />
+            <button
+              type="button"
+              onClick={() => setDevOpen(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.5rem 0.75rem', width: '100%',
+                background: 'transparent', border: 'none', borderRadius: 6,
+                cursor: 'pointer', fontSize: '0.875rem',
+                color: SIDEBAR_TEXT, fontWeight: 500,
+                marginBottom: 2, transition: 'background 0.12s',
+                whiteSpace: 'nowrap', userSelect: 'none',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = SIDEBAR_HOVER_BG}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <span style={{ flex: 1, textAlign: 'left', pointerEvents: 'none' }}>Dev Tools</span>
+              <span style={{ fontSize: '0.65rem', opacity: 0.6, pointerEvents: 'none' }}>{devOpen ? '▲' : '▼'}</span>
+            </button>
+            {devOpen && DEV_ITEMS.map(item => (
+              <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => {}} innerRef={setItemRef(item.to)} />
+            ))}
+          </>
         )}
-
-        {devOpen && DEV_ITEMS.map(item => (
-          <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => {}} />
-        ))}
       </div>
 
-      {/* Login / Logout — pinned bottom */}
+      {/* Role badge + Login/Logout — pinned bottom */}
       <div style={{ padding: '0.5rem', flexShrink: 0 }}>
+        {auth.isLoggedIn && expanded && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.3rem 0.75rem', marginBottom: '0.25rem',
+            fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)',
+          }}>
+            <span style={{
+              background: ROLE_COLOR[auth.role] || '#64748b',
+              color: '#fff', padding: '0.1rem 0.4rem', borderRadius: 999,
+              fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase',
+            }}>{auth.role}</span>
+            <span>{auth.username}</span>
+          </div>
+        )}
         {auth.isLoggedIn ? (
           <button
             type="button"
@@ -226,27 +294,160 @@ class ErrorBoundary extends React.Component {
 }
 
 // ─── Top nav link ──────────────────────────────────────────────────
-function NavLink({ to, children }) {
+function NavLink({ to, children, innerRef }) {
   const location = useLocation();
   const isActive = location.hash === `#${to}` || location.pathname === to;
   return (
     <Link
+      ref={innerRef}
       to={to}
       style={{
         padding: '0.4rem 0.85rem',
         borderRadius: 6,
-        background: isActive ? 'rgba(255,255,255,0.18)' : 'transparent',
-        color: isActive ? '#fff' : 'rgba(255,255,255,0.75)',
+        color: isActive ? '#fff' : 'rgba(255,255,255,0.72)',
         textDecoration: 'none',
-        border: `1px solid ${isActive ? 'rgba(255,255,255,0.35)' : 'transparent'}`,
         fontWeight: isActive ? 600 : 400,
         fontSize: '0.875rem',
-        transition: 'all 0.15s',
         whiteSpace: 'nowrap',
+        position: 'relative',
+        zIndex: 1,
+        transition: 'color 0.2s',
+        outline: 'none',
       }}
+      onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#fff'; }}
+      onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.72)'; }}
     >
       {children}
     </Link>
+  );
+}
+
+// ─── Top nav (role-aware) ─────────────────────────────────────────
+function TopNav() {
+  const auth    = useMockAuth();
+  const role    = auth.role;
+  const location = useLocation();
+  const navRef   = useRef(null);
+  const sliderRef = useRef(null);
+  const itemRefs  = useRef({});
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    const slider = sliderRef.current;
+    const nav    = navRef.current;
+    if (!slider || !nav) return;
+    const path = location.pathname;
+    const el   = itemRefs.current[path];
+    if (!el) { slider.style.opacity = '0'; return; }
+    const navRect = nav.getBoundingClientRect();
+    const elRect  = el.getBoundingClientRect();
+    const left  = elRect.left - navRect.left;
+    const width = elRect.width;
+    if (!initialized.current) {
+      slider.style.transition = 'none';
+      slider.style.left    = `${left}px`;
+      slider.style.width   = `${width}px`;
+      slider.style.opacity = '1';
+      requestAnimationFrame(() => {
+        if (slider) slider.style.transition = 'left 0.28s cubic-bezier(0.4,0,0.2,1), width 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s';
+      });
+      initialized.current = true;
+    } else {
+      slider.style.left    = `${left}px`;
+      slider.style.width   = `${width}px`;
+      slider.style.opacity = '1';
+    }
+  }, [location.pathname, role]);
+
+  const ref = (to) => (el) => { if (el) itemRefs.current[to] = el; };
+
+  return (
+    <nav ref={navRef} style={{ display: 'flex', gap: '0.4rem', flexWrap: 'nowrap', alignItems: 'center', marginLeft: 'auto', position: 'relative' }}>
+      {/* sliding pill */}
+      <div ref={sliderRef} style={{
+        position: 'absolute', top: '50%', height: '1.8rem',
+        transform: 'translateY(-50%)',
+        background: 'rgba(255,255,255,0.2)',
+        borderRadius: 6, pointerEvents: 'none', zIndex: 0, opacity: 0,
+      }} />
+      <NavLink to="/wo-dashboard"      innerRef={ref('/wo-dashboard')}>WO Board</NavLink>
+      <NavLink to="/production-report" innerRef={ref('/production-report')}>Report</NavLink>
+      <NavLink to="/routing-history"   innerRef={ref('/routing-history')}>History</NavLink>
+      {(role === 'admin' || role === 'member') && <NavLink to="/sequence-builder" innerRef={ref('/sequence-builder')}>Sequence Builder</NavLink>}
+      <NavLink to="/qc-board"          innerRef={ref('/qc-board')}>QC Board</NavLink>
+      {(role === 'admin' || role === 'member') && <NavLink to="/oba" innerRef={ref('/oba')}>OBA</NavLink>}
+      {role === 'admin' && <NavLink to="/route-admin" innerRef={ref('/route-admin')}>Route Admin</NavLink>}
+      {role === 'admin' && (
+        <>
+          <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)', display: 'inline-block', margin: '0 0.25rem', flexShrink: 0 }} />
+          <NavLink to="/system" innerRef={ref('/system')}>⚙️ System</NavLink>
+        </>
+      )}
+    </nav>
+  );
+}
+
+// ─── Auth guard (force login) ─────────────────────────────────────
+function AuthGuard({ children }) {
+  const auth = useMockAuth();
+  if (!auth.isLoggedIn) return <Navigate to="/mes-auth" replace />;
+  return children;
+}
+
+// ─── Role guard ───────────────────────────────────────────────────
+function RoleGuard({ allowed, children }) {
+  const auth = useMockAuth();
+  if (!auth.isLoggedIn) return <Navigate to="/mes-auth" replace />;
+  if (!allowed.includes(auth.role)) return <Navigate to="/wo-dashboard" replace />;
+  return children;
+}
+
+// ─── Toast container ──────────────────────────────────────────────
+const TOAST_COLORS = { success: '#10b981', error: '#ef4444', info: '#3b82f6' };
+const TOAST_ICONS  = { success: '✅', error: '❌', info: 'ℹ️' };
+let _toastId = 0;
+
+function ToastContainer() {
+  const [toasts, setToasts] = useState([]);
+  const timers = useRef([]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const { msg, type } = e.detail;
+      const id = ++_toastId;
+      setToasts(prev => [...prev, { id, msg, type }]);
+      const tid = setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+      timers.current.push(tid);
+    };
+    window.addEventListener('app:toast', handler);
+    return () => {
+      window.removeEventListener('app:toast', handler);
+      timers.current.forEach(clearTimeout);
+    };
+  }, []);
+
+  return (
+    <>
+      <style>{`@keyframes toastIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }`}</style>
+      {toasts.length > 0 && (
+        <div style={{ position: 'fixed', top: '4.5rem', right: '1rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.5rem', pointerEvents: 'none' }}>
+          {toasts.map(t => (
+            <div key={t.id} style={{
+              background: TOAST_COLORS[t.type] || TOAST_COLORS.success,
+              color: '#fff', padding: '0.75rem 1.25rem', borderRadius: 8,
+              fontSize: '0.875rem', fontWeight: 500,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              animation: 'toastIn 0.25s ease',
+              minWidth: 240, maxWidth: 360,
+            }}>
+              <span>{TOAST_ICONS[t.type] || TOAST_ICONS.success}</span>
+              <span>{t.msg}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -315,17 +516,7 @@ function Shell({ children }) {
           background: '#162d4a',
           position: 'sticky', top: 0, zIndex: 100,
         }}>
-          <nav style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', marginLeft: 'auto' }}>
-            <NavLink to="/wo-dashboard">WO Board</NavLink>
-            <NavLink to="/production-report">Report</NavLink>
-            <NavLink to="/routing-history">History</NavLink>
-            <NavLink to="/sequence-builder">Sequence Builder</NavLink>
-            <NavLink to="/qc-board">QC Board</NavLink>
-            <NavLink to="/oba">OBA</NavLink>
-            <NavLink to="/route-admin">Route Admin</NavLink>
-            <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)', display: 'inline-block', margin: '0 0.25rem' }} />
-            <NavLink to="/system">⚙️ System</NavLink>
-          </nav>
+          <TopNav />
         </header>
 
         <main style={{ padding: '1.5rem', maxWidth: 1380, margin: '0 auto', flex: 1, width: '100%', boxSizing: 'border-box' }}>
@@ -401,28 +592,29 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <HashRouter>
+        <ToastContainer />
         <Shell>
           <ErrorBoundary>
             <Routes>
               <Route path="/"                  element={<Navigate to="/wo-dashboard" replace />} />
-              <Route path="/system"            element={<SystemPage />} />
-              <Route path="/mes-backbone"      element={<MesBackbonePage />} />
               <Route path="/mes-auth"          element={<MesAuthPage />} />
-              <Route path="/pm-core-flow"      element={<PmCoreFlowPage />} />
-              <Route path="/scm-cases"         element={<ScmCasesPage />} />
-              <Route path="/sync-monitor"      element={<SyncMonitorPage />} />
-              <Route path="/qc-board"          element={<QcBoard />} />
-              <Route path="/bom-editor"        element={<BomEditorPage />} />
-              <Route path="/route-admin"       element={<RouteAdminPage />} />
-              <Route path="/web-check"         element={<WebCheckPage />} />
-              <Route path="/routing-history"   element={<RoutingHistoryPage />} />
-              <Route path="/sequence-builder"  element={<SequenceBuilderPage />} />
-              <Route path="/production-report" element={<ProductionReportPage />} />
-              <Route path="/wo-dashboard"      element={<WoDashboardPage />} />
-              <Route path="/wo/:woId"          element={<WoDetailPage />} />
-              <Route path="/wo/:woId/close"    element={<CloseWoPage />} />
-              <Route path="/oba"               element={<ObaPage />} />
-              <Route path="/fai/:woId"         element={<FaiPage />} />
+              <Route path="/wo-dashboard"      element={<AuthGuard><WoDashboardPage /></AuthGuard>} />
+              <Route path="/production-report" element={<AuthGuard><ProductionReportPage /></AuthGuard>} />
+              <Route path="/routing-history"   element={<AuthGuard><RoutingHistoryPage /></AuthGuard>} />
+              <Route path="/qc-board"          element={<AuthGuard><QcBoard /></AuthGuard>} />
+              <Route path="/wo/:woId"          element={<AuthGuard><WoDetailPage /></AuthGuard>} />
+              <Route path="/sequence-builder"  element={<RoleGuard allowed={['admin','member']}><SequenceBuilderPage /></RoleGuard>} />
+              <Route path="/oba"               element={<RoleGuard allowed={['admin','member']}><ObaPage /></RoleGuard>} />
+              <Route path="/wo/:woId/close"    element={<RoleGuard allowed={['admin','member']}><CloseWoPage /></RoleGuard>} />
+              <Route path="/fai/:woId"         element={<RoleGuard allowed={['admin','member']}><FaiPage /></RoleGuard>} />
+              <Route path="/route-admin"       element={<RoleGuard allowed={['admin']}><RouteAdminPage /></RoleGuard>} />
+              <Route path="/system"            element={<RoleGuard allowed={['admin']}><SystemPage /></RoleGuard>} />
+              <Route path="/mes-backbone"      element={<RoleGuard allowed={['admin']}><MesBackbonePage /></RoleGuard>} />
+              <Route path="/pm-core-flow"      element={<RoleGuard allowed={['admin']}><PmCoreFlowPage /></RoleGuard>} />
+              <Route path="/scm-cases"         element={<RoleGuard allowed={['admin']}><ScmCasesPage /></RoleGuard>} />
+              <Route path="/sync-monitor"      element={<RoleGuard allowed={['admin']}><SyncMonitorPage /></RoleGuard>} />
+              <Route path="/bom-editor"        element={<RoleGuard allowed={['admin']}><BomEditorPage /></RoleGuard>} />
+              <Route path="/web-check"         element={<RoleGuard allowed={['admin']}><WebCheckPage /></RoleGuard>} />
               <Route path="*"                  element={<Navigate to="/wo-dashboard" replace />} />
             </Routes>
           </ErrorBoundary>
