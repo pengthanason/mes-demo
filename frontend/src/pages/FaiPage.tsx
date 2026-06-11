@@ -47,24 +47,24 @@ export function FaiPage() {
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!isChecklistComplete) { setError('กรุณาตรวจให้ครบทุกรายการ'); return; }
     if (inspectorId === approverId) { setError('ผู้ตรวจและผู้รับรองต้องไม่ใช่คนเดียวกัน (Dual-Key Verification)'); return; }
 
-    const current = await getWo(woId || '');
+    const current = getWo(woId || '');
     if (!current) { setError('ไม่พบ WO'); return; }
 
     if (current.currentStep === 'WAIT_FAI_QA') {
-      await updateWo(woId || '', {
+      updateWo(woId || '', {
         currentStep:  'WAIT_FAI_MGR',
         faiInspector: inspectorId,
       });
       showToast('FAI QA ผ่านแล้ว — รอผู้จัดการอนุมัติ', 'success');
       setSuccessMsg('ผลการตรวจ FAI (QA) ถูกส่งให้ผู้จัดการอนุมัติแล้ว\nสถานะ: WAIT_FAI_QA → WAIT_FAI_MGR');
     } else {
-      await updateWo(woId || '', {
+      updateWo(woId || '', {
         faiPassed:    true,
         faiInspector: current.faiInspector || inspectorId,
         faiApprover:  approverId,

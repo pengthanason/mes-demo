@@ -14,14 +14,14 @@ export function ObaPage() {
   const [error,      setError]      = useState('');
   const [saved,      setSaved]      = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (result === 'FAIL' && !defectNote.trim()) {
       setError('กรุณาระบุหมายเหตุ (Defect Note) เมื่อผลการตรวจเป็น FAIL');
       return;
     }
-    await addObaRecord({ woId, lotNo, sampleQty: Number(sampleQty), result: result as 'PASS' | 'FAIL', defectNote });
+    addObaRecord({ woId, lotNo, sampleQty: Number(sampleQty), result: result as 'PASS' | 'FAIL', defectNote });
     showToast(`OBA ${result}: ${woId} / ${lotNo}`, result === 'PASS' ? 'success' : 'error');
     setWoId(''); setLotNo(''); setSampleQty(''); setResult(''); setDefectNote('');
     setSaved(true);

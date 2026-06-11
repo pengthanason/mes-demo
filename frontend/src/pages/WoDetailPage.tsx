@@ -1,13 +1,24 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { buildSteps } from '../lib/woLifecycle';
+import { buildSteps, WO_LIFECYCLE } from '../lib/woLifecycle';
 import { StatusStepper } from '../components/StatusStepper';
 import { useMockWoList, useMockAuth } from '../lib/useMockStore';
+import { updateWo, type WoStep } from '../lib/mockStore';
+import { showToast } from '../lib/toast';
+
+const ADVANCE_LABEL: Partial<Record<WoStep, string>> = {
+  DRAFT:    'Release งาน →',
+  OPEN:     'Kitting พร้อม →',
+  READY:    'เริ่มผลิต →',
+  RUNNING:  'ส่ง FAI →',
+};
 
 export function WoDetailPage() {
   const { woId } = useParams();
   const woList = useMockWoList();
   const auth = useMockAuth();
   const wo = woList.find(w => w.woId === woId) ?? null;
+  const [advancing, setAdvancing] = useState(false);
 
   if (!wo) {
     return (
@@ -24,6 +35,20 @@ export function WoDetailPage() {
   const canFai = (wo.currentStep === 'WAIT_FAI_QA' || wo.currentStep === 'WAIT_FAI_MGR') && !wo.faiPassed;
   const canAct = auth.role === 'admin' || auth.role === 'member';
 
+  const advanceLabel = ADVANCE_LABEL[wo.currentStep as WoStep];
+  const currentIdx   = WO_LIFECYCLE.findIndex(s => s.key === wo.currentStep);
+  const nextStep     = currentIdx >= 0 && currentIdx < WO_LIFECYCLE.length - 1
+    ? WO_LIFECYCLE[currentIdx + 1].key as WoStep
+    : null;
+
+  function handleAdvance() {
+    if (!nextStep) return;
+    setAdvancing(true);
+    updateWo(wo!.woId, { currentStep: nextStep });
+    showToast(`${wo!.woId} → ${nextStep}`, 'success');
+    setAdvancing(false);
+  }
+
   return (
     <section className="stack-lg">
       <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -32,12 +57,23 @@ export function WoDetailPage() {
           <p className="panel__subtitle">รายละเอียดรหัส: <strong>{wo.woId}</strong></p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {canAct && advanceLabel && nextStep && (
+            <button
+              type="button"
+              className="btn"
+              style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}
+              onClick={handleAdvance}
+              disabled={advancing}
+            >
+              {advanceLabel}
+            </button>
+          )}
           {canAct && canFai && (
             <Link to={`/fai/${wo.woId}`} className="btn" style={{ background: '#f59e0b', color: '#fff', border: 'none' }}>
               {wo.currentStep === 'WAIT_FAI_QA' ? 'ตรวจ FAI (QA)' : 'อนุมัติ FAI (MGR)'}
             </Link>
           )}
-          {canAct && (
+          {canAct && wo.currentStep !== 'CLOSED' && (
             <Link to={`/wo/${wo.woId}/close`} className="btn danger">ปิดงาน (Close)</Link>
           )}
           <Link to="/wo-dashboard" className="btn secondary">กลับไป Dashboard</Link>
@@ -81,7 +117,7 @@ export function WoDetailPage() {
         </div>
       </div>
 
-      {(wo.faiPassed) && (
+      {wo.faiPassed && (
         <div className="panel">
           <h2 className="panel__title panel__title--sm">FAI Result</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>

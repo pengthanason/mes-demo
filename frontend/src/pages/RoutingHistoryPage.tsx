@@ -64,7 +64,7 @@ export function RoutingHistoryPage() {
                     <td>
                       <button
                         type="button"
-                        onClick={() => { deleteRoutingRecord(row.id); }}
+                        onClick={() => deleteRoutingRecord(row.id)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.85rem', padding: '0.25rem 0.5rem', borderRadius: 4 }}
                         title="ลบรายการนี้"
                       >

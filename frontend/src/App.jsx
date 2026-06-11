@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { useMockAuth } from './lib/useMockStore.ts';
-import { mockLogout } from './lib/mockStore.ts';
+import { mockLogout, exportData, importData } from './lib/mockStore.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
 import { MesBackbonePage } from './pages/MesBackbonePage.tsx';
 import { MesAuthPage } from './pages/MesAuthPage.tsx';
@@ -20,6 +20,7 @@ import { WoDetailPage } from './pages/WoDetailPage.tsx';
 import { CloseWoPage } from './pages/CloseWoPage.tsx';
 import { ObaPage } from './pages/ObaPage.tsx';
 import { FaiPage } from './pages/FaiPage.tsx';
+import { MesWorkspacePage } from './pages/MesWorkspacePage.tsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ─── Sidebar nav items ─────────────────────────────────────────────
@@ -537,6 +538,60 @@ const CARD_SHADES = [
   '#1e3a5f','#1e3a5f','#1e3a5f','#1e3a5f',
 ];
 
+function DataManagementPanel() {
+  const [importStatus, setImportStatus] = useState('');
+
+  function handleImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportStatus('กำลังโหลด...');
+    importData(file)
+      .then(() => { setImportStatus('✅ นำเข้าสำเร็จ — หน้าจอจะอัปเดตอัตโนมัติ'); })
+      .catch(err => { setImportStatus(`❌ ${err.message}`); });
+    e.target.value = '';
+  }
+
+  return (
+    <div className="panel stack" style={{ borderLeft: '4px solid #f59e0b' }}>
+      <h2 className="panel__title">💾 Data Backup / Restore</h2>
+      <p className="panel__subtitle">ข้อมูลทั้งหมดเก็บใน localStorage — ควร export backup ไว้เป็นประจำ</p>
+
+      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <button
+          type="button"
+          className="btn"
+          style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 600, padding: '0.6rem 1.25rem' }}
+          onClick={exportData}
+        >
+          ⬇️ Export Backup (JSON)
+        </button>
+
+        <label style={{ cursor: 'pointer' }}>
+          <span
+            className="btn"
+            style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#fff', fontWeight: 600, padding: '0.6rem 1.25rem', display: 'inline-block' }}
+          >
+            ⬆️ Import / Restore
+          </span>
+          <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+        </label>
+      </div>
+
+      {importStatus && (
+        <div className={`notice ${importStatus.startsWith('✅') ? 'ok' : importStatus.startsWith('❌') ? 'err' : 'info'}`}>
+          {importStatus}
+        </div>
+      )}
+
+      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        <strong>คำแนะนำ:</strong> Export backup ไว้ในโฟลเดอร์แยก อาทิตย์ละครั้ง
+        หรือก่อน/หลังทำงานสำคัญ<br />
+        ห้ามกด "Clear browsing data → Site data" ใน Chrome มิฉะนั้นข้อมูลจะหายทั้งหมด
+      </div>
+    </div>
+  );
+}
+
 function SystemPage() {
   const auth = useMockAuth();
   const allItems = [...DEV_ITEMS, { to: '/mes-auth', label: auth.isLoggedIn ? 'Logout' : 'Login' }];
@@ -546,6 +601,9 @@ function SystemPage() {
         <h1 className="panel__title">System &amp; Developer Tools</h1>
         <p className="panel__subtitle">Internal tools for developers — not part of regular operator workflow</p>
       </div>
+
+      <DataManagementPanel />
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
         {allItems.map((item, i) => {
           const bg = CARD_SHADES[i % CARD_SHADES.length];
@@ -614,6 +672,7 @@ export default function App() {
               <Route path="/scm-cases"         element={<RoleGuard allowed={['admin']}><ScmCasesPage /></RoleGuard>} />
               <Route path="/sync-monitor"      element={<RoleGuard allowed={['admin']}><SyncMonitorPage /></RoleGuard>} />
               <Route path="/bom-editor"        element={<RoleGuard allowed={['admin']}><BomEditorPage /></RoleGuard>} />
+              <Route path="/workspace"         element={<RoleGuard allowed={['admin']}><MesWorkspacePage /></RoleGuard>} />
               <Route path="/web-check"         element={<RoleGuard allowed={['admin']}><WebCheckPage /></RoleGuard>} />
               <Route path="*"                  element={<Navigate to="/wo-dashboard" replace />} />
             </Routes>

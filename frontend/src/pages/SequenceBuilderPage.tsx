@@ -374,7 +374,7 @@ export function SequenceBuilderPage() {
         sequence: record.sequence,
         result: record.result,
         totalSec: record.totalSec,
-      }).catch(console.error);
+      });
       showToast(`Process recorded: ${record.serial}`, 'success');
       resetForm();
     },

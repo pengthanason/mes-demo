@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CheckCircle2, XCircle, Scan } from 'lucide-react';
 import { getQcRecords, addQcRecord } from '../../lib/mockStore';
 import { useIsViewer } from '../../lib/useMockStore';
@@ -8,18 +8,11 @@ export default function QcBoard() {
   const isViewer = useIsViewer();
 
   const [unitSn, setUnitSn] = useState('');
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(() => getQcRecords());
   const [isLoading, setIsLoading] = useState(false);
   const [globalError, setGlobalError] = useState('');
 
-  useEffect(() => {
-    getQcRecords().then(setHistory);
-    const update = () => getQcRecords().then(setHistory);
-    window.addEventListener('mockstore', update);
-    return () => window.removeEventListener('mockstore', update);
-  }, []);
-
-  const handleQcSubmit = async (result) => {
+  const handleQcSubmit = (result) => {
     if (isViewer) return;
     if (!unitSn.trim()) {
       setGlobalError('Please enter a Unit SN first.');
@@ -35,7 +28,8 @@ export default function QcBoard() {
       error: null,
     };
 
-    await addQcRecord(entry);
+    addQcRecord(entry);
+    setHistory(getQcRecords());
     setUnitSn('');
     setIsLoading(false);
     showToast(`QC ${result}: ${entry.sn}`, result === 'PASS' ? 'success' : 'error');

@@ -1,11 +1,33 @@
-﻿﻿
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mes-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: syntechdb
+      POSTGRES_PASSWORD: syntech2026
+      POSTGRES_DB: productiondb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      default: {}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U syntechdb -d productiondb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   mes_backbone:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: mes-backbone
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 5100
@@ -33,13 +55,13 @@ services:
       MRP_SERVICE_TOKEN: ${MRP_SERVICE_TOKEN:-}
       MRP_API_USER: ${MRP_API_USER:-admin}
       MRP_API_PASSWORD: ${MRP_API_PASSWORD:-mes_mrp_svc_2026!}
-      DB_HOST: ${MES_DB_HOST:-host.docker.internal}
-      DB_PORT: ${MES_DB_PORT:-5432}
-      DB_NAME: ${MES_DB_NAME:-productiondb}
-      DB_USER: ${MES_DB_USER:-syntechdb}
-      DB_PASSWORD: ${MES_DB_PASSWORD:-change_me}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: productiondb
+      DB_USER: syntechdb
+      DB_PASSWORD: syntech2026
       DB_SCHEMA: ${MES_DB_SCHEMA:-}
-      DB_SSLMODE: ${MES_DB_SSLMODE:-prefer}
+      DB_SSLMODE: disable
       DB_CONNECT_TIMEOUT: ${MES_DB_CONNECT_TIMEOUT:-5000}
       EVENT_INBOX_SECRET: ${EVENT_INBOX_SECRET:-}
       STOCK_WEBHOOK_SECRET: ${STOCK_WEBHOOK_SECRET:-}
@@ -49,21 +71,15 @@ services:
       - "5100:5100"
     networks:
       default: {}
-      wms_network: {}
-      synexta_event_bus:
-        aliases:
-          - mes-backbone
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5100/api/mes/health >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
 
+volumes:
+  postgres_data:
+
 networks:
   default:
     driver: bridge
-  wms_network:
-    external: true
-    name: syntech_wms_idea_default
-  synexta_event_bus:
-    external: true

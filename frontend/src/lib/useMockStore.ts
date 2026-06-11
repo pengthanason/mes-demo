@@ -1,54 +1,36 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getAuth, getWoList, getObaRecords, getRoutingHistory, getQcRecords, getProductionReports } from './mockStore';
-import type { AuthState, MockWO, ObaRecord, RoutingRecord, QcRecord, ProductionReport } from './mockStore';
+import { useState, useEffect } from 'react';
+import { getAuth, getWoList, getObaRecords, getRoutingHistory } from './mockStore';
+import type { AuthState, MockWO, ObaRecord, RoutingRecord } from './mockStore';
 
-// Auth stays synchronous (localStorage)
-export function useMockAuth(): AuthState {
-  const [value, setValue] = useState<AuthState>(() => getAuth());
+function useStoreValue<T>(getter: () => T): T {
+  const [value, setValue] = useState<T>(() => getter());
   useEffect(() => {
-    const update = () => setValue(getAuth());
+    const update = () => setValue(getter());
     window.addEventListener('mockstore', update);
     window.addEventListener('storage', update);
     return () => {
       window.removeEventListener('mockstore', update);
       window.removeEventListener('storage', update);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return value;
 }
 
-// Generic async hook for Supabase-backed stores
-function useAsyncStore<T>(fetcher: () => Promise<T>, initial: T): T {
-  const [value, setValue] = useState<T>(initial);
-  const fetch = useCallback(() => { fetcher().then(setValue); }, [fetcher]);
-
-  useEffect(() => {
-    fetch();
-    window.addEventListener('mockstore', fetch);
-    return () => window.removeEventListener('mockstore', fetch);
-  }, [fetch]);
-
-  return value;
+export function useMockAuth(): AuthState {
+  return useStoreValue(getAuth);
 }
 
 export function useMockWoList(): MockWO[] {
-  return useAsyncStore(getWoList, []);
+  return useStoreValue(getWoList);
 }
 
 export function useMockObaRecords(): ObaRecord[] {
-  return useAsyncStore(getObaRecords, []);
+  return useStoreValue(getObaRecords);
 }
 
 export function useRoutingHistory(): RoutingRecord[] {
-  return useAsyncStore(getRoutingHistory, []);
-}
-
-export function useMockQcRecords(): QcRecord[] {
-  return useAsyncStore(getQcRecords, []);
-}
-
-export function useProductionReports(): ProductionReport[] {
-  return useAsyncStore(getProductionReports, []);
+  return useStoreValue(getRoutingHistory);
 }
 
 export function useIsViewer(): boolean {

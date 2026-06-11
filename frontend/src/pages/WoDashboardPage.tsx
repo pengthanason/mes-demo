@@ -54,6 +54,8 @@ export function WoDashboardPage() {
   useAutoRefresh(refresh, 30_000);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [customerFilter, setCustomerFilter] = useState('');
+  const [stationFilter,  setStationFilter]  = useState('');
+  const [stepFilter,     setStepFilter]     = useState('');
   const [showClosed, setShowClosed]         = useState(false);
 
   useEffect(() => { setLastUpdate(new Date()); }, [woList]);
@@ -66,13 +68,16 @@ export function WoDashboardPage() {
   }), [woList]);
 
   const allCustomers = useMemo(() => Array.from(new Set(woList.map(w => w.customer))).sort(), [woList]);
+  const allStations  = useMemo(() => Array.from(new Set(woList.map(w => w.station))).sort(),  [woList]);
 
   const processedList = useMemo(() => {
     return woList
       .filter(wo => {
-        const matchCustomer = customerFilter === '' || wo.customer === customerFilter;
+        const matchCustomer = customerFilter === '' || wo.customer    === customerFilter;
+        const matchStation  = stationFilter  === '' || wo.station     === stationFilter;
+        const matchStep     = stepFilter     === '' || wo.currentStep === stepFilter;
         const matchClosed   = showClosed ? true : wo.currentStep !== 'CLOSED';
-        return matchCustomer && matchClosed;
+        return matchCustomer && matchStation && matchStep && matchClosed;
       })
       .map(w => ({ w, t: new Date(w.createdAt ?? w.updatedAt).getTime() }))
       .sort((a, b) => {
@@ -82,7 +87,7 @@ export function WoDashboardPage() {
         return b.t - a.t;
       })
       .map(x => x.w);
-  }, [woList, customerFilter, showClosed]);
+  }, [woList, customerFilter, stationFilter, stepFilter, showClosed]);
 
   return (
     <section className="stack-lg" style={{ minHeight: '100vh' }}>
@@ -101,7 +106,7 @@ export function WoDashboardPage() {
                 type="button"
                 className="btn"
                 style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}
-                onClick={() => { generateRandomWo().then(wo => addWo(wo)); }}
+                onClick={() => addWo(generateRandomWo())}
               >
                 + Add Random WO
               </button>
@@ -122,6 +127,26 @@ export function WoDashboardPage() {
             <select value={customerFilter} onChange={e => setCustomerFilter(e.target.value)}>
               <option value="">All Customers</option>
               {allCustomers.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span>Filter Station</span>
+            <select value={stationFilter} onChange={e => setStationFilter(e.target.value)}>
+              <option value="">All Stations</option>
+              {allStations.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span>Filter Step</span>
+            <select value={stepFilter} onChange={e => setStepFilter(e.target.value)}>
+              <option value="">All Steps</option>
+              <option value="DRAFT">DRAFT</option>
+              <option value="OPEN">OPEN</option>
+              <option value="READY">READY</option>
+              <option value="RUNNING">RUNNING</option>
+              <option value="WAIT_FAI_QA">WAIT_FAI_QA</option>
+              <option value="WAIT_FAI_MGR">WAIT_FAI_MGR</option>
+              <option value="CLOSED">CLOSED</option>
             </select>
           </label>
           <div className="field" style={{ display: 'flex', flexDirection: 'column' }}>
