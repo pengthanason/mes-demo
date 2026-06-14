@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "buildCommand": "cd frontend && npm install && npx msw init public/ --no-save && npx vite build",
   "outputDirectory": "frontend/dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
