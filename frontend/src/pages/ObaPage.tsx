@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { addObaRecord } from '../lib/mockStore';
-import { useMockObaRecords } from '../lib/useMockStore';
+import { useObaRecords, useObaCreate } from '../lib/recordsApi';
 import { showToast } from '../lib/toast';
 
 export function ObaPage() {
-  const records = useMockObaRecords();
+  const { data } = useObaRecords();
+  const createMut = useObaCreate();
+  const records = data ?? [];
 
   const [woId,       setWoId]       = useState('');
   const [lotNo,      setLotNo]      = useState('');
@@ -21,11 +22,18 @@ export function ObaPage() {
       setError('กรุณาระบุหมายเหตุ (Defect Note) เมื่อผลการตรวจเป็น FAIL');
       return;
     }
-    addObaRecord({ woId, lotNo, sampleQty: Number(sampleQty), result: result as 'PASS' | 'FAIL', defectNote });
-    showToast(`OBA ${result}: ${woId} / ${lotNo}`, result === 'PASS' ? 'success' : 'error');
-    setWoId(''); setLotNo(''); setSampleQty(''); setResult(''); setDefectNote('');
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    createMut.mutate(
+      { woId, lotNo, sampleQty: Number(sampleQty), result: result as 'PASS' | 'FAIL', defectNote },
+      {
+        onSuccess: () => {
+          showToast(`OBA ${result}: ${woId} / ${lotNo}`, result === 'PASS' ? 'success' : 'error');
+          setWoId(''); setLotNo(''); setSampleQty(''); setResult(''); setDefectNote('');
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2500);
+        },
+        onError: () => setError('บันทึกไม่สำเร็จ — ลองใหม่อีกครั้ง'),
+      }
+    );
   }
 
   return (
@@ -67,9 +75,9 @@ export function ObaPage() {
               <textarea className="oba-input" value={defectNote} onChange={e => setDefectNote(e.target.value)} placeholder="ระบุอาการเสีย..." required />
             </label>
           )}
-          <button className="btn" type="submit" disabled={!woId || !lotNo || !sampleQty || !result}
+          <button className="btn" type="submit" disabled={!woId || !lotNo || !sampleQty || !result || createMut.isPending}
             style={{ marginTop: '0.5rem', padding: '1rem', fontSize: '1rem' }}>
-            บันทึกผล OBA
+            {createMut.isPending ? 'กำลังบันทึก...' : 'บันทึกผล OBA'}
           </button>
         </form>
       </div>

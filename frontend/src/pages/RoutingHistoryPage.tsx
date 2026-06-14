@@ -1,8 +1,9 @@
-import { useRoutingHistory } from '../lib/useMockStore';
-import { deleteRoutingRecord } from '../lib/mockStore';
+import { useRoutingRecords, useRoutingDelete } from '../lib/recordsApi';
 
 export function RoutingHistoryPage() {
-  const history = useRoutingHistory();
+  const { data } = useRoutingRecords();
+  const deleteMut = useRoutingDelete();
+  const history = data ?? [];
   const passCount = history.filter(r => r.result === 'PASS').length;
   const failCount = history.filter(r => r.result === 'FAIL').length;
 
@@ -64,7 +65,7 @@ export function RoutingHistoryPage() {
                     <td>
                       <button
                         type="button"
-                        onClick={() => deleteRoutingRecord(row.id)}
+                        onClick={() => deleteMut.mutate(row.id)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.85rem', padding: '0.25rem 0.5rem', borderRadius: 4 }}
                         title="ลบรายการนี้"
                       >

@@ -57,8 +57,11 @@ export function getRefreshToken(): string | null {
   return getStoredToken(REFRESH_TOKEN_KEYS);
 }
 
+const API_ORIGIN: string = (import.meta as any).env?.VITE_API_BASE_URL ?? '';
+
 function buildUrl(path: string, params?: RequestConfig['params']): string {
-  const base = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? '' : '/'}${path}`;
+  const apiPath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? '' : '/'}${path}`;
+  const base = API_ORIGIN + apiPath;
   if (!params) return base;
   const search = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -94,7 +97,7 @@ async function request<T>(
       headers,
       body: payload,
       signal: config?.signal,
-      credentials: 'include',
+      credentials: API_ORIGIN ? 'omit' : 'include',
     });
   } catch {
     // Network error — backend not reachable, return null data silently

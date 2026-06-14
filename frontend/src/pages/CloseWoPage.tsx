@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getWo, updateWo } from '../lib/mockStore';
+import { useWoBoard, useWoPatch } from '../lib/woApi';
 import { showToast } from '../lib/toast';
 
 export function CloseWoPage() {
   const { woId }   = useParams();
   const navigate   = useNavigate();
-  const wo         = getWo(woId || '');
+  const { data: woList } = useWoBoard();
+  const patchMut   = useWoPatch();
+  const wo         = (woList ?? []).find(w => w.woId === woId) ?? null;
   const targetQty  = wo?.qty;
 
   const [actualQty, setActualQty] = useState('');
@@ -20,9 +22,13 @@ export function CloseWoPage() {
     if (isNaN(qty) || qty <= 0) { setError('กรุณาระบุจำนวนให้ถูกต้อง'); return; }
     if (targetQty && qty > targetQty) { setError(`จำนวนที่ผลิตได้ (${qty}) ห้ามเกินยอดสั่งผลิต (${targetQty})`); return; }
 
-    updateWo(woId || '', { currentStep: 'CLOSED', actualQty: qty, qtyGood: qty });
-    showToast(`WO ${woId} ปิดงานสำเร็จ`, 'success');
-    setSuccess(true);
+    patchMut.mutate(
+      { woId: woId || '', patch: { currentStep: 'CLOSED', actualQty: qty, qtyGood: qty } },
+      {
+        onSuccess: () => { showToast(`WO ${woId} ปิดงานสำเร็จ`, 'success'); setSuccess(true); },
+        onError:   () => setError('ปิดงานไม่สำเร็จ — ลองใหม่อีกครั้ง'),
+      }
+    );
   }
 
   if (success) {
@@ -60,8 +66,8 @@ export function CloseWoPage() {
             required autoFocus
           />
         </label>
-        <button className="btn" type="submit" disabled={!actualQty} style={{ padding: '1rem', fontSize: '1rem' }}>
-          ยืนยันปิดงาน
+        <button className="btn" type="submit" disabled={!actualQty || patchMut.isPending} style={{ padding: '1rem', fontSize: '1rem' }}>
+          {patchMut.isPending ? 'กำลังปิดงาน...' : 'ยืนยันปิดงาน'}
         </button>
       </form>
     </div>

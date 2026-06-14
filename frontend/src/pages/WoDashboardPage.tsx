@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { buildSteps } from '../lib/woLifecycle';
 import { StatusStepper } from '../components/StatusStepper';
 import { KpiCard } from '../components/KpiCard';
-import { useIsViewer, useMockWoList } from '../lib/useMockStore';
-import { addWo, generateRandomWo, seedIfEmpty, type MockWO } from '../lib/mockStore';
-import { useAutoRefresh } from '../lib/useAutoRefresh';
+import { useIsViewer } from '../lib/useMockStore';
+import { generateRandomWo, type MockWO } from '../lib/mockStore';
+import { useWoBoard, useWoCreate } from '../lib/woApi';
 
 function WoRow({ wo }: { wo: MockWO }) {
   const getBadgeStyle = (step: string) => {
@@ -43,22 +43,17 @@ function WoRow({ wo }: { wo: MockWO }) {
 }
 
 export function WoDashboardPage() {
-  useEffect(() => { seedIfEmpty(); }, []);
+  const isViewer = useIsViewer();
+  const { data, dataUpdatedAt } = useWoBoard();
+  const createMut = useWoCreate();
+  const woList: MockWO[] = data ?? [];
 
-  const isViewer  = useIsViewer();
-  const woList    = useMockWoList();
-
-  const refresh = useCallback(() => {
-    window.dispatchEvent(new Event('mockstore'));
-  }, []);
-  useAutoRefresh(refresh, 30_000);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
   const [customerFilter, setCustomerFilter] = useState('');
   const [stationFilter,  setStationFilter]  = useState('');
   const [stepFilter,     setStepFilter]     = useState('');
   const [showClosed, setShowClosed]         = useState(false);
 
-  useEffect(() => { setLastUpdate(new Date()); }, [woList]);
+  const lastUpdate = dataUpdatedAt ? new Date(dataUpdatedAt) : new Date();
 
   const kpis = useMemo(() => ({
     total:   woList.length,
@@ -106,7 +101,8 @@ export function WoDashboardPage() {
                 type="button"
                 className="btn"
                 style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}
-                onClick={() => addWo(generateRandomWo())}
+                onClick={() => createMut.mutate(generateRandomWo())}
+                disabled={createMut.isPending}
               >
                 + Add Random WO
               </button>

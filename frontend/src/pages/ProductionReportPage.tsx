@@ -1,14 +1,7 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useIsViewer } from '../lib/useMockStore';
-
-type ReportItem = { id: string, code: string, customer: string, status: string, qty: number, delivery: string, stage: string, isCompleted: boolean };
-
-const INITIAL_REPORT: ReportItem[] = [
-  { id: '1', code: 'E13A_STD', customer: 'THS', status: 'ทดสอบการทำงาน (เช็คสี LED)', qty: 270, delivery: '2026-03-30', stage: 'Test', isCompleted: false },
-  { id: '2', code: 'ZSZ003-081A', customer: 'TAD', status: 'SMT เสร็จ เหลือ Depanel/Packing', qty: 1200, delivery: '2026-04-06', stage: 'Packing', isCompleted: false },
-  { id: '3', code: '01489E-081', customer: 'TAD', status: 'ขึ้นงานผลิต', qty: 90, delivery: '2026-04-06', stage: 'SMT', isCompleted: false },
-  { id: '4', code: '5K45', customer: 'THS', status: 'Depanel PCBA, ส่งมอบแล้ว', qty: 500, delivery: '2026-03-27', stage: 'Depanel', isCompleted: true },
-];
+import { useReports, useReportCreate, useReportPatch, useReportDelete, type ReportItem } from '../lib/reportApi';
+import { showToast } from '../lib/toast';
 
 const getStageStyle = (stage: string) => {
   switch (stage.toLowerCase()) {
@@ -41,33 +34,47 @@ const formatDateAndCheckOverdue = (dateString: string) => {
 export function ProductionReportPage() {
   const isViewer = useIsViewer();
 
-  const [reports, setReports] = useState<ReportItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('mes_production_report_mock');
-      return saved ? JSON.parse(saved) : INITIAL_REPORT;
-    } catch {
-      return INITIAL_REPORT;
-    }
-  });
+  const { data: serverReports } = useReports();
+  const createMut = useReportCreate();
+  const patchMut  = useReportPatch();
+  const deleteMut = useReportDelete();
 
+  // local state เป็นตัวจริงระหว่างพิมพ์ — sync จาก server เมื่อโหลด/สร้าง/ลบ
+  const [reports, setReports] = useState<ReportItem[]>([]);
   useEffect(() => {
-    localStorage.setItem('mes_production_report_mock', JSON.stringify(reports));
-  }, [reports]);
+    if (serverReports) setReports(serverReports);
+  }, [serverReports]);
+
+  // debounce: พิมพ์เสร็จ 0.6 วิ ค่อยบันทึกแถวนั้นลง DB
+  const reportsRef = useRef(reports);
+  useEffect(() => { reportsRef.current = reports; }, [reports]);
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(() => {
+    const t = timers.current;
+    return () => Object.values(t).forEach(clearTimeout);
+  }, []);
 
   const [searchText, setSearchText] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
   const [completionFilter, setCompletionFilter] = useState('PENDING');
 
   function addReport() {
-    const newItem: ReportItem = {
-      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-      code: '', customer: '', status: '', qty: 0, delivery: '', stage: 'Planning', isCompleted: false
-    };
-    setReports([newItem, ...reports]);
+    createMut.mutate(undefined, {
+      onError: () => showToast('สร้างรายการไม่สำเร็จ', 'error'),
+    });
   }
 
   function updateReport(id: string, field: keyof ReportItem, value: any) {
-    setReports(reports.map(r => r.id === id ? { ...r, [field]: value } : r));
+    setReports(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    clearTimeout(timers.current[id]);
+    timers.current[id] = setTimeout(() => {
+      const row = reportsRef.current.find(r => r.id === id);
+      if (row) {
+        patchMut.mutate(row, {
+          onError: () => showToast('บันทึกไม่สำเร็จ — ตรวจสอบ backend', 'error'),
+        });
+      }
+    }, 600);
   }
 
   function removeReport(id: string) {
@@ -80,7 +87,10 @@ export function ProductionReportPage() {
                     itemToDelete.qty === 0;
 
     if (isEmpty || window.confirm('ยืนยันการลบรายการที่มีข้อมูลนี้ทิ้งใช่หรือไม่?')) {
-      setReports(reports.filter(r => r.id !== id));
+      clearTimeout(timers.current[id]);
+      deleteMut.mutate(id, {
+        onError: () => showToast('ลบไม่สำเร็จ', 'error'),
+      });
     }
   }
 
@@ -124,7 +134,7 @@ export function ProductionReportPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
           <div>
             <h1 className="panel__title">Daily Production Report</h1>
-            <p className="panel__subtitle">บันทึกและสรุปสถานะงานผลิตรายวัน (Mock Data Editable)</p>
+            <p className="panel__subtitle">บันทึกและสรุปสถานะงานผลิตรายวัน — บันทึกอัตโนมัติลงฐานข้อมูล</p>
           </div>
           {!isViewer && (
             <button type="button" className="btn" onClick={addReport} style={{ background: '#3498db', color: '#ffffff', border: 'none' }}>

@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { updateWo, getWo } from '../lib/mockStore';
-import { useMockWoList } from '../lib/useMockStore';
+import { useWoBoard, useWoPatch } from '../lib/woApi';
 import { showToast } from '../lib/toast';
 
 export function FaiPage() {
   const { woId } = useParams();
   const navigate = useNavigate();
-  const woList = useMockWoList();
-  const wo = woList.find(w => w.woId === woId) ?? null;
+  const { data: woList } = useWoBoard();
+  const patchMut = useWoPatch();
+  const wo = (woList ?? []).find(w => w.woId === woId) ?? null;
 
   const [checklist, setChecklist] = useState<Record<string, 'PASS' | 'FAIL' | ''>>({
     'chk-01': '', 'chk-02': '', 'chk-03': '',
@@ -53,24 +53,30 @@ export function FaiPage() {
     if (!isChecklistComplete) { setError('กรุณาตรวจให้ครบทุกรายการ'); return; }
     if (inspectorId === approverId) { setError('ผู้ตรวจและผู้รับรองต้องไม่ใช่คนเดียวกัน (Dual-Key Verification)'); return; }
 
-    const current = getWo(woId || '');
-    if (!current) { setError('ไม่พบ WO'); return; }
+    if (!wo) { setError('ไม่พบ WO'); return; }
 
-    if (current.currentStep === 'WAIT_FAI_QA') {
-      updateWo(woId || '', {
-        currentStep:  'WAIT_FAI_MGR',
-        faiInspector: inspectorId,
-      });
-      showToast('FAI QA ผ่านแล้ว — รอผู้จัดการอนุมัติ', 'success');
-      setSuccessMsg('ผลการตรวจ FAI (QA) ถูกส่งให้ผู้จัดการอนุมัติแล้ว\nสถานะ: WAIT_FAI_QA → WAIT_FAI_MGR');
+    if (wo.currentStep === 'WAIT_FAI_QA') {
+      patchMut.mutate(
+        { woId: woId || '', patch: { currentStep: 'WAIT_FAI_MGR', faiInspector: inspectorId } },
+        {
+          onSuccess: () => {
+            showToast('FAI QA ผ่านแล้ว — รอผู้จัดการอนุมัติ', 'success');
+            setSuccessMsg('ผลการตรวจ FAI (QA) ถูกส่งให้ผู้จัดการอนุมัติแล้ว\nสถานะ: WAIT_FAI_QA → WAIT_FAI_MGR');
+          },
+          onError: () => setError('บันทึกไม่สำเร็จ — ลองใหม่อีกครั้ง'),
+        }
+      );
     } else {
-      updateWo(woId || '', {
-        faiPassed:    true,
-        faiInspector: current.faiInspector || inspectorId,
-        faiApprover:  approverId,
-      });
-      showToast('FAI อนุมัติแล้ว — พร้อมปิดงาน', 'success');
-      setSuccessMsg('ผู้จัดการอนุมัติ FAI เรียบร้อยแล้ว\nงานยังคงเปิดอยู่ — ปิดงานได้จากหน้า WO Detail');
+      patchMut.mutate(
+        { woId: woId || '', patch: { faiPassed: true, faiInspector: wo.faiInspector || inspectorId, faiApprover: approverId } },
+        {
+          onSuccess: () => {
+            showToast('FAI อนุมัติแล้ว — พร้อมปิดงาน', 'success');
+            setSuccessMsg('ผู้จัดการอนุมัติ FAI เรียบร้อยแล้ว\nงานยังคงเปิดอยู่ — ปิดงานได้จากหน้า WO Detail');
+          },
+          onError: () => setError('บันทึกไม่สำเร็จ — ลองใหม่อีกครั้ง'),
+        }
+      );
     }
   }
 

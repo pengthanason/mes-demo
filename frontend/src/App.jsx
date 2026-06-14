@@ -21,17 +21,36 @@ import { CloseWoPage } from './pages/CloseWoPage.tsx';
 import { ObaPage } from './pages/ObaPage.tsx';
 import { FaiPage } from './pages/FaiPage.tsx';
 import { MesWorkspacePage } from './pages/MesWorkspacePage.tsx';
+import { ProductionPlanPage } from './pages/ProductionPlanPage.tsx';
+import { FourMChangePage } from './pages/FourMChangePage.tsx';
+import { CrDetailPage } from './pages/CrDetailPage.tsx';
+import { QcResultPage } from './pages/QcResultPage.tsx';
+import { QaVerifyPage } from './pages/QaVerifyPage.tsx';
+import { NotificationsPage } from './pages/NotificationsPage.tsx';
+import { AdminPanelPage } from './pages/AdminPanelPage.tsx';
+import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
+import { JigTestPage } from './pages/JigTestPage.tsx';
+import { JigProjectPage } from './pages/JigProjectPage.tsx';
+import { useUnreadCount } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ─── Sidebar nav items ─────────────────────────────────────────────
 const MAIN_ITEMS = [
   { to: '/wo-dashboard',      label: 'WO Dashboard' },
+  { to: '/production-plan',   label: 'Production Plan' },
+  { to: '/4m-change',         label: '4M Change' },
   { to: '/production-report', label: 'Production Report' },
   { to: '/routing-history',   label: 'Routing History' },
   { to: '/sequence-builder',  label: 'Sequence Builder' },
   { to: '/qc-board',          label: 'QC Board' },
+  { to: '/qc-result',         label: 'QC Result' },
   { to: '/oba',               label: 'OBA' },
+  { to: '/scm-cases',         label: 'SCM Cases' },
+  { to: '/traceability',      label: 'Traceability' },
+  { to: '/jig-test',          label: 'Jig Test' },
+  { to: '/notifications',     label: 'Notifications' },
   { to: '/route-admin',       label: 'Route Admin' },
+  { to: '/admin/panel',       label: 'Admin Panel' },
 ];
 
 const DEV_ITEMS = [
@@ -40,7 +59,6 @@ const DEV_ITEMS = [
   { to: '/web-check',    label: 'Health Check' },
   { to: '/bom-editor',   label: 'BOM Editor' },
   { to: '/pm-core-flow', label: 'PM Flow' },
-  { to: '/scm-cases',    label: 'SCM Cases' },
 ];
 
 const SIDEBAR_BG   = '#1e3a5f';
@@ -89,8 +107,8 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
   );
 }
 
-const VIEWER_ITEMS = ['/wo-dashboard', '/production-report', '/routing-history', '/qc-board'];
-const MEMBER_ITEMS = ['/wo-dashboard', '/production-report', '/routing-history', '/sequence-builder', '/qc-board', '/oba'];
+const VIEWER_ITEMS = ['/wo-dashboard', '/4m-change', '/production-report', '/routing-history', '/qc-board', '/qc-result', '/traceability', '/jig-test', '/notifications'];
+const MEMBER_ITEMS = ['/wo-dashboard', '/production-plan', '/4m-change', '/production-report', '/routing-history', '/sequence-builder', '/qc-board', '/qc-result', '/oba', '/scm-cases', '/traceability', '/jig-test', '/notifications'];
 
 function visibleMainItems(role) {
   if (!role || role === 'viewer') return MAIN_ITEMS.filter(i => VIEWER_ITEMS.includes(i.to));
@@ -154,21 +172,24 @@ function Sidebar() {
         flexDirection: 'column',
       }}
     >
-      {/* Hamburger / logo row */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: expanded ? 'flex-start' : 'center',
-        gap: '0.75rem',
-        padding: expanded ? '1rem 0.875rem' : '1rem 0',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
-        marginBottom: '0.5rem',
-        flexShrink: 0,
-        minHeight: 60,
-        userSelect: 'none',
-        cursor: 'default',
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, cursor: 'default', flexShrink: 0 }}>
+      {/* Hamburger / logo row — กดเพื่อเปิด/ปิดได้ (รองรับ touch ที่ไม่มี hover) */}
+      <div
+        onClick={() => setExpanded(v => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: expanded ? 'flex-start' : 'center',
+          gap: '0.75rem',
+          padding: expanded ? '1rem 0.875rem' : '1rem 0',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          marginBottom: '0.5rem',
+          flexShrink: 0,
+          minHeight: 60,
+          userSelect: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
           <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
           <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
           <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
@@ -323,6 +344,50 @@ function NavLink({ to, children, innerRef }) {
   );
 }
 
+// label เต็มบน desktop / ย่อบนจอแคบ (สลับด้วย media query ใน Shell)
+function NavLabel({ full, short }) {
+  return (
+    <>
+      <span className="nav-label-full">{full}</span>
+      <span className="nav-label-short">{short}</span>
+    </>
+  );
+}
+
+// ─── Notification Bell ────────────────────────────────────────────
+function NotificationBell() {
+  const { data: count = 0 } = useUnreadCount();
+  return (
+    <Link
+      to="/notifications"
+      title="Notifications"
+      style={{
+        position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+        color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '1.1rem',
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+    >
+      🔔
+      {count > 0 && (
+        <span style={{
+          position: 'absolute', top: 2, right: 2,
+          background: '#ef4444', color: '#fff',
+          fontSize: '0.6rem', fontWeight: 800,
+          minWidth: 16, height: 16, borderRadius: 99,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '0 3px', lineHeight: 1,
+          border: '1.5px solid #162d4a',
+        }}>
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 // ─── Top nav (role-aware) ─────────────────────────────────────────
 function TopNav() {
   const auth    = useMockAuth();
@@ -342,7 +407,7 @@ function TopNav() {
     if (!el) { slider.style.opacity = '0'; return; }
     const navRect = nav.getBoundingClientRect();
     const elRect  = el.getBoundingClientRect();
-    const left  = elRect.left - navRect.left;
+    const left  = elRect.left - navRect.left + nav.scrollLeft;
     const width = elRect.width;
     if (!initialized.current) {
       slider.style.transition = 'none';
@@ -363,7 +428,13 @@ function TopNav() {
   const ref = (to) => (el) => { if (el) itemRefs.current[to] = el; };
 
   return (
-    <nav ref={navRef} style={{ display: 'flex', gap: '0.4rem', flexWrap: 'nowrap', alignItems: 'center', marginLeft: 'auto', position: 'relative' }}>
+    <nav ref={navRef} style={{
+      display: 'flex', gap: '0.4rem', flexWrap: 'nowrap', alignItems: 'center',
+      marginLeft: 'auto', position: 'relative',
+      maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden',
+      scrollbarWidth: 'none', msOverflowStyle: 'none',
+      WebkitOverflowScrolling: 'touch',
+    }}>
       {/* sliding pill */}
       <div ref={sliderRef} style={{
         position: 'absolute', top: '50%', height: '1.8rem',
@@ -371,19 +442,27 @@ function TopNav() {
         background: 'rgba(255,255,255,0.2)',
         borderRadius: 6, pointerEvents: 'none', zIndex: 0, opacity: 0,
       }} />
-      <NavLink to="/wo-dashboard"      innerRef={ref('/wo-dashboard')}>WO Board</NavLink>
-      <NavLink to="/production-report" innerRef={ref('/production-report')}>Report</NavLink>
-      <NavLink to="/routing-history"   innerRef={ref('/routing-history')}>History</NavLink>
-      {(role === 'admin' || role === 'member') && <NavLink to="/sequence-builder" innerRef={ref('/sequence-builder')}>Sequence Builder</NavLink>}
-      <NavLink to="/qc-board"          innerRef={ref('/qc-board')}>QC Board</NavLink>
-      {(role === 'admin' || role === 'member') && <NavLink to="/oba" innerRef={ref('/oba')}>OBA</NavLink>}
+      <NavLink to="/wo-dashboard"      innerRef={ref('/wo-dashboard')}><NavLabel full="WO Dashboard" short="WO" /></NavLink>
+      {(role === 'admin' || role === 'member') && <NavLink to="/production-plan" innerRef={ref('/production-plan')}><NavLabel full="Production Plan" short="Plan" /></NavLink>}
+      <NavLink to="/4m-change" innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
+      <NavLink to="/production-report" innerRef={ref('/production-report')}><NavLabel full="Production Report" short="Report" /></NavLink>
+      <NavLink to="/routing-history"   innerRef={ref('/routing-history')}><NavLabel full="Routing History" short="History" /></NavLink>
+      {(role === 'admin' || role === 'member') && <NavLink to="/sequence-builder" innerRef={ref('/sequence-builder')}><NavLabel full="Sequence Builder" short="Seq" /></NavLink>}
+      <NavLink to="/qc-board"          innerRef={ref('/qc-board')}><NavLabel full="QC Board" short="QC" /></NavLink>
+      {(role === 'admin' || role === 'member') && <NavLink to="/qc-result" innerRef={ref('/qc-result')}><NavLabel full="QC Result" short="Result" /></NavLink>}
+      {(role === 'admin' || role === 'member') && <NavLink to="/oba" innerRef={ref('/oba')}><NavLabel full="OBA" short="OBA" /></NavLink>}
+      {(role === 'admin' || role === 'member') && <NavLink to="/scm-cases" innerRef={ref('/scm-cases')}><NavLabel full="SCM Cases" short="SCM" /></NavLink>}
+      <NavLink to="/traceability" innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
+      <NavLink to="/jig-test"     innerRef={ref('/jig-test')}><NavLabel full="Jig Test" short="Jig" /></NavLink>
       {role === 'admin' && <NavLink to="/route-admin" innerRef={ref('/route-admin')}>Route Admin</NavLink>}
+      {role === 'admin' && <NavLink to="/admin/panel" innerRef={ref('/admin/panel')}><NavLabel full="Admin Panel" short="Admin" /></NavLink>}
       {role === 'admin' && (
         <>
           <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)', display: 'inline-block', margin: '0 0.25rem', flexShrink: 0 }} />
           <NavLink to="/system" innerRef={ref('/system')}>⚙️ System</NavLink>
         </>
       )}
+      <NotificationBell />
     </nav>
   );
 }
@@ -506,6 +585,12 @@ function Shell({ children }) {
           .mes-preset-chip:hover:not(:disabled) { background: #e2e8f0; color: #0f172a; }
           .mes-preset-chip.active { background: var(--primary, #3b82f6); color: white; border-color: var(--primary, #3b82f6); }
           .mes-actions { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; align-items: center; }
+          header nav::-webkit-scrollbar { display: none; }
+          .nav-label-short { display: none; }
+          @media (max-width: 768px) {
+            .nav-label-full  { display: none; }
+            .nav-label-short { display: inline; }
+          }
         `}</style>
 
         {/* Top header */}
@@ -657,9 +742,15 @@ export default function App() {
               <Route path="/"                  element={<Navigate to="/wo-dashboard" replace />} />
               <Route path="/mes-auth"          element={<MesAuthPage />} />
               <Route path="/wo-dashboard"      element={<AuthGuard><WoDashboardPage /></AuthGuard>} />
+              <Route path="/production-plan"   element={<RoleGuard allowed={['admin','member']}><ProductionPlanPage /></RoleGuard>} />
+              <Route path="/4m-change"         element={<AuthGuard><FourMChangePage /></AuthGuard>} />
+              <Route path="/4m-change/:crId"   element={<AuthGuard><CrDetailPage /></AuthGuard>} />
               <Route path="/production-report" element={<AuthGuard><ProductionReportPage /></AuthGuard>} />
               <Route path="/routing-history"   element={<AuthGuard><RoutingHistoryPage /></AuthGuard>} />
               <Route path="/qc-board"          element={<AuthGuard><QcBoard /></AuthGuard>} />
+              <Route path="/qc-result"        element={<AuthGuard><QcResultPage /></AuthGuard>} />
+              <Route path="/qc/:woId"         element={<RoleGuard allowed={['admin','member']}><QcResultPage /></RoleGuard>} />
+              <Route path="/qa-verify/:reqId" element={<RoleGuard allowed={['admin','member']}><QaVerifyPage /></RoleGuard>} />
               <Route path="/wo/:woId"          element={<AuthGuard><WoDetailPage /></AuthGuard>} />
               <Route path="/sequence-builder"  element={<RoleGuard allowed={['admin','member']}><SequenceBuilderPage /></RoleGuard>} />
               <Route path="/oba"               element={<RoleGuard allowed={['admin','member']}><ObaPage /></RoleGuard>} />
@@ -669,7 +760,12 @@ export default function App() {
               <Route path="/system"            element={<RoleGuard allowed={['admin']}><SystemPage /></RoleGuard>} />
               <Route path="/mes-backbone"      element={<RoleGuard allowed={['admin']}><MesBackbonePage /></RoleGuard>} />
               <Route path="/pm-core-flow"      element={<RoleGuard allowed={['admin']}><PmCoreFlowPage /></RoleGuard>} />
-              <Route path="/scm-cases"         element={<RoleGuard allowed={['admin']}><ScmCasesPage /></RoleGuard>} />
+              <Route path="/scm-cases"         element={<RoleGuard allowed={['admin','member']}><ScmCasesPage /></RoleGuard>} />
+              <Route path="/notifications"     element={<AuthGuard><NotificationsPage /></AuthGuard>} />
+              <Route path="/traceability"      element={<AuthGuard><TraceabilityPage /></AuthGuard>} />
+              <Route path="/jig-test"          element={<AuthGuard><JigTestPage /></AuthGuard>} />
+              <Route path="/jig-test/:projectCode" element={<AuthGuard><JigProjectPage /></AuthGuard>} />
+              <Route path="/admin/panel"       element={<RoleGuard allowed={['admin']}><AdminPanelPage /></RoleGuard>} />
               <Route path="/sync-monitor"      element={<RoleGuard allowed={['admin']}><SyncMonitorPage /></RoleGuard>} />
               <Route path="/bom-editor"        element={<RoleGuard allowed={['admin']}><BomEditorPage /></RoleGuard>} />
               <Route path="/workspace"         element={<RoleGuard allowed={['admin']}><MesWorkspacePage /></RoleGuard>} />

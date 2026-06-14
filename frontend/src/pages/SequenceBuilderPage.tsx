@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '../lib/api';
-import { addRoutingRecord } from '../lib/mockStore';
+import { useRoutingCreate } from '../lib/recordsApi';
 import { showToast } from '../lib/toast';
 
 const FALLBACK_STATIONS = [
@@ -354,6 +354,8 @@ export function SequenceBuilderPage() {
     }
   }
 
+  const routingCreate = useRoutingCreate();
+
   const recordMutation = useMutation({
     mutationFn: async () => {
       if (!serialNumber.trim()) throw new Error('Serial Number is required.');
@@ -368,15 +370,21 @@ export function SequenceBuilderPage() {
       };
     },
     onSuccess: (record) => {
-      addRoutingRecord({
-        ts: new Date().toLocaleString(),
-        serial: record.serial,
-        sequence: record.sequence,
-        result: record.result,
-        totalSec: record.totalSec,
-      });
-      showToast(`Process recorded: ${record.serial}`, 'success');
-      resetForm();
+      routingCreate.mutate(
+        {
+          serial: record.serial,
+          sequence: record.sequence,
+          result: record.result,
+          totalSec: record.totalSec,
+        },
+        {
+          onSuccess: () => {
+            showToast(`Process recorded: ${record.serial}`, 'success');
+            resetForm();
+          },
+          onError: () => showToast('บันทึก Routing ไม่สำเร็จ', 'error'),
+        }
+      );
     },
     onError: (error: Error) => {
       showToast(error.message, 'error');

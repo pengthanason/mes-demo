@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle2, XCircle, Scan } from 'lucide-react';
-import { getQcRecords, addQcRecord } from '../../lib/mockStore';
+import { useQcRecords, useQcCreate } from '../../lib/recordsApi';
 import { useIsViewer } from '../../lib/useMockStore';
 import { showToast } from '../../lib/toast';
 
@@ -8,8 +8,10 @@ export default function QcBoard() {
   const isViewer = useIsViewer();
 
   const [unitSn, setUnitSn] = useState('');
-  const [history, setHistory] = useState(() => getQcRecords());
-  const [isLoading, setIsLoading] = useState(false);
+  const { data } = useQcRecords();
+  const createMut = useQcCreate();
+  const history = data ?? [];
+  const isLoading = createMut.isPending;
   const [globalError, setGlobalError] = useState('');
 
   const handleQcSubmit = (result) => {
@@ -19,20 +21,18 @@ export default function QcBoard() {
       return;
     }
     setGlobalError('');
-    setIsLoading(true);
 
-    const entry = {
-      sn: unitSn.trim(),
-      status: result,
-      time: new Date().toLocaleTimeString(),
-      error: null,
-    };
-
-    addQcRecord(entry);
-    setHistory(getQcRecords());
-    setUnitSn('');
-    setIsLoading(false);
-    showToast(`QC ${result}: ${entry.sn}`, result === 'PASS' ? 'success' : 'error');
+    const sn = unitSn.trim();
+    createMut.mutate(
+      { sn, status: result, error: null },
+      {
+        onSuccess: () => {
+          setUnitSn('');
+          showToast(`QC ${result}: ${sn}`, result === 'PASS' ? 'success' : 'error');
+        },
+        onError: () => setGlobalError('บันทึกไม่สำเร็จ — ลองใหม่อีกครั้ง'),
+      }
+    );
   };
 
   return (

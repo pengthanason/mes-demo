@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { buildSteps, WO_LIFECYCLE } from '../lib/woLifecycle';
 import { StatusStepper } from '../components/StatusStepper';
-import { useMockWoList, useMockAuth } from '../lib/useMockStore';
-import { updateWo, type WoStep } from '../lib/mockStore';
+import { useMockAuth } from '../lib/useMockStore';
+import { type WoStep } from '../lib/mockStore';
+import { useWoBoard, useWoPatch } from '../lib/woApi';
 import { showToast } from '../lib/toast';
 
 const ADVANCE_LABEL: Partial<Record<WoStep, string>> = {
@@ -15,10 +15,14 @@ const ADVANCE_LABEL: Partial<Record<WoStep, string>> = {
 
 export function WoDetailPage() {
   const { woId } = useParams();
-  const woList = useMockWoList();
+  const { data: woList, isLoading } = useWoBoard();
+  const patchMut = useWoPatch();
   const auth = useMockAuth();
-  const wo = woList.find(w => w.woId === woId) ?? null;
-  const [advancing, setAdvancing] = useState(false);
+  const wo = (woList ?? []).find(w => w.woId === woId) ?? null;
+
+  if (isLoading) {
+    return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>;
+  }
 
   if (!wo) {
     return (
@@ -43,10 +47,13 @@ export function WoDetailPage() {
 
   function handleAdvance() {
     if (!nextStep) return;
-    setAdvancing(true);
-    updateWo(wo!.woId, { currentStep: nextStep });
-    showToast(`${wo!.woId} → ${nextStep}`, 'success');
-    setAdvancing(false);
+    patchMut.mutate(
+      { woId: wo!.woId, patch: { currentStep: nextStep } },
+      {
+        onSuccess: () => showToast(`${wo!.woId} → ${nextStep}`, 'success'),
+        onError:   () => showToast('อัปเดตไม่สำเร็จ', 'error'),
+      }
+    );
   }
 
   return (
@@ -63,7 +70,7 @@ export function WoDetailPage() {
               className="btn"
               style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}
               onClick={handleAdvance}
-              disabled={advancing}
+              disabled={patchMut.isPending}
             >
               {advanceLabel}
             </button>
