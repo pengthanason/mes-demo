@@ -6,6 +6,7 @@ import { KpiCard } from '../components/KpiCard';
 import { useIsViewer } from '../lib/useMockStore';
 import { generateRandomWo, type MockWO } from '../lib/mockStore';
 import { useWoBoard, useWoCreate } from '../lib/woApi';
+import { Paginator } from '../components/Paginator';
 
 function WoRow({ wo }: { wo: MockWO }) {
   const getBadgeStyle = (step: string) => {
@@ -52,6 +53,8 @@ export function WoDashboardPage() {
   const [stationFilter,  setStationFilter]  = useState('');
   const [stepFilter,     setStepFilter]     = useState('');
   const [showClosed, setShowClosed]         = useState(false);
+  const [page, setPage]                     = useState(1);
+  const PAGE_SIZE = 10;
 
   const lastUpdate = dataUpdatedAt ? new Date(dataUpdatedAt) : new Date();
 
@@ -83,6 +86,11 @@ export function WoDashboardPage() {
       })
       .map(x => x.w);
   }, [woList, customerFilter, stationFilter, stepFilter, showClosed]);
+
+  const totalPages  = Math.max(1, Math.ceil(processedList.length / PAGE_SIZE));
+  const pagedList   = processedList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  function resetPage() { setPage(1); }
 
   return (
     <section className="stack-lg" style={{ minHeight: '100vh' }}>
@@ -120,21 +128,21 @@ export function WoDashboardPage() {
         <div className="filters-grid" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
           <label className="field">
             <span>Filter Customer</span>
-            <select value={customerFilter} onChange={e => setCustomerFilter(e.target.value)}>
+            <select value={customerFilter} onChange={e => { setCustomerFilter(e.target.value); resetPage(); }}>
               <option value="">All Customers</option>
               {allCustomers.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <label className="field">
             <span>Filter Station</span>
-            <select value={stationFilter} onChange={e => setStationFilter(e.target.value)}>
+            <select value={stationFilter} onChange={e => { setStationFilter(e.target.value); resetPage(); }}>
               <option value="">All Stations</option>
               {allStations.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </label>
           <label className="field">
             <span>Filter Step</span>
-            <select value={stepFilter} onChange={e => setStepFilter(e.target.value)}>
+            <select value={stepFilter} onChange={e => { setStepFilter(e.target.value); resetPage(); }}>
               <option value="">All Steps</option>
               <option value="DRAFT">DRAFT</option>
               <option value="OPEN">OPEN</option>
@@ -177,14 +185,16 @@ export function WoDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {processedList.length === 0 ? (
+              {pagedList.length === 0 ? (
                 <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ไม่พบข้อมูล Work Order</td></tr>
               ) : (
-                processedList.map(wo => <WoRow key={wo.woId} wo={wo} />)
+                pagedList.map(wo => <WoRow key={wo.woId} wo={wo} />)
               )}
             </tbody>
           </table>
         </div>
+
+        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={processedList.length} />
       </div>
     </section>
   );

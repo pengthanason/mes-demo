@@ -24,6 +24,8 @@ app.use('/api/scm',           require('./routes/scm'));
 app.use('/api/admin',         require('./routes/admin'));
 app.use('/api/jumbo',         require('./routes/trace'));
 app.use('/api/jig',           require('./routes/jig'));
+app.use('/api/inventory',     require('./routes/inventory'));
+app.use('/api/production',     require('./routes/production'));
 app.use('/api',               require('./routes/records'));
 
 // ── 404 ────────────────────────────────────────────────────────────

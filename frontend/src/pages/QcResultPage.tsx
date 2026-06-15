@@ -6,6 +6,7 @@ import {
 } from '../lib/qcResultApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { Paginator } from '../components/Paginator';
 
 const OVERALL_STYLE: Record<QcOverall, { bg: string; text: string; border: string }> = {
   PASS:    { bg: '#dcfce7', text: '#166534', border: '#86efac' },
@@ -106,11 +107,17 @@ export function QcResultPage() {
 
   const needsDefect = overall === 'FAIL' || overall === 'PARTIAL';
 
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
   const filtered = useMemo(() =>
     woFilter.trim()
       ? allResults.filter(r => r.woId.toLowerCase().includes(woFilter.toLowerCase()))
       : allResults,
   [allResults, woFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedList  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // unique WO list for datalist
   const woOptions = useMemo(() => [...new Set(allResults.map(r => r.woId))], [allResults]);
@@ -158,7 +165,7 @@ export function QcResultPage() {
                 {woOptions.map(w => <option key={w} value={w} />)}
               </datalist>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="grid-2col">
                 <label className="field">
                   <span>WO Number *</span>
                   <input list="wo-options" value={woId} onChange={e => setWoId(e.target.value)} placeholder="WO-202606-001" required />
@@ -169,7 +176,7 @@ export function QcResultPage() {
                 </label>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+              <div className="grid-3col">
                 <label className="field">
                   <span>จำนวนตรวจ (Checked)</span>
                   <input type="number" min="1" value={qtyChecked} onChange={e => setQtyChecked(e.target.value)} placeholder="100" required />
@@ -212,7 +219,7 @@ export function QcResultPage() {
         <div style={{ marginTop: '1.5rem', marginBottom: '1rem', maxWidth: 320 }}>
           <label className="field">
             <span>Filter by WO</span>
-            <input list="wo-options" value={woFilter} onChange={e => setWoFilter(e.target.value)} placeholder="พิมพ์ WO เพื่อกรอง..." />
+            <input list="wo-options" value={woFilter} onChange={e => { setWoFilter(e.target.value); setPage(1); }} placeholder="พิมพ์ WO เพื่อกรอง..." />
           </label>
         </div>
 
@@ -237,7 +244,7 @@ export function QcResultPage() {
                 <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีข้อมูล QC Result</td></tr>
-              ) : filtered.map(r => (
+              ) : pagedList.map(r => (
                 <tr key={r.id}>
                   <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(r.createdAt).toLocaleDateString('th-TH')}</td>
                   <td style={{ fontWeight: 600 }}>{r.woId}</td>
@@ -270,6 +277,7 @@ export function QcResultPage() {
             </tbody>
           </table>
         </div>
+        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={filtered.length} />
       </div>
 
       {reworkFor && <ReworkDialog qcResult={reworkFor} onClose={() => setReworkFor(null)} />}

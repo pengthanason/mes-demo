@@ -235,6 +235,22 @@ const now = () => new Date().toISOString();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+// ── Incoming / Kitting ───────────────────────────────────────────────────────
+let _lotId = 100;
+const inventoryLots: any[] = [
+  { id: 1, part_no: 'R-100K',  part_name: 'Resistor 100K Ohm', lot_no: 'LOT-R100K-A', qty_received: 5000, qty_available: 5000, status: 'APPROVED', note: null, received_at: '2026-06-08T08:00:00Z', reviewed_at: '2026-06-08T10:00:00Z' },
+  { id: 2, part_no: 'C-10UF',  part_name: 'Capacitor 10uF',    lot_no: 'LOT-C10UF-A', qty_received: 3000, qty_available: 3000, status: 'APPROVED', note: null, received_at: '2026-06-09T08:00:00Z', reviewed_at: '2026-06-09T11:00:00Z' },
+  { id: 3, part_no: 'IC-555',  part_name: 'Timer IC 555',      lot_no: 'LOT-IC555-A', qty_received: 1000, qty_available: 850,  status: 'APPROVED', note: null, received_at: '2026-06-10T08:00:00Z', reviewed_at: '2026-06-10T09:30:00Z' },
+  { id: 4, part_no: 'MTR-DC',  part_name: 'DC Motor 12V',      lot_no: 'LOT-MTR-0608',qty_received: 1500, qty_available: 1500, status: 'PENDING',  note: null, received_at: '2026-06-14T08:00:00Z', reviewed_at: null },
+  { id: 5, part_no: 'STL-ROD', part_name: 'Steel Rod 10mm',    lot_no: 'LOT-STL-X1',  qty_received: 2000, qty_available: 0,    status: 'REJECTED', note: 'ขนาดไม่ตรงสเปก', received_at: '2026-06-11T08:00:00Z', reviewed_at: '2026-06-11T13:00:00Z' },
+];
+let _issueId = 100;
+const kittingIssues: any[] = [];
+
+let _scanId = 100;
+const productionScans: any[] = [];
+const productionUnits: any[] = [];
+
 function ok(data: unknown) { return HttpResponse.json({ status: 'success', data }); }
 function okSuccess(extra?: object) { return HttpResponse.json({ status: 'success', ...extra }); }
 
@@ -526,5 +542,104 @@ export const handlers = [
   }),
   http.get('/api/jig/projects/:code/timeseries', ({ params }) => {
     return ok(jigTimeseries(params.code as string));
+  }),
+
+  // ── Incoming / Kitting ───────────────────────────────────────────────────
+  http.get('/api/inventory/lots', ({ request }) => {
+    const status = new URL(request.url).searchParams.get('status');
+    const rows = status ? inventoryLots.filter(l => l.status === status) : inventoryLots;
+    return ok([...rows].sort((a, b) => b.received_at.localeCompare(a.received_at)));
+  }),
+  http.post('/api/inventory/receive', async ({ request }) => {
+    const b = await request.json() as any;
+    const qty = Number(b.qty);
+    if (!b.part_no || !b.lot_no || !qty || qty <= 0) return HttpResponse.json({ status: 'error', message: 'part_no, lot_no, qty(>0) required' }, { status: 400 });
+    const row = { id: ++_lotId, part_no: b.part_no, part_name: b.part_name || '', lot_no: b.lot_no, qty_received: qty, qty_available: qty, status: 'PENDING', note: null, received_at: new Date().toISOString(), reviewed_at: null };
+    inventoryLots.push(row);
+    return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
+  }),
+  http.post('/api/inventory/lots/:id/review', async ({ params, request }) => {
+    const b = await request.json() as any;
+    if (!['APPROVED', 'REJECTED'].includes(b.status)) return HttpResponse.json({ status: 'error', message: 'status(APPROVED|REJECTED) required' }, { status: 400 });
+    const lot = inventoryLots.find(l => l.id === Number(params.id) && l.status === 'PENDING');
+    if (!lot) return HttpResponse.json({ status: 'error', message: 'ไม่พบล็อต PENDING นี้' }, { status: 404 });
+    lot.status = b.status;
+    if (b.note) lot.note = b.note;
+    if (b.status === 'REJECTED') lot.qty_available = 0;
+    lot.reviewed_at = new Date().toISOString();
+    return ok(lot);
+  }),
+  http.delete('/api/inventory/lots/:id', ({ params }) => {
+    const idx = inventoryLots.findIndex(l => l.id === Number(params.id));
+    if (idx === -1) return HttpResponse.json({ status: 'error', message: 'ไม่พบล็อตนี้' }, { status: 404 });
+    inventoryLots.splice(idx, 1);
+    return HttpResponse.json({ status: 'success' });
+  }),
+  http.get('/api/inventory/stock', () => {
+    const byPart: Record<string, any> = {};
+    inventoryLots.filter(l => l.status === 'APPROVED' && l.qty_available > 0).forEach(l => {
+      if (!byPart[l.part_no]) byPart[l.part_no] = { part_no: l.part_no, part_name: l.part_name, qty_available: 0 };
+      byPart[l.part_no].qty_available += l.qty_available;
+    });
+    return ok(Object.values(byPart));
+  }),
+  http.get('/api/inventory/issues', ({ request }) => {
+    const woId = new URL(request.url).searchParams.get('wo_id');
+    const rows = woId ? kittingIssues.filter(i => i.wo_id === woId) : kittingIssues;
+    return ok([...rows].sort((a, b) => b.issued_at.localeCompare(a.issued_at)));
+  }),
+  http.post('/api/inventory/issue', async ({ request }) => {
+    const b = await request.json() as any;
+    const need = Number(b.qty);
+    if (!b.wo_id || !b.part_no || !need || need <= 0) return HttpResponse.json({ status: 'error', message: 'wo_id, part_no, qty(>0) required' }, { status: 400 });
+    const lots = inventoryLots.filter(l => l.part_no === b.part_no && l.status === 'APPROVED' && l.qty_available > 0)
+      .sort((a, b2) => a.received_at.localeCompare(b2.received_at));
+    const totalAvail = lots.reduce((s, l) => s + l.qty_available, 0);
+    if (totalAvail < need) return HttpResponse.json({ status: 'error', message: `stock ไม่พอ: ต้องการ ${need} มีพร้อมเบิก ${totalAvail}` }, { status: 409 });
+    let remaining = need;
+    const issued = [];
+    for (const lot of lots) {
+      if (remaining <= 0) break;
+      const take = Math.min(lot.qty_available, remaining);
+      lot.qty_available -= take;
+      const row = { id: ++_issueId, wo_id: b.wo_id, part_no: b.part_no, qty: take, lot_no: lot.lot_no, issued_at: new Date().toISOString() };
+      kittingIssues.push(row);
+      issued.push(row);
+      remaining -= take;
+    }
+    return HttpResponse.json({ status: 'success', data: issued }, { status: 201 });
+  }),
+
+  // ── Production Scan ──────────────────────────────────────────────────────
+  http.post('/api/production/scan', async ({ request }) => {
+    const b = await request.json() as any;
+    if (!b.wo_id || !b.serial || !b.station || !['PASS', 'FAIL'].includes(b.result)) {
+      return HttpResponse.json({ status: 'error', message: 'wo_id, serial, station, result(PASS|FAIL) required' }, { status: 400 });
+    }
+    const now = new Date().toISOString();
+    productionScans.push({ id: ++_scanId, wo_id: b.wo_id, serial: b.serial, station: b.station, result: b.result, operator: b.operator || '', note: b.note || null, scanned_at: now });
+    let unit = productionUnits.find(u => u.wo_id === b.wo_id && u.serial === b.serial);
+    if (unit) {
+      unit.last_station = b.station; unit.last_result = b.result; unit.scan_count += 1; unit.updated_at = now;
+    } else {
+      unit = { id: productionUnits.length + 1, wo_id: b.wo_id, serial: b.serial, last_station: b.station, last_result: b.result, scan_count: 1, updated_at: now };
+      productionUnits.push(unit);
+    }
+    return HttpResponse.json({ status: 'success', data: unit }, { status: 201 });
+  }),
+  http.get('/api/production/units', ({ request }) => {
+    const woId = new URL(request.url).searchParams.get('wo_id');
+    const rows = woId ? productionUnits.filter(u => u.wo_id === woId) : productionUnits;
+    return ok([...rows].sort((a, b) => b.updated_at.localeCompare(a.updated_at)));
+  }),
+  http.get('/api/production/scans', ({ request }) => {
+    const url = new URL(request.url);
+    const woId = url.searchParams.get('wo_id');
+    const serial = url.searchParams.get('serial');
+    const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
+    let rows = productionScans;
+    if (woId)   rows = rows.filter(s => s.wo_id === woId);
+    if (serial) rows = rows.filter(s => s.serial === serial);
+    return ok([...rows].sort((a, b) => b.scanned_at.localeCompare(a.scanned_at)).slice(0, limit));
   }),
 ];

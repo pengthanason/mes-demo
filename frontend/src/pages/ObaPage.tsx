@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { useObaRecords, useObaCreate } from '../lib/recordsApi';
 import { showToast } from '../lib/toast';
+import { Paginator } from '../components/Paginator';
 
 export function ObaPage() {
   const { data } = useObaRecords();
   const createMut = useObaCreate();
   const records = data ?? [];
+
+  const [histPage, setHistPage] = useState(1);
+  const HIST_PAGE_SIZE = 10;
+  const totalHistPages = Math.max(1, Math.ceil((data ?? []).length / HIST_PAGE_SIZE));
+  const pagedRecords = records.slice((histPage - 1) * HIST_PAGE_SIZE, histPage * HIST_PAGE_SIZE);
 
   const [woId,       setWoId]       = useState('');
   const [lotNo,      setLotNo]      = useState('');
@@ -37,7 +43,7 @@ export function ObaPage() {
   }
 
   return (
-    <div className="stack-lg" style={{ maxWidth: '700px', margin: '0 auto' }}>
+    <div className="stack-lg" style={{ maxWidth: '960px', margin: '0 auto' }}>
       {/* ── Form ── */}
       <div className="panel stack">
         <h2 className="panel__title">Out-of-Box Audit (M08)</h2>
@@ -83,11 +89,13 @@ export function ObaPage() {
       </div>
 
       {/* ── History table ── */}
-      {records.length > 0 && (
-        <div className="panel">
-          <h3 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>
-            ประวัติผล OBA ({records.length} รายการ)
-          </h3>
+      <div className="panel">
+        <h3 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>
+          ประวัติผล OBA {records.length > 0 && `(${records.length} รายการ)`}
+        </h3>
+        {records.length === 0 ? (
+          <div className="empty">ยังไม่มีประวัติ — บันทึก OBA เพื่อเพิ่มข้อมูล</div>
+        ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
             <table className="table table-readonly" style={{ minWidth: '550px', width: '100%' }}>
               <thead>
@@ -101,7 +109,7 @@ export function ObaPage() {
                 </tr>
               </thead>
               <tbody>
-                {records.map(r => (
+                {pagedRecords.map(r => (
                   <tr key={r.id}>
                     <td style={{ fontWeight: 600 }}>{r.woId}</td>
                     <td>{r.lotNo}</td>
@@ -125,8 +133,9 @@ export function ObaPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+        <Paginator page={histPage} totalPages={totalHistPages} onPage={setHistPage} total={records.length} />
+      </div>
     </div>
   );
 }

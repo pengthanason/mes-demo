@@ -1,9 +1,15 @@
+import { useState } from 'react';
 import { useRoutingRecords, useRoutingDelete } from '../lib/recordsApi';
+import { Paginator } from '../components/Paginator';
 
 export function RoutingHistoryPage() {
   const { data } = useRoutingRecords();
   const deleteMut = useRoutingDelete();
   const history = data ?? [];
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(history.length / PAGE_SIZE));
+  const pagedHistory = history.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const passCount = history.filter(r => r.result === 'PASS').length;
   const failCount = history.filter(r => r.result === 'FAIL').length;
 
@@ -44,7 +50,7 @@ export function RoutingHistoryPage() {
               </tr>
             </thead>
             <tbody>
-              {history.map(row => {
+              {pagedHistory.map(row => {
                 const isPass = row.result.toUpperCase() === 'PASS';
                 const badgeStyle = {
                   backgroundColor: isPass ? '#dcfce7' : '#fee2e2',
@@ -79,6 +85,7 @@ export function RoutingHistoryPage() {
           </table>
         )}
       </div>
+      <Paginator page={page} totalPages={totalPages} onPage={setPage} total={history.length} />
     </div>
   );
 }

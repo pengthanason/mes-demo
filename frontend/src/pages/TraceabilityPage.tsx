@@ -58,17 +58,24 @@ function SerialSearchTab() {
 
   return (
     <div>
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, marginBottom: '0.75rem' }}>
-        <input
-          className="input" list="serial-list" placeholder="กรอก Serial Number..."
-          value={input} onChange={e => setInput(e.target.value)}
-          style={{ flex: 1 }}
-        />
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'stretch' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <span style={{
+            position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-muted)', fontSize: '1rem', pointerEvents: 'none',
+          }}>🔍</span>
+          <input
+            className="form-input" list="serial-list"
+            placeholder="กรอก Serial Number..."
+            value={input} onChange={e => setInput(e.target.value)}
+            style={{ paddingLeft: '2.25rem', height: '2.75rem', fontSize: '1rem', fontFamily: 'ui-monospace, monospace' }}
+          />
+        </div>
         <datalist id="serial-list">
           {serials.map(s => <option key={s} value={s} />)}
         </datalist>
-        <button type="submit" className="btn primary">ค้นหา</button>
-        {search && <button type="button" className="btn secondary" onClick={() => { setSearch(null); setInput(''); }}>ล้าง</button>}
+        <button type="submit" className="btn" style={{ height: '2.75rem', padding: '0 1.5rem', fontSize: '0.95rem' }}>ค้นหา</button>
+        {search && <button type="button" className="btn secondary" style={{ height: '2.75rem' }} onClick={() => { setSearch(null); setInput(''); }}>ล้าง</button>}
       </form>
 
       {serials.length > 0 && !search && (

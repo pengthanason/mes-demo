@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkRead, useMarkAllRead } from '../lib/notificationsApi';
+import { Paginator } from '../components/Paginator';
 
 const TYPE_ICON: Record<string, string> = {
   WO_OPEN: '🔧', QC_FAIL: '❌', CR_APPROVED: '✅', WO_CLOSED: '✔️', REWORK: '🔨',
@@ -10,10 +11,14 @@ const TYPE_ICON: Record<string, string> = {
 export function NotificationsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'unread' | 'all'>('unread');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
   const { data, isLoading } = useNotifications(tab === 'unread');
   const markRead = useMarkRead();
   const markAll  = useMarkAllRead();
   const list = data ?? [];
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const pagedList = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function handleClick(n: typeof list[0]) {
     if (!n.isRead) markRead.mutate(n.id);
@@ -34,10 +39,10 @@ export function NotificationsPage() {
         </div>
 
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
-          <button className={`mes-module-tab ${tab === 'unread' ? 'active' : ''}`} onClick={() => setTab('unread')}>
+          <button className={`mes-module-tab ${tab === 'unread' ? 'active' : ''}`} onClick={() => { setTab('unread'); setPage(1); }}>
             ยังไม่อ่าน
           </button>
-          <button className={`mes-module-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
+          <button className={`mes-module-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => { setTab('all'); setPage(1); }}>
             ทั้งหมด
           </button>
         </div>
@@ -51,7 +56,7 @@ export function NotificationsPage() {
         )}
 
         <div className="stack" style={{ gap: 0, marginTop: list.length ? '0.5rem' : 0 }}>
-          {list.map(n => (
+          {pagedList.map(n => (
             <div
               key={n.id}
               onClick={() => handleClick(n)}
@@ -84,6 +89,7 @@ export function NotificationsPage() {
             </div>
           ))}
         </div>
+        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={list.length} />
       </div>
     </section>
   );

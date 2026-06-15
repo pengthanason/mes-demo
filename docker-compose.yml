@@ -77,6 +77,32 @@ services:
       timeout: 5s
       retries: 10
 
+  my_api:
+    build:
+      context: ./my-api
+      dockerfile: Dockerfile
+    container_name: mes-my-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 5099
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: productiondb
+      DB_USER: syntechdb
+      DB_PASSWORD: syntech2026
+    ports:
+      - "5099:5099"
+    networks:
+      default: {}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5099/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres_data:
 

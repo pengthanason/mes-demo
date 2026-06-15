@@ -22,7 +22,7 @@ function ProjectCard({ p, onClick }: { p: JigProject; onClick: () => void }) {
     <div
       className="panel"
       onClick={onClick}
-      style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)' }}
+      style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 0 280px' }}
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}
     >
@@ -70,21 +70,19 @@ export function JigTestPage() {
   const inactive = projects.filter(p => !p.isActive);
 
   return (
-    <section className="stack-lg" style={{ maxWidth: 900, margin: '0 auto' }}>
-      <div className="panel">
-        <h1 className="panel__title">Jig Test</h1>
-        <p className="panel__subtitle">ผลการทดสอบ Jig แยกตามโปรเจกต์</p>
-      </div>
+    <div className="panel">
+      <h1 className="panel__title">Jig Test</h1>
+      <p className="panel__subtitle">ผลการทดสอบ Jig แยกตามโปรเจกต์</p>
 
       {isLoading && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
       {error && <div style={{ padding: '1rem', color: 'var(--danger)', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>เกิดข้อผิดพลาด</div>}
 
       {active.length > 0 && (
-        <div>
-          <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+        <div style={{ marginTop: '1.75rem' }}>
+          <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem' }}>
             Active Projects ({active.length})
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
             {active.map(p => (
               <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} />
             ))}
@@ -93,11 +91,11 @@ export function JigTestPage() {
       )}
 
       {inactive.length > 0 && (
-        <div>
-          <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem', marginTop: '1rem' }}>
+        <div style={{ marginTop: '1.5rem' }}>
+          <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
             Inactive Projects ({inactive.length})
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
             {inactive.map(p => (
               <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} />
             ))}
@@ -108,6 +106,6 @@ export function JigTestPage() {
       {!isLoading && projects.length === 0 && (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>ยังไม่มีโปรเจกต์</div>
       )}
-    </section>
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { fmtDateTime, fmtNum, normalizeText, parseNumber } from '../lib/format';
+import { Paginator } from '../components/Paginator';
 
 type Notice = {
   kind: 'ok' | 'warn' | 'err';
@@ -48,6 +49,8 @@ export function ScmCasesPage() {
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<Notice | null>(null);
   const [statusFilter, setStatusFilter] = useState('OPEN');
+  const [casePage, setCasePage] = useState(1);
+  const CASE_PAGE_SIZE = 10;
   const [caseForm, setCaseForm] = useState({
     case_id: '',
     case_type: 'DOC_PENDING',
@@ -257,7 +260,7 @@ export function ScmCasesPage() {
         <div className="panel__row">
           <h2 className="panel__title panel__title--sm">Case Management Inbox</h2>
           <div style={{ display: 'flex', gap: 8 }}>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setCasePage(1); }}>
               <option value="OPEN">OPEN</option>
               <option value="CLOSED">CLOSED</option>
               <option value="">ALL</option>
@@ -271,62 +274,73 @@ export function ScmCasesPage() {
         {casesQuery.isLoading ? <div className="empty">Loading cases...</div> : null}
         {casesQuery.error ? <div className="notice err">Failed to load cases.</div> : null}
 
-        {!casesQuery.isLoading && !(casesQuery.data || []).length ? <div className="empty">No cases found.</div> : null}
-
-        {(casesQuery.data || []).length ? (
-          <div className="table-wrap">
-            <table className="table compact">
-              <thead>
-                <tr>
-                  <th>Case ID</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Part</th>
-                  <th>Ref PO/INV</th>
-                  <th>Due Date</th>
-                  <th>Opened</th>
-                  <th>Disposition</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(casesQuery.data || []).map((item) => (
-                  <tr key={item.case_id}>
-                    <td className="code">{item.case_id}</td>
-                    <td>{item.case_type}</td>
-                    <td>{item.status}</td>
-                    <td>{item.part_no || '-'}</td>
-                    <td>
-                      PO: {item.ref_po || '-'}
-                      <br />
-                      INV: {item.ref_inv || '-'}
-                    </td>
-                    <td>{fmtDateTime(item.due_date)}</td>
-                    <td>{fmtDateTime(item.opened_at)}</td>
-                    <td>{fmtNum(item.disposition_count || 0)}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button className="btn secondary" onClick={() => setDispositionTarget(item)}>
-                          Disposition
-                        </button>
-                        <button
-                          className="btn secondary"
-                          onClick={() => {
-                            setResolveTarget(item);
-                            setResolutionNote(item.resolution_note || '');
-                          }}
-                          disabled={item.status === 'CLOSED'}
-                        >
-                          Resolve
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
+        {(() => {
+          const caseData = casesQuery.data || [];
+          const totalCasePages = Math.max(1, Math.ceil(caseData.length / CASE_PAGE_SIZE));
+          const pagedCases = caseData.slice((casePage - 1) * CASE_PAGE_SIZE, casePage * CASE_PAGE_SIZE);
+          return (
+            <>
+              {!casesQuery.isLoading && !caseData.length ? <div className="empty">No cases found.</div> : null}
+              {caseData.length ? (
+                <>
+                <div className="table-wrap">
+                  <table className="table compact">
+                    <thead>
+                      <tr>
+                        <th>Case ID</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Part</th>
+                        <th>Ref PO/INV</th>
+                        <th>Due Date</th>
+                        <th>Opened</th>
+                        <th>Disposition</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedCases.map((item) => (
+                        <tr key={item.case_id}>
+                          <td className="code">{item.case_id}</td>
+                          <td>{item.case_type}</td>
+                          <td>{item.status}</td>
+                          <td>{item.part_no || '-'}</td>
+                          <td>
+                            PO: {item.ref_po || '-'}
+                            <br />
+                            INV: {item.ref_inv || '-'}
+                          </td>
+                          <td>{fmtDateTime(item.due_date)}</td>
+                          <td>{fmtDateTime(item.opened_at)}</td>
+                          <td>{fmtNum(item.disposition_count || 0)}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              <button className="btn secondary" onClick={() => setDispositionTarget(item)}>
+                                Disposition
+                              </button>
+                              <button
+                                className="btn secondary"
+                                onClick={() => {
+                                  setResolveTarget(item);
+                                  setResolutionNote(item.resolution_note || '');
+                                }}
+                                disabled={item.status === 'CLOSED'}
+                              >
+                                Resolve
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Paginator page={casePage} totalPages={totalCasePages} onPage={setCasePage} total={caseData.length} />
+                </>
+              ) : null}
+            </>
+          );
+        })()}
       </section>
 
       <section className="panel">

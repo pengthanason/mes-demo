@@ -6,16 +6,11 @@ import { ROLE_COLOR } from './lib/roles.ts';
 import { MesBackbonePage } from './pages/MesBackbonePage.tsx';
 import { MesAuthPage } from './pages/MesAuthPage.tsx';
 import { PmCoreFlowPage } from './pages/PmCoreFlowPage.tsx';
-import { ScmCasesPage } from './pages/ScmCasesPage.tsx';
 import BomEditorPage from './pages/BomEditorPage.tsx';
 import WebCheckPage from './pages/WebCheckPage.tsx';
-import { RouteAdminPage } from './pages/RouteAdminPage.tsx';
 import SyncMonitorPage from './pages/SyncMonitorPage.tsx';
 import QcBoard from './pages/quality/index.jsx';
-import { RoutingHistoryPage } from './pages/RoutingHistoryPage.tsx';
 import { SequenceBuilderPage } from './pages/SequenceBuilderPage.tsx';
-import { ProductionReportPage } from './pages/ProductionReportPage.tsx';
-import { WoDashboardPage } from './pages/WoDashboardPage.tsx';
 import { WoDetailPage } from './pages/WoDetailPage.tsx';
 import { CloseWoPage } from './pages/CloseWoPage.tsx';
 import { ObaPage } from './pages/ObaPage.tsx';
@@ -29,28 +24,29 @@ import { QaVerifyPage } from './pages/QaVerifyPage.tsx';
 import { NotificationsPage } from './pages/NotificationsPage.tsx';
 import { AdminPanelPage } from './pages/AdminPanelPage.tsx';
 import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
-import { JigTestPage } from './pages/JigTestPage.tsx';
 import { JigProjectPage } from './pages/JigProjectPage.tsx';
+import { DashboardPage } from './pages/DashboardPage.tsx';
+import { IncomingPage } from './pages/IncomingPage.tsx';
+import { KittingPage } from './pages/KittingPage.tsx';
+import { ProductionScanPage } from './pages/ProductionScanPage.tsx';
 import { useUnreadCount } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ─── Sidebar nav items ─────────────────────────────────────────────
 const MAIN_ITEMS = [
-  { to: '/wo-dashboard',      label: 'WO Dashboard' },
-  { to: '/production-plan',   label: 'Production Plan' },
-  { to: '/4m-change',         label: '4M Change' },
-  { to: '/production-report', label: 'Production Report' },
-  { to: '/routing-history',   label: 'Routing History' },
-  { to: '/sequence-builder',  label: 'Sequence Builder' },
-  { to: '/qc-board',          label: 'QC Board' },
-  { to: '/qc-result',         label: 'QC Result' },
-  { to: '/oba',               label: 'OBA' },
-  { to: '/scm-cases',         label: 'SCM Cases' },
-  { to: '/traceability',      label: 'Traceability' },
-  { to: '/jig-test',          label: 'Jig Test' },
-  { to: '/notifications',     label: 'Notifications' },
-  { to: '/route-admin',       label: 'Route Admin' },
-  { to: '/admin/panel',       label: 'Admin Panel' },
+  { to: '/dashboard',        label: 'Dashboard' },
+  { to: '/production-plan',  label: 'Production Plan' },
+  { to: '/incoming',         label: 'Incoming' },
+  { to: '/kitting',          label: 'Kitting' },
+  { to: '/4m-change',        label: '4M Change' },
+  { to: '/sequence-builder', label: 'Sequence Builder' },
+  { to: '/production-scan',  label: 'Production Scan' },
+  { to: '/qc-board',         label: 'QC Board' },
+  { to: '/qc-result',        label: 'QC Result' },
+  { to: '/oba',              label: 'OBA' },
+  { to: '/traceability',     label: 'Traceability' },
+  { to: '/notifications',    label: 'Notifications' },
+  { to: '/admin/panel',      label: 'Admin Panel' },
 ];
 
 const DEV_ITEMS = [
@@ -107,8 +103,8 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
   );
 }
 
-const VIEWER_ITEMS = ['/wo-dashboard', '/4m-change', '/production-report', '/routing-history', '/qc-board', '/qc-result', '/traceability', '/jig-test', '/notifications'];
-const MEMBER_ITEMS = ['/wo-dashboard', '/production-plan', '/4m-change', '/production-report', '/routing-history', '/sequence-builder', '/qc-board', '/qc-result', '/oba', '/scm-cases', '/traceability', '/jig-test', '/notifications'];
+const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/qc-result', '/traceability', '/notifications'];
+const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/kitting', '/4m-change', '/sequence-builder', '/production-scan', '/qc-board', '/qc-result', '/oba', '/traceability', '/notifications'];
 
 function visibleMainItems(role) {
   if (!role || role === 'viewer') return MAIN_ITEMS.filter(i => VIEWER_ITEMS.includes(i.to));
@@ -442,19 +438,17 @@ function TopNav() {
         background: 'rgba(255,255,255,0.2)',
         borderRadius: 6, pointerEvents: 'none', zIndex: 0, opacity: 0,
       }} />
-      <NavLink to="/wo-dashboard"      innerRef={ref('/wo-dashboard')}><NavLabel full="WO Dashboard" short="WO" /></NavLink>
+      <NavLink to="/dashboard"       innerRef={ref('/dashboard')}><NavLabel full="Dashboard" short="Home" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/production-plan" innerRef={ref('/production-plan')}><NavLabel full="Production Plan" short="Plan" /></NavLink>}
-      <NavLink to="/4m-change" innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
-      <NavLink to="/production-report" innerRef={ref('/production-report')}><NavLabel full="Production Report" short="Report" /></NavLink>
-      <NavLink to="/routing-history"   innerRef={ref('/routing-history')}><NavLabel full="Routing History" short="History" /></NavLink>
+      {(role === 'admin' || role === 'member') && <NavLink to="/incoming" innerRef={ref('/incoming')}><NavLabel full="Incoming" short="In" /></NavLink>}
+      {(role === 'admin' || role === 'member') && <NavLink to="/kitting" innerRef={ref('/kitting')}><NavLabel full="Kitting" short="Kit" /></NavLink>}
+      <NavLink to="/4m-change"       innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/sequence-builder" innerRef={ref('/sequence-builder')}><NavLabel full="Sequence Builder" short="Seq" /></NavLink>}
-      <NavLink to="/qc-board"          innerRef={ref('/qc-board')}><NavLabel full="QC Board" short="QC" /></NavLink>
+      {(role === 'admin' || role === 'member') && <NavLink to="/production-scan" innerRef={ref('/production-scan')}><NavLabel full="Production Scan" short="Scan" /></NavLink>}
+      <NavLink to="/qc-board"        innerRef={ref('/qc-board')}><NavLabel full="QC Board" short="QC" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/qc-result" innerRef={ref('/qc-result')}><NavLabel full="QC Result" short="Result" /></NavLink>}
       {(role === 'admin' || role === 'member') && <NavLink to="/oba" innerRef={ref('/oba')}><NavLabel full="OBA" short="OBA" /></NavLink>}
-      {(role === 'admin' || role === 'member') && <NavLink to="/scm-cases" innerRef={ref('/scm-cases')}><NavLabel full="SCM Cases" short="SCM" /></NavLink>}
-      <NavLink to="/traceability" innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
-      <NavLink to="/jig-test"     innerRef={ref('/jig-test')}><NavLabel full="Jig Test" short="Jig" /></NavLink>
-      {role === 'admin' && <NavLink to="/route-admin" innerRef={ref('/route-admin')}>Route Admin</NavLink>}
+      <NavLink to="/traceability"    innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
       {role === 'admin' && <NavLink to="/admin/panel" innerRef={ref('/admin/panel')}><NavLabel full="Admin Panel" short="Admin" /></NavLink>}
       {role === 'admin' && (
         <>
@@ -478,7 +472,7 @@ function AuthGuard({ children }) {
 function RoleGuard({ allowed, children }) {
   const auth = useMockAuth();
   if (!auth.isLoggedIn) return <Navigate to="/mes-auth" replace />;
-  if (!allowed.includes(auth.role)) return <Navigate to="/wo-dashboard" replace />;
+  if (!allowed.includes(auth.role)) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -537,67 +531,52 @@ function Shell({ children }) {
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
 
-      <div style={{ flex: 1, marginLeft: ICON_W, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <div style={{ flex: 1, marginLeft: ICON_W, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f1f5f9' }}>
         <style>{`
           .field input, .field select, .field textarea {
-            width: 100%; padding: 0.6rem 0.8rem;
-            border: 1px solid var(--border-color, #cbd5e1); border-radius: 6px;
-            font-size: 0.95rem; background-color: #f8fafc; color: #334155;
-            transition: all 0.2s ease; box-sizing: border-box; outline: none;
+            width: 100%; padding: 0.55rem 0.75rem;
+            border: 1px solid #e2e8f0; border-radius: 6px;
+            font-size: 0.875rem; background-color: #fff; color: #334155;
+            transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box; outline: none;
+            font-family: inherit;
           }
           .field input:focus, .field select:focus, .field textarea:focus {
-            border-color: var(--primary, #3b82f6); background-color: #fff;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
           }
           .field span {
-            display: block; margin-bottom: 0.4rem; font-weight: 600;
-            color: #475569; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+            display: block; margin-bottom: 0.35rem; font-weight: 600;
+            color: #475569; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
           }
           .filters-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.25rem; margin-bottom: 1.5rem; background: white;
-            padding: 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            gap: 1rem; margin-bottom: 1.25rem; background: #fff;
+            padding: 1.25rem; border-radius: 10px; border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
           }
-          .table { width: 100%; border-collapse: collapse; }
-          .table th {
-            background-color: #f1f5f9; color: #475569; font-weight: 600;
-            padding: 0.85rem 1rem; text-align: left; border-bottom: 2px solid #cbd5e1;
-          }
-          .table td { padding: 0.85rem 1rem; border-bottom: 1px solid #e2e8f0; vertical-align: middle; color: #334155; }
-          .table tbody tr:nth-child(odd) { background-color: #fff; }
-          .table tbody tr:nth-child(even) { background-color: #f8fafc; }
-          .table tbody tr:hover { background-color: #f1f5f9; }
-          .table.table-readonly tbody tr:hover td { background-color: transparent !important; }
-          .mes-module-tabs { display: flex; gap: 1.5rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
-          .mes-module-tab { padding: 0.75rem 0; background: none; border: none; font-weight: 600; font-size: 1rem; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
-          .mes-module-tab:hover { color: #3b82f6; }
-          .mes-module-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
-          .mes-light-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 2rem; }
-          .mes-module-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; }
-          .mes-module-code { background: var(--primary, #3b82f6); color: white; padding: 0.35rem 0.85rem; border-radius: 999px; font-weight: bold; font-size: 0.85rem; }
-          .mes-endpoints { display: flex; flex-direction: column; gap: 0.5rem; margin: 1.5rem 0; padding: 1rem 1.5rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid var(--primary, #3b82f6); }
-          .mes-endpoints a { color: #2563eb; text-decoration: none; font-family: ui-monospace, monospace; font-size: 0.9rem; }
-          .mes-endpoints a:hover { text-decoration: underline; }
-          .mes-case-context { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; background: #f1f5f9; padding: 1.5rem; border-radius: 8px; margin: 1.5rem 0; border: 1px dashed #cbd5e1; }
-          .mes-module-presets { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.5rem 0; }
-          .mes-preset-chip { background: #f8fafc; border: 1px solid #cbd5e1; padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #475569; transition: all 0.2s; }
-          .mes-preset-chip:hover:not(:disabled) { background: #e2e8f0; color: #0f172a; }
-          .mes-preset-chip.active { background: var(--primary, #3b82f6); color: white; border-color: var(--primary, #3b82f6); }
-          .mes-actions { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; align-items: center; }
           header nav::-webkit-scrollbar { display: none; }
           .nav-label-short { display: none; }
+          .app-header { padding: 0.875rem 1.5rem; }
+          .app-main   { padding: 1.5rem; }
+          .app-footer { padding: 1rem 1.5rem; }
           @media (max-width: 768px) {
             .nav-label-full  { display: none; }
             .nav-label-short { display: inline; }
           }
+          @media (max-width: 600px) {
+            .app-header { padding: 0.6rem 0.75rem; }
+            .app-main   { padding: 0.75rem; }
+            .app-footer { padding: 0.75rem; font-size: 0.72rem; }
+          }
+          @media (max-width: 380px) {
+            .app-main { padding: 0.5rem; }
+          }
         `}</style>
 
         {/* Top header */}
-        <header style={{
+        <header className="app-header" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: '1rem', flexWrap: 'wrap',
-          padding: '0.875rem 1.5rem',
           borderBottom: '1px solid #0f2744',
           background: '#162d4a',
           position: 'sticky', top: 0, zIndex: 100,
@@ -605,11 +584,11 @@ function Shell({ children }) {
           <TopNav />
         </header>
 
-        <main style={{ padding: '1.5rem', maxWidth: 1380, margin: '0 auto', flex: 1, width: '100%', boxSizing: 'border-box' }}>
+        <main className="app-main" style={{ maxWidth: 1380, margin: '0 auto', flex: 1, width: '100%', boxSizing: 'border-box' }}>
           {children}
         </main>
 
-        <footer style={{ padding: '1rem 1.5rem', marginBottom: '5px', borderTop: '1px solid #2d5a8e', textAlign: 'center', color: '#2d5a8e', fontSize: '0.8rem', flexShrink: 0 }}>
+        <footer className="app-footer" style={{ marginBottom: '5px', borderTop: '1px solid #2d5a8e', textAlign: 'center', color: '#2d5a8e', fontSize: '0.8rem', flexShrink: 0 }}>
           © 2026 Synergy Technology · SYNTECH MES v0.1
         </footer>
       </div>
@@ -739,38 +718,43 @@ export default function App() {
         <Shell>
           <ErrorBoundary>
             <Routes>
-              <Route path="/"                  element={<Navigate to="/wo-dashboard" replace />} />
+              <Route path="/"                  element={<Navigate to="/dashboard" replace />} />
               <Route path="/mes-auth"          element={<MesAuthPage />} />
-              <Route path="/wo-dashboard"      element={<AuthGuard><WoDashboardPage /></AuthGuard>} />
+              <Route path="/dashboard"         element={<AuthGuard><DashboardPage /></AuthGuard>} />
+              {/* legacy redirects */}
+              <Route path="/wo-dashboard"      element={<Navigate to="/dashboard" replace />} />
+              <Route path="/production-report" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/routing-history"   element={<Navigate to="/dashboard" replace />} />
+              <Route path="/scm-cases"         element={<Navigate to="/dashboard" replace />} />
+              <Route path="/jig-test"          element={<Navigate to="/dashboard" replace />} />
+              {/* active routes */}
               <Route path="/production-plan"   element={<RoleGuard allowed={['admin','member']}><ProductionPlanPage /></RoleGuard>} />
+              <Route path="/incoming"          element={<RoleGuard allowed={['admin','member']}><IncomingPage /></RoleGuard>} />
+              <Route path="/kitting"           element={<RoleGuard allowed={['admin','member']}><KittingPage /></RoleGuard>} />
               <Route path="/4m-change"         element={<AuthGuard><FourMChangePage /></AuthGuard>} />
               <Route path="/4m-change/:crId"   element={<AuthGuard><CrDetailPage /></AuthGuard>} />
-              <Route path="/production-report" element={<AuthGuard><ProductionReportPage /></AuthGuard>} />
-              <Route path="/routing-history"   element={<AuthGuard><RoutingHistoryPage /></AuthGuard>} />
               <Route path="/qc-board"          element={<AuthGuard><QcBoard /></AuthGuard>} />
-              <Route path="/qc-result"        element={<AuthGuard><QcResultPage /></AuthGuard>} />
-              <Route path="/qc/:woId"         element={<RoleGuard allowed={['admin','member']}><QcResultPage /></RoleGuard>} />
-              <Route path="/qa-verify/:reqId" element={<RoleGuard allowed={['admin','member']}><QaVerifyPage /></RoleGuard>} />
+              <Route path="/qc-result"         element={<AuthGuard><QcResultPage /></AuthGuard>} />
+              <Route path="/qc/:woId"          element={<RoleGuard allowed={['admin','member']}><QcResultPage /></RoleGuard>} />
+              <Route path="/qa-verify/:reqId"  element={<RoleGuard allowed={['admin','member']}><QaVerifyPage /></RoleGuard>} />
               <Route path="/wo/:woId"          element={<AuthGuard><WoDetailPage /></AuthGuard>} />
               <Route path="/sequence-builder"  element={<RoleGuard allowed={['admin','member']}><SequenceBuilderPage /></RoleGuard>} />
+              <Route path="/production-scan"   element={<RoleGuard allowed={['admin','member']}><ProductionScanPage /></RoleGuard>} />
               <Route path="/oba"               element={<RoleGuard allowed={['admin','member']}><ObaPage /></RoleGuard>} />
               <Route path="/wo/:woId/close"    element={<RoleGuard allowed={['admin','member']}><CloseWoPage /></RoleGuard>} />
               <Route path="/fai/:woId"         element={<RoleGuard allowed={['admin','member']}><FaiPage /></RoleGuard>} />
-              <Route path="/route-admin"       element={<RoleGuard allowed={['admin']}><RouteAdminPage /></RoleGuard>} />
               <Route path="/system"            element={<RoleGuard allowed={['admin']}><SystemPage /></RoleGuard>} />
               <Route path="/mes-backbone"      element={<RoleGuard allowed={['admin']}><MesBackbonePage /></RoleGuard>} />
               <Route path="/pm-core-flow"      element={<RoleGuard allowed={['admin']}><PmCoreFlowPage /></RoleGuard>} />
-              <Route path="/scm-cases"         element={<RoleGuard allowed={['admin','member']}><ScmCasesPage /></RoleGuard>} />
               <Route path="/notifications"     element={<AuthGuard><NotificationsPage /></AuthGuard>} />
               <Route path="/traceability"      element={<AuthGuard><TraceabilityPage /></AuthGuard>} />
-              <Route path="/jig-test"          element={<AuthGuard><JigTestPage /></AuthGuard>} />
               <Route path="/jig-test/:projectCode" element={<AuthGuard><JigProjectPage /></AuthGuard>} />
               <Route path="/admin/panel"       element={<RoleGuard allowed={['admin']}><AdminPanelPage /></RoleGuard>} />
               <Route path="/sync-monitor"      element={<RoleGuard allowed={['admin']}><SyncMonitorPage /></RoleGuard>} />
               <Route path="/bom-editor"        element={<RoleGuard allowed={['admin']}><BomEditorPage /></RoleGuard>} />
               <Route path="/workspace"         element={<RoleGuard allowed={['admin']}><MesWorkspacePage /></RoleGuard>} />
               <Route path="/web-check"         element={<RoleGuard allowed={['admin']}><WebCheckPage /></RoleGuard>} />
-              <Route path="*"                  element={<Navigate to="/wo-dashboard" replace />} />
+              <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </ErrorBoundary>
         </Shell>

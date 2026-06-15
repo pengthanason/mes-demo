@@ -29,6 +29,8 @@ export default defineConfig({
       '/api/admin':         { target: 'http://localhost:5099', changeOrigin: true },
       '/api/jumbo':         { target: 'http://localhost:5099', changeOrigin: true },
       '/api/jig':           { target: 'http://localhost:5099', changeOrigin: true },
+      '/api/inventory':     { target: 'http://localhost:5099', changeOrigin: true },
+      '/api/production':    { target: 'http://localhost:5099', changeOrigin: true },
       // Everything else → MES backbone (Docker)
       '/api': { target: 'http://localhost:5100', changeOrigin: true },
     },

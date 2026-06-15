@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCrList, useCrCreate, type MType, type CrState } from '../lib/crApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { Paginator } from '../components/Paginator';
 
 export const CR_STATE_STYLE: Record<CrState, { bg: string; text: string; border: string; label: string }> = {
   DRAFT:       { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', label: 'DRAFT' },
@@ -36,6 +37,8 @@ export function FourMChangePage() {
   const [stateFilter, setStateFilter] = useState('');
   const [typeFilter,  setTypeFilter]  = useState('');
   const [showForm,    setShowForm]    = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // form state
   const [mType,       setMType]       = useState<MType | ''>('');
@@ -120,7 +123,7 @@ export function FourMChangePage() {
         <div className="filters-grid" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
           <label className="field">
             <span>Filter ประเภท 4M</span>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}>
               <option value="">All Types</option>
               <option value="Man">Man</option>
               <option value="Machine">Machine</option>
@@ -130,7 +133,7 @@ export function FourMChangePage() {
           </label>
           <label className="field">
             <span>Filter State</span>
-            <select value={stateFilter} onChange={e => setStateFilter(e.target.value)}>
+            <select value={stateFilter} onChange={e => { setStateFilter(e.target.value); setPage(1); }}>
               <option value="">All States</option>
               <option value="DRAFT">DRAFT</option>
               <option value="G1_REVIEW">G1 REVIEW</option>
@@ -158,7 +161,7 @@ export function FourMChangePage() {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มี Change Request</td></tr>
               ) : (
-                filtered.map(cr => (
+                filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(cr => (
                   <tr key={cr.id}>
                     <td style={{ fontWeight: 600 }}>
                       <Link to={`/4m-change/${cr.id}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{cr.crNo}</Link>
@@ -178,6 +181,7 @@ export function FourMChangePage() {
             </tbody>
           </table>
         </div>
+        <Paginator page={page} totalPages={Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))} onPage={setPage} total={filtered.length} />
       </div>
     </section>
   );

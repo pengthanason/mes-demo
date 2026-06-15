@@ -415,13 +415,13 @@ export function SequenceBuilderPage() {
         </label>
       </div>
 
-      <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--bg-panel)', padding: '15px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+      <div style={{ marginBottom: '15px', display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', background: 'var(--bg-panel)', padding: '15px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
         <strong style={{ fontSize: '0.9rem', color: 'var(--text-muted)', minWidth: '80px' }}>⚙️ Presets:</strong>
         <button type="button" className="btn secondary" onClick={handleSaveTemplate} disabled={steps.length === 0}>
           💾 Save as Preset
         </button>
         {templates.length > 0 && (
-          <div style={{ width: '250px' }}>
+          <div style={{ width: '100%', maxWidth: '250px' }}>
             <TemplateSelect 
               templates={templates} 
               onLoad={handleLoadTemplate} 
@@ -457,8 +457,8 @@ export function SequenceBuilderPage() {
                     onDragLeave={() => setDragOverId(null)}
                     onDrop={(e) => handleDrop(e, step.id)}
                     onDragEnd={handleDragEnd}
-                    style={{ 
-                      display: 'flex', alignItems: 'center', gap: '15px', padding: '10px', borderRadius: '4px', borderLeft: '4px solid #3498db',
+                    style={{
+                      display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '15px', padding: '10px', borderRadius: '4px', borderLeft: '4px solid #3498db',
                       opacity: draggedItemId === step.id ? 0.5 : 1,
                       background: dragOverId === step.id && draggedItemId !== step.id ? '#e0f2fe' : 'white',
                       boxShadow: dragOverId === step.id && draggedItemId !== step.id ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.05)',
@@ -511,7 +511,7 @@ export function SequenceBuilderPage() {
         <strong style={{ fontSize: '1.25rem', color: '#0284c7' }}>{formatTime(totalSeconds)}</strong>
       </div>
 
-      <div style={{ marginTop: '1.5rem', display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--bg-panel)', padding: '15px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+      <div style={{ marginTop: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', background: 'var(--bg-panel)', padding: '15px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
         <strong style={{ fontSize: '0.9rem', color: 'var(--text-muted)', minWidth: '150px' }}>📋 Global Flow Result:</strong>
         <ResultSelect value={globalResult} onChange={setGlobalResult} />
       </div>

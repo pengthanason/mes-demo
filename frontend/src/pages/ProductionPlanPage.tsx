@@ -7,6 +7,7 @@ import {
 } from '../lib/planningApi';
 import { showToast } from '../lib/toast';
 import { useMockAuth } from '../lib/useMockStore';
+import { Paginator } from '../components/Paginator';
 
 // ── Status badge ───────────────────────────────────────────────────
 
@@ -48,6 +49,8 @@ function EmptyRow({ cols, text = 'ไม่มีข้อมูล' }: { cols: 
 
 function WoListTab() {
   const [statusFilter, setStatusFilter] = useState<WoStatus | ''>('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
   const { data, isLoading } = useQuery({
     queryKey: ['wo-list'],
     queryFn: getWoList,
@@ -56,13 +59,15 @@ function WoListTab() {
 
   const list: WoItem[] = data ?? [];
   const filtered = statusFilter ? list.filter(w => w.status === statusFilter) : list;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="stack">
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <label className="field" style={{ marginBottom: 0, minWidth: 180 }}>
           <span>Filter Status</span>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value as any); setPage(1); }}>
             <option value="">All</option>
             <option value="PENDING">PENDING</option>
             <option value="IN_PROGRESS">IN_PROGRESS</option>
@@ -93,7 +98,7 @@ function WoListTab() {
             ) : filtered.length === 0 ? (
               <EmptyRow cols={6} text="ไม่มี Work Order — ลอง backend ยังไม่ได้ connect หรือยังไม่มีข้อมูล" />
             ) : (
-              filtered.map(wo => (
+              paged.map(wo => (
                 <tr key={wo.wo_id}>
                   <td style={{ fontWeight: 600 }}>{wo.wo_no}</td>
                   <td>{wo.product_name}</td>
@@ -111,6 +116,7 @@ function WoListTab() {
           </tbody>
         </table>
       </div>
+      <Paginator page={page} totalPages={totalPages} onPage={setPage} total={filtered.length} />
     </div>
   );
 }
@@ -138,6 +144,11 @@ function PreWoTab() {
 
   const list: PreWoItem[]  = preWoData ?? [];
   const boms: BomHeader[]  = bomData ?? [];
+
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const paged = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const createMut = useMutation({
     mutationFn: createPreWo,
@@ -236,7 +247,7 @@ function PreWoTab() {
             ) : list.length === 0 ? (
               <EmptyRow cols={6} />
             ) : (
-              list.map(req => (
+              paged.map(req => (
                 <tr key={req.req_id}>
                   <td style={{ fontWeight: 600 }}>{req.req_id}</td>
                   <td>{req.bom_name ?? req.bom_id}</td>
@@ -273,6 +284,7 @@ function PreWoTab() {
           </tbody>
         </table>
       </div>
+      <Paginator page={page} totalPages={totalPages} onPage={setPage} total={list.length} />
     </div>
   );
 }
@@ -312,7 +324,7 @@ function BomReviewTab() {
 
   return (
     <div className="stack">
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+      <div className="grid-sidebar">
         {/* BOM list */}
         <div className="panel" style={{ padding: '1rem' }}>
           <div className="panel__title panel__title--sm" style={{ marginBottom: '0.75rem' }}>รายการ BOM</div>

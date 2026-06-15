@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { useIsViewer } from '../lib/useMockStore';
 import { useReports, useReportCreate, useReportPatch, useReportDelete, type ReportItem } from '../lib/reportApi';
 import { showToast } from '../lib/toast';
+import { Paginator } from '../components/Paginator';
 
 const getStageStyle = (stage: string) => {
   switch (stage.toLowerCase()) {
@@ -57,6 +58,8 @@ export function ProductionReportPage() {
   const [searchText, setSearchText] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
   const [completionFilter, setCompletionFilter] = useState('PENDING');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   function addReport() {
     createMut.mutate(undefined, {
@@ -114,6 +117,9 @@ export function ProductionReportPage() {
     });
   }, [reports, searchText, customerFilter, completionFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const pagedData  = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const summary = useMemo(() => {
     let totalQty = 0;
     let dueThisWeekCount = 0;
@@ -161,18 +167,18 @@ export function ProductionReportPage() {
         <div className="filters-grid" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
           <label className="field">
             <span>Search Project</span>
-            <input type="text" placeholder="พิมพ์ Project Code..." value={searchText} onChange={e => setSearchText(e.target.value)} />
+            <input type="text" placeholder="พิมพ์ Project Code..." value={searchText} onChange={e => { setSearchText(e.target.value); setPage(1); }} />
           </label>
           <label className="field">
             <span>Filter Customer</span>
-            <select value={customerFilter} onChange={e => setCustomerFilter(e.target.value)}>
+            <select value={customerFilter} onChange={e => { setCustomerFilter(e.target.value); setPage(1); }}>
               <option value="">All Customers</option>
               {allCustomers.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <label className="field">
             <span>Filter Status</span>
-            <select value={completionFilter} onChange={e => setCompletionFilter(e.target.value)}>
+            <select value={completionFilter} onChange={e => { setCompletionFilter(e.target.value); setPage(1); }}>
               <option value="PENDING">🕒 กำลังดำเนินการ (Pending)</option>
               <option value="COMPLETED">✅ เสร็จสิ้นแล้ว (Completed)</option>
               <option value="ALL">รวมทั้งหมด (All)</option>
@@ -197,16 +203,16 @@ export function ProductionReportPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredData.length === 0 ? (
+              {pagedData.length === 0 ? (
                 <tr><td colSpan={isViewer ? 8 : 9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ไม่พบข้อมูลโปรเจกต์ที่ค้นหา</td></tr>
               ) : (
-                filteredData.map((item, index) => {
+                pagedData.map((item, index) => {
                   const stageStyle = getStageStyle(item.stage);
                   const dateInfo = formatDateAndCheckOverdue(item.delivery);
 
                   return (
                     <tr key={item.id} style={{ opacity: item.isCompleted ? 0.6 : 1, transition: 'opacity 0.2s' }}>
-                      <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{index + 1}</td>
+                      <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{(page - 1) * PAGE_SIZE + index + 1}</td>
                       <td>
                         <input type="text" value={item.code} onChange={e => updateReport(item.id, 'code', e.target.value)} placeholder="E13A..." style={{ width: '100px', padding: '4px', border: '1px solid #ccc', borderRadius: '4px' }} />
                       </td>
@@ -258,6 +264,7 @@ export function ProductionReportPage() {
           </table>
           </fieldset>
         </div>
+        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={filteredData.length} />
       </div>
     </section>
   );

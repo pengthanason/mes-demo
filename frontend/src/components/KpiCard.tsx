@@ -14,10 +14,10 @@ const TONE_COLOR: Record<KpiCardProps['tone'], string> = {
 export function KpiCard({ label, value, tone }: KpiCardProps) {
   return (
     <div className="glass-panel" style={{ padding: '1.2rem', borderLeft: `4px solid ${TONE_COLOR[tone]}`, background: 'var(--bg-panel)' }}>
-      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
         {label}
       </div>
-      <strong style={{ fontSize: '2rem', color: 'var(--text-main)', lineHeight: 1 }}>{value}</strong>
+      <strong style={{ fontSize: '2rem', color: '#fff', lineHeight: 1 }}>{value}</strong>
     </div>
   );
 }

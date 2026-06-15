@@ -377,6 +377,74 @@ async function migrate() {
       console.log('[migrate] seeded production reports');
     }
 
+    // ── Incoming / Kitting (รับวัตถุดิบเข้า + เบิกออกไปผลิต) ──
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS inventory_lots (
+        id            SERIAL PRIMARY KEY,
+        part_no       VARCHAR(100) NOT NULL,
+        part_name     VARCHAR(200) NOT NULL DEFAULT '',
+        lot_no        VARCHAR(100) NOT NULL,
+        qty_received  INTEGER      NOT NULL CHECK (qty_received > 0),
+        qty_available INTEGER      NOT NULL DEFAULT 0,
+        status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
+                        CHECK (status IN ('PENDING','APPROVED','REJECTED')),
+        note          TEXT,
+        received_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        reviewed_at   TIMESTAMPTZ
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS kitting_issues (
+        id          SERIAL PRIMARY KEY,
+        wo_id       VARCHAR(100) NOT NULL,
+        part_no     VARCHAR(100) NOT NULL,
+        qty         INTEGER      NOT NULL CHECK (qty > 0),
+        lot_no      VARCHAR(100) NOT NULL DEFAULT '',
+        issued_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    const lotCount = await client.query('SELECT COUNT(*) FROM inventory_lots');
+    if (Number(lotCount.rows[0].count) === 0) {
+      await client.query(`
+        INSERT INTO inventory_lots (part_no, part_name, lot_no, qty_received, qty_available, status, reviewed_at) VALUES
+          ('R-100K',  'Resistor 100K Ohm', 'LOT-R100K-A', 5000, 5000, 'APPROVED', NOW()),
+          ('C-10UF',  'Capacitor 10uF',    'LOT-C10UF-A', 3000, 3000, 'APPROVED', NOW()),
+          ('IC-555',  'Timer IC 555',      'LOT-IC555-A', 1000,  850, 'APPROVED', NOW()),
+          ('MTR-DC',  'DC Motor 12V',      'LOT-MTR-0608',1500, 1500, 'PENDING',  NULL),
+          ('STL-ROD', 'Steel Rod 10mm',    'LOT-STL-X1',  2000,    0, 'REJECTED', NOW())
+      `);
+      console.log('[migrate] seeded inventory lots');
+    }
+
+    // ── Production Scan (operator สแกนชิ้นงานทีละชิ้นที่แต่ละสถานี) ──
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS production_units (
+        id           SERIAL PRIMARY KEY,
+        wo_id        VARCHAR(100) NOT NULL,
+        serial       VARCHAR(100) NOT NULL,
+        last_station VARCHAR(100) NOT NULL DEFAULT '',
+        last_result  VARCHAR(10)  NOT NULL DEFAULT 'PASS' CHECK (last_result IN ('PASS','FAIL')),
+        scan_count   INTEGER      NOT NULL DEFAULT 0,
+        updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        UNIQUE (wo_id, serial)
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS production_scans (
+        id          SERIAL PRIMARY KEY,
+        wo_id       VARCHAR(100) NOT NULL,
+        serial      VARCHAR(100) NOT NULL,
+        station     VARCHAR(100) NOT NULL,
+        result      VARCHAR(10)  NOT NULL CHECK (result IN ('PASS','FAIL')),
+        operator    VARCHAR(100) NOT NULL DEFAULT '',
+        note        TEXT,
+        scanned_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+
     // Seed ข้อมูลตัวอย่างถ้ายังว่าง
     const { rows } = await client.query('SELECT COUNT(*) FROM boms');
     if (Number(rows[0].count) === 0) {

@@ -31,7 +31,7 @@ function UserRow({ u, onEdit, onToggle, onDelete }: { u: AppUser; onEdit: (u: Ap
         {new Date(u.createdAt).toLocaleDateString('th-TH')}
       </td>
       <td style={{ padding: '0.6rem 0.75rem' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onEdit(u)}>แก้ไข</button>
           <button className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onToggle(u)}>
             {u.isActive ? 'Disable' : 'Enable'}
@@ -59,27 +59,33 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>เพิ่มผู้ใช้ใหม่</h2>
-        <form onSubmit={submit} className="stack">
-          <div className="form-field">
-            <label>Username</label>
-            <input className="input" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required />
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
+          <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: 'rgba(59,130,246,0.12)' }}>👤</span>
+          <div>
+            <h2 className="panel__title" style={{ margin: 0 }}>เพิ่มผู้ใช้ใหม่</h2>
+            <p className="panel__subtitle" style={{ margin: 0 }}>สร้างบัญชีผู้ใช้และกำหนดสิทธิ์</p>
           </div>
-          <div className="form-field">
-            <label>ชื่อ-สกุล</label>
-            <input className="input" value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} required />
-          </div>
-          <div className="form-field">
-            <label>Role</label>
-            <select className="input" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as AppRole }))}>
+        </div>
+        <form onSubmit={submit} className="stack" style={{ marginTop: '1rem', gap: '0.85rem' }}>
+          <label className="field">
+            <span>Username</span>
+            <input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="เช่น somchai" autoFocus required />
+          </label>
+          <label className="field">
+            <span>ชื่อ-สกุล</span>
+            <input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} placeholder="สมชาย ใจดี" required />
+          </label>
+          <label className="field">
+            <span>Role</span>
+            <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as AppRole }))}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
-          </div>
-          {err && <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{err}</p>}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+          </label>
+          {err && <div className="notice err">{err}</div>}
+          <div className="modal-actions" style={{ marginTop: '0.25rem' }}>
             <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
-            <button type="submit" className="btn primary" disabled={create.isPending}>
+            <button type="submit" className="btn" disabled={create.isPending}>
               {create.isPending ? 'กำลังสร้าง...' : 'สร้างผู้ใช้'}
             </button>
           </div>
@@ -105,23 +111,29 @@ function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>แก้ไขผู้ใช้: {user.username}</h2>
-        <form onSubmit={submit} className="stack">
-          <div className="form-field">
-            <label>ชื่อ-สกุล</label>
-            <input className="input" value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} required />
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
+          <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: 'rgba(59,130,246,0.12)' }}>✏️</span>
+          <div>
+            <h2 className="panel__title" style={{ margin: 0 }}>แก้ไขผู้ใช้</h2>
+            <p className="panel__subtitle" style={{ margin: 0 }}><code>{user.username}</code></p>
           </div>
-          <div className="form-field">
-            <label>Role</label>
-            <select className="input" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as AppRole }))}>
+        </div>
+        <form onSubmit={submit} className="stack" style={{ marginTop: '1rem', gap: '0.85rem' }}>
+          <label className="field">
+            <span>ชื่อ-สกุล</span>
+            <input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} autoFocus required />
+          </label>
+          <label className="field">
+            <span>Role</span>
+            <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as AppRole }))}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
-          </div>
-          {err && <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{err}</p>}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+          </label>
+          {err && <div className="notice err">{err}</div>}
+          <div className="modal-actions" style={{ marginTop: '0.25rem' }}>
             <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
-            <button type="submit" className="btn primary" disabled={update.isPending}>
+            <button type="submit" className="btn" disabled={update.isPending}>
               {update.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
           </div>
@@ -160,7 +172,7 @@ function UsersTab() {
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)' }}>
                 {['Username', 'ชื่อ', 'Role', 'สถานะ', 'วันที่สร้าง', 'Actions'].map(h => (
-                  <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.78rem' }}>{h}</th>
+                  <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: h === 'Actions' ? 'center' : 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.78rem' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -192,8 +204,8 @@ function AuditTab() {
   return (
     <>
       <form onSubmit={search} style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <input className="input" placeholder="ค้นหา Actor" value={filters.actor} onChange={e => setFilters(f => ({ ...f, actor: e.target.value }))} style={{ flex: 1, minWidth: 140 }} />
-        <input className="input" placeholder="ค้นหา Action" value={filters.action} onChange={e => setFilters(f => ({ ...f, action: e.target.value }))} style={{ flex: 1, minWidth: 140 }} />
+        <input className="form-input" placeholder="ค้นหา Actor" value={filters.actor} onChange={e => setFilters(f => ({ ...f, actor: e.target.value }))} style={{ flex: 1, minWidth: 140 }} />
+        <input className="form-input" placeholder="ค้นหา Action" value={filters.action} onChange={e => setFilters(f => ({ ...f, action: e.target.value }))} style={{ flex: 1, minWidth: 140 }} />
         <button type="submit" className="btn secondary">ค้นหา</button>
         <button type="button" className="btn secondary" onClick={() => { setFilters({ actor: '', action: '' }); setApplied({}); }}>Reset</button>
       </form>
