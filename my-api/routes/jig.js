@@ -99,4 +99,35 @@ router.get('/projects/:code/timeseries', async (req, res) => {
   }
 });
 
+// ── Retest (สั่งทดสอบซ้ำชิ้นที่ FAIL) ──
+router.get('/projects/:code/retests', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, project_code, serial, status, requested_by, requested_at
+       FROM jig_retest_requests WHERE project_code=$1
+       ORDER BY requested_at DESC`,
+      [req.params.code]
+    );
+    res.json({ status: 'success', data: rows });
+  } catch (e) {
+    res.status(500).json({ status: 'error', message: e.message });
+  }
+});
+
+router.post('/projects/:code/retest', async (req, res) => {
+  const { serial, requested_by } = req.body;
+  if (!serial) return res.status(400).json({ status: 'error', message: 'serial required' });
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO jig_retest_requests (project_code, serial, requested_by)
+       VALUES ($1,$2,$3)
+       RETURNING id, project_code, serial, status, requested_by, requested_at`,
+      [req.params.code, serial, requested_by || '']
+    );
+    res.status(201).json({ status: 'success', data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ status: 'error', message: e.message });
+  }
+});
+
 module.exports = router;

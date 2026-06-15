@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useMockAuth } from './lib/useMockStore.ts';
 import { mockLogout, exportData, importData } from './lib/mockStore.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
@@ -29,7 +29,7 @@ import { DashboardPage } from './pages/DashboardPage.tsx';
 import { IncomingPage } from './pages/IncomingPage.tsx';
 import { KittingPage } from './pages/KittingPage.tsx';
 import { ProductionScanPage } from './pages/ProductionScanPage.tsx';
-import { useUnreadCount } from './lib/notificationsApi.ts';
+import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ─── Sidebar nav items ─────────────────────────────────────────────
@@ -350,37 +350,110 @@ function NavLabel({ full, short }) {
   );
 }
 
-// ─── Notification Bell ────────────────────────────────────────────
+// ─── Notification Bell + Dropdown ─────────────────────────────────
+const NOTIF_ICON = { WO_OPEN: '🔧', QC_FAIL: '❌', CR_APPROVED: '✅', WO_CLOSED: '✔️', REWORK: '🔨' };
+
 function NotificationBell() {
   const { data: count = 0 } = useUnreadCount();
+  const { data: notifs = [] } = useNotifications(false);
+  const markRead = useMarkRead();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  const recent = notifs.slice(0, 5);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  function handleClick(n) {
+    if (!n.isRead) markRead.mutate(n.id);
+    setOpen(false);
+    if (n.link) navigate(n.link);
+  }
+
   return (
-    <Link
-      to="/notifications"
-      title="Notifications"
-      style={{
-        position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-        color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '1.1rem',
-        transition: 'background 0.15s',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-    >
-      🔔
-      {count > 0 && (
-        <span style={{
-          position: 'absolute', top: 2, right: 2,
-          background: '#ef4444', color: '#fff',
-          fontSize: '0.6rem', fontWeight: 800,
-          minWidth: 16, height: 16, borderRadius: 99,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '0 3px', lineHeight: 1,
-          border: '1.5px solid #162d4a',
+    <div ref={wrapRef} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        type="button"
+        title="Notifications"
+        onClick={() => setOpen(v => !v)}
+        style={{
+          position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 36, height: 36, borderRadius: 8, flexShrink: 0, border: 'none', cursor: 'pointer',
+          background: open ? 'rgba(255,255,255,0.15)' : 'transparent',
+          color: 'rgba(255,255,255,0.8)', fontSize: '1.1rem', transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent'; }}
+      >
+        🔔
+        {count > 0 && (
+          <span style={{
+            position: 'absolute', top: 2, right: 2,
+            background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontWeight: 800,
+            minWidth: 16, height: 16, borderRadius: 99,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 3px', lineHeight: 1, border: '1.5px solid #162d4a',
+          }}>
+            {count > 99 ? '99+' : count}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 340, maxWidth: '90vw',
+          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
+          boxShadow: '0 12px 32px rgba(0,0,0,0.18)', zIndex: 300, overflow: 'hidden',
         }}>
-          {count > 99 ? '99+' : count}
-        </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9' }}>
+            <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.9rem' }}>การแจ้งเตือน</span>
+            {count > 0 && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ef4444' }}>{count} ใหม่</span>}
+          </div>
+
+          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+            {recent.length === 0 ? (
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>ไม่มีการแจ้งเตือน</div>
+            ) : recent.map(n => (
+              <div
+                key={n.id}
+                onClick={() => handleClick(n)}
+                style={{
+                  display: 'flex', gap: '0.6rem', padding: '0.7rem 1rem', cursor: 'pointer',
+                  borderBottom: '1px solid #f1f5f9',
+                  background: n.isRead ? '#fff' : 'rgba(59,130,246,0.06)',
+                  borderLeft: n.isRead ? '3px solid transparent' : '3px solid #3b82f6',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = n.isRead ? '#fff' : 'rgba(59,130,246,0.06)'; }}
+              >
+                <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{NOTIF_ICON[n.type] ?? '🔔'}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: n.isRead ? 500 : 700, fontSize: '0.85rem', color: '#1e293b' }}>{n.title}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.message}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 2 }}>{new Date(n.createdAt).toLocaleString('th-TH')}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Link
+            to="/notifications"
+            onClick={() => setOpen(false)}
+            style={{ display: 'block', textAlign: 'center', padding: '0.7rem', fontSize: '0.85rem', fontWeight: 600, color: '#3b82f6', textDecoration: 'none', borderTop: '1px solid #f1f5f9' }}
+          >
+            ดูทั้งหมด →
+          </Link>
+        </div>
       )}
-    </Link>
+    </div>
   );
 }
 
@@ -424,10 +497,11 @@ function TopNav() {
   const ref = (to) => (el) => { if (el) itemRefs.current[to] = el; };
 
   return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: 'auto', minWidth: 0, maxWidth: '100%' }}>
     <nav ref={navRef} style={{
       display: 'flex', gap: '0.4rem', flexWrap: 'nowrap', alignItems: 'center',
-      marginLeft: 'auto', position: 'relative',
-      maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden',
+      position: 'relative', minWidth: 0,
+      overflowX: 'auto', overflowY: 'hidden',
       scrollbarWidth: 'none', msOverflowStyle: 'none',
       WebkitOverflowScrolling: 'touch',
     }}>
@@ -456,8 +530,9 @@ function TopNav() {
           <NavLink to="/system" innerRef={ref('/system')}>⚙️ System</NavLink>
         </>
       )}
-      <NotificationBell />
     </nav>
+      <NotificationBell />
+    </div>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api';
 
 export interface JigProject {
@@ -86,6 +86,41 @@ export function useJigRecords(code: string | undefined, resultFilter?: 'PASS' | 
       const res = await api.get(`/jig/projects/${code}/records`, { params });
       return ((res.data as any)?.data ?? []).map(mapRecord);
     },
+  });
+}
+
+export interface JigRetest {
+  id: number;
+  projectCode: string;
+  serial: string;
+  status: string;
+  requestedBy: string;
+  requestedAt: string;
+}
+
+export function useJigRetests(code: string | undefined) {
+  return useQuery({
+    queryKey: ['jig-retests', code],
+    enabled: !!code,
+    queryFn: async (): Promise<JigRetest[]> => {
+      const res = await api.get(`/jig/projects/${code}/retests`);
+      return ((res.data as any)?.data ?? []).map((r: any) => ({
+        id: r.id, projectCode: r.project_code, serial: r.serial, status: r.status,
+        requestedBy: r.requested_by ?? '', requestedAt: r.requested_at,
+      }));
+    },
+  });
+}
+
+export function useJigRetestCreate(code: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (serial: string) => {
+      const res = await api.post(`/jig/projects/${code}/retest`, { serial });
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'สั่ง Retest ไม่สำเร็จ');
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jig-retests', code] }),
   });
 }
 

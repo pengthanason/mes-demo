@@ -172,13 +172,44 @@ function BoxTab() {
   );
 }
 
+function toCsv(rows: { date: string; total: number; pass: number; fail: number; pass_rate: number }[]): string {
+  const header = ['Date', 'Total', 'Pass', 'Fail', 'Pass Rate (%)'];
+  const body = rows.map(r => [r.date, r.total, r.pass, r.fail, r.pass_rate.toFixed(1)]);
+  // ใส่ BOM ให้ Excel อ่านภาษาไทย/encoding ถูก
+  return '﻿' + [header, ...body].map(cols => cols.join(',')).join('\r\n');
+}
+
+function downloadCsv(filename: string, csv: string) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function DailyReportTab() {
   const { data: rows = [], isLoading } = useDailyReport();
+
+  function handleExport() {
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadCsv(`daily-report-${stamp}.csv`, toCsv(rows));
+  }
 
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>;
 
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.87rem' }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+        <button type="button" className="btn secondary" onClick={handleExport} disabled={rows.length === 0}
+          style={{ fontSize: '0.82rem' }} title={rows.length === 0 ? 'ไม่มีข้อมูลให้ export' : 'ดาวน์โหลดเป็นไฟล์ CSV'}>
+          ⬇️ Export CSV
+        </button>
+      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.87rem' }}>
       <thead>
         <tr style={{ borderBottom: '2px solid var(--border)' }}>
           {['วันที่', 'Total', 'Pass', 'Fail', 'Pass Rate'].map(h => (
@@ -205,6 +236,7 @@ function DailyReportTab() {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 

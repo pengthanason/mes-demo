@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useJigProject, useJigRecords, useJigTimeseries, JigTimeseries, JigRecord } from '../lib/jigApi';
+import { useJigProject, useJigRecords, useJigTimeseries, useJigRetests, useJigRetestCreate, JigTimeseries, JigRecord } from '../lib/jigApi';
+import { showToast } from '../lib/toast';
 
 /* ──────── SVG Line Chart ──────── */
 function LineChart({ data }: { data: JigTimeseries[] }) {
@@ -66,20 +67,26 @@ function LineChart({ data }: { data: JigTimeseries[] }) {
 }
 
 /* ──────── Records Table ──────── */
-function RecordsTable({ records }: { records: JigRecord[] }) {
+function RecordsTable({ records, onSelect }: { records: JigRecord[]; onSelect: (r: JigRecord) => void }) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
         <thead>
           <tr style={{ borderBottom: '2px solid var(--border)' }}>
-            {['#', 'Serial', 'Result', 'Tested At', 'V (V)', 'I (mA)', 'T (°C)', 'Fail Param', 'Notes'].map(h => (
+            {['#', 'Serial', 'Result', 'Tested At', 'V (V)', 'I (mA)', 'T (°C)', 'Fail Param', ''].map(h => (
               <th key={h} style={{ padding: '0.5rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {records.map((r, idx) => (
-            <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: r.result === 'FAIL' ? 'rgba(239,68,68,0.03)' : undefined }}>
+            <tr
+              key={r.id}
+              onClick={() => onSelect(r)}
+              style={{ borderBottom: '1px solid var(--border)', background: r.result === 'FAIL' ? 'rgba(239,68,68,0.03)' : undefined, cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#f1f5f9')}
+              onMouseLeave={e => (e.currentTarget.style.background = r.result === 'FAIL' ? 'rgba(239,68,68,0.03)' : '')}
+            >
               <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{idx + 1}</td>
               <td style={{ padding: '0.45rem 0.6rem', fontFamily: 'monospace', fontSize: '0.82rem' }}>{r.serial}</td>
               <td style={{ padding: '0.45rem 0.6rem' }}>
@@ -96,11 +103,63 @@ function RecordsTable({ records }: { records: JigRecord[] }) {
               <td style={{ padding: '0.45rem 0.6rem' }}>{r.currentMa ?? '—'}</td>
               <td style={{ padding: '0.45rem 0.6rem' }}>{r.tempC ?? '—'}</td>
               <td style={{ padding: '0.45rem 0.6rem', color: r.failParam ? '#ef4444' : 'var(--text-muted)' }}>{r.failParam ?? '—'}</td>
-              <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.notes ?? '—'}</td>
+              <td style={{ padding: '0.45rem 0.6rem', textAlign: 'right', color: 'var(--primary)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>ดู →</td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* ──────── Detail Modal (drill-down) ──────── */
+function RecordDetailModal({ record, onClose, onRetest, retesting, alreadyRequested }:
+  { record: JigRecord; onClose: () => void; onRetest: () => void; retesting: boolean; alreadyRequested: boolean }) {
+  const isFail = record.result === 'FAIL';
+  const rows: [string, any][] = [
+    ['Serial', record.serial],
+    ['ผลทดสอบ', record.result],
+    ['เวลาทดสอบ', new Date(record.testedAt).toLocaleString('th-TH')],
+    ['Voltage (V)', record.voltage ?? '—'],
+    ['Current (mA)', record.currentMa ?? '—'],
+    ['Temperature (°C)', record.tempC ?? '—'],
+    ['Fail Parameter', record.failParam ?? '—'],
+    ['Notes', record.notes ?? '—'],
+  ];
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: isFail ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)' }}>{isFail ? '❌' : '✅'}</span>
+          <div>
+            <h2 className="panel__title" style={{ margin: 0 }}>รายละเอียดการทดสอบ</h2>
+            <p className="panel__subtitle" style={{ margin: 0 }}><code>{record.serial}</code></p>
+          </div>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.87rem' }}>
+          <tbody>
+            {rows.map(([k, v]) => (
+              <tr key={k} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <td style={{ padding: '0.5rem 0', color: 'var(--text-muted)', width: '45%' }}>{k}</td>
+                <td style={{ padding: '0.5rem 0', fontWeight: 600, color: k === 'Fail Parameter' && record.failParam ? '#ef4444' : '#1e293b' }}>{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="modal-actions">
+          <button type="button" className="btn secondary" onClick={onClose}>ปิด</button>
+          {isFail && (
+            alreadyRequested ? (
+              <span style={{ alignSelf: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#f59e0b' }}>🔁 ขอ Retest แล้ว</span>
+            ) : (
+              <button type="button" className="btn" disabled={retesting} onClick={onRetest}
+                style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#fff', fontWeight: 600 }}>
+                {retesting ? 'กำลังส่ง...' : '🔁 สั่ง Retest'}
+              </button>
+            )
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -110,10 +169,30 @@ export function JigProjectPage() {
   const { projectCode } = useParams<{ projectCode: string }>();
   const navigate = useNavigate();
   const [resultFilter, setResultFilter] = useState<'' | 'PASS' | 'FAIL'>('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [selected, setSelected] = useState<JigRecord | null>(null);
 
   const { data: project, isLoading: loadingProject, error: projError } = useJigProject(projectCode);
   const { data: records = [], isLoading: loadingRecords } = useJigRecords(projectCode, resultFilter);
   const { data: timeseries = [], isLoading: loadingTs } = useJigTimeseries(projectCode);
+  const { data: retests = [] } = useJigRetests(projectCode);
+  const retestMut = useJigRetestCreate(projectCode);
+
+  // serial ที่ขอ retest ไปแล้ว (กันขอซ้ำ)
+  const requestedSerials = useMemo(() => new Set(retests.map(r => r.serial)), [retests]);
+
+  // filter วันที่ (client-side ตามวันที่ทดสอบ)
+  const shownRecords = useMemo(
+    () => (dateFilter ? records.filter(r => r.testedAt.slice(0, 10) === dateFilter) : records),
+    [records, dateFilter]
+  );
+
+  function handleRetest(serial: string) {
+    retestMut.mutate(serial, {
+      onSuccess: () => { showToast(`ส่งคำสั่ง Retest: ${serial}`, 'success'); setSelected(null); },
+      onError: (err: any) => showToast(err.message, 'error'),
+    });
+  }
 
   if (loadingProject) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>;
   if (projError || !project) return (
@@ -172,9 +251,20 @@ export function JigProjectPage() {
       <div className="panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
           <h2 style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-            Test Records {loadingRecords ? '' : `(${records.length})`}
+            Test Records {loadingRecords ? '' : `(${shownRecords.length})`}
           </h2>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+              className="form-input"
+              style={{ fontSize: '0.78rem', padding: '4px 8px', height: 30 }}
+              title="กรองตามวันที่ทดสอบ"
+            />
+            {dateFilter && (
+              <button className="btn secondary" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setDateFilter('')}>ล้างวันที่</button>
+            )}
             {(['', 'PASS', 'FAIL'] as const).map(f => (
               <button
                 key={f}
@@ -189,12 +279,22 @@ export function JigProjectPage() {
         </div>
         {loadingRecords ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
-        ) : records.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบข้อมูล</div>
+        ) : shownRecords.length === 0 ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบข้อมูล{dateFilter ? ` ในวันที่ ${dateFilter}` : ''}</div>
         ) : (
-          <RecordsTable records={records} />
+          <RecordsTable records={shownRecords} onSelect={setSelected} />
         )}
       </div>
+
+      {selected && (
+        <RecordDetailModal
+          record={selected}
+          onClose={() => setSelected(null)}
+          onRetest={() => handleRetest(selected.serial)}
+          retesting={retestMut.isPending}
+          alreadyRequested={requestedSerials.has(selected.serial)}
+        />
+      )}
     </section>
   );
 }

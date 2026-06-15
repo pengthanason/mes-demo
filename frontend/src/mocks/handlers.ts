@@ -251,6 +251,9 @@ let _scanId = 100;
 const productionScans: any[] = [];
 const productionUnits: any[] = [];
 
+let _retestId = 100;
+const jigRetests: any[] = [];
+
 function ok(data: unknown) { return HttpResponse.json({ status: 'success', data }); }
 function okSuccess(extra?: object) { return HttpResponse.json({ status: 'success', ...extra }); }
 
@@ -542,6 +545,16 @@ export const handlers = [
   }),
   http.get('/api/jig/projects/:code/timeseries', ({ params }) => {
     return ok(jigTimeseries(params.code as string));
+  }),
+  http.get('/api/jig/projects/:code/retests', ({ params }) => {
+    return ok(jigRetests.filter((r: any) => r.project_code === params.code));
+  }),
+  http.post('/api/jig/projects/:code/retest', async ({ params, request }) => {
+    const b = await request.json() as any;
+    if (!b.serial) return HttpResponse.json({ status: 'error', message: 'serial required' }, { status: 400 });
+    const row = { id: ++_retestId, project_code: params.code as string, serial: b.serial, status: 'REQUESTED', requested_by: b.requested_by || '', requested_at: new Date().toISOString() };
+    jigRetests.unshift(row);
+    return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
   }),
 
   // ── Incoming / Kitting ───────────────────────────────────────────────────

@@ -10,13 +10,13 @@ const TYPE_ICON: Record<string, string> = {
 
 export function NotificationsPage() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'unread' | 'all'>('unread');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
-  const { data, isLoading } = useNotifications(tab === 'unread');
+  const { data, isLoading } = useNotifications(false);
   const markRead = useMarkRead();
   const markAll  = useMarkAllRead();
-  const list = data ?? [];
+  // ทั้งหมด เรียงตามเวลา ใหม่สุดอยู่บน
+  const list = [...(data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   const pagedList = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -38,20 +38,11 @@ export function NotificationsPage() {
           </button>
         </div>
 
-        <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
-          <button className={`mes-module-tab ${tab === 'unread' ? 'active' : ''}`} onClick={() => { setTab('unread'); setPage(1); }}>
-            ยังไม่อ่าน
-          </button>
-          <button className={`mes-module-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => { setTab('all'); setPage(1); }}>
-            ทั้งหมด
-          </button>
-        </div>
-
-        {isLoading && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
+        {isLoading && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem' }}>กำลังโหลด...</div>}
 
         {!isLoading && list.length === 0 && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            {tab === 'unread' ? '✓ ไม่มีการแจ้งเตือนที่ยังไม่อ่าน' : 'ยังไม่มีการแจ้งเตือน'}
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem' }}>
+            ยังไม่มีการแจ้งเตือน
           </div>
         )}
 

@@ -418,6 +418,19 @@ async function migrate() {
       console.log('[migrate] seeded inventory lots');
     }
 
+    // ── Jig Retest Requests (FE-15: สั่งทดสอบซ้ำชิ้นที่ FAIL) ──
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS jig_retest_requests (
+        id           SERIAL PRIMARY KEY,
+        project_code VARCHAR(50)  NOT NULL,
+        serial       VARCHAR(100) NOT NULL,
+        status       VARCHAR(20)  NOT NULL DEFAULT 'REQUESTED'
+                       CHECK (status IN ('REQUESTED','DONE','CANCELLED')),
+        requested_by VARCHAR(100) NOT NULL DEFAULT '',
+        requested_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+
     // ── Production Scan (operator สแกนชิ้นงานทีละชิ้นที่แต่ละสถานี) ──
     await client.query(`
       CREATE TABLE IF NOT EXISTS production_units (
