@@ -2,6 +2,8 @@ const db = require('./db');
 
 async function migrate() {
   const client = await db.connect();
+  // ตั้ง SEED_DEMO=false เพื่อไม่ใส่ข้อมูลตัวอย่าง (สำหรับ go-live / กระดานเปล่า)
+  const SEED_DEMO = process.env.SEED_DEMO !== 'false';
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS boms (
@@ -151,7 +153,7 @@ async function migrate() {
       )
     `);
     const notifCount = await client.query('SELECT COUNT(*) FROM notifications');
-    if (Number(notifCount.rows[0].count) === 0) {
+    if (SEED_DEMO && Number(notifCount.rows[0].count) === 0) {
       await client.query(`
         INSERT INTO notifications (type, title, message, link, is_read) VALUES
           ('WO_OPEN',     'WO ใหม่เปิดแล้ว',       'WO-202606-002 (ASY-300 × 1500) เริ่มผลิตแล้ว',               '/wo-dashboard', false),
@@ -203,7 +205,7 @@ async function migrate() {
       )
     `);
     const scmCount = await client.query('SELECT COUNT(*) FROM scm_cases');
-    if (Number(scmCount.rows[0].count) === 0) {
+    if (SEED_DEMO && Number(scmCount.rows[0].count) === 0) {
       await client.query(`
         INSERT INTO scm_cases (case_id, case_type, status, ref_po, ref_inv, part_no, due_date, resolution_note, resolved_at) VALUES
           ('SCM-202606-001', 'QTY_SHORT', 'OPEN',   'PO-10234', 'INV-5501', 'R-100K', '2026-06-20', '', NULL),
@@ -279,7 +281,7 @@ async function migrate() {
       )
     `);
     const jigCount = await client.query('SELECT COUNT(*) FROM jig_projects');
-    if (Number(jigCount.rows[0].count) === 0) {
+    if (SEED_DEMO && Number(jigCount.rows[0].count) === 0) {
       await client.query(`
         INSERT INTO jig_projects (project_code, name, jig_id) VALUES
           ('PCB-A100', 'PCB Assembly A100', 'JIG-001'),
@@ -366,7 +368,7 @@ async function migrate() {
     `);
 
     const reportCount = await client.query('SELECT COUNT(*) FROM production_reports');
-    if (Number(reportCount.rows[0].count) === 0) {
+    if (SEED_DEMO && Number(reportCount.rows[0].count) === 0) {
       await client.query(`
         INSERT INTO production_reports (code, customer, status, stage, qty, delivery, is_completed) VALUES
           ('E13A_STD',    'THS', 'ทดสอบการทำงาน (เช็คสี LED)',        'Test',    270,  '2026-03-30', false),
@@ -406,7 +408,7 @@ async function migrate() {
     `);
 
     const lotCount = await client.query('SELECT COUNT(*) FROM inventory_lots');
-    if (Number(lotCount.rows[0].count) === 0) {
+    if (SEED_DEMO && Number(lotCount.rows[0].count) === 0) {
       await client.query(`
         INSERT INTO inventory_lots (part_no, part_name, lot_no, qty_received, qty_available, status, reviewed_at) VALUES
           ('R-100K',  'Resistor 100K Ohm', 'LOT-R100K-A', 5000, 5000, 'APPROVED', NOW()),
@@ -460,7 +462,7 @@ async function migrate() {
 
     // Seed ข้อมูลตัวอย่างถ้ายังว่าง
     const { rows } = await client.query('SELECT COUNT(*) FROM boms');
-    if (Number(rows[0].count) === 0) {
+    if (SEED_DEMO && Number(rows[0].count) === 0) {
       await client.query(`
         INSERT INTO boms (name, version, approved, approved_at) VALUES
           ('PCB-A100 BOM', '1.0', true,  NOW()),

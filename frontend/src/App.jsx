@@ -74,7 +74,11 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
     <Link
       ref={innerRef}
       to={to}
-      onClick={onClick}
+      onClick={(e) => {
+        // ตอนแถบย่อ (มือถือ/ไม่มี hover): tap แรก = เปิดแถบก่อน ไม่ navigate
+        if (!expanded) { e.preventDefault(); }
+        onClick?.(e);
+      }}
       title={!expanded ? label : undefined}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
@@ -210,7 +214,7 @@ function Sidebar() {
           opacity: 0,
         }} />
         {items.map(item => (
-          <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => {}} innerRef={setItemRef(item.to)} />
+          <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => setExpanded(true)} innerRef={setItemRef(item.to)} />
         ))}
 
         {/* Dev Tools — admin only */}
@@ -236,7 +240,7 @@ function Sidebar() {
               <span style={{ fontSize: '0.65rem', opacity: 0.6, pointerEvents: 'none' }}>{devOpen ? '▲' : '▼'}</span>
             </button>
             {devOpen && DEV_ITEMS.map(item => (
-              <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => {}} innerRef={setItemRef(item.to)} />
+              <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => setExpanded(true)} innerRef={setItemRef(item.to)} />
             ))}
           </>
         )}
@@ -262,7 +266,7 @@ function Sidebar() {
           <button
             type="button"
             title={!expanded ? 'Logout' : undefined}
-            onClick={() => mockLogout()}
+            onClick={() => { if (!expanded) { setExpanded(true); } else { mockLogout(); } }}
             style={{
               display: 'block', width: '100%', padding: '0.5rem 0.75rem',
               borderRadius: 6, fontSize: '0.875rem', color: SIDEBAR_TEXT,
@@ -276,7 +280,7 @@ function Sidebar() {
             {expanded ? 'Logout' : ''}
           </button>
         ) : (
-          <SidebarItem to="/mes-auth" label="Login" expanded={expanded} onClick={() => {}} />
+          <SidebarItem to="/mes-auth" label="Login" expanded={expanded} onClick={() => setExpanded(true)} />
         )}
       </div>
     </div>

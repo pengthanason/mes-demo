@@ -36,7 +36,7 @@ export default function QcBoard() {
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+    <div className="panel" style={{ maxWidth: '800px', margin: '0 auto' }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
         <div style={{ padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '12px' }}>
@@ -76,10 +76,10 @@ export default function QcBoard() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem' }}>
           <button
             className="btn btn-success"
-            style={{ padding: '1.5rem', fontSize: '1.25rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', minWidth: 0, padding: '1.25rem 0.5rem', fontSize: '1.15rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
             onClick={() => handleQcSubmit('PASS')}
             disabled={isLoading || !unitSn || isViewer}
           >
@@ -89,7 +89,7 @@ export default function QcBoard() {
 
           <button
             className="btn btn-danger"
-            style={{ padding: '1.5rem', fontSize: '1.25rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', minWidth: 0, padding: '1.25rem 0.5rem', fontSize: '1.15rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
             onClick={() => handleQcSubmit('FAIL')}
             disabled={isLoading || !unitSn || isViewer}
           >

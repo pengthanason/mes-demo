@@ -93,6 +93,7 @@ services:
       DB_NAME: productiondb
       DB_USER: syntechdb
       DB_PASSWORD: syntech2026
+      SEED_DEMO: "false"
     ports:
       - "5099:5099"
     networks:
