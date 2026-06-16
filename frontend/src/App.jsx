@@ -1,21 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useMockAuth } from './lib/useMockStore.ts';
-import { mockLogout, exportData, importData } from './lib/mockStore.ts';
+import { mockLogout } from './lib/mockStore.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
-import { MesBackbonePage } from './pages/MesBackbonePage.tsx';
 import { MesAuthPage } from './pages/MesAuthPage.tsx';
-import { PmCoreFlowPage } from './pages/PmCoreFlowPage.tsx';
-import BomEditorPage from './pages/BomEditorPage.tsx';
-import WebCheckPage from './pages/WebCheckPage.tsx';
-import SyncMonitorPage from './pages/SyncMonitorPage.tsx';
 import QcBoard from './pages/quality/index.jsx';
 import { SequenceBuilderPage } from './pages/SequenceBuilderPage.tsx';
 import { WoDetailPage } from './pages/WoDetailPage.tsx';
 import { CloseWoPage } from './pages/CloseWoPage.tsx';
 import { ObaPage } from './pages/ObaPage.tsx';
 import { FaiPage } from './pages/FaiPage.tsx';
-import { MesWorkspacePage } from './pages/MesWorkspacePage.tsx';
 import { ProductionPlanPage } from './pages/ProductionPlanPage.tsx';
 import { FourMChangePage } from './pages/FourMChangePage.tsx';
 import { CrDetailPage } from './pages/CrDetailPage.tsx';
@@ -47,14 +41,6 @@ const MAIN_ITEMS = [
   { to: '/traceability',     label: 'Traceability' },
   { to: '/notifications',    label: 'Notifications' },
   { to: '/admin/panel',      label: 'Admin Panel' },
-];
-
-const DEV_ITEMS = [
-  { to: '/mes-backbone', label: 'Backbone Tester' },
-  { to: '/sync-monitor', label: 'Sync Monitor' },
-  { to: '/web-check',    label: 'Health Check' },
-  { to: '/bom-editor',   label: 'BOM Editor' },
-  { to: '/pm-core-flow', label: 'PM Flow' },
 ];
 
 const SIDEBAR_BG   = '#1e3a5f';
@@ -118,7 +104,6 @@ function visibleMainItems(role) {
 
 function Sidebar() {
   const [expanded, setExpanded] = useState(false);
-  const [devOpen, setDevOpen] = useState(false);
   const auth     = useMockAuth();
   const location = useLocation();
   const items    = visibleMainItems(auth.role);
@@ -217,33 +202,6 @@ function Sidebar() {
           <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => setExpanded(true)} innerRef={setItemRef(item.to)} />
         ))}
 
-        {/* Dev Tools — admin only */}
-        {auth.role === 'admin' && expanded && (
-          <>
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '0.5rem 0.25rem' }} />
-            <button
-              type="button"
-              onClick={() => setDevOpen(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.5rem 0.75rem', width: '100%',
-                background: 'transparent', border: 'none', borderRadius: 6,
-                cursor: 'pointer', fontSize: '0.875rem',
-                color: SIDEBAR_TEXT, fontWeight: 500,
-                marginBottom: 2, transition: 'background 0.12s',
-                whiteSpace: 'nowrap', userSelect: 'none',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = SIDEBAR_HOVER_BG}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <span style={{ flex: 1, textAlign: 'left', pointerEvents: 'none' }}>Dev Tools</span>
-              <span style={{ fontSize: '0.65rem', opacity: 0.6, pointerEvents: 'none' }}>{devOpen ? '▲' : '▼'}</span>
-            </button>
-            {devOpen && DEV_ITEMS.map(item => (
-              <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => setExpanded(true)} innerRef={setItemRef(item.to)} />
-            ))}
-          </>
-        )}
       </div>
 
       {/* Role badge + Login/Logout — pinned bottom */}
@@ -528,12 +486,6 @@ function TopNav() {
       {(role === 'admin' || role === 'member') && <NavLink to="/oba" innerRef={ref('/oba')}><NavLabel full="OBA" short="OBA" /></NavLink>}
       <NavLink to="/traceability"    innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
       {role === 'admin' && <NavLink to="/admin/panel" innerRef={ref('/admin/panel')}><NavLabel full="Admin Panel" short="Admin" /></NavLink>}
-      {role === 'admin' && (
-        <>
-          <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)', display: 'inline-block', margin: '0 0.25rem', flexShrink: 0 }} />
-          <NavLink to="/system" innerRef={ref('/system')}>⚙️ System</NavLink>
-        </>
-      )}
     </nav>
       <NotificationBell />
     </div>
@@ -675,117 +627,6 @@ function Shell({ children }) {
   );
 }
 
-// ─── System / Dev tools page ───────────────────────────────────────
-const CARD_SHADES = [
-  '#1e3a5f','#1e3a5f','#1e3a5f','#1e3a5f',
-  '#1e3a5f','#1e3a5f','#1e3a5f','#1e3a5f',
-];
-
-function DataManagementPanel() {
-  const [importStatus, setImportStatus] = useState('');
-
-  function handleImport(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImportStatus('กำลังโหลด...');
-    importData(file)
-      .then(() => { setImportStatus('✅ นำเข้าสำเร็จ — หน้าจอจะอัปเดตอัตโนมัติ'); })
-      .catch(err => { setImportStatus(`❌ ${err.message}`); });
-    e.target.value = '';
-  }
-
-  return (
-    <div className="panel stack" style={{ borderLeft: '4px solid #f59e0b' }}>
-      <h2 className="panel__title">💾 Data Backup / Restore</h2>
-      <p className="panel__subtitle">ข้อมูลทั้งหมดเก็บใน localStorage — ควร export backup ไว้เป็นประจำ</p>
-
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button
-          type="button"
-          className="btn"
-          style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 600, padding: '0.6rem 1.25rem' }}
-          onClick={exportData}
-        >
-          ⬇️ Export Backup (JSON)
-        </button>
-
-        <label style={{ cursor: 'pointer' }}>
-          <span
-            className="btn"
-            style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#fff', fontWeight: 600, padding: '0.6rem 1.25rem', display: 'inline-block' }}
-          >
-            ⬆️ Import / Restore
-          </span>
-          <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-        </label>
-      </div>
-
-      {importStatus && (
-        <div className={`notice ${importStatus.startsWith('✅') ? 'ok' : importStatus.startsWith('❌') ? 'err' : 'info'}`}>
-          {importStatus}
-        </div>
-      )}
-
-      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        <strong>คำแนะนำ:</strong> Export backup ไว้ในโฟลเดอร์แยก อาทิตย์ละครั้ง
-        หรือก่อน/หลังทำงานสำคัญ<br />
-        ห้ามกด "Clear browsing data → Site data" ใน Chrome มิฉะนั้นข้อมูลจะหายทั้งหมด
-      </div>
-    </div>
-  );
-}
-
-function SystemPage() {
-  const auth = useMockAuth();
-  const allItems = [...DEV_ITEMS, { to: '/mes-auth', label: auth.isLoggedIn ? 'Logout' : 'Login' }];
-  return (
-    <section className="stack-lg">
-      <div className="panel">
-        <h1 className="panel__title">System &amp; Developer Tools</h1>
-        <p className="panel__subtitle">Internal tools for developers — not part of regular operator workflow</p>
-      </div>
-
-      <DataManagementPanel />
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-        {allItems.map((item, i) => {
-          const bg = CARD_SHADES[i % CARD_SHADES.length];
-          const isLogoutCard = auth.isLoggedIn && item.label === 'Logout';
-          const cardDiv = (
-            <div
-              style={{
-                background: bg,
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 10,
-                padding: '1.75rem 1rem',
-                textAlign: 'center',
-                boxSizing: 'border-box',
-                transition: 'filter 0.15s, transform 0.15s',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.filter = 'brightness(1.2)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.filter = '';
-                e.currentTarget.style.transform = '';
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)' }}>{item.label}</div>
-            </div>
-          );
-          return isLogoutCard ? (
-            <div key={item.to} onClick={() => mockLogout()} style={{ textDecoration: 'none' }}>{cardDiv}</div>
-          ) : (
-            <Link key={item.to} to={item.to} style={{ textDecoration: 'none' }}>{cardDiv}</Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 // ─── App ───────────────────────────────────────────────────────────
 const queryClient = new QueryClient();
 
@@ -822,17 +663,10 @@ export default function App() {
               <Route path="/oba"               element={<RoleGuard allowed={['admin','member']}><ObaPage /></RoleGuard>} />
               <Route path="/wo/:woId/close"    element={<RoleGuard allowed={['admin','member']}><CloseWoPage /></RoleGuard>} />
               <Route path="/fai/:woId"         element={<RoleGuard allowed={['admin','member']}><FaiPage /></RoleGuard>} />
-              <Route path="/system"            element={<RoleGuard allowed={['admin']}><SystemPage /></RoleGuard>} />
-              <Route path="/mes-backbone"      element={<RoleGuard allowed={['admin']}><MesBackbonePage /></RoleGuard>} />
-              <Route path="/pm-core-flow"      element={<RoleGuard allowed={['admin']}><PmCoreFlowPage /></RoleGuard>} />
               <Route path="/notifications"     element={<AuthGuard><NotificationsPage /></AuthGuard>} />
               <Route path="/traceability"      element={<AuthGuard><TraceabilityPage /></AuthGuard>} />
               <Route path="/jig-test/:projectCode" element={<AuthGuard><JigProjectPage /></AuthGuard>} />
               <Route path="/admin/panel"       element={<RoleGuard allowed={['admin']}><AdminPanelPage /></RoleGuard>} />
-              <Route path="/sync-monitor"      element={<RoleGuard allowed={['admin']}><SyncMonitorPage /></RoleGuard>} />
-              <Route path="/bom-editor"        element={<RoleGuard allowed={['admin']}><BomEditorPage /></RoleGuard>} />
-              <Route path="/workspace"         element={<RoleGuard allowed={['admin']}><MesWorkspacePage /></RoleGuard>} />
-              <Route path="/web-check"         element={<RoleGuard allowed={['admin']}><WebCheckPage /></RoleGuard>} />
               <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </ErrorBoundary>
