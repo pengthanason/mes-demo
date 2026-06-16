@@ -655,4 +655,56 @@ export const handlers = [
     if (serial) rows = rows.filter(s => s.serial === serial);
     return ok([...rows].sort((a, b) => b.scanned_at.localeCompare(a.scanned_at)).slice(0, limit));
   }),
+
+  // ── Auth (demo) ──────────────────────────────────────────────────────────
+  http.post('/api/auth/login', async ({ request }) => {
+    const b = await request.json() as any;
+    const DEMO: Record<string, { role: string; name: string }> = {
+      admin:   { role: 'ADMIN',  name: 'ผู้ดูแลระบบ' },
+      member1: { role: 'MEMBER', name: 'วิชัย สุขใจ' },
+      viewer1: { role: 'VIEWER', name: 'สมหมาย ดีใจ' },
+    };
+    const u = DEMO[b.username];
+    if (!u || b.password !== b.username) {
+      return HttpResponse.json({ status: 'error', message: 'username หรือ password ไม่ถูกต้อง' }, { status: 401 });
+    }
+    return ok({ id: 1, username: b.username, fullName: u.name, role: u.role });
+  }),
+
+  // ── BOM create (demo) ──────────────────────────────────────────────────────
+  http.post('/api/bom', async ({ request }) => {
+    const b = await request.json() as any;
+    const id = 'BOM-' + String(boms.length + 1).padStart(3, '0');
+    boms.push({ bom_id: id, name: b.name, version: b.version || '1.0', approved: false, approved_at: null });
+    return HttpResponse.json({ status: 'success', data: { bom_id: id, name: b.name, version: b.version, approved: false } }, { status: 201 });
+  }),
+
+  // ── WO lots (demo) ──────────────────────────────────────────────────────────
+  http.get('/api/wo/:woNo/lots', () => ok([])),
+
+  // ── Jig create project + record (demo) ──────────────────────────────────────
+  http.post('/api/jig/projects', async ({ request }) => {
+    const b = await request.json() as any;
+    jigProjects.push({ id: jigProjects.length + 1, project_code: b.project_code, name: b.name, jig_id: b.jig_id || '', is_active: true, total: 0, pass_count: 0, fail_count: 0, pass_rate: 0 });
+    jigRecords[b.project_code] = [];
+    return HttpResponse.json({ status: 'success', data: { project_code: b.project_code, name: b.name } }, { status: 201 });
+  }),
+  http.post('/api/jig/projects/:code/records', async ({ params, request }) => {
+    const b = await request.json() as any;
+    const code = params.code as string;
+    const recs = jigRecords[code] ?? (jigRecords[code] = []);
+    recs.unshift({
+      id: Date.now(), project_code: code, serial: b.serial, result: b.result,
+      tested_at: new Date().toISOString(), voltage: b.voltage ? Number(b.voltage) : null,
+      current_ma: b.current_ma ? Number(b.current_ma) : null, temp_c: b.temp_c ? Number(b.temp_c) : null,
+      fail_param: b.fail_param || null, notes: b.notes || null,
+    });
+    const proj = jigProjects.find(p => p.project_code === code);
+    if (proj) {
+      proj.total += 1;
+      if (b.result === 'PASS') proj.pass_count += 1; else proj.fail_count += 1;
+      proj.pass_rate = proj.total ? Math.round(proj.pass_count / proj.total * 1000) / 10 : 0;
+    }
+    return HttpResponse.json({ status: 'success', data: { serial: b.serial } }, { status: 201 });
+  }),
 ];
