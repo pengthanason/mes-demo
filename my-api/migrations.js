@@ -117,6 +117,7 @@ async function migrate() {
         created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
+    await client.query(`ALTER TABLE routing_records ADD COLUMN IF NOT EXISTS wo_id VARCHAR(100) NOT NULL DEFAULT ''`);
 
     // ── 4M Change Request (FE-9) ──
     await client.query(`
@@ -253,6 +254,17 @@ async function migrate() {
           ('admin',   'APPROVE_G1',  'change_req',  'CR-202606-001', 'อนุมัติ G1 Engineering Review'),
           ('member1', 'OPEN_REWORK', 'rework',      '1',             'เปิด Rework Ticket LOT-002')
       `);
+    }
+
+    // ── Auth: คอลัมน์รหัสผ่าน + ตั้งรหัสเริ่มต้น (= username) ให้ผู้ใช้ที่ยังไม่มี ──
+    await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(100) NOT NULL DEFAULT ''`);
+    {
+      const bcrypt = require('bcryptjs');
+      const needPw = await client.query("SELECT id, username FROM app_users WHERE password_hash = ''");
+      for (const u of needPw.rows) {
+        await client.query('UPDATE app_users SET password_hash=$1 WHERE id=$2', [bcrypt.hashSync(u.username, 10), u.id]);
+      }
+      if (needPw.rows.length) console.log(`[migrate] ตั้งรหัสเริ่มต้นให้ ${needPw.rows.length} ผู้ใช้ (รหัส = username)`);
     }
 
     // ── FE-15: Jig Test Projects + Records ──

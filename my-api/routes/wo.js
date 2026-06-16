@@ -106,6 +106,22 @@ router.patch('/board/:woNo', async (req, res) => {
   }
 });
 
+// GET /api/wo/:woNo/lots — lot ที่เคยใช้กับ WO นี้ (จาก qc_results + oba_records)
+router.get('/:woNo/lots', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT DISTINCT lot_no FROM (
+         SELECT lot_no FROM qc_results  WHERE wo_id=$1
+         UNION SELECT lot_no FROM oba_records WHERE wo_id=$1
+       ) t WHERE COALESCE(lot_no,'') <> '' ORDER BY lot_no`,
+      [req.params.woNo]
+    );
+    res.json({ status: 'success', data: rows.map(r => r.lot_no) });
+  } catch (e) {
+    res.status(500).json({ status: 'error', message: e.message });
+  }
+});
+
 // GET /api/wo/:woId
 router.get('/:woId', async (req, res) => {
   try {

@@ -72,3 +72,14 @@ export const convertPreWo   = (payload: ConvertPreWoPayload) => api.post('/wo/co
 export const getBomList   = ()              => api.get<{ data: BomHeader[] }>('/bom/headers');
 export const getBomDetail = (bomId: string) => api.get<{ data: BomDetail }>(`/bom/${bomId}/review`);
 export const approveBom   = (bomId: string) => api.put(`/bom/${bomId}/approve`);
+
+export interface CreateBomPayload {
+  name: string;
+  version: string;
+  lines: { part_no: string; part_name: string; qty_per: number; unit: string }[];
+}
+export const createBom = (payload: CreateBomPayload) => api.post('/bom', payload);
+
+// รายชื่อ WO ทางการ (work_orders) — สำหรับ datalist ทุกหน้าที่อ้างถึง WO
+export interface WoNumber { woNo: string; productName: string; }
+export const getWoNumbers = () => api.get<{ data: any[] }>('/wo/board');

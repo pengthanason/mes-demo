@@ -36,6 +36,7 @@ export interface AuthState {
 export interface RoutingRecord {
   id: string;
   ts: string;
+  woId: string;
   serial: string;
   sequence: string;
   result: string;
@@ -78,6 +79,31 @@ export function mockLogin(username: string, password: string): boolean {
     return true;
   }
   return false;
+}
+
+// ตรวจ login กับ backend จริง (app_users + bcrypt) — แทนที่ mock เดิม
+export async function apiLogin(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username.trim(), password }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !(json && json.data)) {
+      return { ok: false, error: (json && json.message) || 'เข้าสู่ระบบไม่สำเร็จ' };
+    }
+    const u = json.data;
+    localStorage.setItem(KEYS.AUTH, JSON.stringify({
+      isLoggedIn: true,
+      username: u.username,
+      role: String(u.role).toLowerCase() as UserRole,
+    }));
+    dispatch();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'เชื่อมต่อ server ไม่ได้' };
+  }
 }
 
 export function mockLogout(): void {

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useObaRecords, useObaCreate } from '../lib/recordsApi';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { WoInput } from '../components/WoInput';
+import { useWoLots } from '../lib/lookups';
 
 export function ObaPage() {
   const { data } = useObaRecords();
@@ -15,6 +17,7 @@ export function ObaPage() {
 
   const [woId,       setWoId]       = useState('');
   const [lotNo,      setLotNo]      = useState('');
+  const { data: woLots = [] } = useWoLots(woId.trim() || undefined);
   const [sampleQty,  setSampleQty]  = useState('');
   const [result,     setResult]     = useState<'PASS' | 'FAIL' | ''>('');
   const [defectNote, setDefectNote] = useState('');
@@ -57,11 +60,15 @@ export function ObaPage() {
         <form className="stack" onSubmit={handleSubmit}>
           <label className="field">
             <span>Work Order</span>
-            <input className="oba-input" value={woId} onChange={e => setWoId(e.target.value)} placeholder="WO-..." required />
+            <WoInput value={woId} onChange={setWoId} placeholder="WO-..." required />
           </label>
           <label className="field">
             <span>Lot No.</span>
-            <input className="oba-input" value={lotNo} onChange={e => setLotNo(e.target.value)} placeholder="LOT-..." required />
+            <input className="oba-input" list="oba-lot-options" value={lotNo} onChange={e => setLotNo(e.target.value)}
+              placeholder={woId.trim() ? 'เลือก/พิมพ์ Lot' : 'ใส่ WO ก่อน'} disabled={!woId.trim()} required />
+            <datalist id="oba-lot-options">
+              {woLots.map(l => <option key={l} value={l} />)}
+            </datalist>
           </label>
           <label className="field">
             <span>จำนวนที่สุ่มตรวจ (Sample Qty)</span>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getWoList, getPreWoList, getBomList, getBomDetail,
-  approveBom, createPreWo, approvePreWo, convertPreWo,
+  approveBom, createPreWo, approvePreWo, convertPreWo, createBom,
   type WoItem, type PreWoItem, type BomHeader, type WoStatus,
 } from '../lib/planningApi';
 import { showToast } from '../lib/toast';
@@ -289,6 +289,93 @@ function PreWoTab() {
   );
 }
 
+// ── Create BOM Modal ───────────────────────────────────────────────
+
+type BomLineInput = { part_no: string; part_name: string; qty_per: string; unit: string };
+
+function CreateBomModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState('');
+  const [version, setVersion] = useState('1.0');
+  const [lines, setLines] = useState<BomLineInput[]>([{ part_no: '', part_name: '', qty_per: '1', unit: 'pcs' }]);
+  const [err, setErr] = useState('');
+
+  const mut = useMutation({
+    mutationFn: () => createBom({
+      name: name.trim(),
+      version: version.trim() || '1.0',
+      lines: lines.filter(l => l.part_no.trim()).map(l => ({
+        part_no: l.part_no.trim(), part_name: l.part_name.trim(),
+        qty_per: Number(l.qty_per) || 1, unit: l.unit.trim() || 'pcs',
+      })),
+    }),
+    onSuccess: () => { showToast('สร้าง BOM สำเร็จ', 'success'); qc.invalidateQueries({ queryKey: ['bom-list'] }); onClose(); },
+    onError: (e: any) => setErr(e?.message || 'สร้าง BOM ไม่สำเร็จ'),
+  });
+
+  function setLine(i: number, k: keyof BomLineInput, v: string) {
+    setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [k]: v } : l));
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr('');
+    if (!name.trim()) return setErr('กรุณาใส่ชื่อ BOM');
+    if (!lines.some(l => l.part_no.trim())) return setErr('ต้องมีวัตถุดิบอย่างน้อย 1 รายการ');
+    mut.mutate();
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 640px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: 'rgba(99,102,241,0.12)' }}>📑</span>
+          <div>
+            <h2 className="panel__title" style={{ margin: 0 }}>สร้าง BOM ใหม่</h2>
+            <p className="panel__subtitle" style={{ margin: 0 }}>สูตรวัตถุดิบของสินค้า 1 ชิ้น</p>
+          </div>
+        </div>
+        <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>
+          <div className="grid-2col">
+            <label className="field"><span>ชื่อ BOM / สินค้า *</span>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="เช่น PCB-A100 Assembly" required />
+            </label>
+            <label className="field"><span>Version</span>
+              <input value={version} onChange={e => setVersion(e.target.value)} placeholder="1.0" />
+            </label>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: '0.5rem' }}>รายการวัตถุดิบ</div>
+            <div className="stack" style={{ gap: '0.5rem' }}>
+              {lines.map((l, i) => (
+                <div key={i} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input value={l.part_no} onChange={e => setLine(i, 'part_no', e.target.value)} placeholder="Part No" style={{ flex: '1 1 110px', minWidth: 0, padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: 6 }} />
+                  <input value={l.part_name} onChange={e => setLine(i, 'part_name', e.target.value)} placeholder="ชื่อชิ้นส่วน" style={{ flex: '1 1 140px', minWidth: 0, padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: 6 }} />
+                  <input type="number" min="0" step="0.01" value={l.qty_per} onChange={e => setLine(i, 'qty_per', e.target.value)} placeholder="จำนวน" style={{ width: 80, padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: 6 }} />
+                  <input value={l.unit} onChange={e => setLine(i, 'unit', e.target.value)} placeholder="หน่วย" style={{ width: 70, padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: 6 }} />
+                  <button type="button" onClick={() => setLines(prev => prev.filter((_, idx) => idx !== i))} disabled={lines.length === 1}
+                    style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', flexShrink: 0 }}>✕</button>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="btn secondary" style={{ marginTop: '0.5rem', fontSize: '0.82rem' }}
+              onClick={() => setLines(prev => [...prev, { part_no: '', part_name: '', qty_per: '1', unit: 'pcs' }])}>
+              + เพิ่มวัตถุดิบ
+            </button>
+          </div>
+
+          {err && <div className="notice err">{err}</div>}
+          <div className="modal-actions">
+            <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
+            <button type="submit" className="btn" disabled={mut.isPending}>{mut.isPending ? 'กำลังสร้าง...' : 'สร้าง BOM'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Tab 3: BOM Review ──────────────────────────────────────────────
 
 function BomReviewTab() {
@@ -296,6 +383,7 @@ function BomReviewTab() {
   const auth = useMockAuth();
   const isPm = auth.role === 'admin' || auth.role === 'member';
   const [selectedBom, setSelectedBom] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const { data: bomListData, isLoading: listLoading } = useQuery({
     queryKey: ['bom-list'],
@@ -327,7 +415,10 @@ function BomReviewTab() {
       <div className="grid-sidebar">
         {/* BOM list */}
         <div className="panel" style={{ padding: '1rem' }}>
-          <div className="panel__title panel__title--sm" style={{ marginBottom: '0.75rem' }}>รายการ BOM</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem' }}>
+            <div className="panel__title panel__title--sm" style={{ margin: 0 }}>รายการ BOM</div>
+            {isPm && <button type="button" className="btn" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setShowCreate(true)}>+ สร้าง</button>}
+          </div>
           {listLoading ? (
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>กำลังโหลด...</p>
           ) : boms.length === 0 ? (
@@ -423,6 +514,7 @@ function BomReviewTab() {
           )}
         </div>
       </div>
+      {showCreate && <CreateBomModal onClose={() => setShowCreate(false)} />}
     </div>
   );
 }

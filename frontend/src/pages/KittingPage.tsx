@@ -3,6 +3,7 @@ import { useStock, useKittingIssues, useIssueMaterial } from '../lib/inventoryAp
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { WoInput } from '../components/WoInput';
 
 export function KittingPage() {
   const isViewer = useIsViewer();
@@ -89,7 +90,7 @@ export function KittingPage() {
               <form onSubmit={handleIssue} className="stack" style={{ gap: '0.85rem' }}>
                 <label className="field">
                   <span>WO ที่จะเบิกให้ *</span>
-                  <input value={woId} onChange={e => setWoId(e.target.value)} placeholder="เช่น WO-202606-001" required />
+                  <WoInput value={woId} onChange={setWoId} required />
                 </label>
                 <label className="field">
                   <span>Part No *</span>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQcResults, useTransferVerifyCreate, type TransferVerdict } from '../lib/qcResultApi';
 import { useIsViewer } from '../lib/useMockStore';
+import { useAdminUsers } from '../lib/adminApi';
 import { showToast } from '../lib/toast';
 
 export function QaVerifyPage() {
@@ -11,6 +12,7 @@ export function QaVerifyPage() {
 
   const { data, isLoading } = useQcResults();
   const verifyMut = useTransferVerifyCreate();
+  const { data: users = [] } = useAdminUsers();
   const qcResult = (data ?? []).find(r => r.id === qcResultId) ?? null;
 
   const [verdict,     setVerdict]     = useState<TransferVerdict | ''>('');
@@ -74,9 +76,9 @@ export function QaVerifyPage() {
             { label: 'Pass',         value: String(qcResult.qtyPass) },
             { label: 'Fail',         value: String(qcResult.qtyFail) },
           ].map(({ label, value }) => (
-            <div key={label} className="glass-panel" style={{ padding: '0.875rem' }}>
+            <div key={label} style={{ padding: '0.875rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>{label}</div>
-              <div style={{ fontWeight: 700, fontSize: '1rem' }}>{value}</div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>{value}</div>
             </div>
           ))}
         </div>
@@ -150,7 +152,10 @@ export function QaVerifyPage() {
 
             <label className="field">
               <span>ชื่อ QA ผู้ตรวจ *</span>
-              <input value={verifiedBy} onChange={e => setVerifiedBy(e.target.value)} placeholder="ชื่อ-นามสกุล..." required />
+              <input list="qa-verifier-options" value={verifiedBy} onChange={e => setVerifiedBy(e.target.value)} placeholder="เลือก/พิมพ์ชื่อ..." required />
+              <datalist id="qa-verifier-options">
+                {users.map(u => <option key={u.id} value={u.fullName}>{u.username}</option>)}
+              </datalist>
             </label>
 
             <button type="submit" className="btn" disabled={!verdict || !verifiedBy.trim() || verifyMut.isPending}

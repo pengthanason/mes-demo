@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   useQcResults, useQcResultCreate, useReworkCreate,
@@ -7,6 +7,8 @@ import {
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { WoInput } from '../components/WoInput';
+import { useWoLots, useScanSummary } from '../lib/lookups';
 
 const OVERALL_STYLE: Record<QcOverall, { bg: string; text: string; border: string }> = {
   PASS:    { bg: '#dcfce7', text: '#166534', border: '#86efac' },
@@ -107,6 +109,18 @@ export function QcResultPage() {
 
   const needsDefect = overall === 'FAIL' || overall === 'PARTIAL';
 
+  // ดึง lot ของ WO + สรุปจำนวนจาก Production Scan
+  const { data: woLots = [] } = useWoLots(woId.trim() || undefined);
+  const { data: scan } = useScanSummary(woId.trim() || undefined);
+
+  // เมื่อเปลี่ยน WO → autofill จำนวนตรวจ/ผ่าน จาก Production Scan (ถ้ามี)
+  useEffect(() => {
+    if (scan && scan.total > 0) {
+      setQtyChecked(String(scan.total));
+      setQtyPass(String(scan.pass));
+    }
+  }, [woId, scan?.total, scan?.pass]);
+
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -118,9 +132,6 @@ export function QcResultPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pagedList  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  // unique WO list for datalist
-  const woOptions = useMemo(() => [...new Set(allResults.map(r => r.woId))], [allResults]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -161,20 +172,26 @@ export function QcResultPage() {
           <div className="panel" style={{ borderLeft: '4px solid #3b82f6', marginTop: '1.25rem' }}>
             <h3 className="panel__title panel__title--sm">บันทึกผล QC</h3>
             <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem', gap: '0.75rem' }}>
-              <datalist id="wo-options">
-                {woOptions.map(w => <option key={w} value={w} />)}
-              </datalist>
-
               <div className="grid-2col">
                 <label className="field">
                   <span>WO Number *</span>
-                  <input list="wo-options" value={woId} onChange={e => setWoId(e.target.value)} placeholder="WO-202606-001" required />
+                  <WoInput value={woId} onChange={setWoId} required />
                 </label>
                 <label className="field">
                   <span>Lot No *</span>
-                  <input value={lotNo} onChange={e => setLotNo(e.target.value)} placeholder="LOT-001" required />
+                  <input list="qc-lot-options" value={lotNo} onChange={e => setLotNo(e.target.value)}
+                    placeholder={woId.trim() ? 'เลือก/พิมพ์ Lot' : 'ใส่ WO ก่อน'} disabled={!woId.trim()} required />
+                  <datalist id="qc-lot-options">
+                    {woLots.map(l => <option key={l} value={l} />)}
+                  </datalist>
                 </label>
               </div>
+
+              {scan && scan.total > 0 && (
+                <div className="notice info" style={{ fontSize: '0.82rem' }}>
+                  📡 ดึงจาก Production Scan: ตรวจ {scan.total} · PASS {scan.pass} · FAIL {scan.fail} (แก้ไขได้)
+                </div>
+              )}
 
               <div className="grid-3col">
                 <label className="field">

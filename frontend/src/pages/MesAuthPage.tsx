@@ -1,13 +1,13 @@
 import { FormEvent, useState } from 'react';
 import { useMockAuth } from '../lib/useMockStore';
-import { mockLogin, mockLogout } from '../lib/mockStore';
+import { apiLogin, mockLogout } from '../lib/mockStore';
 import { showToast } from '../lib/toast';
 import { ROLE_COLOR } from '../lib/roles';
 
 const DEMO_ACCOUNTS = [
-  { username: 'admin',  password: 'admin',  role: 'admin',  desc: 'ดูและจัดการได้ทุกอย่าง' },
-  { username: 'member', password: 'member', role: 'member', desc: 'ทำงานได้ + ดู Dashboard' },
-  { username: 'viewer', password: 'viewer', role: 'viewer', desc: 'ดู Dashboard เท่านั้น' },
+  { username: 'admin',   password: 'admin',   role: 'admin',  desc: 'ดูและจัดการได้ทุกอย่าง' },
+  { username: 'member1', password: 'member1', role: 'member', desc: 'ทำงานได้ + ดู Dashboard' },
+  { username: 'viewer1', password: 'viewer1', role: 'viewer', desc: 'ดู Dashboard เท่านั้น' },
 ];
 
 export function MesAuthPage() {
@@ -16,16 +16,20 @@ export function MesAuthPage() {
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
 
-  function handleLogin(e: FormEvent<HTMLFormElement>) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
-    const ok = mockLogin(username.trim(), password);
-    if (!ok) {
-      setError('Invalid credentials — ดู Demo Accounts ด้านล่าง');
+    setLoading(true);
+    const result = await apiLogin(username.trim(), password);
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error || 'เข้าสู่ระบบไม่สำเร็จ');
     } else {
       setUsername('');
       setPassword('');
-      showToast(`Welcome, ${username.trim()}!`, 'success');
+      showToast(`ยินดีต้อนรับ, ${username.trim()}!`, 'success');
     }
   }
 
@@ -77,8 +81,8 @@ export function MesAuthPage() {
                   autoComplete="current-password"
                 />
               </label>
-              <button type="submit" className="btn" disabled={!username.trim() || !password}>
-                Login
+              <button type="submit" className="btn" disabled={!username.trim() || !password || loading}>
+                {loading ? 'กำลังเข้าสู่ระบบ...' : 'Login'}
               </button>
             </form>
 

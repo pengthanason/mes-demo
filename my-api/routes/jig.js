@@ -99,6 +99,51 @@ router.get('/projects/:code/timeseries', async (req, res) => {
   }
 });
 
+// ── สร้างโปรเจกต์ Jig (กรอกมือ) ──
+router.post('/projects', async (req, res) => {
+  const { project_code, name, jig_id } = req.body;
+  if (!project_code || !name) {
+    return res.status(400).json({ status: 'error', message: 'project_code, name required' });
+  }
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO jig_projects (project_code, name, jig_id)
+       VALUES ($1,$2,$3)
+       RETURNING id, project_code, name, jig_id, is_active`,
+      [project_code.trim(), name.trim(), (jig_id || '').trim()]
+    );
+    res.status(201).json({ status: 'success', data: rows[0] });
+  } catch (e) {
+    if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'project_code นี้มีอยู่แล้ว' });
+    res.status(500).json({ status: 'error', message: e.message });
+  }
+});
+
+// ── บันทึกผลทดสอบ Jig (กรอกมือ) ──
+router.post('/projects/:code/records', async (req, res) => {
+  const { serial, result, voltage, current_ma, temp_c, fail_param, notes } = req.body;
+  if (!serial || !['PASS', 'FAIL'].includes(result)) {
+    return res.status(400).json({ status: 'error', message: 'serial, result(PASS|FAIL) required' });
+  }
+  try {
+    const proj = await db.query('SELECT 1 FROM jig_projects WHERE project_code=$1', [req.params.code]);
+    if (!proj.rows.length) return res.status(404).json({ status: 'error', message: 'ไม่พบโปรเจกต์' });
+    const { rows } = await db.query(
+      `INSERT INTO jig_test_records (project_code, serial, result, voltage, current_ma, temp_c, fail_param, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id, project_code, serial, result, tested_at, voltage, current_ma, temp_c, fail_param, notes`,
+      [req.params.code, serial.trim(), result,
+       voltage === '' || voltage == null ? null : Number(voltage),
+       current_ma === '' || current_ma == null ? null : Number(current_ma),
+       temp_c === '' || temp_c == null ? null : Number(temp_c),
+       (fail_param || '') || null, (notes || '') || null]
+    );
+    res.status(201).json({ status: 'success', data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ status: 'error', message: e.message });
+  }
+});
+
 // ── Retest (สั่งทดสอบซ้ำชิ้นที่ FAIL) ──
 router.get('/projects/:code/retests', async (req, res) => {
   try {

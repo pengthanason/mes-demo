@@ -64,6 +64,38 @@ export function useJigProjects() {
   });
 }
 
+export function useJigProjectCreate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: { projectCode: string; name: string; jigId: string }) => {
+      const res = await api.post('/jig/projects', { project_code: p.projectCode, name: p.name, jig_id: p.jigId });
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'สร้างโปรเจกต์ไม่สำเร็จ');
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jig-projects'] }),
+  });
+}
+
+export function useJigRecordCreate(code: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: { serial: string; result: 'PASS' | 'FAIL'; voltage?: string; currentMa?: string; tempC?: string; failParam?: string; notes?: string }) => {
+      const res = await api.post(`/jig/projects/${code}/records`, {
+        serial: p.serial, result: p.result, voltage: p.voltage, current_ma: p.currentMa,
+        temp_c: p.tempC, fail_param: p.failParam, notes: p.notes,
+      });
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึกผลไม่สำเร็จ');
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jig-projects'] });
+      qc.invalidateQueries({ queryKey: ['jig-project', code] });
+      qc.invalidateQueries({ queryKey: ['jig-records', code] });
+      qc.invalidateQueries({ queryKey: ['jig-timeseries', code] });
+    },
+  });
+}
+
 export function useJigProject(code: string | undefined) {
   return useQuery({
     queryKey: ['jig-project', code],

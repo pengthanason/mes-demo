@@ -155,7 +155,7 @@ router.post('/qc/transfer-verify', async (req, res) => {
 router.get('/routing/list', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, serial, sequence, result, total_sec, created_at
+      `SELECT id, wo_id, serial, sequence, result, total_sec, created_at
        FROM routing_records ORDER BY created_at DESC`
     );
     res.json({ status: 'success', data: rows });
@@ -165,16 +165,16 @@ router.get('/routing/list', async (req, res) => {
 });
 
 router.post('/routing', async (req, res) => {
-  const { serial, sequence, result, total_sec } = req.body;
+  const { serial, sequence, result, total_sec, wo_id } = req.body;
   if (!serial || !sequence || !result) {
     return res.status(400).json({ status: 'error', message: 'serial, sequence, result required' });
   }
   try {
     const { rows } = await db.query(
-      `INSERT INTO routing_records (serial, sequence, result, total_sec)
-       VALUES ($1,$2,$3,$4)
-       RETURNING id, serial, sequence, result, total_sec, created_at`,
-      [serial, sequence, result, Number(total_sec) || 0]
+      `INSERT INTO routing_records (serial, sequence, result, total_sec, wo_id)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id, wo_id, serial, sequence, result, total_sec, created_at`,
+      [serial, sequence, result, Number(total_sec) || 0, wo_id || '']
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {

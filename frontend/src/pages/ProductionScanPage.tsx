@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useProductionUnits, useProductionScans, useScan } from '../lib/productionApi';
 import { useMockAuth } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { WoInput } from '../components/WoInput';
 
 // สถานีตาม DEFAULT_PD_CHAIN (R1–R13)
 const STATIONS = [
@@ -63,7 +64,7 @@ export function ProductionScanPage() {
         <div className="filters-grid" style={{ marginTop: '1.5rem', marginBottom: 0 }}>
           <label className="field">
             <span>Work Order *</span>
-            <input value={woId} onChange={e => setWoId(e.target.value)} placeholder="เช่น WO-202606-001" />
+            <WoInput value={woId} onChange={setWoId} />
           </label>
           <label className="field">
             <span>สถานี (Station) *</span>

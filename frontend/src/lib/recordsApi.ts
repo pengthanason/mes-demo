@@ -90,6 +90,7 @@ export function useRoutingRecords() {
       return rowsOf(res).map(r => ({
         id:       String(r.id),
         ts:       new Date(r.created_at).toLocaleString(),
+        woId:     r.wo_id ?? '',
         serial:   r.serial,
         sequence: r.sequence,
         result:   r.result,
@@ -102,12 +103,13 @@ export function useRoutingRecords() {
 export function useRoutingCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (rec: { serial: string; sequence: string; result: string; totalSec: number }) => {
+    mutationFn: async (rec: { serial: string; sequence: string; result: string; totalSec: number; woId?: string }) => {
       const res = await api.post('/routing', {
         serial:    rec.serial,
         sequence:  rec.sequence,
         result:    rec.result,
         total_sec: rec.totalSec,
+        wo_id:     rec.woId ?? '',
       });
       if (res.status >= 400 || res.status === 0) throw new Error('บันทึก Routing ไม่สำเร็จ');
       return res.data;

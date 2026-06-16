@@ -17,6 +17,7 @@ export default defineConfig({
     proxy: {
       // my-api (backend ของเราเอง)
       '/api/wo':      { target: 'http://localhost:5099', changeOrigin: true },
+      '/api/auth':    { target: 'http://localhost:5099', changeOrigin: true },
       '/api/bom':     { target: 'http://localhost:5099', changeOrigin: true },
       '/api/oba':     { target: 'http://localhost:5099', changeOrigin: true },
       '/api/qc':      { target: 'http://localhost:5099', changeOrigin: true },

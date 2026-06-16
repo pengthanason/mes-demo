@@ -3,6 +3,8 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useRoutingCreate } from '../lib/recordsApi';
 import { showToast } from '../lib/toast';
+import { WoInput } from '../components/WoInput';
+import { RoutingHistoryPage } from './RoutingHistoryPage';
 
 const FALLBACK_STATIONS = [
   { id: 'R1', name: 'SMT SETUP' },
@@ -236,6 +238,7 @@ export function SequenceBuilderPage() {
   const [draggableRowId, setDraggableRowId] = useState<string | null>(null);
 
   const [serialNumber, setSerialNumber] = useState('');
+  const [woNo, setWoNo] = useState('');
   const [globalResult, setGlobalResult] = useState('PASS');
 
 
@@ -364,6 +367,7 @@ export function SequenceBuilderPage() {
       }
       return {
         serial: serialNumber.trim(),
+        woId: woNo.trim(),
         sequence: steps.map(s => allStations.find(o => o.id === s.stationId)?.name || s.stationId).join(' → '),
         totalSec: steps.reduce((sum, s) => sum + (Number(s.seconds) || 0), 0),
         result: globalResult,
@@ -373,6 +377,7 @@ export function SequenceBuilderPage() {
       routingCreate.mutate(
         {
           serial: record.serial,
+          woId: record.woId,
           sequence: record.sequence,
           result: record.result,
           totalSec: record.totalSec,
@@ -399,7 +404,8 @@ export function SequenceBuilderPage() {
   };
 
   return (
-    <div className="panel stack-lg" style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <div className="stack-lg" style={{ maxWidth: '900px', margin: '0 auto' }}>
+      <div className="panel stack-lg">
       <div className="mes-module-head">
         <span className="mes-module-code">M06</span>
         <div>
@@ -409,6 +415,10 @@ export function SequenceBuilderPage() {
       </div>
 
       <div className="filters-grid" style={{ alignItems: 'flex-end', marginBottom: '15px' }}>
+        <label className="field">
+          <span>Work Order:</span>
+          <WoInput value={woNo} onChange={setWoNo} placeholder="เลือก/พิมพ์ WO..." />
+        </label>
         <label className="field">
           <span>Serial Number:</span>
           <input type="text" value={serialNumber} onChange={e => setSerialNumber(e.target.value)} placeholder="Enter SN..." required />
@@ -528,6 +538,10 @@ export function SequenceBuilderPage() {
         </button>
       </div>
 
+      </div>
+
+      {/* Routing History — โชว์ใต้ตัว builder ด้วย (ลิงก์เดียวกับใน Dashboard) */}
+      <RoutingHistoryPage />
     </div>
   );
 }

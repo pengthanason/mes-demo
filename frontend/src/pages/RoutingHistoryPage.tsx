@@ -42,6 +42,7 @@ export function RoutingHistoryPage() {
             <thead>
               <tr>
                 <th>Timestamp</th>
+                <th>WO</th>
                 <th>Serial</th>
                 <th>Sequence</th>
                 <th>Result</th>
@@ -64,6 +65,7 @@ export function RoutingHistoryPage() {
                 return (
                   <tr key={row.id}>
                     <td>{row.ts}</td>
+                    <td style={{ fontWeight: 600 }}>{row.woId || '—'}</td>
                     <td>{row.serial}</td>
                     <td>{row.sequence}</td>
                     <td><span style={badgeStyle}>{row.result}</span></td>

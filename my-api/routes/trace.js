@@ -59,14 +59,14 @@ router.get('/packing/boxes/:boxId', (req, res) => {
 router.get('/report/daily', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT DATE(scanned_at) AS date,
+      `SELECT TO_CHAR(scanned_at, 'YYYY-MM-DD') AS date,
               COUNT(*)::int AS total,
               SUM(CASE WHEN result='PASS' THEN 1 ELSE 0 END)::int AS pass,
               SUM(CASE WHEN result='FAIL' THEN 1 ELSE 0 END)::int AS fail,
               ROUND(SUM(CASE WHEN result='PASS' THEN 1 ELSE 0 END)::numeric /
                     NULLIF(COUNT(*),0) * 100, 1)::float AS pass_rate
        FROM production_scans
-       GROUP BY DATE(scanned_at) ORDER BY date DESC LIMIT 30`
+       GROUP BY TO_CHAR(scanned_at, 'YYYY-MM-DD') ORDER BY date DESC LIMIT 30`
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {

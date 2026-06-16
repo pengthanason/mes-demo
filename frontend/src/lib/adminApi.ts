@@ -46,8 +46,8 @@ export function useAdminUsers() {
 export function useAdminUserCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { username: string; fullName: string; role: AppRole }) => {
-      const res = await api.post('/admin/users', { username: p.username, full_name: p.fullName, role: p.role });
+    mutationFn: async (p: { username: string; fullName: string; role: AppRole; password: string }) => {
+      const res = await api.post('/admin/users', { username: p.username, full_name: p.fullName, role: p.role, password: p.password });
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'สร้างผู้ใช้ไม่สำเร็จ');
       return mapUser((res.data as any)?.data);
     },
@@ -58,11 +58,12 @@ export function useAdminUserCreate() {
 export function useAdminUserUpdate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { id: number; fullName?: string; role?: AppRole; isActive?: boolean }) => {
+    mutationFn: async (p: { id: number; fullName?: string; role?: AppRole; isActive?: boolean; password?: string }) => {
       const body: any = {};
       if (p.fullName !== undefined) body.full_name = p.fullName;
       if (p.role !== undefined)     body.role = p.role;
       if (p.isActive !== undefined) body.is_active = p.isActive;
+      if (p.password)               body.password = p.password;
       const res = await api.put(`/admin/users/${p.id}`, body);
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'แก้ไขไม่สำเร็จ');
       return mapUser((res.data as any)?.data);

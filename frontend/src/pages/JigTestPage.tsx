@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useJigProjects, JigProject } from '../lib/jigApi';
+import { useJigProjects, useJigProjectCreate, JigProject } from '../lib/jigApi';
+import { useIsViewer } from '../lib/useMockStore';
+import { showToast } from '../lib/toast';
 
 function PassRateBar({ rate }: { rate: number }) {
   const color = rate >= 95 ? '#22c55e' : rate >= 80 ? '#f59e0b' : '#ef4444';
@@ -62,17 +65,68 @@ function ProjectCard({ p, onClick }: { p: JigProject; onClick: () => void }) {
   );
 }
 
+function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
+  const [projectCode, setProjectCode] = useState('');
+  const [name, setName] = useState('');
+  const [jigId, setJigId] = useState('');
+  const [err, setErr] = useState('');
+  const mut = useJigProjectCreate();
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr('');
+    if (!projectCode.trim() || !name.trim()) return setErr('กรุณาใส่ Project Code และชื่อ');
+    mut.mutate(
+      { projectCode: projectCode.trim(), name: name.trim(), jigId: jigId.trim() },
+      { onSuccess: () => { showToast('สร้างโปรเจกต์ Jig สำเร็จ', 'success'); onClose(); },
+        onError: (e: any) => setErr(e.message) }
+    );
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
+        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>เพิ่มโปรเจกต์ Jig</h2>
+        <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>
+          <label className="field"><span>Project Code *</span>
+            <input value={projectCode} onChange={e => setProjectCode(e.target.value)} placeholder="เช่น PCB-A100" autoFocus required />
+          </label>
+          <label className="field"><span>ชื่อโปรเจกต์ *</span>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="เช่น PCB Assembly A100" required />
+          </label>
+          <label className="field"><span>Jig ID</span>
+            <input value={jigId} onChange={e => setJigId(e.target.value)} placeholder="เช่น JIG-001" />
+          </label>
+          {err && <div className="notice err">{err}</div>}
+          <div className="modal-actions">
+            <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
+            <button type="submit" className="btn" disabled={mut.isPending}>{mut.isPending ? 'กำลังสร้าง...' : 'สร้างโปรเจกต์'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function JigTestPage() {
   const navigate = useNavigate();
   const { data: projects = [], isLoading, error } = useJigProjects();
+  const [showCreate, setShowCreate] = useState(false);
+  const isViewer = useIsViewer();
 
   const active   = projects.filter(p => p.isActive);
   const inactive = projects.filter(p => !p.isActive);
 
   return (
     <div className="panel">
-      <h1 className="panel__title">Jig Test</h1>
-      <p className="panel__subtitle">ผลการทดสอบ Jig แยกตามโปรเจกต์</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div>
+          <h1 className="panel__title">Jig Test</h1>
+          <p className="panel__subtitle">ผลการทดสอบ Jig แยกตามโปรเจกต์</p>
+        </div>
+        {!isViewer && <button type="button" className="btn" onClick={() => setShowCreate(true)}>+ เพิ่มโปรเจกต์</button>}
+      </div>
+      {showCreate && <CreateJigProjectModal onClose={() => setShowCreate(false)} />}
 
       {isLoading && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
       {error && <div style={{ padding: '1rem', color: 'var(--danger)', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>เกิดข้อผิดพลาด</div>}

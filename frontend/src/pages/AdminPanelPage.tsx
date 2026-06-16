@@ -44,7 +44,7 @@ function UserRow({ u, onEdit, onToggle, onDelete }: { u: AppUser; onEdit: (u: Ap
 }
 
 function CreateUserModal({ onClose }: { onClose: () => void }) {
-  const [form, setForm] = useState({ username: '', fullName: '', role: 'MEMBER' as AppRole });
+  const [form, setForm] = useState({ username: '', fullName: '', role: 'MEMBER' as AppRole, password: '' });
   const create = useAdminUserCreate();
   const [err, setErr] = useState('');
 
@@ -82,10 +82,14 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </label>
+          <label className="field">
+            <span>รหัสผ่าน *</span>
+            <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="อย่างน้อย 4 ตัวอักษร" required />
+          </label>
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions" style={{ marginTop: '0.25rem' }}>
             <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
-            <button type="submit" className="btn" disabled={create.isPending}>
+            <button type="submit" className="btn" disabled={create.isPending || form.password.length < 4}>
               {create.isPending ? 'กำลังสร้าง...' : 'สร้างผู้ใช้'}
             </button>
           </div>
@@ -96,7 +100,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 }
 
 function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }) {
-  const [form, setForm] = useState({ fullName: user.fullName, role: user.role });
+  const [form, setForm] = useState({ fullName: user.fullName, role: user.role, password: '' });
   const update = useAdminUserUpdate();
   const [err, setErr] = useState('');
 
@@ -104,7 +108,7 @@ function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }
     e.preventDefault();
     setErr('');
     try {
-      await update.mutateAsync({ id: user.id, fullName: form.fullName, role: form.role });
+      await update.mutateAsync({ id: user.id, fullName: form.fullName, role: form.role, password: form.password || undefined });
       onClose();
     } catch (e: any) { setErr(e.message); }
   }
@@ -129,6 +133,10 @@ function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }
             <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as AppRole }))}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
+          </label>
+          <label className="field">
+            <span>รหัสผ่านใหม่ (เว้นว่าง = ไม่เปลี่ยน)</span>
+            <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••" />
           </label>
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions" style={{ marginTop: '0.25rem' }}>
@@ -192,23 +200,26 @@ function UsersTab() {
 }
 
 function AuditTab() {
-  const [filters, setFilters] = useState({ actor: '', action: '' });
-  const [applied, setApplied] = useState<{ actor?: string; action?: string }>({});
-  const { data: logs = [], isLoading } = useAuditLogs(applied);
-
-  function search(e: React.FormEvent) {
-    e.preventDefault();
-    setApplied({ actor: filters.actor || undefined, action: filters.action || undefined });
-  }
+  const [actor, setActor] = useState('');
+  const { data: users = [] } = useAdminUsers();
+  const { data: logs = [], isLoading } = useAuditLogs(actor ? { actor } : undefined);
 
   return (
     <>
-      <form onSubmit={search} style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <input className="form-input" placeholder="ค้นหา Actor" value={filters.actor} onChange={e => setFilters(f => ({ ...f, actor: e.target.value }))} style={{ flex: 1, minWidth: 140 }} />
-        <input className="form-input" placeholder="ค้นหา Action" value={filters.action} onChange={e => setFilters(f => ({ ...f, action: e.target.value }))} style={{ flex: 1, minWidth: 140 }} />
-        <button type="submit" className="btn secondary">ค้นหา</button>
-        <button type="button" className="btn secondary" onClick={() => { setFilters({ actor: '', action: '' }); setApplied({}); }}>Reset</button>
-      </form>
+      <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <label className="field" style={{ marginBottom: 0, minWidth: 220 }}>
+          <span>กรองตามผู้ใช้ (Actor)</span>
+          <select value={actor} onChange={e => setActor(e.target.value)}>
+            <option value="">— ทั้งหมด —</option>
+            {users.map(u => (
+              <option key={u.id} value={u.username}>{u.username} ({u.fullName})</option>
+            ))}
+          </select>
+        </label>
+        {actor && (
+          <button type="button" className="btn secondary" style={{ alignSelf: 'flex-end' }} onClick={() => setActor('')}>ล้างค่า</button>
+        )}
+      </div>
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
       ) : (

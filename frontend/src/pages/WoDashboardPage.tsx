@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import { buildSteps } from '../lib/woLifecycle';
 import { StatusStepper } from '../components/StatusStepper';
 import { KpiCard } from '../components/KpiCard';
-import { useIsViewer } from '../lib/useMockStore';
-import { generateRandomWo, type MockWO } from '../lib/mockStore';
-import { useWoBoard, useWoCreate } from '../lib/woApi';
+import { type MockWO } from '../lib/mockStore';
+import { useWoBoard } from '../lib/woApi';
 import { Paginator } from '../components/Paginator';
 
 function WoRow({ wo }: { wo: MockWO }) {
@@ -44,9 +43,7 @@ function WoRow({ wo }: { wo: MockWO }) {
 }
 
 export function WoDashboardPage() {
-  const isViewer = useIsViewer();
   const { data, dataUpdatedAt } = useWoBoard();
-  const createMut = useWoCreate();
   const woList: MockWO[] = data ?? [];
 
   const [customerFilter, setCustomerFilter] = useState('');
@@ -93,7 +90,7 @@ export function WoDashboardPage() {
   function resetPage() { setPage(1); }
 
   return (
-    <section className="stack-lg" style={{ minHeight: '100vh' }}>
+    <section className="stack-lg">
       <div className="panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -104,17 +101,6 @@ export function WoDashboardPage() {
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Last updated: {lastUpdate.toLocaleTimeString()}
             </span>
-            {!isViewer && (
-              <button
-                type="button"
-                className="btn"
-                style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}
-                onClick={() => createMut.mutate(generateRandomWo())}
-                disabled={createMut.isPending}
-              >
-                + Add Random WO
-              </button>
-            )}
           </div>
         </div>
 

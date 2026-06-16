@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useJigProject, useJigRecords, useJigTimeseries, useJigRetests, useJigRetestCreate, JigTimeseries, JigRecord } from '../lib/jigApi';
+import { useJigProject, useJigRecords, useJigTimeseries, useJigRetests, useJigRetestCreate, useJigRecordCreate, JigTimeseries, JigRecord } from '../lib/jigApi';
+import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 
 /* ──────── SVG Line Chart ──────── */
@@ -164,6 +165,73 @@ function RecordDetailModal({ record, onClose, onRetest, retesting, alreadyReques
   );
 }
 
+/* ──────── Add Record Modal (กรอกผลทดสอบมือ) ──────── */
+function AddRecordModal({ code, onClose }: { code: string; onClose: () => void }) {
+  const [serial, setSerial] = useState('');
+  const [result, setResult] = useState<'PASS' | 'FAIL'>('PASS');
+  const [voltage, setVoltage] = useState('');
+  const [currentMa, setCurrentMa] = useState('');
+  const [tempC, setTempC] = useState('');
+  const [failParam, setFailParam] = useState('');
+  const [notes, setNotes] = useState('');
+  const [err, setErr] = useState('');
+  const mut = useJigRecordCreate(code);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr('');
+    if (!serial.trim()) return setErr('กรุณาใส่ Serial');
+    mut.mutate(
+      { serial: serial.trim(), result, voltage, currentMa, tempC, failParam: result === 'FAIL' ? failParam : '', notes },
+      { onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${result})`, result === 'PASS' ? 'success' : 'error'); onClose(); },
+        onError: (e: any) => setErr(e.message) }
+    );
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 460px)' }}>
+        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>บันทึกผลทดสอบ Jig</h2>
+        <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>
+          <label className="field"><span>Serial *</span>
+            <input value={serial} onChange={e => setSerial(e.target.value)} placeholder="เช่น SN-001" autoFocus required />
+          </label>
+          <label className="field"><span>ผลทดสอบ *</span>
+            <select value={result} onChange={e => setResult(e.target.value as 'PASS' | 'FAIL')}>
+              <option value="PASS">✅ PASS</option>
+              <option value="FAIL">❌ FAIL</option>
+            </select>
+          </label>
+          <div className="grid-3col">
+            <label className="field"><span>Voltage (V)</span>
+              <input type="number" step="0.01" value={voltage} onChange={e => setVoltage(e.target.value)} placeholder="3.30" />
+            </label>
+            <label className="field"><span>Current (mA)</span>
+              <input type="number" step="0.01" value={currentMa} onChange={e => setCurrentMa(e.target.value)} placeholder="1.20" />
+            </label>
+            <label className="field"><span>Temp (°C)</span>
+              <input type="number" step="0.1" value={tempC} onChange={e => setTempC(e.target.value)} placeholder="42" />
+            </label>
+          </div>
+          {result === 'FAIL' && (
+            <label className="field"><span>Fail Parameter</span>
+              <input value={failParam} onChange={e => setFailParam(e.target.value)} placeholder="เช่น VOLTAGE_LOW" />
+            </label>
+          )}
+          <label className="field"><span>หมายเหตุ</span>
+            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="(ถ้ามี)" />
+          </label>
+          {err && <div className="notice err">{err}</div>}
+          <div className="modal-actions">
+            <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
+            <button type="submit" className="btn" disabled={mut.isPending}>{mut.isPending ? 'กำลังบันทึก...' : 'บันทึกผล'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /* ──────── Page ──────── */
 export function JigProjectPage() {
   const { projectCode } = useParams<{ projectCode: string }>();
@@ -171,6 +239,8 @@ export function JigProjectPage() {
   const [resultFilter, setResultFilter] = useState<'' | 'PASS' | 'FAIL'>('');
   const [dateFilter, setDateFilter] = useState('');
   const [selected, setSelected] = useState<JigRecord | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const isViewer = useIsViewer();
 
   const { data: project, isLoading: loadingProject, error: projError } = useJigProject(projectCode);
   const { data: records = [], isLoading: loadingRecords } = useJigRecords(projectCode, resultFilter);
@@ -254,6 +324,7 @@ export function JigProjectPage() {
             Test Records {loadingRecords ? '' : `(${shownRecords.length})`}
           </h2>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            {!isViewer && <button type="button" className="btn" style={{ fontSize: '0.78rem', padding: '4px 12px' }} onClick={() => setShowAdd(true)}>+ บันทึกผล</button>}
             <input
               type="date"
               value={dateFilter}
@@ -295,6 +366,8 @@ export function JigProjectPage() {
           alreadyRequested={requestedSerials.has(selected.serial)}
         />
       )}
+
+      {showAdd && projectCode && <AddRecordModal code={projectCode} onClose={() => setShowAdd(false)} />}
     </section>
   );
 }

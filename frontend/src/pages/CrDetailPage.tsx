@@ -72,17 +72,17 @@ export function CrDetailPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.25rem' }}>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>ประเภท 4M</span>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{cr.mType}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{cr.mType}</div>
           </div>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>WO / Product</span>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{cr.woRef || '—'}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{cr.woRef || '—'}</div>
           </div>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>วันที่เปิด</span>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{new Date(cr.createdAt).toLocaleDateString('th-TH')}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{new Date(cr.createdAt).toLocaleDateString('th-TH')}</div>
           </div>
         </div>
 
