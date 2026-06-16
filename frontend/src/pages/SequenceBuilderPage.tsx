@@ -404,7 +404,7 @@ export function SequenceBuilderPage() {
   };
 
   return (
-    <div className="stack-lg" style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <div className="stack-lg">
       <div className="panel stack-lg">
       <div className="mes-module-head">
         <span className="mes-module-code">M06</span>

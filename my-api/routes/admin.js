@@ -90,7 +90,8 @@ router.get('/audit-log', async (req, res) => {
   const { actor, action } = req.query;
   const conds = [];
   const vals  = [];
-  if (actor)  { vals.push(`%${actor}%`);  conds.push(`actor ILIKE $${vals.length}`); }
+  // ค้นด้วยชื่อผู้ใช้ → เจอทั้งตอนที่เขาเป็นผู้ทำ (actor) และตอนถูกอ้างถึง (detail เช่น "สร้างผู้ใช้: somchai")
+  if (actor)  { vals.push(`%${actor}%`);  conds.push(`(actor ILIKE $${vals.length} OR detail ILIKE $${vals.length})`); }
   if (action) { vals.push(`%${action}%`); conds.push(`action ILIKE $${vals.length}`); }
   try {
     const { rows } = await db.query(

@@ -111,7 +111,8 @@ router.get('/:woNo/lots', async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT DISTINCT lot_no FROM (
-         SELECT lot_no FROM qc_results  WHERE wo_id=$1
+         SELECT lot_no FROM kitting_issues WHERE wo_id=$1
+         UNION SELECT lot_no FROM qc_results  WHERE wo_id=$1
          UNION SELECT lot_no FROM oba_records WHERE wo_id=$1
        ) t WHERE COALESCE(lot_no,'') <> '' ORDER BY lot_no`,
       [req.params.woNo]
