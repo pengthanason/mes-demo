@@ -84,7 +84,7 @@ function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '1rem' }}>เพิ่มโปรเจกต์ Jig</h2>
         <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>

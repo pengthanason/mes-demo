@@ -27,6 +27,8 @@ app.use('/api/jumbo',         require('./routes/trace'));
 app.use('/api/jig',           require('./routes/jig'));
 app.use('/api/inventory',     require('./routes/inventory'));
 app.use('/api/production',     require('./routes/production'));
+app.use('/api/pp',             require('./routes/productionPlan'));
+app.use('/api/workflow',       require('./routes/workflow'));
 app.use('/api',               require('./routes/records'));
 
 // ── 404 ────────────────────────────────────────────────────────────

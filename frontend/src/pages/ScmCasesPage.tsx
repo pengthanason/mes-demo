@@ -400,7 +400,7 @@ export function ScmCasesPage() {
       </section>
 
       {resolveTarget ? (
-        <div className="modal-overlay" onClick={() => setResolveTarget(null)}>
+        <div className="modal-overlay">
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <h3>Resolve Case: {resolveTarget.case_id}</h3>
             <form
@@ -432,7 +432,7 @@ export function ScmCasesPage() {
       ) : null}
 
       {dispositionTarget ? (
-        <div className="modal-overlay" onClick={() => setDispositionTarget(null)}>
+        <div className="modal-overlay">
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <h3>Supplier Disposition: {dispositionTarget.case_id}</h3>
             <form

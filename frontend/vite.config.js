@@ -32,6 +32,8 @@ export default defineConfig({
       '/api/jig':           { target: 'http://localhost:5099', changeOrigin: true },
       '/api/inventory':     { target: 'http://localhost:5099', changeOrigin: true },
       '/api/production':    { target: 'http://localhost:5099', changeOrigin: true },
+      '/api/pp':            { target: 'http://localhost:5099', changeOrigin: true },
+      '/api/workflow':      { target: 'http://localhost:5099', changeOrigin: true },
       // Everything else → MES backbone (Docker)
       '/api': { target: 'http://localhost:5100', changeOrigin: true },
     },

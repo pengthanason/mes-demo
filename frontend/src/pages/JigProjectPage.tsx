@@ -128,7 +128,7 @@ function RecordDetailModal({ record, onClose, onRetest, retesting, alreadyReques
     ['Notes', record.notes ?? '—'],
   ];
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
           <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: isFail ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)' }}>{isFail ? '❌' : '✅'}</span>
@@ -189,7 +189,7 @@ function AddRecordModal({ code, onClose }: { code: string; onClose: () => void }
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 460px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '1rem' }}>บันทึกผลทดสอบ Jig</h2>
         <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>

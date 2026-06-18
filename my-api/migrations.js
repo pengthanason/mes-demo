@@ -472,6 +472,73 @@ async function migrate() {
       )
     `);
 
+    // ── Production Plan (โมดูลใหม่ตาม Excel จริง — Add Project) ──
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pp_projects (
+        id              SERIAL PRIMARY KEY,
+        status          VARCHAR(30)  NOT NULL DEFAULT 'ON_PROCESS',
+        wk              INTEGER,
+        date_record     DATE,
+        product_pn      VARCHAR(100) NOT NULL DEFAULT '',
+        model           VARCHAR(150) NOT NULL DEFAULT '',
+        customer        VARCHAR(100) NOT NULL DEFAULT '',
+        qty             INTEGER      NOT NULL DEFAULT 0,
+        syn_requestor   VARCHAR(100) NOT NULL DEFAULT '',
+        work_order      VARCHAR(100) NOT NULL DEFAULT '',
+        matl_coming     VARCHAR(200) NOT NULL DEFAULT '',
+        chk_man         BOOLEAN NOT NULL DEFAULT false,
+        chk_mac         BOOLEAN NOT NULL DEFAULT false,
+        chk_med         BOOLEAN NOT NULL DEFAULT false,
+        chk_mat         BOOLEAN NOT NULL DEFAULT false,
+        pd_pcba         BOOLEAN NOT NULL DEFAULT false,
+        pd_bbas         BOOLEAN NOT NULL DEFAULT false,
+        pd_test         BOOLEAN NOT NULL DEFAULT false,
+        pd_start_date   DATE,
+        pd_finish_date  DATE,
+        qa_test_rate    VARCHAR(50)  NOT NULL DEFAULT '',
+        qa_finish_date  DATE,
+        store_received  DATE,
+        expected_date   DATE,
+        revised_date    DATE,
+        pd_pic          VARCHAR(150) NOT NULL DEFAULT '',
+        team_member     INTEGER      NOT NULL DEFAULT 0,
+        ok_per_day      INTEGER      NOT NULL DEFAULT 0,
+        total_ng        INTEGER      NOT NULL DEFAULT 0,
+        total_ok        INTEGER      NOT NULL DEFAULT 0,
+        remark          TEXT         NOT NULL DEFAULT '',
+        created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS done BOOLEAN NOT NULL DEFAULT false`);
+
+    // ── Workflow (ลำดับกระบวนการผลิต — Manufacturing Sequence) ──
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS workflows (
+        id          SERIAL PRIMARY KEY,
+        customer    VARCHAR(100) NOT NULL DEFAULT '',
+        model       VARCHAR(150) NOT NULL DEFAULT '',
+        steps       JSONB        NOT NULL DEFAULT '[]',
+        created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    // ชื่อ Preset (ตั้งชื่อ workflow ได้)
+    await client.query(`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS name VARCHAR(150) NOT NULL DEFAULT ''`);
+
+    // ── Workflow Results (บันทึกผลการเดินสายผลิต: Serial + PASS/FAIL + cycle time) ──
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS workflow_results (
+        id           SERIAL PRIMARY KEY,
+        serial       VARCHAR(150) NOT NULL,
+        customer     VARCHAR(100) NOT NULL DEFAULT '',
+        model        VARCHAR(150) NOT NULL DEFAULT '',
+        sequence     TEXT         NOT NULL DEFAULT '',
+        result       VARCHAR(10)  NOT NULL DEFAULT 'PASS',
+        total_sec    INTEGER      NOT NULL DEFAULT 0,
+        created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+
     // Seed ข้อมูลตัวอย่างถ้ายังว่าง
     const { rows } = await client.query('SELECT COUNT(*) FROM boms');
     if (SEED_DEMO && Number(rows[0].count) === 0) {
