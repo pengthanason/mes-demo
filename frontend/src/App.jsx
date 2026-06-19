@@ -35,6 +35,7 @@ const MAIN_ITEMS = [
   { to: '/traceability',     label: 'Traceability' },
   { to: '/4m-change',        label: '4M Change' },
   { to: '/scm-cases',        label: 'SCM Cases' },
+  { to: '/equipment-borrow', label: 'ยืม-คืนอุปกรณ์' },
   { to: '/notifications',    label: 'Notifications' },
   { to: '/admin/panel',      label: 'Admin Panel' },
 ];
@@ -89,8 +90,8 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
   );
 }
 
-const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/qc-result', '/jig-test', '/traceability', '/notifications'];
-const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/4m-change', '/qc-board', '/qc-result', '/jig-test', '/scm-cases', '/traceability', '/notifications'];
+const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/qc-result', '/jig-test', '/traceability', '/equipment-borrow', '/notifications'];
+const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/4m-change', '/qc-board', '/qc-result', '/jig-test', '/scm-cases', '/traceability', '/equipment-borrow', '/notifications'];
 
 function visibleMainItems(role) {
   if (!role || role === 'viewer') return MAIN_ITEMS.filter(i => VIEWER_ITEMS.includes(i.to));
@@ -486,6 +487,17 @@ function TopNav() {
   );
 }
 
+// ─── Equipment Borrow iframe page ────────────────────────────────
+function EquipmentBorrowPage() {
+  return (
+    <iframe
+      src="https://pengthanason.github.io/equipment-dashboard/"
+      title="ระบบยืม-คืนอุปกรณ์"
+      style={{ width: '100%', height: 'calc(100vh - 110px)', border: 'none', borderRadius: 8, display: 'block' }}
+    />
+  );
+}
+
 // ─── Auth guard (force login) ─────────────────────────────────────
 function AuthGuard({ children }) {
   const auth = useMockAuth();
@@ -658,6 +670,7 @@ export default function App() {
               <Route path="/traceability"      element={<AuthGuard><TraceabilityPage /></AuthGuard>} />
               <Route path="/jig-test/:projectCode" element={<AuthGuard><JigProjectPage /></AuthGuard>} />
               <Route path="/admin/panel"       element={<RoleGuard allowed={['admin']}><AdminPanelPage /></RoleGuard>} />
+              <Route path="/equipment-borrow" element={<AuthGuard><EquipmentBorrowPage /></AuthGuard>} />
               <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </ErrorBoundary>
