@@ -254,6 +254,32 @@ const productionUnits: any[] = [];
 let _retestId = 100;
 const jigRetests: any[] = [];
 
+// ── Production Plan (pp_projects) ──
+let _ppId = 50;
+const ppBase = {
+  wk: 0, date_record: null, customer: '', syn_requestor: '', work_order: '', matl_coming: '',
+  chk_man: false, chk_mac: false, chk_med: false, chk_mat: false,
+  pd_pcba: false, pd_bbas: false, pd_test: false, pd_start_date: null, pd_finish_date: null,
+  qa_test_rate: '', qa_finish_date: null, store_received: null, expected_date: null, revised_date: null,
+  done: false, pd_pic: '', team_member: 0, ok_per_day: 0, total_ng: 0, total_ok: 0, remark: '',
+};
+const ppProjects: any[] = [
+  { ...ppBase, id: 1, status: 'DONE', wk: 22, date_record: '2026-06-01', product_pn: '1E7D25403001', model: 'Water Level Rice - BBAS', customer: 'Toyota TH', qty: 200, work_order: 'WO-2026-001', chk_man: true, chk_mac: true, chk_med: true, chk_mat: true, pd_pcba: true, pd_bbas: true, pd_test: true, pd_start_date: '2026-06-02', pd_finish_date: '2026-06-11', qa_test_rate: '100', qa_finish_date: '2026-06-12', store_received: '2026-06-12', expected_date: '2026-06-13', done: true, pd_pic: 'Noi', team_member: 3, ok_per_day: 40, total_ng: 2, total_ok: 198, remark: 'ส่งครบ', created_at: '2026-06-01T08:00:00Z', updated_at: '2026-06-12T08:00:00Z' },
+  { ...ppBase, id: 2, status: 'ON_PROCESS', wk: 24, date_record: '2026-06-10', product_pn: '1E6D25234000', model: 'SMARTNAV - BBAS', customer: 'Honda Mfg', qty: 150, work_order: 'WO-2026-002', chk_mat: true, pd_pcba: true, pd_bbas: true, pd_start_date: '2026-06-12', expected_date: '2026-06-20', pd_pic: 'Kiert', team_member: 2, ok_per_day: 21, total_ng: 1, total_ok: 147, created_at: '2026-06-10T08:00:00Z', updated_at: '2026-06-14T08:00:00Z' },
+  { ...ppBase, id: 3, status: 'LATE', wk: 23, date_record: '2026-06-05', product_pn: 'MOT-4500', model: 'Motor Drive 4500', customer: 'Denso Corp', qty: 500, work_order: 'WO-2026-003', chk_man: true, pd_pcba: true, expected_date: '2026-06-12', revised_date: '2026-06-22', pd_pic: 'Run', team_member: 4, ok_per_day: 30, total_ng: 5, total_ok: 250, remark: 'รอ component', created_at: '2026-06-05T08:00:00Z', updated_at: '2026-06-14T08:00:00Z' },
+  { ...ppBase, id: 4, status: 'MATL_COMING', wk: 25, date_record: '2026-06-13', product_pn: '1E4D26458000', model: 'CM2 Battery - PCBA', customer: 'AISIN', qty: 80, matl_coming: 'Components (Consign)', expected_date: '2026-06-28', pd_pic: 'Au', team_member: 2, remark: 'รอ consign part', created_at: '2026-06-13T08:00:00Z', updated_at: '2026-06-13T08:00:00Z' },
+];
+
+// ── Workflow (presets + results) ──
+let _wfId = 10, _wfrId = 10;
+const workflows: any[] = [
+  { id: 1, name: 'WL Rice - Line A', customer: 'Toyota TH', model: 'Water Level Rice', steps: ['CHECK MATERIAL', 'SMT', 'IPQC', 'TEST', 'PACKING'].map(p => ({ process: p, seconds: 30 })), created_at: '2026-06-10T08:00:00Z' },
+];
+const workflowResults: any[] = [
+  { id: 1, serial: 'SN-0001', customer: 'Toyota TH', model: 'Water Level Rice', sequence: 'CHECK MATERIAL(30s) → SMT(30s) → TEST(30s)', result: 'PASS', total_sec: 90, created_at: '2026-06-14T08:00:00Z' },
+  { id: 2, serial: 'SN-0002', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(20s) → TEST❌(15s)', result: 'FAIL', total_sec: 35, created_at: '2026-06-14T09:00:00Z' },
+];
+
 function ok(data: unknown) { return HttpResponse.json({ status: 'success', data }); }
 function okSuccess(extra?: object) { return HttpResponse.json({ status: 'success', ...extra }); }
 
@@ -263,6 +289,70 @@ export const handlers = [
 
   // ── Health ───────────────────────────────────────────────────────────────
   http.get('/api/health', () => HttpResponse.json({ status: 'ok', version: '1.0.0-demo' })),
+
+  // ── Production Plan (pp_projects) ─────────────────────────────────────────
+  http.get('/api/pp/projects', ({ request }) => {
+    const u = new URL(request.url); const g = (k: string) => u.searchParams.get(k);
+    let rows = [...ppProjects];
+    if (g('status')) rows = rows.filter(r => r.status === g('status'));
+    if (g('customer')) rows = rows.filter(r => (r.customer || '').toLowerCase().includes(g('customer')!.toLowerCase()));
+    if (g('product_pn')) rows = rows.filter(r => (r.product_pn || '').toLowerCase().includes(g('product_pn')!.toLowerCase()));
+    if (g('model')) rows = rows.filter(r => (r.model || '').toLowerCase().includes(g('model')!.toLowerCase()));
+    if (g('date_from')) rows = rows.filter(r => (r.date_record || '') >= g('date_from')!);
+    if (g('date_to')) rows = rows.filter(r => (r.date_record || '') <= g('date_to')!);
+    return ok(rows);
+  }),
+  http.post('/api/pp/projects', async ({ request }) => {
+    const b: any = await request.json();
+    const row = { ...ppBase, ...b, id: ++_ppId, created_at: now(), updated_at: now() };
+    ppProjects.unshift(row);
+    return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
+  }),
+  http.put('/api/pp/projects/:id', async ({ params, request }) => {
+    const b: any = await request.json();
+    const row = ppProjects.find(r => String(r.id) === String(params.id));
+    if (!row) return new HttpResponse(null, { status: 404 });
+    Object.assign(row, b, { updated_at: now() });
+    return ok(row);
+  }),
+  http.delete('/api/pp/projects/:id', ({ params }) => {
+    const i = ppProjects.findIndex(r => String(r.id) === String(params.id));
+    if (i >= 0) ppProjects.splice(i, 1);
+    return ok({ deleted: true });
+  }),
+
+  // ── Workflow (presets + results) ──────────────────────────────────────────
+  http.get('/api/workflow', () => ok(workflows)),
+  http.post('/api/workflow', async ({ request }) => {
+    const b: any = await request.json();
+    const row = { id: ++_wfId, name: b.name || '', customer: b.customer || '', model: b.model || '', steps: b.steps || [], created_at: now() };
+    workflows.unshift(row);
+    return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
+  }),
+  http.delete('/api/workflow/:id', ({ params }) => {
+    const i = workflows.findIndex(w => String(w.id) === String(params.id));
+    if (i >= 0) workflows.splice(i, 1);
+    return ok({ deleted: true });
+  }),
+  http.get('/api/workflow/results', () => ok(workflowResults)),
+  http.post('/api/workflow/results', async ({ request }) => {
+    const b: any = await request.json();
+    const row = { id: ++_wfrId, serial: b.serial, customer: b.customer || '', model: b.model || '', sequence: b.sequence || '', result: b.result === 'FAIL' ? 'FAIL' : 'PASS', total_sec: Number(b.total_sec) || 0, created_at: now() };
+    workflowResults.unshift(row);
+    return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
+  }),
+  http.delete('/api/workflow/results/:id', ({ params }) => {
+    const i = workflowResults.findIndex(r => String(r.id) === String(params.id));
+    if (i >= 0) workflowResults.splice(i, 1);
+    return ok({ deleted: true });
+  }),
+
+  // ── Jig: ลบโปรเจกต์ ──
+  http.delete('/api/jig/projects/:code', ({ params }) => {
+    const i = jigProjects.findIndex(p => p.project_code === params.code);
+    if (i >= 0) jigProjects.splice(i, 1);
+    return ok({ deleted: true });
+  }),
 
   // ── WO Board ─────────────────────────────────────────────────────────────
   http.get('/api/wo/board', () => ok(woBoard)),
