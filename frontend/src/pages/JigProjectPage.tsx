@@ -275,7 +275,7 @@ export function JigProjectPage() {
   const passColor = project.passRate >= 95 ? '#22c55e' : project.passRate >= 80 ? '#f59e0b' : '#ef4444';
 
   return (
-    <section className="stack-lg" style={{ maxWidth: 960, margin: '0 auto' }}>
+    <section className="stack-lg">
       {/* Header */}
       <div className="panel">
         <button className="btn secondary" style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }} onClick={() => navigate('/jig-test')}>
@@ -334,7 +334,7 @@ export function JigProjectPage() {
               title="กรองตามวันที่ทดสอบ"
             />
             {dateFilter && (
-              <button className="btn secondary" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setDateFilter('')}>ล้างวันที่</button>
+              <button className="btn secondary" title="ล้างการกรองตามวันที่" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setDateFilter('')}>ล้างวันที่</button>
             )}
             {(['', 'PASS', 'FAIL'] as const).map(f => (
               <button

@@ -79,7 +79,8 @@ router.post('/lots/split', async (req, res) => {
   const okQ = Number(ok_qty) || 0;
   const ngQ = Number(ng_qty) || 0;
   try {
-    const ts   = Date.now().toString().slice(-6);
+    // suffix แบบ base36 จาก timestamp เต็ม + สุ่ม กัน UID ชนกันเมื่อ split หลายครั้งติดกัน
+    const ts   = Date.now().toString(36).toUpperCase() + Math.floor(Math.random() * 36).toString(36).toUpperCase();
     const okUid = `${original_uid}-OK-${ts}`;
     const ngUid = `${original_uid}-NG-${ts}`;
     const { rows } = await db.query(

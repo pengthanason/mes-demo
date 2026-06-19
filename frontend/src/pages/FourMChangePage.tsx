@@ -159,7 +159,7 @@ export function FourMChangePage() {
               {isLoading ? (
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มี Change Request</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{(stateFilter || typeFilter) ? 'ไม่พบรายการตามตัวกรอง — ล้างตัวกรองเพื่อดูทั้งหมด' : 'ยังไม่มี Change Request — กด “+ เปิด CR ใหม่” มุมขวาบนเพื่อเริ่ม'}</td></tr>
               ) : (
                 filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(cr => (
                   <tr key={cr.id}>

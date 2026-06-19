@@ -3,6 +3,7 @@ import {
   useSerialTrace, useSerialList, useDailyReport,
   SerialTrace,
 } from '../lib/traceApi';
+import { showToast } from '../lib/toast';
 
 const STATUS_COLOR = { PASS: '#22c55e', FAIL: '#ef4444' };
 
@@ -122,6 +123,7 @@ function DailyReportTab() {
   function handleExport() {
     const stamp = new Date().toISOString().slice(0, 10);
     downloadCsv(`daily-report-${stamp}.csv`, toCsv(rows));
+    showToast(`ดาวน์โหลด daily-report-${stamp}.csv แล้ว`, 'success');
   }
 
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>;

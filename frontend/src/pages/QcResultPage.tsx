@@ -260,7 +260,7 @@ export function QcResultPage() {
               {isLoading ? (
                 <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีข้อมูล QC Result</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{woFilter.trim() ? 'ไม่พบรายการตามตัวกรอง — ล้างช่องค้นหา WO เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล QC Result — กด “+ บันทึก QC Result” เพื่อเริ่ม'}</td></tr>
               ) : pagedList.map(r => (
                 <tr key={r.id}>
                   <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(r.createdAt).toLocaleDateString('th-TH')}</td>

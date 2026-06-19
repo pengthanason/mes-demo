@@ -91,7 +91,7 @@ export function FaiPage() {
   }
 
   return (
-    <div className="panel stack" style={{ maxWidth: '500px', margin: '0 auto' }}>
+    <div className="panel stack">
       <div style={{ marginBottom: '0.75rem' }}>
         <Link to={`/wo/${woId}`} style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← กลับหน้า WO Detail</Link>
       </div>

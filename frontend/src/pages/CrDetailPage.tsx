@@ -58,7 +58,7 @@ export function CrDetailPage() {
   }
 
   return (
-    <section className="stack-lg" style={{ maxWidth: 860, margin: '0 auto' }}>
+    <section className="stack-lg">
       <div className="panel">
         <div style={{ marginBottom: '0.75rem' }}>
           <Link to="/4m-change" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← กลับรายการ CR</Link>

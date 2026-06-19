@@ -115,7 +115,7 @@ export function IncomingPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
             <span style={{ width: 48, height: 48, flexShrink: 0, borderRadius: 12, fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(14,165,233,0.12)' }}>📦</span>
             <div>
-              <h1 className="panel__title" style={{ margin: 0 }}>รับวัตถุดิบเข้า (Incoming)</h1>
+              <h1 className="panel__title" style={{ margin: 0 }}>Incoming</h1>
               <p className="panel__subtitle" style={{ margin: 0 }}>รับของเป็น "ล็อต" — ของพันชิ้น = 1 รายการ · QA ตรวจรับทั้งล็อต</p>
             </div>
           </div>
@@ -142,7 +142,7 @@ export function IncomingPage() {
               <div className="grid-2col">
                 <label className="field">
                   <span>Part No *</span>
-                  <input value={partNo} onChange={e => setPartNo(e.target.value)} placeholder="เช่น R-100K" required />
+                  <input value={partNo} onChange={e => setPartNo(e.target.value)} placeholder="เช่น R-100K" autoFocus required />
                 </label>
                 <label className="field">
                   <span>ชื่อชิ้นส่วน</span>
@@ -199,7 +199,7 @@ export function IncomingPage() {
               {isLoading ? (
                 <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีล็อตวัตถุดิบ</td></tr>
+                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{statusFilter ? 'ไม่พบล็อตตามตัวกรอง — เลือก “ทั้งหมด” เพื่อดูทุกล็อต' : 'ยังไม่มีล็อตวัตถุดิบ — กด “+ รับของเข้า” เพื่อเริ่มรับของ'}</td></tr>
               ) : paged.map(lot => (
                 <tr key={lot.id}>
                   <td style={{ fontWeight: 600 }}><code>{lot.partNo}</code></td>

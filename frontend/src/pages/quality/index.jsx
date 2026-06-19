@@ -36,15 +36,15 @@ export default function QcBoard() {
   };
 
   return (
-    <div className="panel" style={{ maxWidth: '800px', margin: '0 auto' }}>
+    <div className="panel">
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
         <div style={{ padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '12px' }}>
           <Scan color="var(--primary)" size={28} />
         </div>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Quality Control Terminal</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Scan unit serial numbers and submit test results.</p>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>QC Board</h2>
+          <p style={{ color: 'var(--text-muted)' }}>สแกน Serial ของชิ้นงานแล้วบันทึกผล PASS / FAIL</p>
         </div>
       </div>
 
@@ -68,6 +68,7 @@ export default function QcBoard() {
             autoFocus
             style={{ fontSize: '1.25rem', padding: '1rem' }}
           />
+          {isLoading && <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>⏳ กำลังบันทึกผล...</div>}
         </div>
 
         {isViewer && (
@@ -78,7 +79,7 @@ export default function QcBoard() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem' }}>
           <button
-            className="btn btn-success"
+            className="btn success"
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', minWidth: 0, padding: '1.25rem 0.5rem', fontSize: '1.15rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
             onClick={() => handleQcSubmit('PASS')}
             disabled={isLoading || !unitSn || isViewer}
@@ -88,7 +89,7 @@ export default function QcBoard() {
           </button>
 
           <button
-            className="btn btn-danger"
+            className="btn danger"
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', minWidth: 0, padding: '1.25rem 0.5rem', fontSize: '1.15rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
             onClick={() => handleQcSubmit('FAIL')}
             disabled={isLoading || !unitSn || isViewer}

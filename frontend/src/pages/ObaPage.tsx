@@ -4,6 +4,7 @@ import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
 import { WoInput } from '../components/WoInput';
 import { useWoLots } from '../lib/lookups';
+import { ResultBadge } from '../components/ResultBadge';
 
 export function ObaPage() {
   const { data } = useObaRecords();
@@ -121,16 +122,7 @@ export function ObaPage() {
                     <td style={{ fontWeight: 600 }}>{r.woId}</td>
                     <td>{r.lotNo}</td>
                     <td style={{ textAlign: 'center' }}>{r.sampleQty}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span style={{
-                        padding: '2px 10px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 700,
-                        background: r.result === 'PASS' ? '#dcfce7' : '#fee2e2',
-                        color:      r.result === 'PASS' ? '#15803d' : '#b91c1c',
-                        border:     `1px solid ${r.result === 'PASS' ? '#86efac' : '#fca5a5'}`,
-                      }}>
-                        {r.result}
-                      </span>
-                    </td>
+                    <td style={{ textAlign: 'center' }}><ResultBadge value={r.result} /></td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{r.defectNote || '—'}</td>
                     <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                       {new Date(r.timestamp).toLocaleString()}

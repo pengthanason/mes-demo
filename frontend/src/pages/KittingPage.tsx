@@ -44,7 +44,7 @@ export function KittingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
           <span style={{ width: 48, height: 48, flexShrink: 0, borderRadius: 12, fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(99,102,241,0.12)' }}>🧰</span>
           <div>
-            <h1 className="panel__title" style={{ margin: 0 }}>เบิกวัตถุดิบ (Kitting)</h1>
+            <h1 className="panel__title" style={{ margin: 0 }}>Kitting</h1>
             <p className="panel__subtitle" style={{ margin: 0 }}>เบิกของจากล็อตที่ QA อนุมัติแล้ว ไปเข้าไลน์ผลิตตาม WO — ตัด stock แบบ FIFO (ล็อตเก่าก่อน)</p>
           </div>
         </div>
@@ -133,7 +133,7 @@ export function KittingPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีการเบิก</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีการเบิก — เลือกของจาก Stock ด้านบน กรอก WO แล้วกด “เบิกของเข้าไลน์”</td></tr>
               ) : paged.map(i => (
                 <tr key={i.id}>
                   <td style={{ fontWeight: 600 }}>{i.woId}</td>

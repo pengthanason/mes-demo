@@ -100,7 +100,7 @@ export function FactoryOverview() {
   return (
     <section className="stack-lg">
       <div className="panel">
-        <h1 className="panel__title">🏭 ภาพรวมโรงงาน (Factory Overview)</h1>
+        <h1 className="panel__title">🏭 Factory Overview</h1>
         <p className="panel__subtitle">สรุปข้อมูลทุกโมดูลแบบเรียลไทม์ — ผลิต · QC · Jig · คลัง · 4M · SCM</p>
 
         {/* KPI ข้ามโมดูล */}

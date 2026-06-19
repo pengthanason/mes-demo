@@ -177,7 +177,7 @@ export function JigTestPage() {
       )}
 
       {!isLoading && projects.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>ยังไม่มีโปรเจกต์</div>
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>ยังไม่มีโปรเจกต์ Jig — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม</div>
       )}
     </div>
   );

@@ -184,8 +184,8 @@ export function ScmCasesPage() {
   return (
     <div className="stack-lg">
       <section className="panel">
-        <h1 className="panel__title">SCM & QA Cases (Module 12)</h1>
-        <p className="panel__subtitle">Case inbox, lot split SOP wizard, and supplier dispositions.</p>
+        <h1 className="panel__title">SCM Cases</h1>
+        <p className="panel__subtitle">จัดการเคสซัพพลาย — case inbox · lot split · supplier disposition</p>
 
         {notice ? <div className={`notice ${notice.kind}`}>{notice.message}</div> : null}
 

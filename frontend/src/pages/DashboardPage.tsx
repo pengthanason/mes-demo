@@ -76,6 +76,20 @@ function printPdf(rows: PpProject[]) {
   w.document.write(html); w.document.close();
 }
 
+/* การ์ด KPI ที่กดเพื่อกรองสถานะในตารางได้ */
+function KpiCard({ icon, label, value, accent, onClick, active }: {
+  icon: string; label: string; value: number | string; accent: string; onClick: () => void; active: boolean;
+}) {
+  return (
+    <div onClick={onClick} title="กดเพื่อกรองตารางตามสถานะนี้"
+      style={{ cursor: 'pointer', borderRadius: 12, outline: active ? `2px solid ${accent}` : '2px solid transparent', transition: 'transform 0.12s, box-shadow 0.12s' }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.10)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
+      <StatCard icon={icon} label={label} value={value} accent={accent} />
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const isViewer = useIsViewer();
   const [filters, setFilters] = useState<PpFilters>({});
@@ -136,13 +150,13 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* KPI */}
+        {/* KPI — กดเพื่อกรองสถานะในตารางด้านล่าง */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
-          <StatCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#6366f1" />
-          <StatCard icon="✅" label="Done" value={agg.done} accent="#16a34a" />
-          <StatCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" />
-          <StatCard icon="⏰" label="Late" value={agg.late} accent="#dc2626" />
-          <StatCard icon="📥" label="Mat'l coming" value={agg.matl} accent="#d97706" />
+          <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#6366f1" onClick={() => setF('status', '')} active={!filters.status} />
+          <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => setF('status', 'DONE')} active={filters.status === 'DONE'} />
+          <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => setF('status', 'ON_PROCESS')} active={filters.status === 'ON_PROCESS'} />
+          <KpiCard icon="⏰" label="Late" value={agg.late} accent="#dc2626" onClick={() => setF('status', 'LATE')} active={filters.status === 'LATE'} />
+          <KpiCard icon="📥" label="Mat'l coming" value={agg.matl} accent="#d97706" onClick={() => setF('status', 'MATL_COMING')} active={filters.status === 'MATL_COMING'} />
           <StatCard icon="🎯" label="Yield เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#7c3aed" />
         </div>
       </div>
@@ -230,12 +244,12 @@ export function DashboardPage() {
               {isLoading ? (
                 <tr><td colSpan={isViewer ? 31 : 32} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={isViewer ? 31 : 32} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีข้อมูล — กด "+ เพิ่มโปรเจกต์"</td></tr>
+                <tr><td colSpan={isViewer ? 31 : 32} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
               ) : paged.map(p => {
                 const y = ppYield(p);
                 const ck = (b: boolean) => b ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span> : <span style={{ color: '#cbd5e1' }}>·</span>;
                 return (
-                  <tr key={p.id}>
+                  <tr key={p.id} style={p.status === 'LATE' ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626' } : undefined}>
                     <td><StatusBadge status={p.status} /></td>
                     <td>{p.wk ?? '—'}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.date_record)}</td>

@@ -42,7 +42,7 @@ export function CloseWoPage() {
   }
 
   return (
-    <div className="panel stack" style={{ maxWidth: '400px', margin: '0 auto' }}>
+    <div className="panel stack">
       <h2 className="panel__title">Close Work Order (M09)</h2>
       <p className="panel__subtitle">
         WO: <strong>{woId}</strong>

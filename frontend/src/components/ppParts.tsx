@@ -260,7 +260,7 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             </label>
             <label className="field"><span>WK</span><input type="number" value={f.wk ?? ''} onChange={num('wk')} /></label>
             <label className="field"><span>Date Record</span><input type="date" value={f.date_record ?? ''} onChange={txt('date_record')} /></label>
-            <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." /></label>
+            <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." autoFocus /></label>
             <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." /></label>
             <label className="field"><span>QTY</span><input type="number" value={f.qty ?? 0} onChange={num('qty')} /></label>
             <label className="field"><span>Customer</span><input value={f.customer ?? ''} onChange={txt('customer')} /></label>

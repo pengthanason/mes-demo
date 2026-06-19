@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router-dom';
 const KEY = 'mes_flowguide_collapsed';
 
 const STEPS = [
-  { n: 1, icon: '📥', title: 'รับของเข้า', desc: 'รับวัตถุดิบเป็น "ล็อต" (พันชิ้น = 1 รายการ)', to: '/incoming', color: '#0ea5e9' },
-  { n: 2, icon: '✅', title: 'QA ตรวจรับ', desc: 'กดผ่าน/ตีกลับ — ผ่านแล้วของเข้า stock', to: '/incoming', color: '#16a34a' },
-  { n: 3, icon: '📦', title: 'เบิกเข้าไลน์', desc: 'เบิกของให้ WO ตัด stock แบบ FIFO', to: '/incoming', color: '#6366f1' },
-  { n: 4, icon: '🔀', title: 'ผลิต / ทดสอบ', desc: 'สแกน Serial เดินกระบวนการ + บันทึกผล PASS/FAIL', to: '/production-plan', color: '#8b5cf6' },
-  { n: 5, icon: '🧪', title: 'ตรวจคุณภาพ', desc: 'QC / Jig Test / OBA ตรวจชิ้นงาน', to: '/qc-board', color: '#f59e0b' },
-  { n: 6, icon: '🧬', title: 'ตามรอย', desc: 'ค้น Serial ดูประวัติทุกสเตชัน + รายงานรายวัน', to: '/traceability', color: '#0891b2' },
+  { n: 1, icon: '📥', title: 'Incoming', desc: 'รับวัตถุดิบเข้าเป็น "ล็อต" (พันชิ้น = 1 รายการ)', to: '/incoming', color: '#0ea5e9' },
+  { n: 2, icon: '✅', title: 'QA Check', desc: 'QA ตรวจรับล็อต กดผ่าน/ตีกลับ — ผ่านแล้วเข้า stock', to: '/incoming', color: '#16a34a' },
+  { n: 3, icon: '📦', title: 'Kitting', desc: 'เบิกของให้ WO เข้าไลน์ ตัด stock แบบ FIFO', to: '/incoming', color: '#6366f1' },
+  { n: 4, icon: '🔀', title: 'Production Plan · Workflow', desc: 'สแกน Serial เดินกระบวนการ + บันทึกผล PASS/FAIL', to: '/production-plan', color: '#8b5cf6' },
+  { n: 5, icon: '🧪', title: 'QC / Jig Test', desc: 'ตรวจคุณภาพชิ้นงาน — QC Board / Jig / OBA', to: '/qc-board', color: '#f59e0b' },
+  { n: 6, icon: '🧬', title: 'Traceability', desc: 'ค้น Serial ดูประวัติทุกสเตชัน + รายงานรายวัน', to: '/traceability', color: '#0891b2' },
 ];
 
 export function FlowGuide() {

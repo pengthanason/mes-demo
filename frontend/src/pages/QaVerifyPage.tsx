@@ -54,7 +54,7 @@ export function QaVerifyPage() {
   const overallColor = qcResult.overall === 'PASS' ? '#16a34a' : qcResult.overall === 'FAIL' ? '#dc2626' : '#b45309';
 
   return (
-    <section className="stack-lg" style={{ maxWidth: 720, margin: '0 auto' }}>
+    <section className="stack-lg">
       <div className="panel">
         <div style={{ marginBottom: '0.75rem' }}>
           <Link to="/qc-result" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← กลับรายการ QC Result</Link>

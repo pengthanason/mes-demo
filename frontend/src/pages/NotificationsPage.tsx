@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkRead, useMarkAllRead } from '../lib/notificationsApi';
 import { Paginator } from '../components/Paginator';
+import { timeAgo } from '../lib/format';
 
 const TYPE_ICON: Record<string, string> = {
   WO_OPEN: '🔧', QC_FAIL: '❌', CR_APPROVED: '✅', WO_CLOSED: '✔️', REWORK: '🔨',
@@ -26,7 +27,7 @@ export function NotificationsPage() {
   }
 
   return (
-    <section className="stack-lg" style={{ maxWidth: 720, margin: '0 auto' }}>
+    <section className="stack-lg">
       <div className="panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -70,8 +71,8 @@ export function NotificationsPage() {
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 2 }}>{n.message}</div>
               </div>
               <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  {new Date(n.createdAt).toLocaleDateString('th-TH')}
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title={new Date(n.createdAt).toLocaleString('th-TH')}>
+                  {timeAgo(n.createdAt)}
                 </span>
                 {!n.isRead && (
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />

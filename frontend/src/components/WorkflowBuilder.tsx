@@ -6,6 +6,7 @@ import {
 } from '../lib/workflowApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { ResultBadge } from './ResultBadge';
 
 type Step = { id: string; process: string; seconds: number | '' };
 const CUSTOM_PROC_KEY = 'mes_custom_processes';
@@ -459,7 +460,7 @@ export function WorkflowBuilder() {
             </thead>
             <tbody>
               {results.length === 0 ? (
-                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>ยังไม่มีผลที่บันทึก</td></tr>
+                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>ยังไม่มีผลที่บันทึก — กรอก Serial + กระบวนการ + เวลา แล้วกด “บันทึกผล”</td></tr>
               ) : results.map(r => (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: '#64748b' }}>{fmtDateTime(r.created_at)}</td>
@@ -468,9 +469,7 @@ export function WorkflowBuilder() {
                   <td>{r.model || '—'}</td>
                   <td style={{ fontSize: '0.8rem', color: '#475569', minWidth: 260, maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>{r.sequence || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtTime(r.total_sec)}</td>
-                  <td>
-                    <span style={{ background: r.result === 'PASS' ? '#dcfce7' : '#fee2e2', color: r.result === 'PASS' ? '#166534' : '#991b1b', border: `1px solid ${r.result === 'PASS' ? '#86efac' : '#fca5a5'}`, padding: '2px 10px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700 }}>{r.result}</span>
-                  </td>
+                  <td><ResultBadge value={r.result} /></td>
                   {!isViewer && (
                     <td><button className="btn danger" style={{ padding: '4px 10px', fontSize: '0.78rem' }} onClick={() => { if (confirm(`ลบผล ${r.serial}?`)) delResult.mutate(r.id); }}>ลบ</button></td>
                   )}

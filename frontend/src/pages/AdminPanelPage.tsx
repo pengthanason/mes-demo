@@ -170,7 +170,7 @@ function UsersTab() {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-        <button className="btn primary" onClick={() => setShowCreate(true)}>+ เพิ่มผู้ใช้</button>
+        <button className="btn" onClick={() => setShowCreate(true)}>+ เพิ่มผู้ใช้</button>
       </div>
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
@@ -190,7 +190,7 @@ function UsersTab() {
               ))}
             </tbody>
           </table>
-          {users.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีผู้ใช้</div>}
+          {users.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีผู้ใช้ — กด “+ เพิ่มผู้ใช้” เพื่อสร้างบัญชีแรก</div>}
         </div>
       )}
       {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} />}
