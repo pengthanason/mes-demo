@@ -480,6 +480,7 @@ function TopNav() {
       <NavLink to="/traceability"    innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
       <NavLink to="/4m-change"       innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/scm-cases" innerRef={ref('/scm-cases')}><NavLabel full="SCM Cases" short="SCM" /></NavLink>}
+      <NavLink to="/equipment-borrow" innerRef={ref('/equipment-borrow')}><NavLabel full="ยืม-คืนอุปกรณ์" short="ยืม-คืน" /></NavLink>
       {role === 'admin' && <NavLink to="/admin/panel" innerRef={ref('/admin/panel')}><NavLabel full="Admin Panel" short="Admin" /></NavLink>}
     </nav>
       <NotificationBell />
@@ -490,11 +491,13 @@ function TopNav() {
 // ─── Equipment Borrow iframe page ────────────────────────────────
 function EquipmentBorrowPage() {
   return (
-    <iframe
-      src="https://pengthanason.github.io/equipment-dashboard/"
-      title="ระบบยืม-คืนอุปกรณ์"
-      style={{ width: '100%', height: 'calc(100vh - 110px)', border: 'none', borderRadius: 8, display: 'block' }}
-    />
+    <div style={{ margin: '-1.5rem', overflow: 'hidden' }}>
+      <iframe
+        src="https://pengthanason.github.io/equipment-dashboard/"
+        title="ระบบยืม-คืนอุปกรณ์"
+        style={{ width: '100%', height: 'calc(100vh - 56px)', border: 'none', display: 'block' }}
+      />
+    </div>
   );
 }
 
