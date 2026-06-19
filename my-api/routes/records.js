@@ -61,6 +61,12 @@ router.post('/qc', async (req, res) => {
        RETURNING id, sn, status, error, created_at`,
       [sn, status, error || null]
     );
+    // ป้อนเข้า traceability: ผล QC = 1 จุดในไทม์ไลน์ของ serial
+    await db.query(
+      `INSERT INTO production_scans (wo_id, serial, station, result, operator, note)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      ['QC', sn, 'QC', status, '', error ? `QC fail: ${error}` : 'QC scan']
+    );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
     res.status(500).json({ status: 'error', message: e.message });

@@ -29,12 +29,12 @@ const MAIN_ITEMS = [
   { to: '/dashboard',        label: 'Dashboard' },
   { to: '/production-plan',  label: 'Production Plan' },
   { to: '/incoming',         label: 'Incoming & Kitting' },
-  { to: '/4m-change',        label: '4M Change' },
   { to: '/qc-board',         label: 'QC Board' },
   { to: '/qc-result',        label: 'QC Result' },
   { to: '/jig-test',         label: 'Jig Test' },
-  { to: '/scm-cases',        label: 'SCM Cases' },
   { to: '/traceability',     label: 'Traceability' },
+  { to: '/4m-change',        label: '4M Change' },
+  { to: '/scm-cases',        label: 'SCM Cases' },
   { to: '/notifications',    label: 'Notifications' },
   { to: '/admin/panel',      label: 'Admin Panel' },
 ];
@@ -473,12 +473,12 @@ function TopNav() {
       <NavLink to="/dashboard"       innerRef={ref('/dashboard')}><NavLabel full="Dashboard" short="Home" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/production-plan" innerRef={ref('/production-plan')}><NavLabel full="Production Plan" short="Plan" /></NavLink>}
       {(role === 'admin' || role === 'member') && <NavLink to="/incoming" innerRef={ref('/incoming')}><NavLabel full="Incoming & Kitting" short="คลัง" /></NavLink>}
-      <NavLink to="/4m-change"       innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
       <NavLink to="/qc-board"        innerRef={ref('/qc-board')}><NavLabel full="QC Board" short="QC" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/qc-result" innerRef={ref('/qc-result')}><NavLabel full="QC Result" short="Result" /></NavLink>}
       <NavLink to="/jig-test"        innerRef={ref('/jig-test')}><NavLabel full="Jig Test" short="Jig" /></NavLink>
-      {(role === 'admin' || role === 'member') && <NavLink to="/scm-cases" innerRef={ref('/scm-cases')}><NavLabel full="SCM Cases" short="SCM" /></NavLink>}
       <NavLink to="/traceability"    innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
+      <NavLink to="/4m-change"       innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
+      {(role === 'admin' || role === 'member') && <NavLink to="/scm-cases" innerRef={ref('/scm-cases')}><NavLabel full="SCM Cases" short="SCM" /></NavLink>}
       {role === 'admin' && <NavLink to="/admin/panel" innerRef={ref('/admin/panel')}><NavLabel full="Admin Panel" short="Admin" /></NavLink>}
     </nav>
       <NotificationBell />

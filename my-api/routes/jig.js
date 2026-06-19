@@ -138,6 +138,12 @@ router.post('/projects/:code/records', async (req, res) => {
        temp_c === '' || temp_c == null ? null : Number(temp_c),
        (fail_param || '') || null, (notes || '') || null]
     );
+    // ป้อนเข้า traceability: ผลทดสอบ Jig = 1 จุดในไทม์ไลน์ของ serial
+    await db.query(
+      `INSERT INTO production_scans (wo_id, serial, station, result, operator, note)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [req.params.code, serial.trim(), `JIG ${req.params.code}`, result, '', fail_param ? `Jig fail: ${fail_param}` : 'Jig test']
+    );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
     res.status(500).json({ status: 'error', message: e.message });

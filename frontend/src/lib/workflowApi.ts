@@ -100,7 +100,7 @@ export function useWorkflowResults() {
 export function useWorkflowResultCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { serial: string; customer: string; model: string; sequence: string; result: string; total_sec: number; steps?: string[] }) => {
+    mutationFn: async (input: { serial: string; customer: string; model: string; sequence: string; result: string; total_sec: number; steps?: { process: string; result: string }[] }) => {
       const res = await api.post('/workflow/results', input);
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึกผลไม่สำเร็จ');
       return res.data;

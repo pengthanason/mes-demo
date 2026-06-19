@@ -5,9 +5,10 @@ import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
 import { FactoryOverview } from '../components/FactoryOverview';
+import { FlowGuide } from '../components/FlowGuide';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
-  STATUS_STYLE, StatusBadge, fmtDate, exportXlsx, StatCard, BarRow, ChartCard, ProjectFormModal,
+  STATUS_STYLE, StatusBadge, fmtDate, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal,
 } from '../components/ppParts';
 
 /* ── พิมพ์เป็น PDF — เลย์เอาต์ตามฟอร์ม Excel FM03 (โลโก้ + หัวกลุ่ม + สี) ── */
@@ -116,11 +117,11 @@ export function DashboardPage() {
     del.mutate(p.id, { onSuccess: () => showToast('ลบแล้ว', 'info'), onError: (e: any) => showToast(e.message, 'error') });
   }
 
-  const maxStatus = Math.max(1, ...agg.byStatus.map(x => x.value));
   const maxCust = Math.max(1, ...agg.byCustomer.map(x => x.value));
 
   return (
     <section className="stack-lg">
+      <FlowGuide />
       <FactoryOverview />
 
       <div className="panel">
@@ -130,7 +131,7 @@ export function DashboardPage() {
             <p className="panel__subtitle">ภาพรวมและตรวจสอบงานผลิต — ข้อมูลจาก Add Project</p>
           </div>
           {!isViewer && (
-            <button type="button" className="btn" onClick={() => setAdding(true)}
+            <button type="button" className="btn" title="เพิ่มโปรเจกต์ใหม่เข้าตาราง Production Plan" onClick={() => setAdding(true)}
               style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}>+ เพิ่มโปรเจกต์</button>
           )}
         </div>
@@ -148,8 +149,8 @@ export function DashboardPage() {
 
       {/* กราฟ */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '1rem' }}>
-        <ChartCard title="จำนวนงานตามสถานะ">
-          {agg.byStatus.map(s => <BarRow key={s.label} label={s.label} value={s.value} max={maxStatus} color={s.color} />)}
+        <ChartCard title="สัดส่วนงานตามสถานะ">
+          <Donut data={agg.byStatus} />
         </ChartCard>
         <ChartCard title="จำนวนงานตามลูกค้า (Top 8)">
           {agg.byCustomer.length ? agg.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#6366f1" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
@@ -183,8 +184,8 @@ export function DashboardPage() {
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{rows.length} โปรเจกต์</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => { setFilters({}); setPage(1); }}>ล้าง filter</button>}
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => { void exportXlsx(rows); }}>⬇️ Excel</button>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => printPdf(rows)}>🖨️ PDF</button>
+            <button type="button" className="btn secondary" title="ดาวน์โหลดเป็นไฟล์ Excel ตามฟอร์ม FM03 (โลโก้+สี)" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => { void exportXlsx(rows); }}>⬇️ Excel</button>
+            <button type="button" className="btn secondary" title="พิมพ์/บันทึกเป็น PDF ตามฟอร์ม" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => printPdf(rows)}>🖨️ PDF</button>
           </div>
         </div>
 

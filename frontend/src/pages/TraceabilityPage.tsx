@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  useSerialTrace, useSerialList, useBoxes, useBoxDetail, useDailyReport,
-  SerialTrace, BoxContent,
+  useSerialTrace, useSerialList, useDailyReport,
+  SerialTrace,
 } from '../lib/traceApi';
 
 const STATUS_COLOR = { PASS: '#22c55e', FAIL: '#ef4444' };
@@ -96,81 +96,6 @@ function SerialSearchTab() {
   );
 }
 
-function BoxDetailView({ box }: { box: BoxContent }) {
-  return (
-    <div className="panel" style={{ marginTop: '1rem' }}>
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-        <div><span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Box ID</span><div style={{ fontWeight: 700, fontFamily: 'monospace' }}>{box.box_id}</div></div>
-        <div><span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Product</span><div style={{ fontWeight: 600 }}>{box.product}</div></div>
-        <div><span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>WO</span><div style={{ fontWeight: 600 }}>{box.wo}</div></div>
-        <div><span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Packed</span><div style={{ fontWeight: 600 }}>{new Date(box.packed_at).toLocaleString('th-TH')}</div></div>
-      </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-        <thead>
-          <tr style={{ borderBottom: '2px solid var(--border)' }}>
-            {['Serial', 'Product', 'Last Step', 'Status'].map(h => (
-              <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.78rem' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {box.items.map(item => (
-            <tr key={item.serial} style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'monospace', fontSize: '0.82rem' }}>{item.serial}</td>
-              <td style={{ padding: '0.5rem 0.75rem' }}>{item.product}</td>
-              <td style={{ padding: '0.5rem 0.75rem' }}>{item.last_step}</td>
-              <td style={{ padding: '0.5rem 0.75rem' }}>
-                <span style={{
-                  fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99,
-                  background: STATUS_COLOR[item.last_status as 'PASS' | 'FAIL'] ?? '#9ca3af', color: '#fff',
-                }}>{item.last_status}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function BoxTab() {
-  const { data: boxes = [], isLoading: loadingBoxes } = useBoxes();
-  const [selectedBox, setSelectedBox] = useState<string | null>(null);
-  const { data: boxDetail, isLoading: loadingDetail } = useBoxDetail(selectedBox);
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1rem' }}>
-        {loadingBoxes ? (
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>กำลังโหลด...</span>
-        ) : (
-          boxes.map((b: any) => (
-            <button
-              key={b.box_id}
-              className={`btn ${selectedBox === b.box_id ? 'primary' : 'secondary'}`}
-              onClick={() => setSelectedBox(b.box_id)}
-              style={{ fontSize: '0.82rem' }}
-            >
-              {b.box_id} <span style={{ opacity: 0.7 }}>({b.serial_count} items)</span>
-            </button>
-          ))
-        )}
-      </div>
-
-      {selectedBox && (
-        loadingDetail ? (
-          <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
-        ) : boxDetail ? (
-          <BoxDetailView box={boxDetail} />
-        ) : null
-      )}
-
-      {!selectedBox && boxes.length > 0 && (
-        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>เลือก Box เพื่อดูรายละเอียด</div>
-      )}
-    </div>
-  );
-}
 
 function toCsv(rows: { date: string; total: number; pass: number; fail: number; pass_rate: number }[]): string {
   const header = ['Date', 'Total', 'Pass', 'Fail', 'Pass Rate (%)'];
@@ -241,20 +166,17 @@ function DailyReportTab() {
 }
 
 export function TraceabilityPage() {
-  const [tab, setTab] = useState<'serial' | 'box' | 'daily'>('serial');
+  const [tab, setTab] = useState<'serial' | 'daily'>('serial');
 
   return (
-    <section className="stack-lg" style={{ maxWidth: 900, margin: '0 auto' }}>
+    <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">Traceability</h1>
-        <p className="panel__subtitle">ติดตามประวัติการผลิตและบรรจุหีบห่อ</p>
+        <p className="panel__subtitle">ติดตามประวัติการผลิตของแต่ละ Serial</p>
 
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
           <button className={`mes-module-tab ${tab === 'serial' ? 'active' : ''}`} onClick={() => setTab('serial')}>
             Serial Search
-          </button>
-          <button className={`mes-module-tab ${tab === 'box' ? 'active' : ''}`} onClick={() => setTab('box')}>
-            Box View
           </button>
           <button className={`mes-module-tab ${tab === 'daily' ? 'active' : ''}`} onClick={() => setTab('daily')}>
             Daily Report
@@ -263,7 +185,6 @@ export function TraceabilityPage() {
 
         <div style={{ marginTop: '1.25rem' }}>
           {tab === 'serial' && <SerialSearchTab />}
-          {tab === 'box'    && <BoxTab />}
           {tab === 'daily'  && <DailyReportTab />}
         </div>
       </div>

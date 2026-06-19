@@ -24,7 +24,8 @@ router.post('/cases', async (req, res) => {
   const { case_id, case_type, ref_po, ref_inv, part_no, due_date } = req.body;
   if (!case_type) return res.status(400).json({ success: false, message: 'case_type required' });
   try {
-    const autoId = case_id || `SCM-${new Date().toISOString().slice(0,7).replace('-','')}-${Date.now().toString().slice(-4)}`;
+    // ใช้ timestamp เต็ม (base36) + สุ่ม กัน case_id ชนกันเมื่อเปิดหลายเคสในวินาทีเดียว
+    const autoId = case_id || `SCM-${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1296).toString(36).toUpperCase().padStart(2, '0')}`;
     const { rows } = await db.query(
       `INSERT INTO scm_cases (case_id, case_type, ref_po, ref_inv, part_no, due_date)
        VALUES ($1,$2,$3,$4,$5,$6)

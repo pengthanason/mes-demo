@@ -135,6 +135,44 @@ export async function exportXlsx(rows: PpProject[]) {
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
+/* ── Donut chart (SVG) ── */
+export function Donut({ data, size = 170 }: { data: { label: string; value: number; color: string }[]; size?: number }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const sw = 18;
+  const r = size / 2 - sw / 2 - 2;
+  const c = size / 2;
+  const C = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', justifyContent: 'center' }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+        <circle cx={c} cy={c} r={r} fill="none" stroke="#eef2f7" strokeWidth={sw} />
+        {total > 0 && data.filter(d => d.value > 0).map((d, i) => {
+          const len = (d.value / total) * C;
+          const seg = (
+            <circle key={i} cx={c} cy={c} r={r} fill="none" stroke={d.color} strokeWidth={sw}
+              strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} transform={`rotate(-90 ${c} ${c})`} />
+          );
+          offset += len;
+          return seg;
+        })}
+        <text x={c} y={c - 2} textAnchor="middle" fontSize="24" fontWeight="800" fill="#1e293b">{total}</text>
+        <text x={c} y={c + 16} textAnchor="middle" fontSize="10" fill="#64748b">รวม</text>
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 130 }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem' }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: d.color, flexShrink: 0 }} />
+            <span style={{ color: 'var(--text-muted)' }}>{d.label}</span>
+            <strong style={{ marginLeft: 'auto', color: '#1e293b' }}>{d.value}</strong>
+            <span style={{ color: '#94a3b8', fontSize: '0.72rem', width: 38, textAlign: 'right' }}>{total > 0 ? `${Math.round(d.value / total * 100)}%` : '—'}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── chart bits ── */
 export function StatCard({ icon, label, value, accent }: { icon: string; label: string; value: number | string; accent: string }) {
   return (

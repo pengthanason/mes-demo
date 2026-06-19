@@ -165,6 +165,7 @@ export function WorkflowBuilder() {
   const [model, setModel] = useState('');
   const [steps, setSteps] = useState<Step[]>([newStep()]);
   const [globalResult, setGlobalResult] = useState('PASS');
+  const [failedIds, setFailedIds] = useState<string[]>([]);   // ขั้นตอนที่เฟล (เมื่อ Result = FAIL)
   const [showFlow, setShowFlow] = useState(false);
   // กระบวนการที่เพิ่มเอง — เก็บใน localStorage ของบราวเซอร์
   const [customProcs, setCustomProcs] = useState<string[]>(() => {
@@ -251,17 +252,30 @@ export function WorkflowBuilder() {
     setSteps(prev => prev.map(s => s.process === name ? { ...s, process: PROCESSES[0] } : s));
   }
 
-  /* บันทึกผล (Record) — บังคับ SN + เวลาทุก step */
+  /* บันทึกผล (Record) — บังคับ SN + เวลาทุก step + ถ้า FAIL ต้องเลือกขั้นที่เฟล */
   function record() {
     if (!serial.trim()) { showToast('กรุณากรอก Serial Number', 'error'); return; }
     if (!steps.length) { showToast('ต้องมีกระบวนการอย่างน้อย 1', 'error'); return; }
     if (steps.some(s => s.seconds === '' || Number(s.seconds) <= 0)) {
       showToast('กรุณากรอกเวลา (วินาที) ให้ครบทุกกระบวนการ', 'error'); return;
     }
+    if (globalResult === 'FAIL' && failedIds.length === 0) {
+      showToast('เลือกขั้นตอนที่ Fail อย่างน้อย 1 ขั้น', 'error'); return;
+    }
+    // ผลรายขั้น: เฟลเฉพาะขั้นที่เลือก (เมื่อ Result=FAIL) ที่เหลือ PASS
+    const perStep = steps.map(s => ({
+      process: s.process,
+      result: (globalResult === 'FAIL' && failedIds.includes(s.id)) ? 'FAIL' : 'PASS',
+    }));
+    const overall = perStep.some(p => p.result === 'FAIL') ? 'FAIL' : 'PASS';
+    const seqStr = steps.map(s => {
+      const failed = globalResult === 'FAIL' && failedIds.includes(s.id);
+      return `${s.process}${failed ? '❌' : ''}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`;
+    }).join(' → ');
     recordResult.mutate(
-      { serial: serial.trim(), customer: customer.trim(), model: model.trim(), sequence: sequenceStr, result: globalResult, total_sec: totalSec, steps: steps.map(s => s.process) },
+      { serial: serial.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: overall, total_sec: totalSec, steps: perStep },
       {
-        onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${globalResult}) สำเร็จ`, 'success'); setSerial(''); },
+        onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${overall}) สำเร็จ`, 'success'); setSerial(''); setFailedIds([]); setGlobalResult('PASS'); },
         onError: (e: any) => showToast(e.message, 'error'),
       }
     );
@@ -369,14 +383,36 @@ export function WorkflowBuilder() {
 
       {/* บันทึกผลเดินสายผลิต (Result PASS/FAIL ยาว + ปุ่มบันทึก) */}
       {!isViewer && (
-        <div style={{ padding: 15, background: 'var(--bg-panel)', borderRadius: 6, border: '1px solid var(--border-color)', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <label className="field" style={{ flex: '1 1 320px', minWidth: 240 }}><span>ผลรวม (Result)</span>
-            <div><Dropdown value={globalResult} options={RESULT_OPTS} onChange={setGlobalResult} /></div>
-          </label>
-          <button type="button" className="btn" onClick={record} disabled={!serial.trim() || steps.length === 0 || recordResult.isPending}
-            style={{ background: '#27ae60', borderColor: '#27ae60', color: '#fff', fontWeight: 600, minHeight: 42, padding: '0 24px' }}>
-            {recordResult.isPending ? 'กำลังบันทึก...' : '💾 บันทึกผล'}
-          </button>
+        <div style={{ padding: 15, background: 'var(--bg-panel)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <label className="field" style={{ flex: '1 1 320px', minWidth: 240 }}><span>ผลรวม (Result)</span>
+              <div><Dropdown value={globalResult} options={RESULT_OPTS} onChange={v => { setGlobalResult(v); if (v !== 'FAIL') setFailedIds([]); }} /></div>
+            </label>
+            <button type="button" className="btn" onClick={record} disabled={!serial.trim() || steps.length === 0 || recordResult.isPending}
+              style={{ background: '#27ae60', borderColor: '#27ae60', color: '#fff', fontWeight: 600, minHeight: 42, padding: '0 24px' }}>
+              {recordResult.isPending ? 'กำลังบันทึก...' : '💾 บันทึกผล'}
+            </button>
+          </div>
+
+          {/* เลือกขั้นที่ FAIL (เมื่อ Result = FAIL) */}
+          {globalResult === 'FAIL' && (
+            <div style={{ marginTop: 12, padding: 12, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6 }}>
+              <div style={{ fontWeight: 700, color: '#991b1b', fontSize: '0.85rem', marginBottom: 8 }}>❌ เลือกขั้นตอนที่ Fail (เลือกได้หลายขั้น):</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {steps.map((s, i) => {
+                  const on = failedIds.includes(s.id);
+                  return (
+                    <button key={s.id} type="button"
+                      onClick={() => setFailedIds(prev => on ? prev.filter(x => x !== s.id) : [...prev, s.id])}
+                      style={{ padding: '6px 12px', borderRadius: 999, border: `1px solid ${on ? '#dc2626' : '#cbd5e1'}`, background: on ? '#fee2e2' : '#fff', color: on ? '#991b1b' : '#475569', fontWeight: on ? 700 : 500, cursor: 'pointer', fontSize: '0.82rem' }}>
+                      {on ? '✗ ' : ''}Step {i + 1}: {s.process}
+                    </button>
+                  );
+                })}
+              </div>
+              {failedIds.length === 0 && <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: 8 }}>* ต้องเลือกอย่างน้อย 1 ขั้น</div>}
+            </div>
+          )}
         </div>
       )}
 

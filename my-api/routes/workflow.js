@@ -70,12 +70,15 @@ router.post('/results', async (req, res) => {
     if (Array.isArray(steps) && steps.length) {
       const woTag = (model || customer || 'WORKFLOW');
       for (let i = 0; i < steps.length; i++) {
-        const st = typeof steps[i] === 'string' ? steps[i] : (steps[i] && steps[i].process) || '';
+        const sObj = steps[i];
+        const st = typeof sObj === 'string' ? sObj : (sObj && sObj.process) || '';
         if (!st) continue;
+        // ผลรายขั้น: ถ้าส่งมาเป็น object ที่มี result ใช้ค่านั้น (เฟลเฉพาะขั้นที่เลือก) ไม่งั้นใช้ผลรวม
+        const stepResult = (sObj && typeof sObj === 'object' && (sObj.result === 'FAIL' || sObj.result === 'PASS')) ? sObj.result : r;
         await db.query(
           `INSERT INTO production_scans (wo_id, serial, station, result, operator, note, scanned_at)
            VALUES ($1,$2,$3,$4,$5,$6, NOW() + make_interval(secs => $7))`,
-          [woTag, sn, String(st), r, '', 'จาก Workflow', i]
+          [woTag, sn, String(st), stepResult, '', stepResult === 'FAIL' ? 'จาก Workflow (FAIL)' : 'จาก Workflow', i]
         );
       }
     }
