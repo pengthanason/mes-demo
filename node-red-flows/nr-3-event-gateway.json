@@ -1,0 +1,172 @@
+[
+    {
+        "id": "282976e4e20b1a1e",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "4aae3d5e2595ee10",
+        "type": "inject",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "1",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 230,
+        "y": 380,
+        "wires": [
+            [
+                "8f7d36092be5482b"
+            ]
+        ]
+    },
+    {
+        "id": "8f7d36092be5482b",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "simulate-machine",
+        "func": "const types = [\"SETUP_START\", \"SETUP_END\", \"RUN_START\", \"PAUSE\", \"RESUME\", \"STOP\"];\nmsg.payload = types[Math.floor(Math.random() * types.length)];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 400,
+        "wires": [
+            [
+                "bc61cb0eee7d93d0"
+            ]
+        ]
+    },
+    {
+        "id": "bc61cb0eee7d93d0",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "build MES payload",
+        "func": "msg.payload = {\n  wo_id: 1,\n  event_type: msg.payload\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 710,
+        "y": 400,
+        "wires": [
+            [
+                "edbdb519b8d01ca2"
+            ]
+        ]
+    },
+    {
+        "id": "c19223b21c9a0e43",
+        "type": "switch",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "200",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            },
+            {
+                "t": "eq",
+                "v": "201",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 1230,
+        "y": 420,
+        "wires": [
+            [
+                "40fd686e4db5a033"
+            ],
+            [
+                "c492cddf4c4c73b2"
+            ],
+            [
+                "40fd686e4db5a033"
+            ]
+        ]
+    },
+    {
+        "id": "edbdb519b8d01ca2",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "mock mes response",
+        "func": "// จำลองว่า MES ตอบ 200 หรือ 409 แบบสุ่ม\nmsg.statusCode = Math.random() > 0.3 ? 200 : 409;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1040,
+        "y": 420,
+        "wires": [
+            [
+                "c19223b21c9a0e43"
+            ]
+        ]
+    },
+    {
+        "id": "40fd686e4db5a033",
+        "type": "debug",
+        "z": "282976e4e20b1a1e",
+        "name": "ok",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1350,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "c492cddf4c4c73b2",
+        "type": "debug",
+        "z": "282976e4e20b1a1e",
+        "name": "failed.",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1350,
+        "y": 500,
+        "wires": []
+    }
+]

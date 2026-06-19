@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { usePpCreate, usePpUpdate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
 import { showToast } from '../lib/toast';
+import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
+
+// hex (#rrggbb) → ARGB ('FFRRGGBB') สำหรับ ExcelJS
+const argb = (hex: string) => 'FF' + hex.replace('#', '').toUpperCase();
+
+// ตัด timestamp ออก เหลือแค่วันที่ DD/MM/YYYY (กัน Excel โชว์ 00:00:00)
+const xlsxDate = (v: string | null | undefined) => {
+  if (!v) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v).slice(0, 10));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v);
+};
 
 export const STATUS_STYLE: Record<string, { bg: string; text: string; border: string }> = {
   DONE:        { bg: '#dcfce7', text: '#166534', border: '#86efac' },
@@ -25,17 +36,19 @@ export const yesNo = (b: boolean) => b ? '✓' : '';
 export async function exportXlsx(rows: PpProject[]) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet('Production Plan', { views: [{ state: 'frozen', ySplit: 3 }] });
+  const ws = wb.addWorksheet('Production Plan', { views: [{ state: 'frozen', ySplit: 3, showGridLines: false }] });
 
   // ความกว้างคอลัมน์ A–AD (30 คอลัมน์)
   const widths = [11, 5, 12, 17, 28, 7, 14, 13, 14, 5, 5, 5, 5, 7, 7, 7, 11, 11, 9, 11, 12, 12, 12, 7, 11, 13, 8, 9, 9, 32];
   ws.columns = widths.map(w => ({ width: w }));
 
-  // แถว 1 — หัวเรื่อง
-  ws.mergeCells('A1:G1');
-  ws.getCell('A1').value = 'Production Plan';
+  // แถว 1 — โลโก้ SYNTECH (มุมบนซ้าย A1:C1) + หัวเรื่อง + รหัสฟอร์ม
+  ws.getRow(1).height = 42;
+  const logoId = wb.addImage({ base64: SYNTECH_LOGO_PNG_BASE64, extension: 'png' });
+  ws.addImage(logoId, { tl: { col: 0.15, row: 0.15 }, ext: { width: 210, height: 48 } });
+  ws.mergeCells('E1:I1');
+  ws.getCell('E1').value = 'Production Plan';
   ws.getCell('AD1').value = 'FM03 Rev.01 Ref.EN-P-01';
-  ws.getRow(1).height = 22;
 
   // แถว 2 — หัวกลุ่ม (label อยู่ช่องแรกของกลุ่ม)
   ws.getRow(2).values = ['Status', 'WK', 'DATE Record', 'Product P/N', 'MODEL', 'QTY', 'SYN Requestor',
@@ -56,12 +69,12 @@ export async function exportXlsx(rows: PpProject[]) {
   // แถวข้อมูล (เริ่ม row 4)
   rows.forEach(p => {
     ws.addRow([
-      PP_STATUS_LABEL[p.status] ?? p.status, p.wk ?? '', p.date_record ?? '', p.product_pn, p.model, p.qty, p.syn_requestor ?? '',
+      PP_STATUS_LABEL[p.status] ?? p.status, p.wk ?? '', xlsxDate(p.date_record), p.product_pn, p.model, p.qty, p.syn_requestor ?? '',
       p.work_order ?? '', p.matl_coming ?? '',
       yesNo(p.chk_man), yesNo(p.chk_mac), yesNo(p.chk_med), yesNo(p.chk_mat),
-      yesNo(p.pd_pcba), yesNo(p.pd_bbas), yesNo(p.pd_test), p.pd_start_date ?? '', p.pd_finish_date ?? '',
-      p.qa_test_rate ?? '', p.qa_finish_date ?? '', p.store_received ?? '',
-      p.expected_date ?? '', p.revised_date ?? '', yesNo(p.done),
+      yesNo(p.pd_pcba), yesNo(p.pd_bbas), yesNo(p.pd_test), xlsxDate(p.pd_start_date), xlsxDate(p.pd_finish_date),
+      p.qa_test_rate ?? '', xlsxDate(p.qa_finish_date), xlsxDate(p.store_received),
+      xlsxDate(p.expected_date), xlsxDate(p.revised_date), yesNo(p.done),
       p.pd_pic ?? '', p.team_member ?? '', p.ok_per_day ?? '', p.total_ng ?? '', p.total_ok ?? '', p.remark ?? '',
     ]);
   });
@@ -73,23 +86,46 @@ export async function exportXlsx(rows: PpProject[]) {
   // สไตล์ทั้งตาราง (row 1–lastRow, col 1–30)
   for (let r = 1; r <= lastRow; r++) {
     const row = ws.getRow(r);
-    row.height = r <= 3 ? (r === 1 ? 22 : 18) : 16;
+    if (r >= 2) row.height = r <= 3 ? 18 : 16;     // แถว 1 คงสูง 42 (มีโลโก้)
+    const p = r > 3 ? rows[r - 4] : null;
+    const st = p ? (STATUS_STYLE[p.status] ?? STATUS_STYLE.ON_PROCESS) : null;
     for (let c = 1; c <= 30; c++) {
       const cell = row.getCell(c);
-      cell.border = border;
+      // ไม่ใส่เส้นขอบเซลล์ A1–D1 (ใต้โลโก้) จะได้ไม่มีเส้นทับรูป
+      if (!(r === 1 && c <= 4)) cell.border = border;
       if (r === 1) {
-        cell.font = { bold: true, size: 13, color: { argb: 'FF1E293B' } };
+        // หัวเรื่อง: ชื่อ "Production Plan" ตัวใหญ่สีเขียว SYNTECH, รหัสฟอร์มชิดขวา
+        cell.font = { bold: true, size: c === 5 ? 28 : 9, color: { argb: c === 5 ? 'FF2E7D32' : 'FF64748B' } };
         cell.alignment = { vertical: 'middle', horizontal: c === 30 ? 'right' : 'left' };
+        // พื้นขาวใต้โลโก้ (A1–D1) กัน gridline ทะลุพื้นโปร่งของรูป
+        if (c <= 4) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
       } else if (r <= 3) {
-        cell.font = { bold: true, size: 9, color: { argb: 'FF1E293B' } };
+        // หัวตาราง: โทนเขียว SYNTECH — ยกเว้น Expected(ส้ม) / Revised(เหลือง) / DONE(เขียว) ตามฟอร์ม
+        const vivid = c === 22 ? 'FFFFC000' : c === 23 ? 'FFFFFF00' : c === 24 ? 'FF00B050' : null;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: vivid ?? (r === 2 ? 'FFD9EAD3' : 'FFEAF3E4') } };
+        cell.font = { bold: true, size: 9, color: { argb: c === 24 ? 'FFFFFFFF' : 'FF1B4332' } };
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: r === 2 ? 'FFDCE6F4' : 'FFEDF2F9' } };
       } else {
         cell.font = { size: 9, color: { argb: 'FF1E293B' } };
         cell.alignment = { vertical: 'middle', horizontal: c >= 10 && c <= 24 ? 'center' : 'left', wrapText: c === 30 };
+        // คอลัมน์ Status (c=1) ลงสีตามสถานะ ให้เหมือนฟอร์ม
+        if (c === 1 && st) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(st.bg) } };
+          cell.font = { size: 9, bold: true, color: { argb: argb(st.text) } };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        }
+        // DONE (c=24) ติ๊กถูกเป็นสีเขียว
+        if (c === 24 && p?.done) cell.font = { size: 11, bold: true, color: { argb: 'FF16A34A' } };
       }
     }
   }
+
+  // ตั้ง font ของ title หลัง loop — เพราะ E1:I1 merge ทำให้ slave cell (F1..I1) ไปทับ master E1 ใน loop
+  const titleCell = ws.getCell('E1');
+  titleCell.font = { bold: true, size: 28, color: { argb: 'FF2E7D32' } };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  ws.getCell('AD1').font = { bold: true, size: 9, color: { argb: 'FF64748B' } };
+  ws.getCell('AD1').alignment = { vertical: 'middle', horizontal: 'right' };
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

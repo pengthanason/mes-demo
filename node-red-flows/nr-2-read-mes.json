@@ -1,0 +1,31 @@
+[
+    {
+        "id": "e3966b53253a7cc8",
+        "type": "inject",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 360,
+        "wires": [
+            [
+                "8ded08ab916a3069"
+            ]
+        ]
+    }
+]

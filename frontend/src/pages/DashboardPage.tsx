@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePpProjects, usePpDelete, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject, type PpFilters } from '../lib/ppApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { FactoryOverview } from '../components/FactoryOverview';
 import {
   STATUS_STYLE, StatusBadge, fmtDate, exportXlsx, StatCard, BarRow, ChartCard, ProjectFormModal,
 } from '../components/ppParts';
@@ -32,6 +34,12 @@ export function DashboardPage() {
   const [filters, setFilters] = useState<PpFilters>({});
   const { data: rows = [], isLoading } = usePpProjects(filters);
   const del = usePpDelete();
+  const queryClient = useQueryClient();
+  // รีเฟรชข้อมูลทั้ง dashboard ทุก 10 วินาที
+  useEffect(() => {
+    const t = setInterval(() => { void queryClient.invalidateQueries(); }, 10000);
+    return () => clearInterval(t);
+  }, [queryClient]);
   const [edit, setEdit] = useState<PpProject | null>(null);
   const [adding, setAdding] = useState(false);
   const [page, setPage] = useState(1);
@@ -67,10 +75,12 @@ export function DashboardPage() {
 
   return (
     <section className="stack-lg">
+      <FactoryOverview />
+
       <div className="panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h1 className="panel__title">Production Plan Dashboard</h1>
+            <h1 className="panel__title">📋 Production Plan</h1>
             <p className="panel__subtitle">ภาพรวมและตรวจสอบงานผลิต — ข้อมูลจาก Add Project</p>
           </div>
           {!isViewer && (

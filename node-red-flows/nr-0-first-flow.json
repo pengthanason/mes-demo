@@ -1,0 +1,75 @@
+[
+    {
+        "id": "282976e4e20b1a1e",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "d95a79a1c7e2efcd",
+        "type": "inject",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "สวัสดีจากไลน์ผลิต",
+        "payloadType": "str",
+        "x": 180,
+        "y": 280,
+        "wires": [
+            [
+                "50925c24417d07b5"
+            ]
+        ]
+    },
+    {
+        "id": "975530f224b7bb68",
+        "type": "debug",
+        "z": "282976e4e20b1a1e",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 580,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "50925c24417d07b5",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "function 1",
+        "func": "\n  msg.payload = \"เครื่องส่งมาว่า: \" + msg.payload;\n  return msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 280,
+        "wires": [
+            [
+                "975530f224b7bb68"
+            ]
+        ]
+    }
+]

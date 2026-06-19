@@ -1,0 +1,947 @@
+[
+    {
+        "id": "282976e4e20b1a1e",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "081062987a58807d",
+        "type": "inject",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 230,
+        "y": 340,
+        "wires": [
+            [
+                "8e1e577b03d190aa"
+            ]
+        ]
+    },
+    {
+        "id": "8e1e577b03d190aa",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R1 simulate",
+        "func": "const states = [\"RUNNING\", \"IDLE\", \"DOWN\"];\nmsg.payload = {\n  machine_id: \"R1\",\n  temp: Math.round(50 + Math.random() * 50),\n  status: states[Math.floor(Math.random() * states.length)]\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 340,
+        "wires": [
+            [
+                "3490e99111b59abf"
+            ]
+        ]
+    },
+    {
+        "id": "3490e99111b59abf",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R1 split",
+        "func": "msg.temp = msg.payload.temp;\nmsg.status = msg.payload.status;\nmsg.machine_id = msg.payload.machine_id;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 620,
+        "y": 340,
+        "wires": [
+            [
+                "ce48fb3e22d1e57b",
+                "fcb5a90794872c7f",
+                "2f9b95b82d3efb96"
+            ]
+        ]
+    },
+    {
+        "id": "ce48fb3e22d1e57b",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R1 temp value",
+        "func": "msg.payload = msg.temp;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 780,
+        "y": 200,
+        "wires": [
+            [
+                "f85be736fa4a2e67"
+            ]
+        ]
+    },
+    {
+        "id": "f85be736fa4a2e67",
+        "type": "ui_gauge",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "group": "777884bfc69e826b",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "R1 temp",
+        "label": "°C",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "120",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1020,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "fcb5a90794872c7f",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R1 status value",
+        "func": "msg.payload = msg.status;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 840,
+        "y": 360,
+        "wires": [
+            [
+                "9e8f2942ffd50c4e"
+            ]
+        ]
+    },
+    {
+        "id": "9e8f2942ffd50c4e",
+        "type": "ui_text",
+        "z": "282976e4e20b1a1e",
+        "group": "777884bfc69e826b",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "R1 status",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1080,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "2f9b95b82d3efb96",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R1 alert check",
+        "func": "msg.payload = msg.temp;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 840,
+        "y": 480,
+        "wires": [
+            [
+                "be032687988a1c42"
+            ]
+        ]
+    },
+    {
+        "id": "be032687988a1c42",
+        "type": "switch",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gt",
+                "v": "85",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "\"DOWN\"",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 1070,
+        "y": 500,
+        "wires": [
+            [
+                "c2c45ee5c5170e8c"
+            ],
+            [
+                "c2c45ee5c5170e8c"
+            ],
+            [
+                "b391fcd783d30efd"
+            ]
+        ]
+    },
+    {
+        "id": "c2c45ee5c5170e8c",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R1 alert msg",
+        "func": "if (msg.payload > 85) {\n  msg.payload = \"⚠️ R1: อุณหภูมิเกิน \" + msg.payload + \"°C\";\n} else {\n  msg.payload = \"⚠️ R1: เครื่อง DOWN\";\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1350,
+        "y": 480,
+        "wires": [
+            [
+                "5f0170d48e68bdba"
+            ]
+        ]
+    },
+    {
+        "id": "5f0170d48e68bdba",
+        "type": "ui_text",
+        "z": "282976e4e20b1a1e",
+        "group": "777884bfc69e826b",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "alert",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1570,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "b391fcd783d30efd",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R1 clear alert",
+        "func": "msg.payload = \"✅ R1: ปกติ\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1290,
+        "y": 600,
+        "wires": [
+            [
+                "5f0170d48e68bdba"
+            ]
+        ]
+    },
+    {
+        "id": "a5df3cea40764ce0",
+        "type": "inject",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 170,
+        "y": 840,
+        "wires": [
+            [
+                "385f9d6cfdfe586b"
+            ]
+        ]
+    },
+    {
+        "id": "385f9d6cfdfe586b",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R2 simulate",
+        "func": "const states = [\"RUNNING\", \"IDLE\", \"DOWN\"];\nmsg.payload = {\n  machine_id: \"R2\",\n  temp: Math.round(50 + Math.random() * 50),\n  status: states[Math.floor(Math.random() * states.length)]\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 840,
+        "wires": [
+            [
+                "40e23c78218dd717"
+            ]
+        ]
+    },
+    {
+        "id": "40e23c78218dd717",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R2 split",
+        "func": "msg.temp = msg.payload.temp;\nmsg.status = msg.payload.status;\nmsg.machine_id = msg.payload.machine_id;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 560,
+        "y": 840,
+        "wires": [
+            [
+                "346a80c7c2843c05",
+                "7b461fbc9a1c3589",
+                "5a2dd286cf77bbc7"
+            ]
+        ]
+    },
+    {
+        "id": "346a80c7c2843c05",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R2 temp value",
+        "func": "msg.payload = msg.temp;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 720,
+        "y": 700,
+        "wires": [
+            [
+                "ffd413cecba539c8"
+            ]
+        ]
+    },
+    {
+        "id": "ffd413cecba539c8",
+        "type": "ui_gauge",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "group": "777884bfc69e826b",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "R2 temp",
+        "label": "°C",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "120",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 960,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "7b461fbc9a1c3589",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R2 status value",
+        "func": "msg.payload = msg.status;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 780,
+        "y": 860,
+        "wires": [
+            [
+                "e0fa41974a02cd8b"
+            ]
+        ]
+    },
+    {
+        "id": "e0fa41974a02cd8b",
+        "type": "ui_text",
+        "z": "282976e4e20b1a1e",
+        "group": "777884bfc69e826b",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "R2 status",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1020,
+        "y": 860,
+        "wires": []
+    },
+    {
+        "id": "5a2dd286cf77bbc7",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R2 alert check",
+        "func": "msg.payload = msg.temp;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 780,
+        "y": 980,
+        "wires": [
+            [
+                "a888fad0cfebdf7a"
+            ]
+        ]
+    },
+    {
+        "id": "a888fad0cfebdf7a",
+        "type": "switch",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gt",
+                "v": "85",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "\"DOWN\"",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 1010,
+        "y": 1000,
+        "wires": [
+            [
+                "ac91cfd1149f46f8"
+            ],
+            [
+                "ac91cfd1149f46f8"
+            ],
+            [
+                "11ccbffa529f3998"
+            ]
+        ]
+    },
+    {
+        "id": "ac91cfd1149f46f8",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R2 alert msg",
+        "func": "if (msg.payload > 85) {\n  msg.payload = \"⚠️ R2: อุณหภูมิเกิน \" + msg.payload + \"°C\";\n} else {\n  msg.payload = \"⚠️ R2: เครื่อง DOWN\";\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1290,
+        "y": 980,
+        "wires": [
+            [
+                "959259209dcae929"
+            ]
+        ]
+    },
+    {
+        "id": "959259209dcae929",
+        "type": "ui_text",
+        "z": "282976e4e20b1a1e",
+        "group": "777884bfc69e826b",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "alert",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1510,
+        "y": 1000,
+        "wires": []
+    },
+    {
+        "id": "11ccbffa529f3998",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R2 clear alert",
+        "func": "msg.payload = \"✅ R2: ปกติ\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1230,
+        "y": 1100,
+        "wires": [
+            [
+                "959259209dcae929"
+            ]
+        ]
+    },
+    {
+        "id": "b535e01fa28f37fd",
+        "type": "inject",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 250,
+        "y": 1420,
+        "wires": [
+            [
+                "064eac6e87d8077c"
+            ]
+        ]
+    },
+    {
+        "id": "064eac6e87d8077c",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R3 simulate",
+        "func": "const states = [\"RUNNING\", \"IDLE\", \"DOWN\"];\nmsg.payload = {\n  machine_id: \"R3\",\n  temp: Math.round(50 + Math.random() * 50),\n  status: states[Math.floor(Math.random() * states.length)]\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 470,
+        "y": 1420,
+        "wires": [
+            [
+                "03dd25ad2402ecf5"
+            ]
+        ]
+    },
+    {
+        "id": "03dd25ad2402ecf5",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R3 split",
+        "func": "msg.temp = msg.payload.temp;\nmsg.status = msg.payload.status;\nmsg.machine_id = msg.payload.machine_id;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 640,
+        "y": 1420,
+        "wires": [
+            [
+                "9cea62671c5e5af5",
+                "d2019a919a565ab8",
+                "07369a8b50cd7431"
+            ]
+        ]
+    },
+    {
+        "id": "9cea62671c5e5af5",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R3 temp value",
+        "func": "msg.payload = msg.temp;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 800,
+        "y": 1280,
+        "wires": [
+            [
+                "613f9a54478484f1"
+            ]
+        ]
+    },
+    {
+        "id": "613f9a54478484f1",
+        "type": "ui_gauge",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "group": "777884bfc69e826b",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "R3 temp",
+        "label": "°C",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "120",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1040,
+        "y": 1280,
+        "wires": []
+    },
+    {
+        "id": "d2019a919a565ab8",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R3 status value",
+        "func": "msg.payload = msg.status;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 860,
+        "y": 1440,
+        "wires": [
+            [
+                "7b2e8fd4ac66c2de"
+            ]
+        ]
+    },
+    {
+        "id": "7b2e8fd4ac66c2de",
+        "type": "ui_text",
+        "z": "282976e4e20b1a1e",
+        "group": "777884bfc69e826b",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "R3 status",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1100,
+        "y": 1440,
+        "wires": []
+    },
+    {
+        "id": "07369a8b50cd7431",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R3 alert check",
+        "func": "msg.payload = msg.temp;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 860,
+        "y": 1560,
+        "wires": [
+            [
+                "0ae81e993a0827c1"
+            ]
+        ]
+    },
+    {
+        "id": "0ae81e993a0827c1",
+        "type": "switch",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gt",
+                "v": "85",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "\"DOWN\"",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 1090,
+        "y": 1580,
+        "wires": [
+            [
+                "fe2458d303543218"
+            ],
+            [
+                "fe2458d303543218"
+            ],
+            [
+                "b098b547b03321f8"
+            ]
+        ]
+    },
+    {
+        "id": "fe2458d303543218",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R3 alert msg",
+        "func": "if (msg.payload > 85) {\n  msg.payload = \"⚠️ R1: อุณหภูมิเกิน \" + msg.payload + \"°C\";\n} else {\n  msg.payload = \"⚠️ R1: เครื่อง DOWN\";\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1370,
+        "y": 1560,
+        "wires": [
+            [
+                "1428692724b7d822"
+            ]
+        ]
+    },
+    {
+        "id": "1428692724b7d822",
+        "type": "ui_text",
+        "z": "282976e4e20b1a1e",
+        "group": "777884bfc69e826b",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "alert",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1590,
+        "y": 1580,
+        "wires": []
+    },
+    {
+        "id": "b098b547b03321f8",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "R3 clear alert",
+        "func": "msg.payload = \"✅ R3: ปกติ\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1310,
+        "y": 1680,
+        "wires": [
+            [
+                "1428692724b7d822"
+            ]
+        ]
+    },
+    {
+        "id": "08a988ba8b0ad101",
+        "type": "inject",
+        "z": "282976e4e20b1a1e",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 270,
+        "y": 1760,
+        "wires": [
+            [
+                "aa04f09086dcefb6"
+            ]
+        ]
+    },
+    {
+        "id": "aa04f09086dcefb6",
+        "type": "function",
+        "z": "282976e4e20b1a1e",
+        "name": "all machines",
+        "func": "msg.payload = [\n  { id: \"R1\", temp: Math.round(50 + Math.random() * 50), status: [\"RUNNING\",\"IDLE\",\"DOWN\"][Math.floor(Math.random()*3)] },\n  { id: \"R2\", temp: Math.round(50 + Math.random() * 50), status: [\"RUNNING\",\"IDLE\",\"DOWN\"][Math.floor(Math.random()*3)] },\n  { id: \"R3\", temp: Math.round(50 + Math.random() * 50), status: [\"RUNNING\",\"IDLE\",\"DOWN\"][Math.floor(Math.random()*3)] },\n];\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 510,
+        "y": 1760,
+        "wires": [
+            [
+                "01ad438ecf95b1a6"
+            ]
+        ]
+    },
+    {
+        "id": "01ad438ecf95b1a6",
+        "type": "ui_template",
+        "z": "282976e4e20b1a1e",
+        "group": "777884bfc69e826b",
+        "name": "Dashboard",
+        "order": 9,
+        "width": 0,
+        "height": 0,
+        "format": "<div ng-repeat=\"m in msg.payload\">\n  <span>{{m.id}}</span>\n  <span>{{m.temp}}°C</span>\n  <span ng-style=\"{color: m.status==='DOWN' ? 'red' : m.status==='RUNNING' ? 'green' : 'orange'}\">\n    {{m.status}}\n  </span>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 830,
+        "y": 1760,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "777884bfc69e826b",
+        "type": "ui_group",
+        "name": "Default",
+        "tab": "e8bba4cace610bd0",
+        "order": 1,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "e8bba4cace610bd0",
+        "type": "ui_tab",
+        "name": "Home",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "0f6b7f6d8605ef98",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]

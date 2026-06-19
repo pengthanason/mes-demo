@@ -20,9 +20,7 @@ import { JigProjectPage } from './pages/JigProjectPage.tsx';
 import { JigTestPage } from './pages/JigTestPage.tsx';
 import { ScmCasesPage } from './pages/ScmCasesPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
-import { IncomingPage } from './pages/IncomingPage.tsx';
-import { KittingPage } from './pages/KittingPage.tsx';
-import { ProductionScanPage } from './pages/ProductionScanPage.tsx';
+import { IncomingKittingPage } from './pages/IncomingKittingPage.tsx';
 import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -30,10 +28,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const MAIN_ITEMS = [
   { to: '/dashboard',        label: 'Dashboard' },
   { to: '/production-plan',  label: 'Production Plan' },
-  { to: '/incoming',         label: 'Incoming' },
-  { to: '/kitting',          label: 'Kitting' },
+  { to: '/incoming',         label: 'Incoming & Kitting' },
   { to: '/4m-change',        label: '4M Change' },
-  { to: '/production-scan',  label: 'Production Scan' },
   { to: '/qc-board',         label: 'QC Board' },
   { to: '/qc-result',        label: 'QC Result' },
   { to: '/jig-test',         label: 'Jig Test' },
@@ -94,7 +90,7 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
 }
 
 const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/qc-result', '/jig-test', '/traceability', '/notifications'];
-const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/kitting', '/4m-change', '/production-scan', '/qc-board', '/qc-result', '/jig-test', '/scm-cases', '/traceability', '/notifications'];
+const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/4m-change', '/qc-board', '/qc-result', '/jig-test', '/scm-cases', '/traceability', '/notifications'];
 
 function visibleMainItems(role) {
   if (!role || role === 'viewer') return MAIN_ITEMS.filter(i => VIEWER_ITEMS.includes(i.to));
@@ -476,10 +472,8 @@ function TopNav() {
       }} />
       <NavLink to="/dashboard"       innerRef={ref('/dashboard')}><NavLabel full="Dashboard" short="Home" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/production-plan" innerRef={ref('/production-plan')}><NavLabel full="Production Plan" short="Plan" /></NavLink>}
-      {(role === 'admin' || role === 'member') && <NavLink to="/incoming" innerRef={ref('/incoming')}><NavLabel full="Incoming" short="In" /></NavLink>}
-      {(role === 'admin' || role === 'member') && <NavLink to="/kitting" innerRef={ref('/kitting')}><NavLabel full="Kitting" short="Kit" /></NavLink>}
+      {(role === 'admin' || role === 'member') && <NavLink to="/incoming" innerRef={ref('/incoming')}><NavLabel full="Incoming & Kitting" short="คลัง" /></NavLink>}
       <NavLink to="/4m-change"       innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
-      {(role === 'admin' || role === 'member') && <NavLink to="/production-scan" innerRef={ref('/production-scan')}><NavLabel full="Production Scan" short="Scan" /></NavLink>}
       <NavLink to="/qc-board"        innerRef={ref('/qc-board')}><NavLabel full="QC Board" short="QC" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/qc-result" innerRef={ref('/qc-result')}><NavLabel full="QC Result" short="Result" /></NavLink>}
       <NavLink to="/jig-test"        innerRef={ref('/jig-test')}><NavLabel full="Jig Test" short="Jig" /></NavLink>
@@ -649,8 +643,8 @@ export default function App() {
               <Route path="/jig-test"          element={<AuthGuard><JigTestPage /></AuthGuard>} />
               {/* active routes */}
               <Route path="/production-plan"   element={<RoleGuard allowed={['admin','member']}><ProductionPlanPage /></RoleGuard>} />
-              <Route path="/incoming"          element={<RoleGuard allowed={['admin','member']}><IncomingPage /></RoleGuard>} />
-              <Route path="/kitting"           element={<RoleGuard allowed={['admin','member']}><KittingPage /></RoleGuard>} />
+              <Route path="/incoming"          element={<RoleGuard allowed={['admin','member']}><IncomingKittingPage /></RoleGuard>} />
+              <Route path="/kitting"           element={<Navigate to="/incoming" replace />} />
               <Route path="/4m-change"         element={<AuthGuard><FourMChangePage /></AuthGuard>} />
               <Route path="/4m-change/:crId"   element={<AuthGuard><CrDetailPage /></AuthGuard>} />
               <Route path="/qc-board"          element={<AuthGuard><QcBoard /></AuthGuard>} />
@@ -658,7 +652,6 @@ export default function App() {
               <Route path="/qc/:woId"          element={<RoleGuard allowed={['admin','member']}><QcResultPage /></RoleGuard>} />
               <Route path="/qa-verify/:reqId"  element={<RoleGuard allowed={['admin','member']}><QaVerifyPage /></RoleGuard>} />
               <Route path="/wo/:woId"          element={<AuthGuard><WoDetailPage /></AuthGuard>} />
-              <Route path="/production-scan"   element={<RoleGuard allowed={['admin','member']}><ProductionScanPage /></RoleGuard>} />
               <Route path="/wo/:woId/close"    element={<RoleGuard allowed={['admin','member']}><CloseWoPage /></RoleGuard>} />
               <Route path="/fai/:woId"         element={<RoleGuard allowed={['admin','member']}><FaiPage /></RoleGuard>} />
               <Route path="/notifications"     element={<AuthGuard><NotificationsPage /></AuthGuard>} />
