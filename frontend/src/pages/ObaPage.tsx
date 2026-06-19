@@ -46,7 +46,7 @@ export function ObaPage() {
   }
 
   return (
-    <div className="stack-lg" style={{ maxWidth: '960px', margin: '0 auto' }}>
+    <div className="stack-lg">
       {/* ── Form ── */}
       <div className="panel stack">
         <h2 className="panel__title">Out-of-Box Audit (M08)</h2>

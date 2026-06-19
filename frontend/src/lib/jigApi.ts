@@ -76,6 +76,18 @@ export function useJigProjectCreate() {
   });
 }
 
+export function useJigProjectDelete() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const res = await api.delete(`/jig/projects/${code}`);
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'ลบโปรเจกต์ไม่สำเร็จ');
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jig-projects'] }),
+  });
+}
+
 export function useJigRecordCreate(code: string | undefined) {
   const qc = useQueryClient();
   return useMutation({

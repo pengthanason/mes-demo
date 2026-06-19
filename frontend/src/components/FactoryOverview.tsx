@@ -117,7 +117,7 @@ export function FactoryOverview() {
       </div>
 
       {/* กราฟข้ามโมดูล */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '1rem' }}>
         <ChartCard title="📈 การผลิตรายวัน (7 วันล่าสุด)">
           {m.trend.length ? m.trend.map(d => (
             <BarRow key={d.date} label={`${d.date?.slice(5) ?? ''} · ${pct(rate(d.pass || 0, d.total || 0))}`} value={d.total || 0} max={m.maxTrend} color={rateColor(rate(d.pass || 0, d.total || 0))} />

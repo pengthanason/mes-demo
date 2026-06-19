@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useJigProjects, useJigProjectCreate, JigProject } from '../lib/jigApi';
+import { useJigProjects, useJigProjectCreate, useJigProjectDelete, JigProject } from '../lib/jigApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 
@@ -19,7 +19,7 @@ function PassRateBar({ rate }: { rate: number }) {
   );
 }
 
-function ProjectCard({ p, onClick }: { p: JigProject; onClick: () => void }) {
+function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => void; onDelete?: () => void }) {
   const statusColor = p.isActive ? '#22c55e' : '#9ca3af';
   return (
     <div
@@ -36,9 +36,19 @@ function ProjectCard({ p, onClick }: { p: JigProject; onClick: () => void }) {
             <code>{p.projectCode}</code> · Jig: <code>{p.jigId}</code>
           </div>
         </div>
-        <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: statusColor + '22', color: statusColor }}>
-          {p.isActive ? 'ACTIVE' : 'INACTIVE'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: statusColor + '22', color: statusColor }}>
+            {p.isActive ? 'ACTIVE' : 'INACTIVE'}
+          </span>
+          {onDelete && (
+            <button type="button" title="ลบโปรเจกต์"
+              onClick={e => { e.stopPropagation(); onDelete(); }}
+              style={{ width: 26, height: 26, padding: 0, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, lineHeight: 1, flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; }}
+            >✕</button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -113,6 +123,15 @@ export function JigTestPage() {
   const { data: projects = [], isLoading, error } = useJigProjects();
   const [showCreate, setShowCreate] = useState(false);
   const isViewer = useIsViewer();
+  const del = useJigProjectDelete();
+
+  const handleDelete = (p: JigProject) => {
+    if (!confirm(`ลบโปรเจกต์ "${p.name}" (${p.projectCode})?\nผลทดสอบทั้งหมดของโปรเจกต์นี้จะถูกลบด้วย — กู้คืนไม่ได้`)) return;
+    del.mutate(p.projectCode, {
+      onSuccess: () => showToast('ลบโปรเจกต์แล้ว', 'info'),
+      onError: (e: any) => showToast(e.message, 'error'),
+    });
+  };
 
   const active   = projects.filter(p => p.isActive);
   const inactive = projects.filter(p => !p.isActive);
@@ -138,7 +157,7 @@ export function JigTestPage() {
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
             {active.map(p => (
-              <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} />
+              <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} />
             ))}
           </div>
         </div>
@@ -151,7 +170,7 @@ export function JigTestPage() {
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
             {inactive.map(p => (
-              <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} />
+              <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} />
             ))}
           </div>
         </div>

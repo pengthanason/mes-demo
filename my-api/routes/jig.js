@@ -159,6 +159,19 @@ router.get('/projects/:code/retests', async (req, res) => {
   }
 });
 
+// ── ลบโปรเจกต์ Jig (ลบผลทดสอบ + retest ของมันด้วย) ──
+router.delete('/projects/:code', async (req, res) => {
+  try {
+    await db.query('DELETE FROM jig_retest_requests WHERE project_code=$1', [req.params.code]);
+    await db.query('DELETE FROM jig_test_records WHERE project_code=$1', [req.params.code]);
+    const { rowCount } = await db.query('DELETE FROM jig_projects WHERE project_code=$1', [req.params.code]);
+    if (!rowCount) return res.status(404).json({ status: 'error', message: 'project not found' });
+    res.json({ status: 'success' });
+  } catch (e) {
+    res.status(500).json({ status: 'error', message: e.message });
+  }
+});
+
 router.post('/projects/:code/retest', async (req, res) => {
   const { serial, requested_by } = req.body;
   if (!serial) return res.status(400).json({ status: 'error', message: 'serial required' });

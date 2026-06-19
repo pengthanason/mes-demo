@@ -53,18 +53,32 @@ router.get('/results', async (req, res) => {
 });
 
 router.post('/results', async (req, res) => {
-  const { serial, customer, model, sequence, result, total_sec } = req.body;
+  const { serial, customer, model, sequence, result, total_sec, steps } = req.body;
   if (!serial || !String(serial).trim()) {
     return res.status(400).json({ status: 'error', message: 'ต้องมี Serial Number' });
   }
   const r = (result === 'FAIL') ? 'FAIL' : 'PASS';
+  const sn = String(serial).trim();
   try {
     const { rows } = await db.query(
       `INSERT INTO workflow_results (serial, customer, model, sequence, result, total_sec)
        VALUES ($1,$2,$3,$4,$5,$6)
        RETURNING id, serial, customer, model, sequence, result, total_sec, created_at`,
-      [String(serial).trim(), customer || '', model || '', sequence || '', r, Number(total_sec) || 0]
+      [sn, customer || '', model || '', sequence || '', r, Number(total_sec) || 0]
     );
+    // ป้อนข้อมูลเข้า traceability: เขียน production_scans 1 แถวต่อ 1 กระบวนการ (ค้น serial ใน Traceability เจอ + กราฟรายวันมีข้อมูล)
+    if (Array.isArray(steps) && steps.length) {
+      const woTag = (model || customer || 'WORKFLOW');
+      for (let i = 0; i < steps.length; i++) {
+        const st = typeof steps[i] === 'string' ? steps[i] : (steps[i] && steps[i].process) || '';
+        if (!st) continue;
+        await db.query(
+          `INSERT INTO production_scans (wo_id, serial, station, result, operator, note, scanned_at)
+           VALUES ($1,$2,$3,$4,$5,$6, NOW() + make_interval(secs => $7))`,
+          [woTag, sn, String(st), r, '', 'จาก Workflow', i]
+        );
+      }
+    }
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
     res.status(500).json({ status: 'error', message: e.message });

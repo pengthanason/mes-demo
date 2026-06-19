@@ -608,6 +608,13 @@ tr:hover td { background: #f8fafc; }
   .grid-3col { grid-template-columns: 1fr 1fr; }
   /* tables: tighter cells + smaller font so more fits before horizontal scroll */
   .table th, .table td { padding: 0.5rem 0.5rem; font-size: 0.82rem; }
+  /* ลด padding ของพื้นที่เนื้อหา ให้จอเล็กมีที่มากขึ้น */
+  main { padding: 0.85rem !important; }
+}
+
+/* กันหน้าเลื่อนแนวนอนบนมือถือ (ตารางกว้างให้ scroll ใน wrapper ของมันเอง) */
+@media (max-width: 600px) {
+  .mes-module-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
 @media (max-width: 420px) {

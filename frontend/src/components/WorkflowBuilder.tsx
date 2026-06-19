@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   PROCESSES, useWorkflows, useWorkflowCreate, useWorkflowDelete,
   useWorkflowResults, useWorkflowResultCreate, useWorkflowResultDelete,
@@ -8,6 +8,7 @@ import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 
 type Step = { id: string; process: string; seconds: number | '' };
+const CUSTOM_PROC_KEY = 'mes_custom_processes';
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.round(performance.now())}`);
 const newStep = (): Step => ({ id: uid(), process: PROCESSES[0], seconds: '' });
@@ -23,9 +24,9 @@ function Dropdown({ value, options, onChange, disabled }: {
     <div style={{ position: 'relative', flexGrow: 1, minWidth: 0 }}>
       <div
         onClick={() => !disabled && setOpen(o => !o)}
-        style={{ padding: '8px 10px', border: '1px solid #ccc', borderRadius: 4, background: disabled ? '#f1f5f9' : '#f8fafc', color: '#334155', cursor: disabled ? 'default' : 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
+        style={{ minHeight: 40, boxSizing: 'border-box', padding: '0 12px', border: '1px solid #ccc', borderRadius: 4, background: disabled ? '#f1f5f9' : '#f8fafc', color: '#334155', cursor: disabled ? 'default' : 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected}</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1, position: 'relative', top: 3 }}>{selected}</span>
         {!disabled && <span style={{ fontSize: 10, color: '#64748b' }}>{open ? '▲' : '▼'}</span>}
       </div>
       {open && (
@@ -40,6 +41,46 @@ function Dropdown({ value, options, onChange, disabled }: {
                 onMouseLeave={e => { if (value !== opt.id) e.currentTarget.style.background = '#fff'; }}
               >{opt.name}</div>
             ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── dropdown เลือกกระบวนการ: หลัก(A-Z) → custom(ลบได้) → "+ เพิ่มกระบวนการ" ── */
+function ProcessSelect({ value, main, custom, onChange, onAdd, onDeleteCustom, disabled }: {
+  value: string; main: string[]; custom: string[];
+  onChange: (v: string) => void; onAdd: () => void; onDeleteCustom: (name: string) => void; disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const row = (p: string, isCustom: boolean) => (
+    <div key={p} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f1f5f9', background: value === p ? '#e0f2fe' : '#fff' }}>
+      <div style={{ flexGrow: 1, padding: '8px 10px', cursor: 'pointer', color: value === p ? '#0369a1' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+        onClick={() => { onChange(p); setOpen(false); }}>{p}</div>
+      {isCustom && (
+        <button type="button" onClick={e => { e.stopPropagation(); onDeleteCustom(p); }}
+          style={{ background: 'transparent', border: 'none', color: '#e74c3c', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}
+          title="ลบกระบวนการนี้" onMouseOver={e => e.currentTarget.style.background = '#fee2e2'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>✕</button>
+      )}
+    </div>
+  );
+  return (
+    <div style={{ position: 'relative', flexGrow: 1, minWidth: 0 }}>
+      <div onClick={() => !disabled && setOpen(o => !o)}
+        style={{ padding: '8px 10px', border: '1px solid #ccc', borderRadius: 4, background: disabled ? '#f1f5f9' : '#f8fafc', color: '#334155', cursor: disabled ? 'default' : 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+        {!disabled && <span style={{ fontSize: 10, color: '#64748b' }}>{open ? '▲' : '▼'}</span>}
+      </div>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => setOpen(false)} />
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, maxHeight: 280, overflowY: 'auto' }}>
+            {main.map(p => row(p, false))}
+            {custom.length > 0 && <div style={{ padding: '4px 10px', fontSize: '0.7rem', color: '#94a3b8', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>กระบวนการที่เพิ่มเอง</div>}
+            {custom.map(p => row(p, true))}
+            <div onClick={() => { setOpen(false); onAdd(); }}
+              style={{ padding: '8px 10px', cursor: 'pointer', fontWeight: 'bold', color: '#0369a1', background: '#f0f9ff', borderTop: '1px solid #e2e8f0' }}>+ เพิ่มกระบวนการ...</div>
           </div>
         </>
       )}
@@ -68,7 +109,7 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
               <div key={w.id} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
                 <div style={{ flexGrow: 1, padding: '8px 10px', cursor: 'pointer', color: '#334155', minWidth: 0 }} onClick={() => { onLoad(w); setOpen(false); }}>
                   <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{w.name || `${w.customer || '—'} · ${w.model || '—'}`}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.steps.join(' → ')}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.steps.map(s => s.process).join(' → ')}</div>
                 </div>
                 {canDelete && (
                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (confirm('ลบ preset นี้?')) onDelete(w.id); }}
@@ -114,7 +155,6 @@ function exportFlowchartPdf(customer: string, model: string, steps: Step[]) {
   w.document.write(html); w.document.close();
 }
 
-const PROC_OPTS = PROCESSES.map(p => ({ id: p, name: p }));
 const RESULT_OPTS = [{ id: 'PASS', name: 'PASS (ผ่าน)' }, { id: 'FAIL', name: 'FAIL (ไม่ผ่าน)' }];
 const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
 
@@ -126,6 +166,11 @@ export function WorkflowBuilder() {
   const [steps, setSteps] = useState<Step[]>([newStep()]);
   const [globalResult, setGlobalResult] = useState('PASS');
   const [showFlow, setShowFlow] = useState(false);
+  // กระบวนการที่เพิ่มเอง — เก็บใน localStorage ของบราวเซอร์
+  const [customProcs, setCustomProcs] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_PROC_KEY) || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem(CUSTOM_PROC_KEY, JSON.stringify(customProcs)); }, [customProcs]);
   // drag-drop
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -165,7 +210,10 @@ export function WorkflowBuilder() {
     const name = window.prompt('ตั้งชื่อ Preset:', customer && model ? `${customer} - ${model}` : '');
     if (name == null) return;            // กดยกเลิก
     if (!name.trim()) { showToast('ต้องตั้งชื่อ Preset', 'error'); return; }
-    create.mutate({ name: name.trim(), customer: customer.trim(), model: model.trim(), steps: steps.map(s => s.process) }, {
+    create.mutate({
+      name: name.trim(), customer: customer.trim(), model: model.trim(),
+      steps: steps.map(s => ({ process: s.process, seconds: s.seconds === '' ? null : Number(s.seconds) })),
+    }, {
       onSuccess: () => showToast(`บันทึก Preset "${name.trim()}" สำเร็จ`, 'success'),
       onError: (e: any) => showToast(e.message, 'error'),
     });
@@ -173,9 +221,34 @@ export function WorkflowBuilder() {
 
   function loadPreset(w: Workflow) {
     setCustomer(w.customer); setModel(w.model);
-    setSteps((w.steps.length ? w.steps : [PROCESSES[0]]).map(p => ({ id: uid(), process: p, seconds: '' as number | '' })));
+    const ws = w.steps.length ? w.steps : [{ process: PROCESSES[0], seconds: null }];
+    setSteps(ws.map(s => ({ id: uid(), process: s.process, seconds: (s.seconds == null ? '' : s.seconds) as number | '' })));
+    // กระบวนการ custom ที่อยู่ใน preset แต่ยังไม่มีในลิสต์ → เพิ่มเข้า list ให้เลือกได้
+    const extra = ws.map(s => s.process).filter(p => p && !PROCESSES.includes(p) && !customProcs.includes(p));
+    if (extra.length) setCustomProcs(prev => [...new Set([...prev, ...extra])]);
     setShowFlow(false);
     showToast(`โหลด Preset "${w.name || w.customer}"`, 'info');
+  }
+
+  /* เพิ่มกระบวนการ custom (เด้ง prompt) แล้วเซ็ตให้ step นั้น */
+  function addCustomProcess(stepId: string) {
+    const name = window.prompt('ชื่อกระบวนการใหม่:');
+    if (name == null) return;
+    const t = name.trim();
+    if (!t) { showToast('ต้องใส่ชื่อกระบวนการ', 'error'); return; }
+    if (PROCESSES.includes(t) || customProcs.includes(t)) {
+      showToast('มีกระบวนการนี้อยู่แล้ว — เลือกได้เลย', 'info');
+    } else {
+      setCustomProcs(prev => [...prev, t]);
+      showToast(`เพิ่มกระบวนการ "${t}" แล้ว`, 'success');
+    }
+    setStep(stepId, { process: t });
+  }
+
+  function deleteCustomProcess(name: string) {
+    if (!confirm(`ลบกระบวนการ "${name}"?\n(ออกจากลิสต์ของบราวเซอร์นี้)`)) return;
+    setCustomProcs(prev => prev.filter(n => n !== name));
+    setSteps(prev => prev.map(s => s.process === name ? { ...s, process: PROCESSES[0] } : s));
   }
 
   /* บันทึกผล (Record) — บังคับ SN + เวลาทุก step */
@@ -186,7 +259,7 @@ export function WorkflowBuilder() {
       showToast('กรุณากรอกเวลา (วินาที) ให้ครบทุกกระบวนการ', 'error'); return;
     }
     recordResult.mutate(
-      { serial: serial.trim(), customer: customer.trim(), model: model.trim(), sequence: sequenceStr, result: globalResult, total_sec: totalSec },
+      { serial: serial.trim(), customer: customer.trim(), model: model.trim(), sequence: sequenceStr, result: globalResult, total_sec: totalSec, steps: steps.map(s => s.process) },
       {
         onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${globalResult}) สำเร็จ`, 'success'); setSerial(''); },
         onError: (e: any) => showToast(e.message, 'error'),
@@ -267,9 +340,13 @@ export function WorkflowBuilder() {
                   <div style={{ background: '#3498db', color: '#fff', padding: '4px 10px', borderRadius: 20, fontSize: 14, fontWeight: 'bold', minWidth: 70, textAlign: 'center' }}>Step {index + 1}</div>
                 </div>
 
-                {/* process dropdown (เรียง A-Z) */}
+                {/* process dropdown: หลัก(A-Z) + custom + เพิ่มกระบวนการ */}
                 <div style={{ display: 'flex', flexGrow: 1, gap: 8, minWidth: 200 }}>
-                  <Dropdown value={step.process} options={PROC_OPTS} onChange={v => setStep(step.id, { process: v })} disabled={isViewer} />
+                  <ProcessSelect value={step.process} main={PROCESSES} custom={customProcs}
+                    onChange={v => setStep(step.id, { process: v })}
+                    onAdd={() => addCustomProcess(step.id)}
+                    onDeleteCustom={deleteCustomProcess}
+                    disabled={isViewer} />
                 </div>
 
                 {/* cycle time (บังคับกรอก) */}

@@ -7,13 +7,28 @@ export const PROCESSES = [
   'MANUAL', 'PACKING', 'SET UP LINE', 'SMT', 'SOLDERING', 'TEST', 'WAV',
 ].slice().sort((a, b) => a.localeCompare(b));
 
+export interface WfStep {
+  process: string;
+  seconds: number | null;
+}
+
 export interface Workflow {
   id: number;
   name: string;
   customer: string;
   model: string;
-  steps: string[];
+  steps: WfStep[];
   created_at: string;
+}
+
+// รองรับทั้งของเก่า (string[]) และใหม่ ({process, seconds}[])
+function normSteps(raw: any): WfStep[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((s: any) =>
+    typeof s === 'string'
+      ? { process: s, seconds: null }
+      : { process: String(s?.process ?? ''), seconds: s?.seconds ?? null }
+  );
 }
 
 export interface WorkflowResult {
@@ -37,7 +52,7 @@ export function useWorkflows() {
       const res = await api.get('/workflow');
       return ((res.data as any)?.data ?? []).map((r: any) => ({
         id: r.id, name: r.name ?? '', customer: r.customer ?? '', model: r.model ?? '',
-        steps: Array.isArray(r.steps) ? r.steps : [], created_at: r.created_at,
+        steps: normSteps(r.steps), created_at: r.created_at,
       }));
     },
   });
@@ -46,7 +61,7 @@ export function useWorkflows() {
 export function useWorkflowCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { name: string; customer: string; model: string; steps: string[] }) => {
+    mutationFn: async (input: { name: string; customer: string; model: string; steps: WfStep[] }) => {
       const res = await api.post('/workflow', input);
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึก Workflow ไม่สำเร็จ');
       return res.data;
@@ -85,7 +100,7 @@ export function useWorkflowResults() {
 export function useWorkflowResultCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { serial: string; customer: string; model: string; sequence: string; result: string; total_sec: number }) => {
+    mutationFn: async (input: { serial: string; customer: string; model: string; sequence: string; result: string; total_sec: number; steps?: string[] }) => {
       const res = await api.post('/workflow/results', input);
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึกผลไม่สำเร็จ');
       return res.data;
