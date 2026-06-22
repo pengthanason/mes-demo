@@ -1,0 +1,9 @@
+# ลดขนาด build context + กัน node_modules ของเครื่องทับใน image
+**/node_modules
+**/dist
+**/.git
+**/.env.local
+my-api/.env
+backend
+scripts
+*.log

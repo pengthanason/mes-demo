@@ -1,5 +1,7 @@
 const express = require('express');
 const cors    = require('cors');
+const path    = require('path');
+const fs      = require('fs');
 const migrate = require('./migrations');
 
 const app  = express();
@@ -30,6 +32,18 @@ app.use('/api/production',     require('./routes/production'));
 app.use('/api/pp',             require('./routes/productionPlan'));
 app.use('/api/workflow',       require('./routes/workflow'));
 app.use('/api',               require('./routes/records'));
+
+// ── Static frontend (single-service deploy: เสิร์ฟหน้าเว็บจาก /public) ─
+// ตอน build ด้วย Dockerfile รวม จะก๊อป frontend/dist มาไว้ที่ ./public
+const PUBLIC_DIR = path.join(__dirname, 'public');
+if (fs.existsSync(PUBLIC_DIR)) {
+  app.use(express.static(PUBLIC_DIR));
+  // SPA fallback: ทุก GET ที่ไม่ใช่ /api → ส่ง index.html (รองรับ HashRouter)
+  app.get(/.*/, (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+  });
+}
 
 // ── 404 ────────────────────────────────────────────────────────────
 app.use((req, res) => {
