@@ -4,7 +4,6 @@ import { useMockAuth } from './lib/useMockStore.ts';
 import { mockLogout } from './lib/mockStore.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
 import { MesAuthPage } from './pages/MesAuthPage.tsx';
-import QcBoard from './pages/quality/index.jsx';
 import { WoDetailPage } from './pages/WoDetailPage.tsx';
 import { CloseWoPage } from './pages/CloseWoPage.tsx';
 import { FaiPage } from './pages/FaiPage.tsx';
@@ -21,6 +20,8 @@ import { JigTestPage } from './pages/JigTestPage.tsx';
 import { ScmCasesPage } from './pages/ScmCasesPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
 import { IncomingKittingPage } from './pages/IncomingKittingPage.tsx';
+import { WorkOrdersPage } from './pages/WorkOrdersPage.tsx';
+import { QcPage } from './pages/QcPage.tsx';
 import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -29,8 +30,8 @@ const MAIN_ITEMS = [
   { to: '/dashboard',        label: 'Dashboard' },
   { to: '/production-plan',  label: 'Production Plan' },
   { to: '/incoming',         label: 'Incoming & Kitting' },
-  { to: '/qc-board',         label: 'QC Board' },
-  { to: '/qc-result',        label: 'QC Result' },
+  { to: '/work-orders',      label: 'Work Orders' },
+  { to: '/qc-board',         label: 'QC' },
   { to: '/jig-test',         label: 'Jig Test' },
   { to: '/traceability',     label: 'Traceability' },
   { to: '/4m-change',        label: '4M Change' },
@@ -90,8 +91,8 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
   );
 }
 
-const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/qc-result', '/jig-test', '/traceability', '/equipment-borrow', '/notifications'];
-const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/4m-change', '/qc-board', '/qc-result', '/jig-test', '/scm-cases', '/traceability', '/equipment-borrow', '/notifications'];
+const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/jig-test', '/traceability', '/equipment-borrow', '/notifications'];
+const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/work-orders', '/4m-change', '/qc-board', '/jig-test', '/scm-cases', '/traceability', '/equipment-borrow', '/notifications'];
 
 function visibleMainItems(role) {
   if (!role || role === 'viewer') return MAIN_ITEMS.filter(i => VIEWER_ITEMS.includes(i.to));
@@ -474,8 +475,8 @@ function TopNav() {
       <NavLink to="/dashboard"       innerRef={ref('/dashboard')}><NavLabel full="Dashboard" short="Home" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/production-plan" innerRef={ref('/production-plan')}><NavLabel full="Production Plan" short="Plan" /></NavLink>}
       {(role === 'admin' || role === 'member') && <NavLink to="/incoming" innerRef={ref('/incoming')}><NavLabel full="Incoming & Kitting" short="คลัง" /></NavLink>}
-      <NavLink to="/qc-board"        innerRef={ref('/qc-board')}><NavLabel full="QC Board" short="QC" /></NavLink>
-      {(role === 'admin' || role === 'member') && <NavLink to="/qc-result" innerRef={ref('/qc-result')}><NavLabel full="QC Result" short="Result" /></NavLink>}
+      {(role === 'admin' || role === 'member') && <NavLink to="/work-orders" innerRef={ref('/work-orders')}><NavLabel full="Work Orders" short="WO" /></NavLink>}
+      <NavLink to="/qc-board"        innerRef={ref('/qc-board')}><NavLabel full="QC" short="QC" /></NavLink>
       <NavLink to="/jig-test"        innerRef={ref('/jig-test')}><NavLabel full="Jig Test" short="Jig" /></NavLink>
       <NavLink to="/traceability"    innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
       <NavLink to="/4m-change"       innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
@@ -651,7 +652,7 @@ export default function App() {
               <Route path="/mes-auth"          element={<MesAuthPage />} />
               <Route path="/dashboard"         element={<AuthGuard><DashboardPage /></AuthGuard>} />
               {/* legacy redirects */}
-              <Route path="/wo-dashboard"      element={<Navigate to="/dashboard" replace />} />
+              <Route path="/wo-dashboard"      element={<Navigate to="/work-orders" replace />} />
               <Route path="/production-report" element={<Navigate to="/dashboard" replace />} />
               <Route path="/routing-history"   element={<Navigate to="/dashboard" replace />} />
               <Route path="/scm-cases"         element={<RoleGuard allowed={['admin','member']}><ScmCasesPage /></RoleGuard>} />
@@ -662,8 +663,9 @@ export default function App() {
               <Route path="/kitting"           element={<Navigate to="/incoming" replace />} />
               <Route path="/4m-change"         element={<AuthGuard><FourMChangePage /></AuthGuard>} />
               <Route path="/4m-change/:crId"   element={<AuthGuard><CrDetailPage /></AuthGuard>} />
-              <Route path="/qc-board"          element={<AuthGuard><QcBoard /></AuthGuard>} />
-              <Route path="/qc-result"         element={<AuthGuard><QcResultPage /></AuthGuard>} />
+              <Route path="/work-orders"       element={<RoleGuard allowed={['admin','member']}><WorkOrdersPage /></RoleGuard>} />
+              <Route path="/qc-board"          element={<AuthGuard><QcPage /></AuthGuard>} />
+              <Route path="/qc-result"         element={<Navigate to="/qc-board" replace />} />
               <Route path="/qc/:woId"          element={<RoleGuard allowed={['admin','member']}><QcResultPage /></RoleGuard>} />
               <Route path="/qa-verify/:reqId"  element={<RoleGuard allowed={['admin','member']}><QaVerifyPage /></RoleGuard>} />
               <Route path="/wo/:woId"          element={<AuthGuard><WoDetailPage /></AuthGuard>} />

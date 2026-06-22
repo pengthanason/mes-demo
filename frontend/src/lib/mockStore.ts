@@ -1,3 +1,5 @@
+import { setAuthTokens, clearAuthTokens } from './api';
+
 export type WoStep = 'DRAFT' | 'OPEN' | 'READY' | 'RUNNING' | 'WAIT_FAI_QA' | 'WAIT_FAI_MGR' | 'CLOSED';
 export type UserRole = 'admin' | 'member' | 'viewer';
 
@@ -94,6 +96,8 @@ export async function apiLogin(username: string, password: string): Promise<{ ok
       return { ok: false, error: (json && json.message) || 'เข้าสู่ระบบไม่สำเร็จ' };
     }
     const u = json.data;
+    // เก็บ token → api.ts จะแนบ Authorization: Bearer ให้ทุก request ที่ไม่ใช่ login
+    setAuthTokens(u.token || btoa(`${u.username}:${u.role}:${Date.now()}`));
     localStorage.setItem(KEYS.AUTH, JSON.stringify({
       isLoggedIn: true,
       username: u.username,
@@ -107,6 +111,7 @@ export async function apiLogin(username: string, password: string): Promise<{ ok
 }
 
 export function mockLogout(): void {
+  clearAuthTokens();
   localStorage.setItem(KEYS.AUTH, JSON.stringify({ isLoggedIn: false, username: '', role: 'viewer' }));
   dispatch();
 }

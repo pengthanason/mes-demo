@@ -96,9 +96,10 @@ export function DashboardPage() {
   const { data: rows = [], isLoading } = usePpProjects(filters);
   const del = usePpDelete();
   const queryClient = useQueryClient();
-  // รีเฟรชข้อมูลทั้ง dashboard ทุก 10 วินาที
+  const [updatedAt, setUpdatedAt] = useState(() => new Date());
+  // รีเฟรชข้อมูลทั้ง dashboard ทุก 10 วินาที + อัปเดตเวลา
   useEffect(() => {
-    const t = setInterval(() => { void queryClient.invalidateQueries(); }, 10000);
+    const t = setInterval(() => { void queryClient.invalidateQueries(); setUpdatedAt(new Date()); }, 10000);
     return () => clearInterval(t);
   }, [queryClient]);
   const [edit, setEdit] = useState<PpProject | null>(null);
@@ -135,7 +136,15 @@ export function DashboardPage() {
 
   return (
     <section className="stack-lg">
-      <FlowGuide />
+      {/* แถบหัว Dashboard — บอกว่าเป็นข้อมูลสด + เวลาอัปเดต (เหมาะกับจอมอนิเตอร์) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>📊 Production Dashboard</h1>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+          <span style={{ width: 9, height: 9, borderRadius: 99, background: '#22c55e', display: 'inline-block', boxShadow: '0 0 0 3px rgba(34,197,94,0.18)' }} />
+          อัปเดต {updatedAt.toLocaleTimeString('th-TH')}
+        </span>
+      </div>
+
       <FactoryOverview />
 
       <div className="panel">
@@ -151,7 +160,7 @@ export function DashboardPage() {
         </div>
 
         {/* KPI — กดเพื่อกรองสถานะในตารางด้านล่าง */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
+        <div className="dash-grid-3" style={{ marginTop: '1.5rem' }}>
           <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#6366f1" onClick={() => setF('status', '')} active={!filters.status} />
           <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => setF('status', 'DONE')} active={filters.status === 'DONE'} />
           <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => setF('status', 'ON_PROCESS')} active={filters.status === 'ON_PROCESS'} />
@@ -162,7 +171,7 @@ export function DashboardPage() {
       </div>
 
       {/* กราฟ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '1rem' }}>
+      <div className="dash-grid-3">
         <ChartCard title="สัดส่วนงานตามสถานะ">
           <Donut data={agg.byStatus} />
         </ChartCard>
@@ -290,6 +299,9 @@ export function DashboardPage() {
         </div>
         <Paginator page={page} totalPages={totalPages} onPage={setPage} total={rows.length} />
       </div>
+
+      {/* คู่มือขั้นตอน — ย้ายมาไว้ล่างสุด (เป็นตัวช่วย ไม่ใช่ตัวเลขที่ต้องโชว์บนมอนิเตอร์) */}
+      <FlowGuide />
 
       {adding && <ProjectFormModal initial={null} onClose={() => setAdding(false)} />}
       {edit && <ProjectFormModal initial={edit} onClose={() => setEdit(null)} />}

@@ -104,7 +104,7 @@ export function FactoryOverview() {
         <p className="panel__subtitle">สรุปข้อมูลทุกโมดูลแบบเรียลไทม์ — ผลิต · QC · Jig · คลัง · 4M · SCM</p>
 
         {/* KPI ข้ามโมดูล */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
+        <div className="dash-grid-4" style={{ marginTop: '1.5rem' }}>
           <ClickCard to="/traceability" icon="✅" label="Production Pass Rate" value={pct(m.prodRate)} accent={rateColor(m.prodRate)} />
           <ClickCard to="/jig-test" icon="🧪" label="Jig Pass Rate" value={pct(m.jigRate)} accent={rateColor(m.jigRate)} />
           <ClickCard to="/production-plan" icon="📑" label="OBA Pass Rate" value={pct(m.obaRate)} accent={rateColor(m.obaRate)} />
@@ -117,7 +117,7 @@ export function FactoryOverview() {
       </div>
 
       {/* กราฟข้ามโมดูล */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '1rem' }}>
+      <div className="dash-grid-3">
         <ChartCard title="📈 การผลิตรายวัน (7 วันล่าสุด)">
           {m.trend.length ? m.trend.map(d => (
             <BarRow key={d.date} label={`${d.date?.slice(5) ?? ''} · ${pct(rate(d.pass || 0, d.total || 0))}`} value={d.total || 0} max={m.maxTrend} color={rateColor(rate(d.pass || 0, d.total || 0))} />
