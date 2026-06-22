@@ -300,7 +300,7 @@ export function DashboardPage() {
         <Paginator page={page} totalPages={totalPages} onPage={setPage} total={rows.length} />
       </div>
 
-      {/* คู่มือขั้นตอน — ย้ายมาไว้ล่างสุด (เป็นตัวช่วย ไม่ใช่ตัวเลขที่ต้องโชว์บนมอนิเตอร์) */}
+      {/* คู่มือขั้นตอน — ล่างสุด */}
       <FlowGuide />
 
       {adding && <ProjectFormModal initial={null} onClose={() => setAdding(false)} />}

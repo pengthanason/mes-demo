@@ -1,7 +1,7 @@
 /* ─── Design tokens ──────────────────────────────────────────────── */
 :root {
   --bg-dark:        #0f172a;
-  --bg-panel:       rgba(30, 41, 59, 0.92);   /* dark accent cards (glass) */
+  --bg-panel:       #f8fafc;                   /* การ์ดพื้นอ่อน (เดิมเป็นสีเข้มทำให้ตัวอักษรอ่านไม่ออก) */
   --bg-content:     #f1f5f9;                   /* main content area */
   --bg-card:        #ffffff;
   --bg-muted:       #f8fafc;
