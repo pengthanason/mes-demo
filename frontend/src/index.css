@@ -575,6 +575,13 @@ tr:hover td { background: #f8fafc; }
 .mt-4 { margin-top: 1rem; }
 
 /* ─── Responsive grid utilities ──────────────────────────────────── */
+/* dashboard grids — แถวเต็ม สัดส่วนเท่ากัน (KPI 4 ต่อแถว, การ์ด/กราฟ 3 ต่อแถว) */
+.dash-grid-4 { display: grid; gap: 1rem; grid-template-columns: repeat(4, 1fr); }
+.dash-grid-3 { display: grid; gap: 1rem; grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 1100px) { .dash-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px)  { .dash-grid-3 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  { .dash-grid-4, .dash-grid-3 { grid-template-columns: 1fr; } }
+
 .grid-2col      { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .grid-3col      { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
 .grid-sidebar   { display: grid; grid-template-columns: 260px 1fr; gap: 1.5rem; align-items: start; }

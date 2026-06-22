@@ -758,7 +758,7 @@ export const handlers = [
     if (!u || b.password !== b.username) {
       return HttpResponse.json({ status: 'error', message: 'username หรือ password ไม่ถูกต้อง' }, { status: 401 });
     }
-    return ok({ id: 1, username: b.username, fullName: u.name, role: u.role });
+    return ok({ id: 1, username: b.username, fullName: u.name, role: u.role, token: btoa(`${b.username}:${u.role}:demo`) });
   }),
 
   // ── BOM create (demo) ──────────────────────────────────────────────────────

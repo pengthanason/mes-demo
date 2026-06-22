@@ -29,7 +29,7 @@ export function WoDetailPage() {
       <div className="notice err" style={{ margin: '2rem' }}>
         WO Not Found: <strong>{woId}</strong>
         <div style={{ marginTop: '1rem' }}>
-          <Link to="/wo-dashboard" className="btn secondary">← กลับ Dashboard</Link>
+          <Link to="/work-orders" className="btn secondary">← กลับ Work Orders</Link>
         </div>
       </div>
     );
@@ -83,7 +83,7 @@ export function WoDetailPage() {
           {canAct && wo.currentStep !== 'CLOSED' && (
             <Link to={`/wo/${wo.woId}/close`} className="btn danger">ปิดงาน (Close)</Link>
           )}
-          <Link to="/wo-dashboard" className="btn secondary">กลับไป Dashboard</Link>
+          <Link to="/work-orders" className="btn secondary">กลับไป Work Orders</Link>
         </div>
       </div>
 

@@ -25,7 +25,9 @@ router.post('/login', async (req, res) => {
       `INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES ($1,'LOGIN',NULL,NULL,'เข้าสู่ระบบสำเร็จ')`,
       [u.username]
     ).catch(() => {});
-    res.json({ status: 'success', data: { id: u.id, username: u.username, fullName: u.full_name, role: u.role } });
+    // ออก token ให้ client แนบใน header Authorization: Bearer ทุก request ที่ไม่ใช่ login
+    const token = Buffer.from(`${u.username}:${u.role}:${Date.now()}`).toString('base64');
+    res.json({ status: 'success', data: { id: u.id, username: u.username, fullName: u.full_name, role: u.role, token } });
   } catch (e) {
     res.status(500).json({ status: 'error', message: e.message });
   }
