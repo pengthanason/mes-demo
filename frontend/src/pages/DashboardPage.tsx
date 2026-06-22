@@ -8,32 +8,25 @@ import { FactoryOverview } from '../components/FactoryOverview';
 import { FlowGuide } from '../components/FlowGuide';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
-  STATUS_STYLE, StatusBadge, fmtDate, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal,
+  STATUS_STYLE, StatusBadge, fmtDate, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal, PP_COLUMNS,
 } from '../components/ppParts';
 
-/* ── พิมพ์เป็น PDF — เลย์เอาต์ตามฟอร์ม Excel FM03 (โลโก้ + หัวกลุ่ม + สี) ── */
+/* ── พิมพ์เป็น PDF — เรียงคอลัมน์ตาม Dashboard (PP_COLUMNS) + โลโก้/สี SYNTECH ── */
 function printPdf(rows: PpProject[]) {
   const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const ck = (b: boolean) => b ? '✓' : '';
-  const pdate = (v: string | null) => {
-    if (!v) return '';
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v).slice(0, 10));
-    return m ? `${m[3]}/${m[2]}/${m[1]}` : esc(v);
-  };
+  const ths = PP_COLUMNS.map(c => {
+    const style = c.headerColor ? ` style="background:#${c.headerColor}${c.headerColor === '00B050' ? ';color:#fff' : ''}"` : '';
+    return `<th${style}>${esc(c.header)}</th>`;
+  }).join('');
   const trs = rows.map(p => {
     const st = STATUS_STYLE[p.status] ?? STATUS_STYLE.ON_PROCESS;
-    const cells = [
-      `<td style="background:${st.bg};color:${st.text};font-weight:700;text-align:center">${esc(PP_STATUS_LABEL[p.status] ?? p.status)}</td>`,
-      `<td>${esc(p.wk ?? '')}</td>`, `<td>${pdate(p.date_record)}</td>`, `<td>${esc(p.product_pn)}</td>`, `<td>${esc(p.model)}</td>`,
-      `<td style="text-align:right">${esc(p.qty)}</td>`, `<td>${esc(p.syn_requestor)}</td>`, `<td>${esc(p.work_order)}</td>`, `<td>${esc(p.matl_coming)}</td>`,
-      `<td class="c">${ck(p.chk_man)}</td>`, `<td class="c">${ck(p.chk_mac)}</td>`, `<td class="c">${ck(p.chk_med)}</td>`, `<td class="c">${ck(p.chk_mat)}</td>`,
-      `<td class="c">${ck(p.pd_pcba)}</td>`, `<td class="c">${ck(p.pd_bbas)}</td>`, `<td class="c">${ck(p.pd_test)}</td>`, `<td>${pdate(p.pd_start_date)}</td>`, `<td>${pdate(p.pd_finish_date)}</td>`,
-      `<td class="c">${esc(p.qa_test_rate ?? '')}</td>`, `<td>${pdate(p.qa_finish_date)}</td>`, `<td>${pdate(p.store_received)}</td>`,
-      `<td>${pdate(p.expected_date)}</td>`, `<td>${pdate(p.revised_date)}</td>`, `<td class="c" style="color:#16a34a;font-weight:700">${ck(p.done)}</td>`,
-      `<td>${esc(p.pd_pic)}</td>`, `<td class="c">${esc(p.team_member ?? '')}</td>`, `<td class="c">${esc(p.ok_per_day ?? '')}</td>`,
-      `<td class="c">${esc(p.total_ng ?? '')}</td>`, `<td class="c">${esc(p.total_ok ?? '')}</td>`, `<td>${esc(p.remark)}</td>`,
-    ];
-    return `<tr>${cells.join('')}</tr>`;
+    const tds = PP_COLUMNS.map(c => {
+      const val = esc(c.value(p));
+      if (c.key === 'status') return `<td style="background:${st.bg};color:${st.text};font-weight:700;text-align:center">${val}</td>`;
+      if (c.key === 'done' && p.done) return `<td class="c" style="color:#16a34a;font-weight:700">${val}</td>`;
+      return `<td${c.center ? ' class="c"' : ''}>${val}</td>`;
+    }).join('');
+    return `<tr>${tds}</tr>`;
   }).join('');
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Production Plan</title>
     <style>
@@ -47,7 +40,6 @@ function printPdf(rows: PpProject[]) {
       th,td{border:1px solid #b0b8c4;padding:2px 3px;text-align:left;word-break:break-word;overflow:hidden}
       th{background:#d9ead3;color:#1b4332;text-align:center;font-size:7.5px}
       td.c{text-align:center}
-      th.c-exp{background:#FFC000}th.c-rev{background:#FFFF00}th.c-done{background:#00B050;color:#fff}
     </style></head>
     <body>
     <div class="hd">
@@ -56,18 +48,7 @@ function printPdf(rows: PpProject[]) {
       <div class="code">FM03 Rev.01 Ref.EN-P-01<br/>${new Date().toLocaleDateString('th-TH')}</div>
     </div>
     <table>
-      <thead>
-        <tr>
-          <th rowspan="2">Status</th><th rowspan="2">WK</th><th rowspan="2">DATE Record</th><th rowspan="2">Product P/N</th><th rowspan="2">MODEL</th><th rowspan="2">QTY</th><th rowspan="2">SYN Requestor</th>
-          <th>PM</th><th>SC</th><th colspan="4">4M Check</th><th colspan="5">PD Plan</th><th colspan="2">QA</th><th>Store</th>
-          <th rowspan="2" class="c-exp">Expected date</th><th rowspan="2" class="c-rev">Revised date</th><th rowspan="2" class="c-done">DONE</th>
-          <th rowspan="2">PD PIC</th><th rowspan="2">Team Member</th><th rowspan="2">OK/DAY</th><th rowspan="2">TOTAL NG</th><th rowspan="2">TOTAL OK</th><th rowspan="2">Remark</th>
-        </tr>
-        <tr>
-          <th>Work Order.</th><th>Mat'l coming</th><th>Man</th><th>Mac</th><th>Med</th><th>Mat</th>
-          <th>PCBA</th><th>BBAS</th><th>TEST</th><th>Start date</th><th>Finish date</th><th>Test rate%</th><th>Finish date</th><th>Received date</th>
-        </tr>
-      </thead>
+      <thead><tr>${ths}</tr></thead>
       <tbody>${trs}</tbody>
     </table>
     <script>window.onload=()=>{window.print()}</script></body></html>`;
@@ -216,72 +197,72 @@ export function DashboardPage() {
           <table className="table table-readonly" style={{ minWidth: 1950, width: '100%', fontSize: '0.78rem' }}>
             <thead>
               <tr>
-                <th rowSpan={2}>Status</th>
-                <th rowSpan={2}>WK</th>
-                <th rowSpan={2}>DATE Record</th>
-                <th rowSpan={2}>Product P/N</th>
-                <th rowSpan={2}>MODEL</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>QTY</th>
-                <th rowSpan={2}>Customer</th>
-                <th rowSpan={2}>WO</th>
-                <th>SC</th>
-                <th colSpan={4} style={{ textAlign: 'center' }}>4M Check</th>
-                <th colSpan={5} style={{ textAlign: 'center' }}>PD Plan</th>
-                <th colSpan={2} style={{ textAlign: 'center' }}>QA</th>
-                <th style={{ textAlign: 'center' }}>Store</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>Expected</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>Revised</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>DONE</th>
-                <th rowSpan={2}>PD PIC</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>Team</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>OK/DAY</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>NG</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>OK</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>Yield</th>
-                <th rowSpan={2}>Remark</th>
-                {!isViewer && <th rowSpan={2} style={{ textAlign: 'center' }}>จัดการ</th>}
-              </tr>
-              <tr>
-                <th>Mat'l coming</th>
+                {/* ── สำคัญ: ขึ้นก่อน ── */}
+                <th>Status</th>
+                <th>Product P/N</th>
+                <th>MODEL</th>
+                <th>Customer</th>
+                <th style={{ textAlign: 'center' }}>QTY</th>
+                <th>DATE Record</th>
+                <th style={{ textAlign: 'center' }}>Expected</th>
+                <th style={{ textAlign: 'center' }}>Revised</th>
+                <th style={{ textAlign: 'center' }}>OK/DAY</th>
+                <th style={{ textAlign: 'center' }}>NG</th>
+                <th style={{ textAlign: 'center' }}>OK</th>
+                <th style={{ textAlign: 'center' }}>Yield</th>
+                <th style={{ textAlign: 'center' }}>DONE</th>
+                {/* ── รายละเอียด ── */}
+                <th style={{ textAlign: 'center' }}>WW</th>
+                <th>WO</th>
                 <th style={{ textAlign: 'center' }}>Man</th><th style={{ textAlign: 'center' }}>Mac</th><th style={{ textAlign: 'center' }}>Med</th><th style={{ textAlign: 'center' }}>Mat</th>
-                <th style={{ textAlign: 'center' }}>PCBA</th><th style={{ textAlign: 'center' }}>BBAS</th><th style={{ textAlign: 'center' }}>TEST</th><th>Start</th><th>Finish</th>
-                <th>Rate%</th><th>Finish</th>
-                <th>Received</th>
+                <th style={{ textAlign: 'center' }}>PCBA</th><th style={{ textAlign: 'center' }}>BBAS</th><th style={{ textAlign: 'center' }}>TEST</th><th style={{ textAlign: 'center' }}>RMA</th>
+                <th style={{ textAlign: 'center' }}>Sampling%</th>
+                <th>PD Start</th><th>PD Finish</th>
+                <th>QA Finish</th>
+                <th>Store</th>
+                <th>Mat'l coming</th>
+                <th>PD PIC</th>
+                <th style={{ textAlign: 'center' }}>Team</th>
+                <th>Remark</th>
+                {!isViewer && <th style={{ textAlign: 'center' }}>จัดการ</th>}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={isViewer ? 31 : 32} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <tr><td colSpan={isViewer ? 32 : 33} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={isViewer ? 31 : 32} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
+                <tr><td colSpan={isViewer ? 32 : 33} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
               ) : paged.map(p => {
                 const y = ppYield(p);
                 const ck = (b: boolean) => b ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span> : <span style={{ color: '#cbd5e1' }}>·</span>;
                 return (
                   <tr key={p.id} style={p.status === 'LATE' ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626' } : undefined}>
+                    {/* ── สำคัญ: ขึ้นก่อน ── */}
                     <td><StatusBadge status={p.status} /></td>
-                    <td>{p.wk ?? '—'}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.date_record)}</td>
                     <td style={{ fontWeight: 600 }}>{p.product_pn || '—'}</td>
                     <td>{p.model || '—'}</td>
-                    <td style={{ textAlign: 'center' }}>{p.qty.toLocaleString()}</td>
                     <td>{p.customer || '—'}</td>
-                    <td>{p.work_order || '—'}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{p.matl_coming || '—'}</td>
-                    <td style={{ textAlign: 'center' }}>{ck(p.chk_man)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_mac)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_med)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_mat)}</td>
-                    <td style={{ textAlign: 'center' }}>{ck(p.pd_pcba)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_bbas)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_test)}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.pd_start_date)}</td><td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.pd_finish_date)}</td>
-                    <td>{p.qa_test_rate || '—'}</td><td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.qa_finish_date)}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.store_received)}</td>
+                    <td style={{ textAlign: 'center' }}>{p.qty.toLocaleString()}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.date_record)}</td>
                     <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{fmtDate(p.expected_date)}</td>
                     <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{fmtDate(p.revised_date)}</td>
-                    <td style={{ textAlign: 'center' }}>{ck(p.done)}</td>
-                    <td>{p.pd_pic || '—'}</td>
-                    <td style={{ textAlign: 'center' }}>{p.team_member || '—'}</td>
                     <td style={{ textAlign: 'center' }}>{p.ok_per_day || '—'}</td>
                     <td style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>
                     <td style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>
                     <td style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(0)}%`}</td>
+                    <td style={{ textAlign: 'center' }}>{ck(p.done)}</td>
+                    {/* ── รายละเอียด ── */}
+                    <td style={{ textAlign: 'center' }}>{p.wk ?? '—'}</td>
+                    <td>{p.work_order || '—'}</td>
+                    <td style={{ textAlign: 'center' }}>{ck(p.chk_man)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_mac)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_med)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_mat)}</td>
+                    <td style={{ textAlign: 'center' }}>{ck(p.pd_pcba)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_bbas)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_test)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_rmaprep)}</td>
+                    <td>{p.qa_test_rate || '—'}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.pd_start_date)}</td><td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.pd_finish_date)}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.qa_finish_date)}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.store_received)}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{p.matl_coming || '—'}</td>
+                    <td>{p.pd_pic || '—'}</td>
+                    <td style={{ textAlign: 'center' }}>{p.team_member || '—'}</td>
                     <td style={{ minWidth: 160, color: 'var(--text-muted)' }}>{p.remark || '—'}</td>
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
