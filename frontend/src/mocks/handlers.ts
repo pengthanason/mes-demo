@@ -492,6 +492,13 @@ export const handlers = [
     reworkList.push(r);
     return ok(r);
   }),
+  http.patch('/api/rework/:id/status', async ({ params, request }) => {
+    const body: any = await request.json();
+    const t = reworkList.find(x => String(x.id) === String(params.id));
+    if (!t) return new HttpResponse(null, { status: 404 });
+    t.status = body.status;
+    return ok(t);
+  }),
 
   // ── OBA ───────────────────────────────────────────────────────────────────
   http.get('/api/oba/list', () => ok(obaRecords)),

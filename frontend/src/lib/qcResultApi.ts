@@ -157,6 +157,18 @@ export function useReworkCreate() {
   });
 }
 
+export function useReworkStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { id: number; status: ReworkStatus }) => {
+      const res = await api.patch(`/rework/${payload.id}/status`, { status: payload.status });
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'อัปเดตสถานะไม่สำเร็จ');
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: REWORK_KEY }),
+  });
+}
+
 export function useTransferVerify(qcResultId: number | null) {
   return useQuery({
     queryKey: ['transfer-verify', qcResultId],

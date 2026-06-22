@@ -3,7 +3,12 @@ import { buildSteps, WO_LIFECYCLE } from '../lib/woLifecycle';
 import { StatusStepper } from '../components/StatusStepper';
 import { useMockAuth } from '../lib/useMockStore';
 import { type WoStep } from '../lib/mockStore';
+import { useQuery } from '@tanstack/react-query';
+import api from '../lib/api';
 import { useWoBoard, useWoPatch } from '../lib/woApi';
+import { useQcResults } from '../lib/qcResultApi';
+import { useKittingIssues } from '../lib/inventoryApi';
+import { ResultBadge } from '../components/ResultBadge';
 import { showToast } from '../lib/toast';
 
 const ADVANCE_LABEL: Partial<Record<WoStep, string>> = {
@@ -17,6 +22,16 @@ export function WoDetailPage() {
   const { woId } = useParams();
   const { data: woList, isLoading } = useWoBoard();
   const patchMut = useWoPatch();
+  const { data: qcResults = [] } = useQcResults(woId);
+  const { data: kitting = [] } = useKittingIssues(woId);
+  const { data: scans = [] } = useQuery({
+    queryKey: ['wo-scans', woId],
+    enabled: !!woId,
+    queryFn: async (): Promise<any[]> => {
+      const r = await api.get('/production/scans', { params: { wo_id: woId, limit: 200 } });
+      return (r.data as any)?.data ?? [];
+    },
+  });
   const auth = useMockAuth();
   const wo = (woList ?? []).find(w => w.woId === woId) ?? null;
 
@@ -95,48 +110,134 @@ export function WoDetailPage() {
       <div className="panel">
         <h2 className="panel__title panel__title--sm">General Information</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Product Code</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.productCode}</div>
           </div>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Customer</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.customer}</div>
           </div>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Station</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.station}</div>
           </div>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Target Qty</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.qty.toLocaleString()} pcs</div>
           </div>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Good Qty</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--success)' }}>
               {wo.actualQty != null ? wo.actualQty.toLocaleString() : wo.qtyGood.toLocaleString()} pcs
             </div>
           </div>
-          <div className="glass-panel" style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Status</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.currentStep}</div>
           </div>
         </div>
       </div>
 
+      {/* ประวัติ QC / QA ของ WO นี้ */}
+      <div className="panel">
+        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติ QC / QA {qcResults.length > 0 && `(${qcResults.length})`}</h2>
+        {qcResults.length === 0 ? (
+          <div style={{ color: 'var(--text-muted)', padding: '0.5rem 0' }}>ยังไม่มีผล QC สำหรับ WO นี้ — บันทึกได้ที่หน้า QC → QC Result</div>
+        ) : (
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+            <table className="table" style={{ minWidth: 680, width: '100%' }}>
+              <thead>
+                <tr>
+                  <th>วันที่</th><th>Lot</th>
+                  <th style={{ textAlign: 'center' }}>ตรวจ</th><th style={{ textAlign: 'center' }}>ผ่าน</th><th style={{ textAlign: 'center' }}>เสีย</th>
+                  <th style={{ textAlign: 'center' }}>ผล QC</th><th>QA Verify</th>
+                </tr>
+              </thead>
+              <tbody>
+                {qcResults.map(r => (
+                  <tr key={r.id}>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(r.createdAt).toLocaleDateString('th-TH')}</td>
+                    <td><code>{r.lotNo}</code></td>
+                    <td style={{ textAlign: 'center' }}>{r.qtyChecked}</td>
+                    <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>{r.qtyPass}</td>
+                    <td style={{ textAlign: 'center', color: r.qtyFail > 0 ? '#dc2626' : 'inherit', fontWeight: r.qtyFail > 0 ? 600 : 400 }}>{r.qtyFail}</td>
+                    <td style={{ textAlign: 'center' }}><ResultBadge value={r.overall} /></td>
+                    <td style={{ fontSize: '0.82rem' }}>
+                      {r.verdict
+                        ? <span style={{ color: r.verdict === 'APPROVED' ? '#166534' : '#991b1b', fontWeight: 600 }}>{r.verdict === 'APPROVED' ? '✅ อนุมัติ' : '❌ ตีกลับ'} {r.verifiedBy ? `· ${r.verifiedBy}` : ''}</span>
+                        : <span style={{ color: '#d97706' }}>⏳ รอ QA verify</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ประวัติการเบิกของ (Kitting) ของ WO นี้ */}
+      <div className="panel">
+        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติการเบิกของ (Kitting) {kitting.length > 0 && `(${kitting.length})`}</h2>
+        {kitting.length === 0 ? (
+          <div style={{ color: 'var(--text-muted)', padding: '0.5rem 0' }}>ยังไม่มีการเบิกของให้ WO นี้ — เบิกได้ที่หน้า Incoming & Kitting</div>
+        ) : (
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+            <table className="table" style={{ minWidth: 560, width: '100%' }}>
+              <thead><tr><th>เวลา</th><th>Part No</th><th>Lot ที่ตัด</th><th style={{ textAlign: 'center' }}>จำนวน</th></tr></thead>
+              <tbody>
+                {kitting.map(k => (
+                  <tr key={k.id}>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(k.issuedAt).toLocaleString('th-TH')}</td>
+                    <td><code>{k.partNo}</code></td>
+                    <td><code style={{ fontSize: '0.85rem' }}>{k.lotNo}</code></td>
+                    <td style={{ textAlign: 'center' }}>{k.qty.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ประวัติการสแกนผลิต (Routing / Production) ของ WO นี้ */}
+      <div className="panel">
+        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติการสแกนผลิต {scans.length > 0 && `(${scans.length})`}</h2>
+        {scans.length === 0 ? (
+          <div style={{ color: 'var(--text-muted)', padding: '0.5rem 0' }}>ยังไม่มีการสแกนผลิตของ WO นี้</div>
+        ) : (
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+            <table className="table" style={{ minWidth: 620, width: '100%' }}>
+              <thead><tr><th>เวลา</th><th>Serial</th><th>สเตชัน</th><th style={{ textAlign: 'center' }}>ผล</th><th>ผู้ทำ</th></tr></thead>
+              <tbody>
+                {scans.map((s: any) => (
+                  <tr key={s.id}>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(s.scanned_at).toLocaleString('th-TH')}</td>
+                    <td><code>{s.serial}</code></td>
+                    <td>{s.station}</td>
+                    <td style={{ textAlign: 'center' }}><ResultBadge value={s.result} /></td>
+                    <td>{s.operator || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {wo.faiPassed && (
         <div className="panel">
           <h2 className="panel__title panel__title--sm">FAI Result</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-            <div className="glass-panel" style={{ padding: '1rem' }}>
+            <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Inspector</span>
               <div style={{ fontWeight: 'bold' }}>{wo.faiInspector}</div>
             </div>
-            <div className="glass-panel" style={{ padding: '1rem' }}>
+            <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Approver</span>
               <div style={{ fontWeight: 'bold' }}>{wo.faiApprover}</div>
             </div>
-            <div className="glass-panel" style={{ padding: '1rem' }}>
+            <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Result</span>
               <div style={{ fontWeight: 'bold', color: 'var(--success)' }}>✅ PASSED</div>
             </div>
