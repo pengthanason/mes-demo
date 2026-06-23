@@ -7,6 +7,10 @@ const migrate = require('./migrations');
 const app  = express();
 const PORT = process.env.PORT || 5099;
 
+// กันแอปตายจาก error ที่ไม่ได้ catch (เช่น DB หลุดชั่วคราว) — log แล้วไปต่อ ไม่ crash
+process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', err?.message || err));
+process.on('uncaughtException',  (err) => console.error('[uncaughtException]',  err?.message || err));
+
 app.use(cors());
 app.use(express.json());
 
@@ -51,17 +55,24 @@ app.use((req, res) => {
 });
 
 // ── Start ──────────────────────────────────────────────────────────
-async function start() {
-  try {
-    await migrate();
-    app.listen(PORT, () => {
-      console.log(`\n  my-api running at http://localhost:${PORT}`);
-      console.log(`  Health: http://localhost:${PORT}/api/health\n`);
-    });
-  } catch (e) {
-    console.error('[start] failed:', e.message);
-    process.exit(1);
+// listen ก่อนเลย เพื่อให้ Render เจอ port ทันที (ไม่ flap เป็น no-server)
+// แล้วค่อยรัน migrate เบื้องหลัง + retry ถ้า DB ยังไม่ตื่น (Neon auto-suspend)
+async function runMigrateWithRetry(tries = 5, delayMs = 4000) {
+  for (let i = 1; i <= tries; i++) {
+    try {
+      await migrate();
+      console.log('[start] migrations done');
+      return;
+    } catch (e) {
+      console.error(`[migrate] attempt ${i}/${tries} failed:`, e.message);
+      if (i < tries) await new Promise((r) => setTimeout(r, delayMs));
+    }
   }
+  console.error('[migrate] ยอมแพ้ — เซิร์ฟเวอร์ยังรันอยู่ จะ migrate ใหม่รอบ deploy หน้า');
 }
 
-start();
+app.listen(PORT, () => {
+  console.log(`\n  my-api running at http://localhost:${PORT}`);
+  console.log(`  Health: http://localhost:${PORT}/api/health\n`);
+  runMigrateWithRetry();
+});

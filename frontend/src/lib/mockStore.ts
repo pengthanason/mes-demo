@@ -17,6 +17,7 @@ export interface MockWO {
   faiApprover?: string;
   faiPassed?: boolean;
   actualQty?: number;
+  expectedDate?: string;
 }
 
 export interface ObaRecord {

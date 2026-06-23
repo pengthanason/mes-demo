@@ -24,7 +24,7 @@ router.get('/list', async (req, res) => {
 const LIFECYCLE_STEPS = ['DRAFT','OPEN','READY','RUNNING','WAIT_FAI_QA','WAIT_FAI_MGR','CLOSED'];
 
 const BOARD_FIELDS = `
-  id, wo_no, product_name, customer, qty, current_step, station,
+  id, wo_no, product_name, customer, qty, due_date, current_step, station,
   qty_good, actual_qty, fai_inspector, fai_approver, fai_passed,
   created_at, updated_at`;
 
@@ -49,7 +49,7 @@ router.get('/board', async (req, res) => {
 
 // POST /api/wo/board (สร้าง WO ใหม่ เช่น ปุ่ม Add Random WO)
 router.post('/board', async (req, res) => {
-  const { product_name, customer, qty, station, current_step = 'DRAFT' } = req.body;
+  const { product_name, customer, qty, station, current_step = 'DRAFT', due_date } = req.body;
   if (!product_name || !qty) {
     return res.status(400).json({ status: 'error', message: 'product_name, qty required' });
   }
@@ -64,10 +64,10 @@ router.post('/board', async (req, res) => {
     );
     const woNo = `WO-${yymm}-${String(seqRows[0].next).padStart(3, '0')}`;
     const { rows } = await db.query(
-      `INSERT INTO work_orders (wo_no, product_name, customer, qty, station, current_step, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+      `INSERT INTO work_orders (wo_no, product_name, customer, qty, due_date, station, current_step, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        RETURNING ${BOARD_FIELDS}`,
-      [woNo, product_name, customer || null, qty, station || null, current_step, stepToStatus(current_step)]
+      [woNo, product_name, customer || null, qty, due_date || null, station || null, current_step, stepToStatus(current_step)]
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {

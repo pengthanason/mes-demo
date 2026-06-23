@@ -259,7 +259,7 @@ let _ppId = 50;
 const ppBase = {
   wk: 0, date_record: null, customer: '', syn_requestor: '', work_order: '', matl_coming: '',
   chk_man: false, chk_mac: false, chk_med: false, chk_mat: false,
-  pd_pcba: false, pd_bbas: false, pd_test: false, pd_start_date: null, pd_finish_date: null,
+  pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, pd_start_date: null, pd_finish_date: null,
   qa_test_rate: '', qa_finish_date: null, store_received: null, expected_date: null, revised_date: null,
   done: false, pd_pic: '', team_member: 0, ok_per_day: 0, total_ng: 0, total_ok: 0, remark: '',
 };
@@ -365,7 +365,7 @@ export const handlers = [
   }),
   http.post('/api/wo/board', async ({ request }) => {
     const body: any = await request.json();
-    const wo = { id: ++_woId, wo_no: `WO-2026-${String(_woId).padStart(3,'0')}`, product_name: body.product_name, customer: body.customer ?? '', qty: body.qty, current_step: body.current_step ?? 'DRAFT', station: body.station ?? null, qty_good: 0, actual_qty: null, fai_inspector: null, fai_approver: null, fai_passed: false, created_at: now(), updated_at: now() };
+    const wo = { id: ++_woId, wo_no: `WO-2026-${String(_woId).padStart(3,'0')}`, product_name: body.product_name, customer: body.customer ?? '', qty: body.qty, due_date: body.due_date ?? null, current_step: body.current_step ?? 'DRAFT', station: body.station ?? null, qty_good: 0, actual_qty: null, fai_inspector: null, fai_approver: null, fai_passed: false, created_at: now(), updated_at: now() };
     woBoard.push(wo);
     return ok(wo);
   }),

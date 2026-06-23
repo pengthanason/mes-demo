@@ -10,6 +10,7 @@ type WoBoardRow = {
   product_name: string;
   customer: string | null;
   qty: number;
+  due_date: string | null;
   current_step: WoStep;
   station: string | null;
   qty_good: number;
@@ -27,6 +28,7 @@ function mapRow(row: WoBoardRow): MockWO {
     productCode:  row.product_name,
     customer:     row.customer ?? '—',
     qty:          Number(row.qty),
+    expectedDate: row.due_date ?? undefined,
     currentStep:  row.current_step,
     station:      row.station ?? '—',
     createdAt:    row.created_at,
@@ -92,13 +94,14 @@ export function useWoPatch() {
 export function useWoCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (wo: Pick<MockWO, 'productCode' | 'customer' | 'qty' | 'station' | 'currentStep'>) => {
+    mutationFn: async (wo: Pick<MockWO, 'productCode' | 'customer' | 'qty' | 'station' | 'currentStep' | 'expectedDate'>) => {
       const res = await api.post('/wo/board', {
         product_name: wo.productCode,
         customer:     wo.customer,
         qty:          wo.qty,
         station:      wo.station,
         current_step: wo.currentStep,
+        due_date:     wo.expectedDate || null,
       });
       if (res.status >= 400 || res.status === 0) throw new Error('สร้าง WO ไม่สำเร็จ');
       return res.data;
