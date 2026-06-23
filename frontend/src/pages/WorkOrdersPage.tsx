@@ -24,6 +24,7 @@ function CreateWoModal({ onClose }: { onClose: () => void }) {
   const [productCode, setProductCode] = useState('');
   const [customer, setCustomer] = useState('');
   const [qty, setQty] = useState('');
+  const [expectedDate, setExpectedDate] = useState('');
   const [err, setErr] = useState('');
   const create = useWoCreate();
 
@@ -33,7 +34,7 @@ function CreateWoModal({ onClose }: { onClose: () => void }) {
     const n = Number(qty);
     if (!productCode.trim() || !n || n <= 0) return setErr('กรุณากรอก Product Code และจำนวน');
     create.mutate(
-      { productCode: productCode.trim(), customer: customer.trim() || '—', qty: n, station: '', currentStep: 'DRAFT' },
+      { productCode: productCode.trim(), customer: customer.trim() || '—', qty: n, station: '', currentStep: 'DRAFT', expectedDate: expectedDate || undefined },
       { onSuccess: () => { showToast('สร้าง Work Order แล้ว (สถานะ: ร่าง)', 'success'); onClose(); },
         onError: (e: any) => setErr(e.message) }
     );
@@ -52,6 +53,9 @@ function CreateWoModal({ onClose }: { onClose: () => void }) {
           </label>
           <label className="field"><span>จำนวน (Qty) *</span>
             <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} placeholder="เช่น 200" required />
+          </label>
+          <label className="field"><span>Expected date</span>
+            <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
           </label>
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions">

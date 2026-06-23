@@ -21,7 +21,7 @@ export interface PpProject {
   work_order: string;
   matl_coming: string;
   chk_man: boolean; chk_mac: boolean; chk_med: boolean; chk_mat: boolean;
-  pd_pcba: boolean; pd_bbas: boolean; pd_test: boolean; pd_rmaprep: boolean;
+  pd_pcba: boolean; pd_bbas: boolean; pd_test: boolean; pd_rma: boolean; pd_prep: boolean;
   pd_start_date: string | null;
   pd_finish_date: string | null;
   qa_test_rate: string;

@@ -215,7 +215,7 @@ export function DashboardPage() {
                 <th style={{ textAlign: 'center' }}>WW</th>
                 <th>WO</th>
                 <th style={{ textAlign: 'center' }}>Man</th><th style={{ textAlign: 'center' }}>Mac</th><th style={{ textAlign: 'center' }}>Med</th><th style={{ textAlign: 'center' }}>Mat</th>
-                <th style={{ textAlign: 'center' }}>PCBA</th><th style={{ textAlign: 'center' }}>BBAS</th><th style={{ textAlign: 'center' }}>TEST</th><th style={{ textAlign: 'center' }}>RMA</th>
+                <th style={{ textAlign: 'center' }}>PCBA</th><th style={{ textAlign: 'center' }}>BBAS</th><th style={{ textAlign: 'center' }}>TEST</th><th style={{ textAlign: 'center' }}>RMA</th><th style={{ textAlign: 'center' }}>PREP</th>
                 <th style={{ textAlign: 'center' }}>Sampling%</th>
                 <th>PD Start</th><th>PD Finish</th>
                 <th>QA Finish</th>
@@ -229,9 +229,9 @@ export function DashboardPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={isViewer ? 32 : 33} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <tr><td colSpan={isViewer ? 33 : 34} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={isViewer ? 32 : 33} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
+                <tr><td colSpan={isViewer ? 33 : 34} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
               ) : paged.map(p => {
                 const y = ppYield(p);
                 const ck = (b: boolean) => b ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span> : <span style={{ color: '#cbd5e1' }}>·</span>;
@@ -255,7 +255,7 @@ export function DashboardPage() {
                     <td style={{ textAlign: 'center' }}>{p.wk ?? '—'}</td>
                     <td>{p.work_order || '—'}</td>
                     <td style={{ textAlign: 'center' }}>{ck(p.chk_man)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_mac)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_med)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_mat)}</td>
-                    <td style={{ textAlign: 'center' }}>{ck(p.pd_pcba)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_bbas)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_test)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_rmaprep)}</td>
+                    <td style={{ textAlign: 'center' }}>{ck(p.pd_pcba)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_bbas)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_test)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_rma)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_prep)}</td>
                     <td>{p.qa_test_rate || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.pd_start_date)}</td><td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.pd_finish_date)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.qa_finish_date)}</td>

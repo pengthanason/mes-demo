@@ -3,7 +3,7 @@ const db     = require('../db');
 
 const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn_requestor,
   work_order, matl_coming, chk_man, chk_mac, chk_med, chk_mat,
-  pd_pcba, pd_bbas, pd_test, pd_rmaprep, pd_start_date, pd_finish_date,
+  pd_pcba, pd_bbas, pd_test, pd_rma, pd_prep, pd_start_date, pd_finish_date,
   qa_test_rate, qa_finish_date, store_received, expected_date, revised_date, done,
   pd_pic, team_member, ok_per_day, total_ng, total_ok, remark, created_at, updated_at`;
 
@@ -11,7 +11,7 @@ const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn
 const WRITABLE = [
   'status', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'syn_requestor',
   'work_order', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat',
-  'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rmaprep', 'pd_start_date', 'pd_finish_date',
+  'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date',
   'qa_test_rate', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'done',
   'pd_pic', 'team_member', 'ok_per_day', 'total_ng', 'total_ok', 'remark',
 ];

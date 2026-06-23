@@ -8,11 +8,11 @@ import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { ResultBadge } from './ResultBadge';
 
-type Step = { id: string; process: string; seconds: number | '' };
+type Step = { id: string; process: string; seconds: number | ''; pass: boolean };
 const CUSTOM_PROC_KEY = 'mes_custom_processes';
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.round(performance.now())}`);
-const newStep = (): Step => ({ id: uid(), process: PROCESSES[0], seconds: '' });
+const newStep = (): Step => ({ id: uid(), process: PROCESSES[0], seconds: '', pass: true });
 const fmtTime = (sec: number) => { const m = Math.floor(sec / 60); const s = sec % 60; return m > 0 ? `${m} นาที ${s} วิ` : `${s} วิ`; };
 
 /* ── custom dropdown (สไตล์เดิม) ── */
@@ -126,30 +126,94 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
   );
 }
 
-/* ── mermaid (ก๊อปไปใช้ต่อ) ── */
+/* ── mermaid flowchart — START→steps→END, FAIL = self-loop จริง, เวลาบนลูกศร PASS ── */
 function toMermaid(steps: Step[]): string {
-  if (!steps.length) return '';
-  const nodes = steps.map((s, i) => `  S${i}["${s.process}"]`).join('\n');
-  const edges = steps.slice(1).map((_, i) => `  S${i} --> S${i + 1}`).join('\n');
-  return `flowchart TD\n${nodes}\n${edges}`;
+  if (!steps.length) return 'flowchart TD\n  START([เริ่ม]) --> END([จบ])';
+  const L = ['flowchart TD', '  START([▶ เริ่มสายผลิต]):::se'];
+  steps.forEach((s, i) => {
+    const t = s.seconds !== '' ? `<br/>⏱ ${s.seconds}s` : '';
+    L.push(`  S${i}["${i + 1}. ${s.process}${t}"]:::${s.pass ? 'ok' : 'ng'}`);
+  });
+  L.push('  DONE([■ เสร็จ]):::se');
+  // เส้นหลักก่อน (ให้ flow ตรงลงมาปกติ) START → ทุกขั้น → DONE
+  L.push('  START --> S0');
+  steps.forEach((s, i) => {
+    const next = i < steps.length - 1 ? `S${i + 1}` : 'DONE';
+    const t = s.seconds !== '' ? `${s.seconds}s · ` : '';
+    L.push(`  S${i} -->|"${t}✓ PASS"| ${next}`);
+  });
+  // self-loop ไว้ท้ายสุด — วนตัวเองเล็กๆ ที่ขั้น FAIL โดยไม่ไปดัน layout เส้นหลัก
+  steps.forEach((s, i) => { if (!s.pass) L.push(`  S${i} -->|FAIL| S${i}`); });
+  L.push('  classDef ok fill:#eef2ff,stroke:#6366f1,stroke-width:2px,color:#1e293b;');
+  L.push('  classDef ng fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#1e293b;');
+  L.push('  classDef se fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d;');
+  return L.join('\n');
 }
 
-/* ── flowchart → HTML แล้วสั่งพิมพ์ (Save as PDF) ── */
-function exportFlowchartPdf(customer: string, model: string, steps: Step[]) {
+/* ── วาด flowchart เป็น SVG เอง — เส้นหลักตรงลงมา + self-loop เล็กๆ ที่ขั้น FAIL ── */
+function buildFlowSvg(steps: Step[]): string {
   const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const boxes = steps.map((s, i) =>
-    `<div class="node">${i + 1}. ${esc(s.process)}</div>${i < steps.length - 1 ? '<div class="arrow">▼</div>' : ''}`
-  ).join('');
+  const Wsvg = 380, BX = 60, BW = 240, BH = 54, PILLW = 180, PILLH = 34, GAP = 46;
+  const cx = BX + BW / 2;
+  type Item = { pill?: boolean; label: string; sub?: string; fail?: boolean; stepIdx?: number };
+  const items: Item[] = [
+    { pill: true, label: '▶ เริ่มสายผลิต' },
+    ...steps.map((s, i) => ({ label: `${i + 1}. ${s.process}`, sub: s.seconds !== '' ? `⏱ ${s.seconds}s` : '', fail: !s.pass, stepIdx: i })),
+    { pill: true, label: '■ เสร็จ' },
+  ];
+  const parts: string[] = [];
+  let y = 8;
+  items.forEach((it, idx) => {
+    const h = it.pill ? PILLH : BH;
+    const top = y, bottom = y + h, midY = y + h / 2;
+    if (it.pill) {
+      parts.push(`<rect x="${cx - PILLW / 2}" y="${top}" width="${PILLW}" height="${h}" rx="${h / 2}" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>`);
+      parts.push(`<text x="${cx}" y="${midY}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#14532d">${esc(it.label)}</text>`);
+    } else {
+      const stroke = it.fail ? '#dc2626' : '#6366f1', fill = it.fail ? '#fef2f2' : '#eef2ff';
+      parts.push(`<rect x="${BX}" y="${top}" width="${BW}" height="${h}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`);
+      parts.push(`<text x="${cx}" y="${it.sub ? midY - 7 : midY}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#1e293b">${esc(it.label)}</text>`);
+      if (it.sub) parts.push(`<text x="${cx}" y="${midY + 10}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#0369a1">${esc(it.sub)}</text>`);
+      // self-loop เล็กๆ ด้านขวา (ขั้น FAIL)
+      if (it.fail) {
+        const rx = BX + BW, y1 = midY - 9, y2 = midY + 9;
+        parts.push(`<path d="M ${rx} ${y1} C ${rx + 30} ${y1 - 4}, ${rx + 30} ${y2 + 4}, ${rx} ${y2}" fill="none" stroke="#dc2626" stroke-width="2" marker-end="url(#ahr)"/>`);
+        parts.push(`<text x="${rx + 36}" y="${midY}" text-anchor="start" dominant-baseline="central" font-size="10" font-weight="700" fill="#dc2626">FAIL</text>`);
+      }
+    }
+    // ลูกศรเส้นหลักไปโหนดถัดไป + ป้ายเวลา (PASS)
+    if (idx < items.length - 1) {
+      const nextTop = bottom + GAP;
+      parts.push(`<line x1="${cx}" y1="${bottom}" x2="${cx}" y2="${nextTop}" stroke="#94a3b8" stroke-width="2" marker-end="url(#ah)"/>`);
+      if (it.stepIdx != null) {
+        const s = steps[it.stepIdx];
+        const t = s.seconds !== '' ? `${s.seconds}s · PASS` : 'PASS';
+        parts.push(`<text x="${cx + 10}" y="${bottom + GAP / 2}" text-anchor="start" dominant-baseline="central" font-size="10" font-weight="600" fill="#16a34a">✓ ${esc(t)}</text>`);
+      }
+    }
+    y = bottom + GAP;
+  });
+  const totalH = y - GAP + 8;
+  const defs = `<defs>`
+    + `<marker id="ah" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8"/></marker>`
+    + `<marker id="ahr" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#dc2626"/></marker>`
+    + `</defs>`;
+  return `<svg viewBox="0 0 ${Wsvg} ${totalH}" width="${Wsvg}" height="${totalH}" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif">${defs}${parts.join('')}</svg>`;
+}
+
+/* ── flowchart (SVG) → พิมพ์ (Save as PDF) ── */
+function exportFlowchartPdf(customer: string, model: string, svg: string) {
+  const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  if (!svg) { showToast('ยังไม่มี FlowChart ให้พิมพ์ — กด Gen FlowChart ก่อน', 'error'); return; }
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Workflow</title>
     <style>
       body{font-family:'Segoe UI',Tahoma,sans-serif;padding:32px;color:#1e293b;text-align:center}
       h1{font-size:20px;margin-bottom:2px}.sub{color:#64748b;margin-bottom:24px;font-size:13px}
-      .node{display:inline-block;min-width:240px;padding:12px 18px;border:2px solid #6366f1;border-radius:10px;background:#eef2ff;font-weight:600;font-size:14px}
-      .arrow{color:#6366f1;font-size:18px;margin:6px 0}
+      .diagram svg{max-width:100%;height:auto}
     </style></head>
     <body><h1>Manufacturing Workflow</h1>
     <div class="sub">Customer: ${esc(customer || '-')} &nbsp;|&nbsp; Model: ${esc(model || '-')}</div>
-    ${boxes}
+    <div class="diagram">${svg}</div>
     <script>window.onload=()=>window.print()</script></body></html>`;
   const w = window.open('', '_blank');
   if (!w) { showToast('เบราว์เซอร์บล็อก popup — อนุญาตก่อนพิมพ์', 'error'); return; }
@@ -186,6 +250,7 @@ export function WorkflowBuilder() {
   const { data: results = [] } = useWorkflowResults();
 
   const totalSec = steps.reduce((sum, s) => sum + (Number(s.seconds) || 0), 0);
+  const flowSvg = buildFlowSvg(steps);
   const sequenceStr = steps.map(s => `${s.process}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
 
   const setStep = (id: string, patch: Partial<Step>) => setSteps(s => s.map(x => x.id === id ? { ...x, ...patch } : x));
@@ -224,7 +289,7 @@ export function WorkflowBuilder() {
   function loadPreset(w: Workflow) {
     setCustomer(w.customer); setModel(w.model);
     const ws = w.steps.length ? w.steps : [{ process: PROCESSES[0], seconds: null }];
-    setSteps(ws.map(s => ({ id: uid(), process: s.process, seconds: (s.seconds == null ? '' : s.seconds) as number | '' })));
+    setSteps(ws.map(s => ({ id: uid(), process: s.process, seconds: (s.seconds == null ? '' : s.seconds) as number | '', pass: true })));
     // กระบวนการ custom ที่อยู่ใน preset แต่ยังไม่มีในลิสต์ → เพิ่มเข้า list ให้เลือกได้
     const extra = ws.map(s => s.process).filter(p => p && !PROCESSES.includes(p) && !customProcs.includes(p));
     if (extra.length) setCustomProcs(prev => [...new Set([...prev, ...extra])]);
@@ -369,6 +434,13 @@ export function WorkflowBuilder() {
                   onChange={e => setStep(step.id, { seconds: e.target.value === '' ? '' : Number(e.target.value) })}
                   style={{ width: 130, padding: 8, borderRadius: 4, border: '1px solid #ccc' }} />
 
+                {/* PASS/FAIL รายขั้น (ใช้กับ FlowChart — FAIL จะวนลูปจนผ่าน) */}
+                <button type="button" onClick={() => !isViewer && setStep(step.id, { pass: !step.pass })} disabled={isViewer}
+                  title="กำหนดว่ากระบวนการนี้ผ่าน/ไม่ผ่าน — ถ้า FAIL FlowChart จะวนลูปจนกว่าจะผ่าน"
+                  style={{ padding: '7px 12px', borderRadius: 6, border: `1px solid ${step.pass ? '#16a34a' : '#dc2626'}`, background: step.pass ? '#dcfce7' : '#fee2e2', color: step.pass ? '#166534' : '#991b1b', fontWeight: 700, cursor: isViewer ? 'default' : 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                  {step.pass ? '✓ PASS' : '✗ FAIL'}
+                </button>
+
                 {!isViewer && <button className="btn danger" onClick={() => removeStep(step.id)} disabled={steps.length === 1}>ลบ</button>}
               </div>
             ))}
@@ -429,22 +501,14 @@ export function WorkflowBuilder() {
         <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>FlowChart</h3>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(customer, model, steps)}>🖨️ Export PDF</button>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(customer, model, flowSvg)}>🖨️ Export PDF</button>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong></p>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-            {steps.map((s, i) => (
-              <div key={s.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ minWidth: 240, padding: '0.7rem 1.1rem', border: '2px solid #6366f1', borderRadius: 10, background: '#eef2ff', fontWeight: 600, textAlign: 'center', color: '#1e293b' }}>{i + 1}. {s.process}</div>
-                {i < steps.length - 1 && <div style={{ color: '#6366f1', fontSize: '1.3rem', lineHeight: 1, margin: '4px 0' }}>▼</div>}
-              </div>
-            ))}
-          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · <span style={{ color: '#16a34a' }}>เขียว</span>=ผ่าน · <span style={{ color: '#dc2626' }}>แดง</span>=มีลูปแก้ไข (FAIL)</p>
+          <div style={{ display: 'flex', justifyContent: 'center', overflowX: 'auto', padding: '8px 0' }} dangerouslySetInnerHTML={{ __html: flowSvg }} />
           <details style={{ marginTop: 24 }}>
-            <summary style={{ cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-muted)' }}>โค้ด Mermaid (ก๊อปไปใช้ต่อได้)</summary>
+            <summary style={{ cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Mermaid</summary>
             <pre style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8, padding: 12, fontSize: '0.8rem', overflowX: 'auto', marginTop: 8 }}>{toMermaid(steps)}</pre>
           </details>
-          <p style={{ marginTop: 16, fontSize: '0.78rem', color: '#94a3b8' }}>* Export เป็น Excel / Image (1.3.6) ไว้ตกลงกันภายหลัง — ตอนนี้รองรับ PDF + Mermaid</p>
         </div>
       )}
 

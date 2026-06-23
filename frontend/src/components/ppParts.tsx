@@ -72,7 +72,8 @@ export const PP_COLUMNS: PpCol[] = [
   { key: 'pd_pcba',      header: 'PCBA',        w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_pcba) },
   { key: 'pd_bbas',      header: 'BBAS',        w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_bbas) },
   { key: 'pd_test',      header: 'TEST',        w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_test) },
-  { key: 'pd_rmaprep',   header: 'RMA',         w: 8,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_rmaprep) },
+  { key: 'pd_rma',       header: 'RMA',         w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_rma) },
+  { key: 'pd_prep',      header: 'PREP',        w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_prep) },
   { key: 'qa_test_rate', header: 'Sampling%',   w: 10, center: true, value: p => p.qa_test_rate || '' },
   { key: 'pd_start',     header: 'PD Start',    w: 12, center: true, value: p => xlsxDate(p.pd_start_date) },
   { key: 'pd_finish',    header: 'PD Finish',   w: 12, center: true, value: p => xlsxDate(p.pd_finish_date) },
@@ -259,7 +260,7 @@ export function ChartCard({ title, children }: { title: string; children: React.
 const EMPTY: Partial<PpProject> = {
   status: 'ON_PROCESS', product_pn: '', model: '', customer: '', qty: 0, syn_requestor: '', work_order: '',
   matl_coming: '', chk_man: false, chk_mac: false, chk_med: false, chk_mat: false,
-  pd_pcba: false, pd_bbas: false, pd_test: false, pd_rmaprep: false, qa_test_rate: '', pd_pic: '', team_member: 0,
+  pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, qa_test_rate: '', pd_pic: '', team_member: 0,
   ok_per_day: 0, total_ng: 0, total_ok: 0, remark: '',
 };
 
@@ -331,7 +332,7 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
 
           <Section title="PD Plan" />
           <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-            {([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST'], ['pd_rmaprep', 'RMA PREP']] as const).map(([k, l]) => (
+            {([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST'], ['pd_rma', 'RMA'], ['pd_prep', 'PREP']] as const).map(([k, l]) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
                 <input type="checkbox" checked={!!f[k]} onChange={chk(k)} style={{ width: 18, height: 18 }} /> {l}
               </label>
