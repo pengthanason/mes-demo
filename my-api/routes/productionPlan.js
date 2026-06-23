@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const db     = require('../db');
 
-const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn_requestor, pm,
+const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn_requestor,
   work_order, matl_coming, chk_man, chk_mac, chk_med, chk_mat,
   pd_pcba, pd_bbas, pd_test, pd_rma, pd_prep, pd_start_date, pd_finish_date,
   qa_test_rate, qa_finish_date, store_received, expected_date, revised_date, done,
@@ -9,7 +9,7 @@ const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn
 
 // field ที่ยอมให้เขียน (กันยิงมั่ว)
 const WRITABLE = [
-  'status', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'syn_requestor', 'pm',
+  'status', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'syn_requestor',
   'work_order', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat',
   'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date',
   'qa_test_rate', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'done',

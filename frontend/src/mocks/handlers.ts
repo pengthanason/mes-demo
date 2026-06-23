@@ -257,7 +257,7 @@ const jigRetests: any[] = [];
 // ── Production Plan (pp_projects) ──
 let _ppId = 50;
 const ppBase = {
-  wk: 0, date_record: null, customer: '', syn_requestor: '', pm: '', work_order: '', matl_coming: '',
+  wk: 0, date_record: null, customer: '', syn_requestor: '', work_order: '', matl_coming: '',
   chk_man: false, chk_mac: false, chk_med: false, chk_mat: false,
   pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, pd_start_date: null, pd_finish_date: null,
   qa_test_rate: '', qa_finish_date: null, store_received: null, expected_date: null, revised_date: null,

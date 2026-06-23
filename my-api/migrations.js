@@ -513,7 +513,6 @@ async function migrate() {
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS done BOOLEAN NOT NULL DEFAULT false`);
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pd_rma  BOOLEAN NOT NULL DEFAULT false`);
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pd_prep BOOLEAN NOT NULL DEFAULT false`);
-    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pm      VARCHAR(150) NOT NULL DEFAULT ''`);
 
     // ── Workflow (ลำดับกระบวนการผลิต — Manufacturing Sequence) ──
     await client.query(`

@@ -18,7 +18,6 @@ export interface PpProject {
   customer: string;
   qty: number;
   syn_requestor: string;
-  pm: string;
   work_order: string;
   matl_coming: string;
   chk_man: boolean; chk_mac: boolean; chk_med: boolean; chk_mat: boolean;

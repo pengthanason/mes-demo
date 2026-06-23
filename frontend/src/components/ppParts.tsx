@@ -124,6 +124,29 @@ export const XLSX_COLUMNS: PpCol[] = [
   { key: 'remark',       header: 'Remark',        w: 30, value: p => p.remark || '' },
 ];
 
+/* ── สร้างโครงหัวตาราง 2 ชั้นจาก cols (ใช้ร่วม Dashboard HTML + PDF ให้ตรงกับ Excel) ──
+   groupRow = แถวบน (คอลัมน์ไม่มีกลุ่ม rowSpan=2, กลุ่ม colSpan=จำนวนสมาชิก)
+   subRow   = แถวล่าง เฉพาะหัวย่อยของคอลัมน์ที่อยู่ในกลุ่ม (เรียงซ้าย→ขวา) */
+export type HeaderCell = { label: string; colSpan: number; rowSpan: number; headerColor?: string; center?: boolean };
+export function buildHeaderRows(cols: PpCol[]): { groupRow: HeaderCell[]; subRow: HeaderCell[] } {
+  const groupRow: HeaderCell[] = [];
+  const subRow: HeaderCell[] = [];
+  for (let i = 0; i < cols.length; ) {
+    const g = cols[i].group;
+    if (!g) {
+      groupRow.push({ label: cols[i].header, colSpan: 1, rowSpan: 2, headerColor: cols[i].headerColor, center: cols[i].center });
+      i++;
+    } else {
+      let j = i;
+      while (j < cols.length && cols[j].group === g) j++;
+      groupRow.push({ label: g, colSpan: j - i, rowSpan: 1, center: true });
+      for (let k = i; k < j; k++) subRow.push({ label: cols[k].header, colSpan: 1, rowSpan: 1, headerColor: cols[k].headerColor, center: cols[k].center });
+      i = j;
+    }
+  }
+  return { groupRow, subRow };
+}
+
 /* ── Excel (.xlsx) export — ตาม XLSX_COLUMNS + หัวซ้อน 2 ชั้น (กลุ่ม PM/4M/PD) + โลโก้/สี SYNTECH ── */
 export async function exportXlsx(rows: PpProject[]) {
   const ExcelJS = (await import('exceljs')).default;
@@ -300,7 +323,7 @@ export function ChartCard({ title, children }: { title: string; children: React.
 
 /* ── Add/Edit Project Form (modal) — ปิดได้เฉพาะปุ่มยกเลิก ── */
 const EMPTY: Partial<PpProject> = {
-  status: 'ON_PROCESS', product_pn: '', model: '', customer: '', qty: 0, syn_requestor: '', pm: '', work_order: '',
+  status: 'ON_PROCESS', product_pn: '', model: '', customer: '', qty: 0, syn_requestor: '', work_order: '',
   matl_coming: '', chk_man: false, chk_mac: false, chk_med: false, chk_mat: false,
   pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, qa_test_rate: '', pd_pic: '', team_member: 0,
   ok_per_day: 0, total_ng: 0, total_ok: 0, remark: '',
@@ -360,7 +383,6 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             <label className="field"><span>QTY</span><input type="number" value={f.qty ?? 0} onChange={num('qty')} /></label>
             <label className="field"><span>Customer</span><input value={f.customer ?? ''} onChange={txt('customer')} /></label>
             <label className="field"><span>SYN Requestor</span><input value={f.syn_requestor ?? ''} onChange={txt('syn_requestor')} placeholder="ผู้ขอจาก SYN" /></label>
-            <label className="field"><span>PM</span><input value={f.pm ?? ''} onChange={txt('pm')} placeholder="Project Manager" /></label>
             <label className="field"><span>WO (Work Order)</span><input value={f.work_order ?? ''} onChange={txt('work_order')} /></label>
           </div>
 

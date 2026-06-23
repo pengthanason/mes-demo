@@ -8,19 +8,41 @@ import { FactoryOverview } from '../components/FactoryOverview';
 import { FlowGuide } from '../components/FlowGuide';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
-  STATUS_STYLE, StatusBadge, fmtDate, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal, PP_COLUMNS,
+  STATUS_STYLE, StatusBadge, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal,
+  XLSX_COLUMNS, buildHeaderRows, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 
-/* ── พิมพ์เป็น PDF — เรียงคอลัมน์ตาม Dashboard (PP_COLUMNS) + โลโก้/สี SYNTECH ── */
+// หัวคอลัมน์: สีพิเศษ (Expected/Revised/DONE/SYN) + จัดกึ่งกลาง
+const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
+  textAlign: 'center',
+  ...(h.headerColor ? { background: `#${h.headerColor}`, color: (h.headerColor === '00B050' || h.headerColor === '4472C4') ? '#fff' : undefined } : {}),
+});
+
+const CHECK_KEYS = new Set(['chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'done']);
+const ckEl = (b: boolean) => b ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span> : <span style={{ color: '#cbd5e1' }}>·</span>;
+
+// เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ Excel (ลำดับ/หัว = แหล่งเดียวกับ Excel)
+function renderCell(c: PpCol, p: PpProject, y: number | null) {
+  if (c.key === 'status') return <td key={c.key}><StatusBadge status={p.status} /></td>;
+  if (CHECK_KEYS.has(c.key)) return <td key={c.key} style={{ textAlign: 'center' }}>{ckEl(!!(p as any)[c.key])}</td>;
+  if (c.key === 'yield') return <td key={c.key} style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>;
+  if (c.key === 'total_ng') return <td key={c.key} style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>;
+  if (c.key === 'total_ok') return <td key={c.key} style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>;
+  if (c.key === 'product_pn') return <td key={c.key} style={{ fontWeight: 600 }}>{p.product_pn || '—'}</td>;
+  const v = c.value(p);
+  return <td key={c.key} style={c.center ? { textAlign: 'center', whiteSpace: 'nowrap' } : { color: c.key === 'remark' || c.key === 'matl_coming' ? 'var(--text-muted)' : undefined }}>{v || '—'}</td>;
+}
+
+/* ── พิมพ์เป็น PDF — โครงเดียวกับ Excel (XLSX_COLUMNS + หัวซ้อน 2 ชั้น) + โลโก้/สี SYNTECH ── */
 function printPdf(rows: PpProject[]) {
   const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const ths = PP_COLUMNS.map(c => {
-    const style = c.headerColor ? ` style="background:#${c.headerColor}${c.headerColor === '00B050' ? ';color:#fff' : ''}"` : '';
-    return `<th${style}>${esc(c.header)}</th>`;
-  }).join('');
+  const hStyle = (c?: string) => c ? ` style="background:#${c}${c === '00B050' || c === '4472C4' ? ';color:#fff' : ''}"` : '';
+  const { groupRow, subRow } = buildHeaderRows(XLSX_COLUMNS);
+  const hr1 = groupRow.map(h => `<th colspan="${h.colSpan}" rowspan="${h.rowSpan}"${hStyle(h.headerColor)}>${esc(h.label)}</th>`).join('');
+  const hr2 = subRow.map(h => `<th${hStyle(h.headerColor)}>${esc(h.label)}</th>`).join('');
   const trs = rows.map(p => {
     const st = STATUS_STYLE[p.status] ?? STATUS_STYLE.ON_PROCESS;
-    const tds = PP_COLUMNS.map(c => {
+    const tds = XLSX_COLUMNS.map(c => {
       const val = esc(c.value(p));
       if (c.key === 'status') return `<td style="background:${st.bg};color:${st.text};font-weight:700;text-align:center">${val}</td>`;
       if (c.key === 'done' && p.done) return `<td class="c" style="color:#16a34a;font-weight:700">${val}</td>`;
@@ -48,7 +70,7 @@ function printPdf(rows: PpProject[]) {
       <div class="code">FM03 Rev.01 Ref.EN-P-01<br/>${new Date().toLocaleDateString('th-TH')}</div>
     </div>
     <table>
-      <thead><tr>${ths}</tr></thead>
+      <thead><tr>${hr1}</tr><tr>${hr2}</tr></thead>
       <tbody>${trs}</tbody>
     </table>
     <script>window.onload=()=>{window.print()}</script></body></html>`;
@@ -114,6 +136,8 @@ export function DashboardPage() {
   }
 
   const maxCust = Math.max(1, ...agg.byCustomer.map(x => x.value));
+  const { groupRow, subRow } = buildHeaderRows(XLSX_COLUMNS);
+  const colCount = XLSX_COLUMNS.length + (isViewer ? 0 : 1);
 
   return (
     <section className="stack-lg">
@@ -197,73 +221,23 @@ export function DashboardPage() {
           <table className="table table-readonly" style={{ minWidth: 1950, width: '100%', fontSize: '0.78rem' }}>
             <thead>
               <tr>
-                {/* ── สำคัญ: ขึ้นก่อน ── */}
-                <th>Status</th>
-                <th>Product P/N</th>
-                <th>MODEL</th>
-                <th>Customer</th>
-                <th style={{ textAlign: 'center' }}>QTY</th>
-                <th>DATE Record</th>
-                <th style={{ textAlign: 'center' }}>Expected</th>
-                <th style={{ textAlign: 'center' }}>Revised</th>
-                <th style={{ textAlign: 'center' }}>OK/DAY</th>
-                <th style={{ textAlign: 'center' }}>NG</th>
-                <th style={{ textAlign: 'center' }}>OK</th>
-                <th style={{ textAlign: 'center' }}>Yield</th>
-                <th style={{ textAlign: 'center' }}>DONE</th>
-                {/* ── รายละเอียด ── */}
-                <th style={{ textAlign: 'center' }}>WW</th>
-                <th>WO</th>
-                <th style={{ textAlign: 'center' }}>Man</th><th style={{ textAlign: 'center' }}>Mac</th><th style={{ textAlign: 'center' }}>Med</th><th style={{ textAlign: 'center' }}>Mat</th>
-                <th style={{ textAlign: 'center' }}>PCBA</th><th style={{ textAlign: 'center' }}>BBAS</th><th style={{ textAlign: 'center' }}>TEST</th><th style={{ textAlign: 'center' }}>RMA</th><th style={{ textAlign: 'center' }}>PREP</th>
-                <th style={{ textAlign: 'center' }}>Sampling%</th>
-                <th>PD Start</th><th>PD Finish</th>
-                <th>QA Finish</th>
-                <th>Store</th>
-                <th>Mat'l coming</th>
-                <th>PD PIC</th>
-                <th style={{ textAlign: 'center' }}>Team</th>
-                <th>Remark</th>
-                {!isViewer && <th style={{ textAlign: 'center' }}>จัดการ</th>}
+                {groupRow.map((h, i) => <th key={i} colSpan={h.colSpan} rowSpan={h.rowSpan} style={hdrStyle(h)}>{h.label}</th>)}
+                {!isViewer && <th rowSpan={2} style={{ textAlign: 'center' }}>จัดการ</th>}
+              </tr>
+              <tr>
+                {subRow.map((h, i) => <th key={i} style={hdrStyle(h)}>{h.label}</th>)}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={isViewer ? 33 : 34} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <tr><td colSpan={colCount} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={isViewer ? 33 : 34} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
+                <tr><td colSpan={colCount} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
               ) : paged.map(p => {
                 const y = ppYield(p);
-                const ck = (b: boolean) => b ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span> : <span style={{ color: '#cbd5e1' }}>·</span>;
                 return (
                   <tr key={p.id} style={p.status === 'LATE' ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626' } : undefined}>
-                    {/* ── สำคัญ: ขึ้นก่อน ── */}
-                    <td><StatusBadge status={p.status} /></td>
-                    <td style={{ fontWeight: 600 }}>{p.product_pn || '—'}</td>
-                    <td>{p.model || '—'}</td>
-                    <td>{p.customer || '—'}</td>
-                    <td style={{ textAlign: 'center' }}>{p.qty.toLocaleString()}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.date_record)}</td>
-                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{fmtDate(p.expected_date)}</td>
-                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{fmtDate(p.revised_date)}</td>
-                    <td style={{ textAlign: 'center' }}>{p.ok_per_day || '—'}</td>
-                    <td style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>
-                    <td style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>
-                    <td style={{ textAlign: 'center' }}>{ck(p.done)}</td>
-                    {/* ── รายละเอียด ── */}
-                    <td style={{ textAlign: 'center' }}>{p.wk ?? '—'}</td>
-                    <td>{p.work_order || '—'}</td>
-                    <td style={{ textAlign: 'center' }}>{ck(p.chk_man)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_mac)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_med)}</td><td style={{ textAlign: 'center' }}>{ck(p.chk_mat)}</td>
-                    <td style={{ textAlign: 'center' }}>{ck(p.pd_pcba)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_bbas)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_test)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_rma)}</td><td style={{ textAlign: 'center' }}>{ck(p.pd_prep)}</td>
-                    <td>{p.qa_test_rate || '—'}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.pd_start_date)}</td><td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.pd_finish_date)}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.qa_finish_date)}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.store_received)}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{p.matl_coming || '—'}</td>
-                    <td>{p.pd_pic || '—'}</td>
-                    <td style={{ textAlign: 'center' }}>{p.team_member || '—'}</td>
-                    <td style={{ minWidth: 160, color: 'var(--text-muted)' }}>{p.remark || '—'}</td>
+                    {XLSX_COLUMNS.map(c => renderCell(c, p, y))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
