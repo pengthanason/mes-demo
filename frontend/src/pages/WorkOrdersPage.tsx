@@ -98,14 +98,15 @@ export function WorkOrdersPage() {
               <tr>
                 <th>WO No</th><th>Product</th><th>Customer</th>
                 <th style={{ textAlign: 'center' }}>Qty</th><th style={{ textAlign: 'center' }}>Good</th>
+                <th style={{ textAlign: 'center' }}>Expected</th>
                 <th style={{ textAlign: 'center' }}>สถานะ</th><th>Station</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มี Work Order — กด “+ เปิด WO” เพื่อเริ่ม</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มี Work Order — กด “+ เปิด WO” เพื่อเริ่ม</td></tr>
               ) : paged.map(w => (
                 <tr key={w.woId} style={{ cursor: 'pointer' }} onClick={() => navigate(`/wo/${w.woId}`)}
                   title="กดเพื่อดูรายละเอียด / FAI / ปิดงาน">
@@ -114,6 +115,7 @@ export function WorkOrdersPage() {
                   <td>{w.customer}</td>
                   <td style={{ textAlign: 'center' }}>{w.qty.toLocaleString()}</td>
                   <td style={{ textAlign: 'center', fontWeight: 600, color: '#0369a1' }}>{(w.actualQty ?? w.qtyGood).toLocaleString()}</td>
+                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{w.expectedDate ? new Date(w.expectedDate).toLocaleDateString('th-TH') : '—'}</td>
                   <td style={{ textAlign: 'center' }}><StepBadge step={w.currentStep} /></td>
                   <td>{w.station}</td>
                 </tr>

@@ -133,6 +133,10 @@ export function WoDetailPage() {
             </div>
           </div>
           <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Expected date</span>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.expectedDate ? new Date(wo.expectedDate).toLocaleDateString('th-TH') : '—'}</div>
+          </div>
+          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Status</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.currentStep}</div>
           </div>

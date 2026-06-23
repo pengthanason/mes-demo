@@ -249,7 +249,7 @@ export function DashboardPage() {
                     <td style={{ textAlign: 'center' }}>{p.ok_per_day || '—'}</td>
                     <td style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>
                     <td style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(0)}%`}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>
                     <td style={{ textAlign: 'center' }}>{ck(p.done)}</td>
                     {/* ── รายละเอียด ── */}
                     <td style={{ textAlign: 'center' }}>{p.wk ?? '—'}</td>
