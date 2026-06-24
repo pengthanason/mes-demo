@@ -14,6 +14,7 @@ export interface QcResult {
   qtyFail: number;
   overall: QcOverall;
   defectDesc: string | null;
+  remark: string | null;
   createdAt: string;
   // joined from transfer_verifications
   verifyId: number | null;
@@ -63,6 +64,7 @@ function mapQcResult(r: any): QcResult {
     qtyFail:     Number(r.qty_fail),
     overall:     r.overall,
     defectDesc:  r.defect_desc ?? null,
+    remark:      r.remark ?? null,
     createdAt:   r.created_at,
     verifyId:    r.verify_id ?? null,
     verdict:     r.verdict ?? null,
@@ -104,7 +106,7 @@ export function useQcResultCreate() {
   return useMutation({
     mutationFn: async (payload: {
       woId: string; lotNo: string; qtyChecked: number;
-      qtyPass: number; qtyFail: number; overall: QcOverall; defectDesc: string;
+      qtyPass: number; qtyFail: number; overall: QcOverall; defectDesc: string; remark?: string;
     }) => {
       const res = await api.post('/qc/result', {
         wo_id:       payload.woId,
@@ -114,6 +116,7 @@ export function useQcResultCreate() {
         qty_fail:    payload.qtyFail,
         overall:     payload.overall,
         defect_desc: payload.defectDesc,
+        remark:      payload.remark ?? '',
       });
       if (res.status >= 400 || res.status === 0) {
         const msg = (res.data as any)?.message || 'บันทึก QC Result ไม่สำเร็จ';

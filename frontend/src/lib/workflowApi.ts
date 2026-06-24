@@ -10,6 +10,10 @@ export const PROCESSES = [
 export interface WfStep {
   process: string;
   seconds: number | null;
+  pass?: boolean;              // ขั้นนี้ผ่านโดยปริยายไหม (false = มี FAIL path)
+  failAction?: string;         // 'rework' | 'back' | 'rework_station' | 'scrap' | 'hold'
+  backToIndex?: number | null; // ถ้า failAction='back' → index ของ step ปลายทาง (เก็บเป็น index กัน id เพี้ยนตอนโหลด)
+  maxRetry?: number;
 }
 
 export interface Workflow {
@@ -27,7 +31,14 @@ function normSteps(raw: any): WfStep[] {
   return raw.map((s: any) =>
     typeof s === 'string'
       ? { process: s, seconds: null }
-      : { process: String(s?.process ?? ''), seconds: s?.seconds ?? null }
+      : {
+          process: String(s?.process ?? ''),
+          seconds: s?.seconds ?? null,
+          pass: s?.pass !== false,                                            // เก่าที่ไม่มี field → true
+          failAction: s?.failAction ?? 'rework',
+          backToIndex: typeof s?.backToIndex === 'number' ? s.backToIndex : null,
+          maxRetry: Number(s?.maxRetry) || 0,
+        }
   );
 }
 

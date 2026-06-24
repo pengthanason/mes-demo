@@ -466,7 +466,7 @@ export const handlers = [
   }),
   http.post('/api/qc/result', async ({ request }) => {
     const body: any = await request.json();
-    const r = { id: ++_qcId, wo_id: body.wo_id, lot_no: body.lot_no, qty_checked: body.qty_checked, qty_pass: body.qty_pass, qty_fail: body.qty_fail, overall: body.overall, defect_desc: body.defect_desc ?? null, created_at: now(), verify_id: null, verdict: null, verified_by: null, verified_at: null };
+    const r = { id: ++_qcId, wo_id: body.wo_id, lot_no: body.lot_no, qty_checked: body.qty_checked, qty_pass: body.qty_pass, qty_fail: body.qty_fail, overall: body.overall, defect_desc: body.defect_desc ?? null, remark: body.remark ?? null, created_at: now(), verify_id: null, verdict: null, verified_by: null, verified_at: null };
     qcResults.push(r);
     return ok(r);
   }),

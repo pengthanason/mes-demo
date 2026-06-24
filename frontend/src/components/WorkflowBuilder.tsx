@@ -302,9 +302,17 @@ export function WorkflowBuilder() {
     const name = window.prompt('ตั้งชื่อ Preset:', customer && model ? `${customer} - ${model}` : '');
     if (name == null) return;            // กดยกเลิก
     if (!name.trim()) { showToast('ต้องตั้งชื่อ Preset', 'error'); return; }
+    const idToIndex = new Map(steps.map((s, i) => [s.id, i]));
     create.mutate({
       name: name.trim(), customer: customer.trim(), model: model.trim(),
-      steps: steps.map(s => ({ process: s.process, seconds: s.seconds === '' ? null : Number(s.seconds) })),
+      steps: steps.map(s => ({
+        process: s.process,
+        seconds: s.seconds === '' ? null : Number(s.seconds),
+        pass: s.pass,
+        failAction: s.failAction,
+        backToIndex: s.failAction === 'back' && idToIndex.has(s.backToId) ? idToIndex.get(s.backToId)! : null,
+        maxRetry: s.maxRetry,
+      })),
     }, {
       onSuccess: () => showToast(`บันทึก Preset "${name.trim()}" สำเร็จ`, 'success'),
       onError: (e: any) => showToast(e.message, 'error'),
@@ -314,7 +322,22 @@ export function WorkflowBuilder() {
   function loadPreset(w: Workflow) {
     setCustomer(w.customer); setModel(w.model);
     const ws = w.steps.length ? w.steps : [{ process: PROCESSES[0], seconds: null }];
-    setSteps(ws.map(s => ({ id: uid(), process: s.process, seconds: (s.seconds == null ? '' : s.seconds) as number | '', pass: true, failAction: 'rework' as FailAction, backToId: '', maxRetry: 0 })));
+    const VALID_FAIL: FailAction[] = ['rework', 'back', 'rework_station', 'scrap', 'hold'];
+    const loaded: Step[] = ws.map(s => ({
+      id: uid(),
+      process: s.process,
+      seconds: (s.seconds == null ? '' : s.seconds) as number | '',
+      pass: s.pass !== false,
+      failAction: (VALID_FAIL.includes(s.failAction as FailAction) ? s.failAction : 'rework') as FailAction,
+      backToId: '',
+      maxRetry: Number(s.maxRetry) || 0,
+    }));
+    // กู้ backToId จาก index ที่บันทึกไว้ (ชี้ไปยัง step ที่สร้าง id ใหม่แล้ว)
+    ws.forEach((s, i) => {
+      const bi = s.backToIndex;
+      if (typeof bi === 'number' && bi >= 0 && bi < loaded.length) loaded[i].backToId = loaded[bi].id;
+    });
+    setSteps(loaded);
     // กระบวนการ custom ที่อยู่ใน preset แต่ยังไม่มีในลิสต์ → เพิ่มเข้า list ให้เลือกได้
     const extra = ws.map(s => s.process).filter(p => p && !PROCESSES.includes(p) && !customProcs.includes(p));
     if (extra.length) setCustomProcs(prev => [...new Set([...prev, ...extra])]);

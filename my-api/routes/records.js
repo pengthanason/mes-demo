@@ -80,7 +80,7 @@ router.get('/qc/results', async (req, res) => {
     const { wo_id } = req.query;
     const { rows } = await db.query(
       `SELECT qr.id, qr.wo_id, qr.lot_no, qr.qty_checked, qr.qty_pass, qr.qty_fail,
-              qr.overall, qr.defect_desc, qr.created_at,
+              qr.overall, qr.defect_desc, qr.remark, qr.created_at,
               tv.id AS verify_id, tv.verdict, tv.verified_by, tv.created_at AS verified_at
        FROM qc_results qr
        LEFT JOIN transfer_verifications tv ON tv.qc_result_id = qr.id
@@ -95,7 +95,7 @@ router.get('/qc/results', async (req, res) => {
 });
 
 router.post('/qc/result', async (req, res) => {
-  const { wo_id, lot_no, qty_checked, qty_pass, qty_fail, overall, defect_desc } = req.body;
+  const { wo_id, lot_no, qty_checked, qty_pass, qty_fail, overall, defect_desc, remark } = req.body;
   if (!wo_id || !lot_no || !qty_checked || !['PASS','FAIL','PARTIAL'].includes(overall)) {
     return res.status(400).json({ status: 'error', message: 'wo_id, lot_no, qty_checked, overall(PASS|FAIL|PARTIAL) required' });
   }
@@ -104,10 +104,10 @@ router.post('/qc/result', async (req, res) => {
   }
   try {
     const { rows } = await db.query(
-      `INSERT INTO qc_results (wo_id, lot_no, qty_checked, qty_pass, qty_fail, overall, defect_desc)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       RETURNING id, wo_id, lot_no, qty_checked, qty_pass, qty_fail, overall, defect_desc, created_at`,
-      [wo_id, lot_no, Number(qty_checked), Number(qty_pass) || 0, Number(qty_fail) || 0, overall, defect_desc || null]
+      `INSERT INTO qc_results (wo_id, lot_no, qty_checked, qty_pass, qty_fail, overall, defect_desc, remark)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id, wo_id, lot_no, qty_checked, qty_pass, qty_fail, overall, defect_desc, remark, created_at`,
+      [wo_id, lot_no, Number(qty_checked), Number(qty_pass) || 0, Number(qty_fail) || 0, overall, defect_desc || null, remark || null]
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {

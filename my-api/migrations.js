@@ -335,6 +335,7 @@ async function migrate() {
         created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
+    await client.query(`ALTER TABLE qc_results ADD COLUMN IF NOT EXISTS remark TEXT`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS rework_tickets (
