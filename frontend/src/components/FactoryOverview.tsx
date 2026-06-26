@@ -16,10 +16,10 @@ const rateColor = (r: number | null) => r == null ? '#94a3b8' : r >= 95 ? '#16a3
 const pct = (r: number | null) => r == null ? '—' : `${r.toFixed(1)}%`;
 
 /* การ์ดกดได้ → ลิงก์ไปหน้าโมดูล */
-function ClickCard({ to, icon, label, value, accent }: { to: string; icon: string; label: string; value: number | string; accent: string }) {
+function ClickCard({ to, icon, label, value, accent, external }: { to: string; icon: string; label: string; value: number | string; accent: string; external?: string }) {
   const nav = useNavigate();
   return (
-    <div onClick={() => nav(to)} style={{ cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', borderRadius: 12 }} title="กดเพื่อดูรายละเอียด"
+    <div onClick={() => external ? window.open(external, '_blank', 'noopener,noreferrer') : nav(to)} style={{ cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', borderRadius: 12 }} title={external ? 'เปิดระบบ Traceability (แท็บใหม่)' : 'กดเพื่อดูรายละเอียด'}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.10)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
       <StatCard icon={icon} label={label} value={value} accent={accent} />
@@ -105,7 +105,7 @@ export function FactoryOverview() {
 
         {/* KPI ข้ามโมดูล */}
         <div className="dash-grid-4" style={{ marginTop: '1.5rem' }}>
-          <ClickCard to="/traceability" icon="✅" label="Production Pass Rate" value={pct(m.prodRate)} accent={rateColor(m.prodRate)} />
+          <ClickCard to="/traceability" external="https://jig-api.syntechnology.com/traceability/knex_gw" icon="✅" label="Production Pass Rate" value={pct(m.prodRate)} accent={rateColor(m.prodRate)} />
           <ClickCard to="/jig-test" icon="🧪" label="Jig Pass Rate" value={pct(m.jigRate)} accent={rateColor(m.jigRate)} />
           <ClickCard to="/production-plan" icon="📑" label="OBA Pass Rate" value={pct(m.obaRate)} accent={rateColor(m.obaRate)} />
           <ClickCard to="/production-plan" icon="🔀" label="เดินสาย Pass Rate" value={pct(m.wfRate)} accent={rateColor(m.wfRate)} />

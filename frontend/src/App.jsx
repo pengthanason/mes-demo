@@ -14,7 +14,6 @@ import { QcResultPage } from './pages/QcResultPage.tsx';
 import { QaVerifyPage } from './pages/QaVerifyPage.tsx';
 import { NotificationsPage } from './pages/NotificationsPage.tsx';
 import { AdminPanelPage } from './pages/AdminPanelPage.tsx';
-import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
 import { JigProjectPage } from './pages/JigProjectPage.tsx';
 import { JigTestPage } from './pages/JigTestPage.tsx';
 import { ScmCasesPage } from './pages/ScmCasesPage.tsx';
@@ -33,7 +32,7 @@ const MAIN_ITEMS = [
   { to: '/work-orders',      label: 'Work Orders' },
   { to: '/qc-board',         label: 'QC' },
   { to: '/jig-test',         label: 'Jig Test' },
-  { to: '/traceability',     label: 'Traceability' },
+  { to: '/traceability',     label: 'Traceability', external: 'https://jig-api.syntechnology.com/traceability/knex_gw' },
   { to: '/4m-change',        label: '4M Change' },
   { to: '/scm-cases',        label: 'SCM Cases' },
   { to: '/equipment-borrow', label: 'Equipment Borrow' },
@@ -63,10 +62,52 @@ function useMediaQuery(query) {
   return matches;
 }
 
-function SidebarItem({ to, label, expanded, onClick, innerRef }) {
+function SidebarItem({ to, label, expanded, onClick, innerRef, external }) {
   const location = useLocation();
-  const isActive = location.hash === `#${to}` || location.pathname === to;
+  const isActive = !external && (location.hash === `#${to}` || location.pathname === to);
   const [hov, setHov] = useState(false);
+  const itemStyle = {
+    display: 'block',
+    padding: '0.5rem 0.75rem',
+    borderRadius: 6,
+    fontSize: '0.875rem',
+    color: (isActive || hov) ? 'var(--frame-text-active)' : SIDEBAR_TEXT,
+    background: 'transparent',
+    fontWeight: isActive ? 600 : 400,
+    textDecoration: 'none',
+    marginBottom: 2,
+    transition: 'color 0.15s',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    minHeight: '2rem',
+    position: 'relative',
+    zIndex: 1,
+    outline: 'none',
+    userSelect: 'none',
+  };
+  // เมนูลิงก์ภายนอก (เช่น Traceability) — กดแล้วเปิดแท็บใหม่ ไม่เข้าหน้าในแอป
+  if (external) {
+    return (
+      <a
+        ref={innerRef}
+        href={external}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => {
+          // ตอนแถบย่อ: tap แรก = เปิดแถบก่อน ไม่เปิดลิงก์
+          if (!expanded) { e.preventDefault(); }
+          onClick?.(e);
+        }}
+        title={!expanded ? label : undefined}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={itemStyle}
+      >
+        {expanded ? `${label} ↗` : ''}
+      </a>
+    );
+  }
   return (
     <Link
       ref={innerRef}
@@ -79,26 +120,7 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
       title={!expanded ? label : undefined}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{
-        display: 'block',
-        padding: '0.5rem 0.75rem',
-        borderRadius: 6,
-        fontSize: '0.875rem',
-        color: (isActive || hov) ? 'var(--frame-text-active)' : SIDEBAR_TEXT,
-        background: 'transparent',
-        fontWeight: isActive ? 600 : 400,
-        textDecoration: 'none',
-        marginBottom: 2,
-        transition: 'color 0.15s',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        minHeight: '2rem',
-        position: 'relative',
-        zIndex: 1,
-        outline: 'none',
-        userSelect: 'none',
-      }}
+      style={itemStyle}
     >
       {expanded ? label : ''}
     </Link>
@@ -218,7 +240,7 @@ function Sidebar() {
           opacity: 0,
         }} />
         {items.map(item => (
-          <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => setExpanded(isDesktop)} innerRef={setItemRef(item.to)} />
+          <SidebarItem key={item.to} to={item.to} label={item.label} external={item.external} expanded={expanded} onClick={() => setExpanded(isDesktop)} innerRef={setItemRef(item.to)} />
         ))}
 
       </div>
@@ -720,7 +742,6 @@ export default function App() {
               <Route path="/wo/:woId/close"    element={<RoleGuard allowed={['admin','member']}><CloseWoPage /></RoleGuard>} />
               <Route path="/fai/:woId"         element={<RoleGuard allowed={['admin','member']}><FaiPage /></RoleGuard>} />
               <Route path="/notifications"     element={<AuthGuard><NotificationsPage /></AuthGuard>} />
-              <Route path="/traceability"      element={<AuthGuard><TraceabilityPage /></AuthGuard>} />
               <Route path="/jig-test/:projectCode" element={<AuthGuard><JigProjectPage /></AuthGuard>} />
               <Route path="/admin/panel"       element={<RoleGuard allowed={['admin']}><AdminPanelPage /></RoleGuard>} />
               <Route path="/equipment-borrow" element={<AuthGuard><EquipmentBorrowPage /></AuthGuard>} />
