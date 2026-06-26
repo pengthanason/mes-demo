@@ -159,7 +159,7 @@ export function QaVerifyPage() {
             </label>
 
             <button type="submit" className="btn" disabled={!verdict || !verifiedBy.trim() || verifyMut.isPending}
-              style={{ background: '#3b82f6', borderColor: '#3b82f6', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
               {verifyMut.isPending ? 'กำลังบันทึก...' : 'ยืนยัน Transfer Verify'}
             </button>
           </form>

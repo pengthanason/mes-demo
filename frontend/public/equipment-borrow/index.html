@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบยืม-คืนอุปกรณ์ - Admin Dashboard</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- CSS Styles -->
+  <link rel="stylesheet" href="styles.css">
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Hide login screen immediately if in iframe or already logged in (prevents flash) -->
+  <script>
+    if (window.self !== window.top || sessionStorage.getItem('admin_logged_in') === 'true') {
+      document.write('<style>#login-screen{display:none!important}</style>');
+    }
+  </script>
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ==================== LOGIN SCREEN ==================== -->
+  <div id="login-screen" class="auth-wrapper" style="display:none">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-icon-circle">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2>แอดมินเข้าสู่ระบบ</h2>
+        <p>ระบบจัดการข้อมูลการยืม-คืนอุปกรณ์</p>
+      </div>
+      
+      <form id="login-form" autocomplete="off">
+        <div class="form-group">
+          <label for="username"><i class="fa-regular fa-user"></i> ชื่อผู้ใช้</label>
+          <input type="text" id="username" placeholder="ชื่อผู้ใช้" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> รหัสผ่าน</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="password" placeholder="รหัสผ่าน" required>
+            <button type="button" id="toggle-password" class="btn-icon">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">
+          <span>เข้าสู่ระบบ</span>
+          <i class="fa-solid fa-arrow-right-to-bracket"></i>
+        </button>
+      </form>
+      <div class="auth-footer">
+        <p><i class="fa-solid fa-info-circle"></i> บันทึกข้อมูลการยืมจะรับเข้าจาก Google Form</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DASHBOARD SCREEN ==================== -->
+  <div id="dashboard-screen" class="dashboard-wrapper" style="display: none;">
+    
+    <!-- Navigation Sidebar/Topbar -->
+    <header class="navbar">
+      <div class="navbar-brand">
+        <div class="logo-circle">
+          <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <div class="brand-text">
+          <h1>ระบบยืม-คืนอุปกรณ์</h1>
+          <span>แผงควบคุมผู้ดูแลระบบ (Admin)</span>
+        </div>
+      </div>
+      <div class="navbar-actions">
+        <span class="user-badge">
+          <i class="fa-solid fa-user-gear"></i> ผู้ดูแลระบบ
+        </span>
+        <button id="btn-logout" class="btn btn-outline-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          <span>ออกจากระบบ</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="dashboard-content">
+      <!-- Welcome Alert Panel -->
+      <div class="welcome-banner">
+        <div class="banner-icon">
+          <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <div class="banner-text">
+          <h3>ยินดีต้อนรับสู่ระบบจัดการข้อมูลยืม-คืน</h3>
+          <p>ข้อมูลในตารางซิงค์จาก Google Sheets อัตโนมัติทุก 10 วินาที</p>
+        </div>
+        <button class="banner-close-btn" onclick="this.parentElement.remove()">&times;</button>
+      </div>
+
+      <!-- ==================== DAILY SUMMARY ==================== -->
+      <section class="summary-section">
+        <div class="section-header">
+          <h2><i class="fa-solid fa-chart-pie"></i> สรุปความเคลื่อนไหว</h2>
+        </div>
+        
+        <div class="stats-grid">
+          <!-- Card 1: Total Borrows Today -->
+          <div class="stat-card">
+            <div class="stat-icon bg-blue-light">
+              <i class="fa-solid fa-calendar-plus text-blue"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label" id="stat-label-borrows">รายการยืมวันนี้</span>
+              <h3 id="stat-borrows-today" class="stat-number">0</h3>
+              <span class="stat-subtext" id="stat-sub-borrows">อัปเดตวันนี้</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Returned Today -->
+          <div class="stat-card">
+            <div class="stat-icon bg-green-light">
+              <i class="fa-solid fa-calendar-check text-green"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label" id="stat-label-returns">ส่งคืนสำเร็จวันนี้</span>
+              <h3 id="stat-returns-today" class="stat-number">0</h3>
+              <span class="stat-subtext" id="stat-sub-returns">เช็คอินวันนี้</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Currently Borrowed -->
+          <div class="stat-card">
+            <div class="stat-icon bg-yellow-light">
+              <i class="fa-solid fa-hourglass-half text-yellow"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">กำลังยืมอยู่ตอนนี้</span>
+              <h3 id="stat-currently-borrowed" class="stat-number">0</h3>
+              <span class="stat-subtext">ค้างส่งคืน</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Overdue Items -->
+          <div class="stat-card">
+            <div class="stat-icon bg-red-light">
+              <i class="fa-solid fa-triangle-exclamation text-red"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">เกินกำหนดส่งคืน</span>
+              <h3 id="stat-overdue" class="stat-number">0</h3>
+              <span class="stat-subtext">รายการที่เลยกำหนด</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TABLE RECORDS & CONTROLS ==================== -->
+      <section class="table-section">
+        <div class="table-controls-wrapper">
+          <div class="controls-left">
+            <div class="search-wrapper">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input type="text" id="search-input" placeholder="ค้นหาด้วย ชื่อ, แผนก, อุปกรณ์...">
+            </div>
+            
+            <div class="filter-wrapper">
+              <i class="fa-solid fa-filter filter-icon"></i>
+              <select id="status-filter">
+                <option value="all">สถานะทั้งหมด</option>
+                <option value="borrowing">กำลังยืม</option>
+                <option value="returned">คืนแล้ว</option>
+                <option value="overdue">เกินกำหนดส่งคืน</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="controls-right">
+            <div class="date-filter-group">
+              <input type="date" id="filter-date-from" class="date-filter-input">
+              <span class="date-filter-sep">ถึง</span>
+              <input type="date" id="filter-date-to" class="date-filter-input">
+              <button type="button" id="btn-today" class="btn-today">วันนี้</button>
+            </div>
+            <button type="button" id="btn-export-csv" class="btn btn-outline">
+              <i class="fa-solid fa-file-csv"></i> Export Excel
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Table Card -->
+        <div class="table-card">
+          <div class="table-responsive">
+            <table id="records-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">ลำดับ</th>
+                  <th style="width: 160px;">วันเวลาที่ทำรายการ</th>
+                  <th class="col-name">ชื่อ</th>
+                  <th style="width: 90px;">แผนก</th>
+                  <th style="width: 160px;">อีเมล</th>
+                  <th>อุปกรณ์ที่ยืม</th>
+                  <th style="width: 140px;">วันยืม</th>
+                  <th style="width: 140px;">วันคืน</th>
+                  <th style="width: 110px; text-align: center;">สถานะ</th>
+                  <th>หมายเหตุ</th>
+                  <th style="width: 130px; text-align: center;">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="records-tbody">
+                <!-- Data rows will be injected here via app.js -->
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Empty State -->
+          <div id="empty-state" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">
+              <i class="fa-regular fa-folder-open"></i>
+            </div>
+            <h3>ไม่พบข้อมูลบันทึกการยืม</h3>
+            <p>กรุณาลองเปลี่ยนคำค้นหา หรือรอข้อมูลจาก Google Form</p>
+          </div>
+          
+          <!-- Table Footer -->
+          <div class="table-footer">
+            <span id="records-count">แสดงทั้งหมด 0 รายการ</span>
+            <span class="auto-save-tag"><i class="fa-solid fa-cloud-arrow-up"></i> ซิงค์กับ Google Sheets อัตโนมัติ</span>
+          </div>
+
+          <!-- Pagination -->
+          <div id="pagination-wrapper" class="pagination-wrapper">
+            <button type="button" id="btn-prev-page" class="btn-page">
+              <i class="fa-solid fa-chevron-left"></i> ก่อนหน้า
+            </button>
+            <span id="page-info" class="page-info">หน้า 1 / 1</span>
+            <button type="button" id="btn-next-page" class="btn-page">
+              ถัดไป <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- 1. EDIT RECORD MODAL -->
+  <div id="edit-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen-to-square text-blue"></i> แก้ไขข้อมูลบันทึกการยืม</h3>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <form id="edit-form">
+        <input type="hidden" id="edit-id">
+
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label>ชื่อ</label>
+              <div id="edit-name" class="field-readonly"></div>
+            </div>
+            <div class="form-group col-6">
+              <label>แผนก</label>
+              <div id="edit-surname" class="field-readonly"></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-email">อีเมล</label>
+            <input type="email" id="edit-email">
+          </div>
+
+          <div class="form-group">
+            <label for="edit-equipment">อุปกรณ์ที่ยืม</label>
+            <input type="text" id="edit-equipment" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label>วันยืม</label>
+              <div id="edit-borrow-date" class="field-readonly"></div>
+            </div>
+            <div class="form-group col-6">
+              <label for="edit-return-date">วันคืน</label>
+              <input type="date" id="edit-return-date" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="edit-status">สถานะ</label>
+              <select id="edit-status" class="status-select">
+                <option value="กำลังยืม">กำลังยืม</option>
+                <option value="คืนแล้ว">คืนแล้ว</option>
+              </select>
+            </div>
+            <div class="form-group col-6">
+              <label>วันเวลาที่ทำรายการ</label>
+              <div id="edit-timestamp" class="field-readonly"></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-notes">หมายเหตุ</label>
+            <textarea id="edit-notes" rows="2" placeholder="ใส่หมายเหตุ..."></textarea>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline modal-close-btn">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึกการเปลี่ยนแปลง</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+
+  <!-- Photo Lightbox -->
+  <div id="photo-lightbox" class="lightbox-backdrop" onclick="closePhotoLightbox()">
+    <div class="lightbox-content" onclick="event.stopPropagation()">
+      <img id="lightbox-img" class="lightbox-img" src="" alt="">
+      <button type="button" class="lightbox-close" onclick="closePhotoLightbox()">&times;</button>
+    </div>
+  </div>
+
+  <!-- JS Logic -->
+  <script src="app.js"></script>
+</body>
+</html>

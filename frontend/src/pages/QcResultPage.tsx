@@ -162,7 +162,7 @@ export function QcResultPage() {
           </div>
           {!isViewer && (
             <button type="button" className="btn" onClick={() => setShowForm(v => !v)}
-              style={{ background: '#3b82f6', borderColor: '#3b82f6', color: '#fff', fontWeight: 600 }}>
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>
               {showForm ? '✕ ยกเลิก' : '+ บันทึก QC Result'}
             </button>
           )}
@@ -170,7 +170,7 @@ export function QcResultPage() {
 
         {/* ─── Form ─────────────────────────────────────────────── */}
         {showForm && !isViewer && (
-          <div className="panel" style={{ borderLeft: '4px solid #3b82f6', marginTop: '1.25rem' }}>
+          <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
             <h3 className="panel__title panel__title--sm">บันทึกผล QC</h3>
             <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem', gap: '0.75rem' }}>
               <div className="grid-2col">
@@ -234,7 +234,7 @@ export function QcResultPage() {
 
               <button type="submit" className="btn"
                 disabled={!woId.trim() || !lotNo.trim() || !qtyCheckedN || !overall || (needsDefect && !defectDesc.trim()) || createMut.isPending}
-                style={{ background: '#3b82f6', borderColor: '#3b82f6', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
+                style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
                 {createMut.isPending ? 'กำลังบันทึก...' : 'ยืนยันบันทึก QC Result'}
               </button>
             </form>
@@ -291,7 +291,7 @@ export function QcResultPage() {
                         {r.verdict === 'APPROVED' ? '✓ Approved' : '✗ Rejected'}
                       </span>
                     ) : (
-                      <Link to={`/qa-verify/${r.id}`} style={{ fontSize: '0.82rem', color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}>
+                      <Link to={`/qa-verify/${r.id}`} style={{ fontSize: '0.82rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
                         Verify →
                       </Link>
                     )}

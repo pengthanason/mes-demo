@@ -83,7 +83,7 @@ export function WoDetailPage() {
             <button
               type="button"
               className="btn"
-              style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}
               onClick={handleAdvance}
               disabled={patchMut.isPending}
             >

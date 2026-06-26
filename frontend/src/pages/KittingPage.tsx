@@ -66,7 +66,7 @@ export function KittingPage() {
                     onClick={() => !isViewer && setPartNo(s.partNo)}
                     style={{
                       width: '100%', textAlign: 'left', padding: '0.5rem 0.75rem', borderRadius: 6,
-                      border: '1px solid', borderColor: partNo === s.partNo ? '#0ea5e9' : 'var(--border-color)',
+                      border: '1px solid', borderColor: partNo === s.partNo ? 'var(--brand)' : 'var(--border-color)',
                       background: partNo === s.partNo ? '#e0f2fe' : '#fff', cursor: isViewer ? 'default' : 'pointer',
                     }}
                   >
@@ -108,7 +108,7 @@ export function KittingPage() {
                 )}
                 <button type="submit" className="btn"
                   disabled={!woId.trim() || !partNo || !Number(qty) || (selected && Number(qty) > selected.qtyAvailable) || issueMut.isPending}
-                  style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
+                  style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
                   {issueMut.isPending ? 'กำลังเบิก...' : 'เบิกของเข้าไลน์'}
                 </button>
               </form>

@@ -16,11 +16,25 @@ const FAIL_OPTS: { id: FailAction; name: string }[] = [
   { id: 'scrap',          name: '🗑️ Scrap (คัดทิ้ง NG)' },
   { id: 'hold',           name: '⏸️ Hold / MRB (กักรอตัดสิน)' },
 ];
-type Step = { id: string; process: string; seconds: number | ''; pass: boolean; failAction: FailAction; backToId: string; maxRetry: number };
+
+// ชนิดขั้นตอน: process = ไหลผ่าน · checkpoint = จุดตรวจ/ทดสอบ (มีเงื่อนไขผ่าน + ทางออกเมื่อไม่ผ่าน)
+type StepKind = 'process' | 'checkpoint';
+type Step = {
+  id: string; process: string; seconds: number | '';
+  kind: StepKind;                                     // checkpoint = จุดตรวจ (มีทางออกเมื่อไม่ผ่าน)
+  failAction: FailAction; backToId: string; maxRetry: number;
+};
 const CUSTOM_PROC_KEY = 'mes_custom_processes';
 
-const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.round(performance.now())}`);
-const newStep = (): Step => ({ id: uid(), process: PROCESSES[0], seconds: '', pass: true, failAction: 'rework', backToId: '', maxRetry: 0 });
+// เดาชนิดจากชื่อกระบวนการ — งานตรวจ/ทดสอบ → checkpoint, ที่เหลือ → process
+const CHECK_KEYWORDS = ['TEST', 'ICT', 'FCT', 'IPQC', 'OQC', 'FQC', 'AOI', 'SPI', 'INSPECT', 'CHECK', 'QC', 'VERIFY'];
+const guessKind = (p: string): StepKind => CHECK_KEYWORDS.some(k => p.toUpperCase().includes(k)) ? 'checkpoint' : 'process';
+
+const uid =() => (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.round(performance.now())}`);
+const newStep = (): Step => {
+  const process = PROCESSES[0];
+  return { id: uid(), process, seconds: '', kind: guessKind(process), failAction: 'rework', backToId: '', maxRetry: 0 };
+};
 const fmtTime = (sec: number) => {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
   const p: string[] = [];
@@ -107,41 +121,43 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
   );
 }
 
-/* ── mermaid flowchart — START→steps→END, FAIL = self-loop จริง, เวลาบนลูกศร PASS ── */
+/* ── mermaid flowchart — process ไหลผ่าน · checkpoint แตกกิ่งเมื่อไม่ผ่าน ── */
 function toMermaid(steps: Step[]): string {
   if (!steps.length) return 'flowchart TD\n  START([เริ่ม]) --> END([จบ])';
   const L = ['flowchart TD', '  START([▶ เริ่มสายผลิต]):::se'];
   steps.forEach((s, i) => {
     const t = s.seconds !== '' ? `<br/>⏱ ${s.seconds}s` : '';
-    L.push(`  S${i}["${i + 1}. ${s.process}${t}"]:::${s.pass ? 'ok' : 'ng'}`);
+    L.push(`  S${i}["${i + 1}. ${s.process}${t}"]:::${s.kind === 'checkpoint' ? 'chk' : 'proc'}`);
   });
   L.push('  DONE([■ เสร็จ]):::se');
-  // เส้นหลักก่อน (ให้ flow ตรงลงมาปกติ) START → ทุกขั้น → DONE
+  // เส้นหลัก (ไหลตรงลงมา) START → ทุกขั้น → DONE
   L.push('  START --> S0');
   steps.forEach((s, i) => {
     const next = i < steps.length - 1 ? `S${i + 1}` : 'DONE';
-    const t = s.seconds !== '' ? `${s.seconds}s · ` : '';
-    L.push(`  S${i} -->|"${t}✓ PASS"| ${next}`);
+    const t = s.seconds !== '' ? `${s.seconds}s` : '';
+    const lbl = s.kind === 'checkpoint' ? `${t ? t + ' · ' : ''}✓ ผ่าน` : t;
+    L.push(lbl ? `  S${i} -->|"${lbl}"| ${next}` : `  S${i} --> ${next}`);
   });
-  // เส้นทาง FAIL ตาม disposition (ไว้ท้ายสุด ไม่ให้ดัน layout เส้นหลัก)
+  // เส้นทาง "ไม่ผ่าน" เฉพาะ checkpoint
   steps.forEach((s, i) => {
-    if (s.pass) return;
+    if (s.kind !== 'checkpoint') return;
     const r = s.maxRetry > 0 ? ` ×${s.maxRetry}` : '';
     if (s.failAction === 'back') {
       const ti = steps.findIndex(x => x.id === s.backToId);
-      L.push(`  S${i} -->|"FAIL ↩${r}"| S${ti >= 0 ? ti : Math.max(0, i - 1)}`);
+      L.push(`  S${i} -->|"ไม่ผ่าน ↩${r}"| S${ti >= 0 ? ti : Math.max(0, i - 1)}`);
     } else if (s.failAction === 'scrap') {
-      L.push(`  S${i} -->|FAIL| SC${i}["🗑️ Scrap (NG)"]:::ng`);
+      L.push(`  S${i} -->|ไม่ผ่าน| SC${i}["🗑️ Scrap (NG)"]:::ng`);
     } else if (s.failAction === 'hold') {
-      L.push(`  S${i} -->|FAIL| HD${i}["⏸️ Hold / MRB"]:::hold`);
+      L.push(`  S${i} -->|ไม่ผ่าน| HD${i}["⏸️ Hold / MRB"]:::hold`);
     } else if (s.failAction === 'rework_station') {
-      L.push(`  S${i} -->|"FAIL${r}"| RW${i}["🛠️ Rework"]:::rw`);
+      L.push(`  S${i} -->|"ไม่ผ่าน${r}"| RW${i}["🛠️ Rework"]:::rw`);
       L.push(`  RW${i} -.->|แก้แล้ว| S${i}`);
     } else {
-      L.push(`  S${i} -->|"FAIL ↻${r}"| S${i}`);
+      L.push(`  S${i} -->|"ไม่ผ่าน ↻${r}"| S${i}`);
     }
   });
-  L.push('  classDef ok fill:#eef2ff,stroke:#6366f1,stroke-width:2px,color:#1e293b;');
+  L.push('  classDef proc fill:#eef2ff,stroke:#6366f1,stroke-width:2px,color:#1e293b;');
+  L.push('  classDef chk fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#1e293b;');
   L.push('  classDef ng fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#1e293b;');
   L.push('  classDef se fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d;');
   L.push('  classDef hold fill:#fef9c3,stroke:#d97706,color:#854d0e;');
@@ -149,16 +165,16 @@ function toMermaid(steps: Step[]): string {
   return L.join('\n');
 }
 
-/* ── วาด flowchart เป็น SVG เอง — เส้นหลักตรงลงมา + เส้นทาง FAIL ตาม disposition ── */
+/* ── วาด flowchart เป็น SVG เอง — process ไหลตรง · checkpoint แตกกิ่งเมื่อไม่ผ่าน ── */
 function buildFlowSvg(steps: Step[]): string {
   const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const BX = 92, BW = 240, BH = 54, PILLW = 180, PILLH = 34, GAP = 50;
   const cx = BX + BW / 2, rx = BX + BW;
   const Wsvg = BX + BW + 180;
-  type Item = { pill?: boolean; label: string; sub?: string; fail?: boolean; stepIdx?: number };
+  type Item = { pill?: boolean; label: string; sub?: string; check?: boolean; stepIdx?: number };
   const items: Item[] = [
     { pill: true, label: '▶ เริ่มสายผลิต' },
-    ...steps.map((s, i) => ({ label: `${i + 1}. ${s.process}`, sub: s.seconds !== '' ? `⏱ ${fmtTime(Number(s.seconds))}` : '', fail: !s.pass, stepIdx: i })),
+    ...steps.map((s, i) => ({ label: `${i + 1}. ${s.process}`, sub: s.seconds !== '' ? `⏱ ${fmtTime(Number(s.seconds))}` : '', check: s.kind === 'checkpoint', stepIdx: i })),
     { pill: true, label: '■ เสร็จ' },
   ];
   // pass 1: คำนวณตำแหน่งแนวตั้งของทุก node
@@ -183,12 +199,14 @@ function buildFlowSvg(steps: Step[]): string {
       parts.push(`<rect x="${cx - PILLW / 2}" y="${g.top}" width="${PILLW}" height="${g.h}" rx="${g.h / 2}" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>`);
       parts.push(`<text x="${cx}" y="${g.mid}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#14532d">${esc(it.label)}</text>`);
     } else {
-      const stroke = it.fail ? '#dc2626' : '#6366f1', fill = it.fail ? '#fef2f2' : '#eef2ff';
+      // checkpoint = เหลือง (จุดตรวจ) · process = ฟ้า (ไหลผ่าน)
+      const stroke = it.check ? '#d97706' : '#6366f1', fill = it.check ? '#fffbeb' : '#eef2ff';
       parts.push(`<rect x="${BX}" y="${g.top}" width="${BW}" height="${g.h}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`);
-      parts.push(`<text x="${cx}" y="${it.sub ? g.mid - 7 : g.mid}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#1e293b">${esc(it.label)}</text>`);
+      const badge = it.check ? '🔎 ' : '';
+      parts.push(`<text x="${cx}" y="${it.sub ? g.mid - 7 : g.mid}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#1e293b">${esc(badge + it.label)}</text>`);
       if (it.sub) parts.push(`<text x="${cx}" y="${g.mid + 10}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#0369a1">${esc(it.sub)}</text>`);
 
-      if (it.fail) {
+      if (it.check) {
         const s = steps[it.stepIdx!];
         const midY = g.mid;
         if (s.failAction === 'scrap') sideNode(midY, '#fee2e2', '#dc2626', '#991b1b', '🗑️ Scrap (NG)');
@@ -198,7 +216,7 @@ function buildFlowSvg(steps: Step[]): string {
           if (ti < 0) ti = idx - 1;                       // default: ขั้นก่อนหน้า
           const tg = geom[ti], lx = BX - 30;
           parts.push(`<path d="M ${BX} ${midY} L ${lx} ${midY} L ${lx} ${tg.mid} L ${BX} ${tg.mid}" fill="none" stroke="#dc2626" stroke-width="2" marker-end="url(#ahr)"/>`);
-          parts.push(`<text x="${lx}" y="${(midY + tg.mid) / 2}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700" fill="#dc2626">FAIL ↩${retry(s)}</text>`);
+          parts.push(`<text x="${lx}" y="${(midY + tg.mid) / 2}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700" fill="#dc2626">ไม่ผ่าน ↩${retry(s)}</text>`);
         }
         else if (s.failAction === 'rework_station') {
           sideNode(midY, '#eef2ff', '#6366f1', '#3730a3', `🛠️ Rework${retry(s)}`);
@@ -211,13 +229,17 @@ function buildFlowSvg(steps: Step[]): string {
         }
       }
     }
-    // เส้นหลัก (PASS) ไปโหนดถัดไป + ป้ายเวลา
+    // เส้นหลักไปโหนดถัดไป + ป้าย (checkpoint = ✓ ผ่าน, process = เวลาเฉยๆ)
     if (idx < items.length - 1) {
       parts.push(`<line x1="${cx}" y1="${g.bottom}" x2="${cx}" y2="${geom[idx + 1].top}" stroke="#94a3b8" stroke-width="2" marker-end="url(#ah)"/>`);
       if (it.stepIdx != null) {
         const s = steps[it.stepIdx];
-        const t = s.seconds !== '' ? `${fmtTime(Number(s.seconds))} · PASS` : 'PASS';
-        parts.push(`<text x="${cx + 10}" y="${(g.bottom + geom[idx + 1].top) / 2}" text-anchor="start" dominant-baseline="central" font-size="10" font-weight="600" fill="#16a34a">✓ ${esc(t)}</text>`);
+        const t = s.seconds !== '' ? fmtTime(Number(s.seconds)) : '';
+        if (s.kind === 'checkpoint') {
+          parts.push(`<text x="${cx + 10}" y="${(g.bottom + geom[idx + 1].top) / 2}" text-anchor="start" dominant-baseline="central" font-size="10" font-weight="600" fill="#16a34a">✓ ${esc(t ? t + ' · ' : '')}ผ่าน</text>`);
+        } else if (t) {
+          parts.push(`<text x="${cx + 10}" y="${(g.bottom + geom[idx + 1].top) / 2}" text-anchor="start" dominant-baseline="central" font-size="10" font-weight="600" fill="#64748b">${esc(t)}</text>`);
+        }
       }
     }
   });
@@ -257,6 +279,8 @@ export function WorkflowBuilder() {
   const [model, setModel] = useState('');
   const [steps, setSteps] = useState<Step[]>([newStep()]);
   const [showFlow, setShowFlow] = useState(false);
+  // ผลรันจริง: เซ็ตของ id จุดตรวจที่ "ไม่ผ่าน" (design กับ run แยกกัน)
+  const [runFail, setRunFail] = useState<Set<string>>(new Set());
   // กระบวนการที่เพิ่มเอง — เก็บใน localStorage ของบราวเซอร์
   const [customProcs, setCustomProcs] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(CUSTOM_PROC_KEY) || '[]'); } catch { return []; }
@@ -276,11 +300,13 @@ export function WorkflowBuilder() {
 
   const totalSec = steps.reduce((sum, s) => sum + (Number(s.seconds) || 0), 0);
   const flowSvg = buildFlowSvg(steps);
-  const sequenceStr = steps.map(s => `${s.process}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
+  const checkpoints = steps.filter(s => s.kind === 'checkpoint');
+  const overallRun = checkpoints.some(s => runFail.has(s.id)) ? 'FAIL' : 'PASS';
 
   const setStep = (id: string, patch: Partial<Step>) => setSteps(s => s.map(x => x.id === id ? { ...x, ...patch } : x));
   const addStep = () => setSteps(s => [...s, newStep()]);
   const removeStep = (id: string) => setSteps(s => s.length > 1 ? s.filter(x => x.id !== id) : s);
+  const toggleRun = (id: string) => setRunFail(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   function onDrop(targetId: string) {
     if (draggedId == null || draggedId === targetId) return;
@@ -308,9 +334,9 @@ export function WorkflowBuilder() {
       steps: steps.map(s => ({
         process: s.process,
         seconds: s.seconds === '' ? null : Number(s.seconds),
-        pass: s.pass,
+        kind: s.kind,
         failAction: s.failAction,
-        backToIndex: s.failAction === 'back' && idToIndex.has(s.backToId) ? idToIndex.get(s.backToId)! : null,
+        backToIndex: s.kind === 'checkpoint' && s.failAction === 'back' && idToIndex.has(s.backToId) ? idToIndex.get(s.backToId)! : null,
         maxRetry: s.maxRetry,
       })),
     }, {
@@ -327,7 +353,8 @@ export function WorkflowBuilder() {
       id: uid(),
       process: s.process,
       seconds: (s.seconds == null ? '' : s.seconds) as number | '',
-      pass: s.pass !== false,
+      // kind: ใช้ที่บันทึก ถ้าไม่มี (preset เก่า) → เดาจาก pass/ชื่อ
+      kind: (s.kind === 'process' || s.kind === 'checkpoint') ? s.kind : (s.pass === false ? 'checkpoint' : guessKind(s.process)),
       failAction: (VALID_FAIL.includes(s.failAction as FailAction) ? s.failAction : 'rework') as FailAction,
       backToId: '',
       maxRetry: Number(s.maxRetry) || 0,
@@ -338,6 +365,7 @@ export function WorkflowBuilder() {
       if (typeof bi === 'number' && bi >= 0 && bi < loaded.length) loaded[i].backToId = loaded[bi].id;
     });
     setSteps(loaded);
+    setRunFail(new Set());
     // กระบวนการ custom ที่อยู่ใน preset แต่ยังไม่มีในลิสต์ → เพิ่มเข้า list ให้เลือกได้
     const extra = ws.map(s => s.process).filter(p => p && !PROCESSES.includes(p) && !customProcs.includes(p));
     if (extra.length) setCustomProcs(prev => [...new Set([...prev, ...extra])]);
@@ -357,29 +385,29 @@ export function WorkflowBuilder() {
       setCustomProcs(prev => [...prev, t]);
       showToast(`เพิ่มกระบวนการ "${t}" แล้ว`, 'success');
     }
-    setStep(stepId, { process: t });
+    setStep(stepId, { process: t, kind: guessKind(t) });
   }
 
   function deleteCustomProcess(name: string) {
     if (!confirm(`ลบกระบวนการ "${name}"?\n(ออกจากลิสต์ของบราวเซอร์นี้)`)) return;
     setCustomProcs(prev => prev.filter(n => n !== name));
-    setSteps(prev => prev.map(s => s.process === name ? { ...s, process: PROCESSES[0] } : s));
+    setSteps(prev => prev.map(s => s.process === name ? { ...s, process: PROCESSES[0], kind: guessKind(PROCESSES[0]) } : s));
   }
 
-  /* บันทึกผล (Record) — ผลรายขั้นอ่านจากปุ่ม PASS/FAIL ที่ตั้งไว้ในแต่ละกระบวนการ */
+  /* บันทึกผลรันจริง — PASS/FAIL อ่านจากจุดตรวจที่กดไว้ (ขั้นผลิตถือว่าผ่านเสมอ) */
   function record() {
     if (!serial.trim()) { showToast('กรุณากรอก Serial Number', 'error'); return; }
     if (!steps.length) { showToast('ต้องมีกระบวนการอย่างน้อย 1', 'error'); return; }
     if (steps.some(s => s.seconds === '' || Number(s.seconds) <= 0)) {
       showToast('กรุณากรอกเวลา (วินาที) ให้ครบทุกกระบวนการ', 'error'); return;
     }
-    const perStep = steps.map(s => ({ process: s.process, result: s.pass ? 'PASS' : 'FAIL' }));
-    const overall = perStep.some(p => p.result === 'FAIL') ? 'FAIL' : 'PASS';
-    const seqStr = steps.map(s => `${s.process}${s.pass ? '' : '❌'}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
+    const perStep = steps.map(s => ({ process: s.process, result: (s.kind === 'checkpoint' && runFail.has(s.id)) ? 'FAIL' : 'PASS' }));
+    const overall = overallRun;
+    const seqStr = steps.map(s => `${s.process}${s.kind === 'checkpoint' && runFail.has(s.id) ? '❌' : ''}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
     recordResult.mutate(
       { serial: serial.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: overall, total_sec: totalSec, steps: perStep },
       {
-        onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${overall}) สำเร็จ`, 'success'); setSerial(''); setSteps(s => s.map(x => ({ ...x, pass: true }))); },
+        onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${overall}) สำเร็จ`, 'success'); setSerial(''); setRunFail(new Set()); },
         onError: (e: any) => showToast(e.message, 'error'),
       }
     );
@@ -391,7 +419,7 @@ export function WorkflowBuilder() {
         <span className="mes-module-code">1.3</span>
         <div>
           <h2 className="panel__title">Manufacturing Sequence Builder</h2>
-          <p className="panel__subtitle">กำหนดลำดับกระบวนการ → บันทึก Preset / สร้าง FlowChart / บันทึกผลเดินสายผลิต</p>
+          <p className="panel__subtitle">กำหนดลำดับกระบวนการ + จุดตรวจ (เงื่อนไขผ่าน/ทางออกเมื่อไม่ผ่าน) → บันทึก Preset / สร้าง FlowChart / บันทึกผลเดินสายผลิต</p>
         </div>
       </div>
 
@@ -425,7 +453,7 @@ export function WorkflowBuilder() {
       <div style={{ background: '#f8f9fa', padding: 20, border: '1px solid #e2e8f0', borderRadius: 6 }}>
         {!isViewer && (
           <div style={{ marginBottom: 15 }}>
-            <button type="button" className="btn" onClick={addStep} style={{ background: '#3498db', color: '#fff', border: 'none' }}>
+            <button type="button" className="btn" onClick={addStep} style={{ background: 'var(--brand)', color: '#fff', border: 'none' }}>
               + เพิ่มกระบวนการ
             </button>
           </div>
@@ -435,7 +463,9 @@ export function WorkflowBuilder() {
           <div style={{ textAlign: 'center', color: '#7f8c8d', fontStyle: 'italic', padding: '20px 0' }}>⚠️ ยังไม่มีกระบวนการ — กดปุ่มด้านบนเพื่อเพิ่ม</div>
         ) : (
           <div className="stack">
-            {steps.map((step, index) => (
+            {steps.map((step, index) => {
+              const isCheck = step.kind === 'checkpoint';
+              return (
               <div key={step.id}
                 draggable={grabId === step.id}
                 onDragStart={e => { setDraggedId(step.id); e.dataTransfer.effectAllowed = 'move'; }}
@@ -444,7 +474,7 @@ export function WorkflowBuilder() {
                 onDrop={e => { e.preventDefault(); onDrop(step.id); }}
                 onDragEnd={() => { setDraggedId(null); setDragOverId(null); setGrabId(null); }}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: 10, borderRadius: 4, borderLeft: '4px solid #3498db', flexWrap: 'wrap',
+                  display: 'flex', alignItems: 'center', gap: 12, padding: 10, borderRadius: 4, borderLeft: `4px solid ${isCheck ? '#d97706' : 'var(--brand)'}`, flexWrap: 'wrap',
                   opacity: draggedId === step.id ? 0.5 : 1,
                   background: dragOverId === step.id && draggedId !== step.id ? '#e0f2fe' : '#fff',
                   boxShadow: dragOverId === step.id && draggedId !== step.id ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.05)',
@@ -455,13 +485,13 @@ export function WorkflowBuilder() {
                     <div style={{ cursor: 'grab', color: '#94a3b8', padding: 5, fontSize: '1.1rem' }}
                       onMouseEnter={() => setGrabId(step.id)} onMouseLeave={() => setGrabId(null)} title="ลากเพื่อจัดลำดับ">☰</div>
                   )}
-                  <div style={{ background: '#3498db', color: '#fff', padding: '4px 10px', borderRadius: 20, fontSize: 14, fontWeight: 'bold', minWidth: 70, textAlign: 'center' }}>Step {index + 1}</div>
+                  <div style={{ background: 'var(--brand)', color: '#fff', padding: '4px 10px', borderRadius: 20, fontSize: 14, fontWeight: 'bold', minWidth: 70, textAlign: 'center' }}>Step {index + 1}</div>
                 </div>
 
-                {/* process dropdown: หลัก(A-Z) + custom + เพิ่มกระบวนการ */}
+                {/* process dropdown: หลัก(A-Z) + custom + เพิ่มกระบวนการ (เปลี่ยนชื่อ → เดาชนิดให้) */}
                 <div style={{ display: 'flex', flexGrow: 1, gap: 8, minWidth: 200 }}>
                   <ProcessSelect value={step.process} main={PROCESSES} custom={customProcs}
-                    onChange={v => setStep(step.id, { process: v })}
+                    onChange={v => setStep(step.id, { process: v, kind: guessKind(v) })}
                     onAdd={() => addCustomProcess(step.id)}
                     onDeleteCustom={deleteCustomProcess}
                     disabled={isViewer} />
@@ -490,45 +520,47 @@ export function WorkflowBuilder() {
                   );
                 })()}
 
-                {/* PASS/FAIL รายขั้น (ใช้กับ FlowChart — FAIL จะวนลูปจนผ่าน) */}
-                <button type="button" onClick={() => !isViewer && setStep(step.id, { pass: !step.pass })} disabled={isViewer}
-                  title="กำหนดว่ากระบวนการนี้ผ่าน/ไม่ผ่าน — ถ้า FAIL FlowChart จะวนลูปจนกว่าจะผ่าน"
-                  style={{ padding: '7px 12px', borderRadius: 6, border: `1px solid ${step.pass ? '#16a34a' : '#dc2626'}`, background: step.pass ? '#dcfce7' : '#fee2e2', color: step.pass ? '#166534' : '#991b1b', fontWeight: 700, cursor: isViewer ? 'default' : 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                  {step.pass ? '✓ PASS' : '✗ FAIL'}
+                {/* สลับชนิด: ขั้นผลิต / จุดตรวจ */}
+                <button type="button" onClick={() => !isViewer && setStep(step.id, { kind: isCheck ? 'process' : 'checkpoint' })} disabled={isViewer}
+                  title="ขั้นผลิต = ไหลผ่าน / จุดตรวจ = มีเงื่อนไขผ่าน + ทางออกเมื่อไม่ผ่าน"
+                  style={{ padding: '7px 12px', borderRadius: 6, border: `1px solid ${isCheck ? '#d97706' : '#6366f1'}`, background: isCheck ? '#fffbeb' : '#eef2ff', color: isCheck ? '#92400e' : '#3730a3', fontWeight: 700, cursor: isViewer ? 'default' : 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                  {isCheck ? '🔎 จุดตรวจ' : '⚙️ ขั้นผลิต'}
                 </button>
 
                 {!isViewer && <button className="btn danger" onClick={() => removeStep(step.id)} disabled={steps.length === 1}>ลบ</button>}
 
-                {/* ถ้า FAIL ทำยังไง (disposition) — โผล่เมื่อตั้ง FAIL */}
-                {!isViewer && !step.pass && (
-                  <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6, padding: '8px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6 }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#991b1b' }}>ถ้า FAIL →</span>
-                    <select value={step.failAction} title="การจัดการเมื่อ FAIL"
-                      onChange={e => setStep(step.id, { failAction: e.target.value as FailAction })}
-                      style={{ padding: 6, borderRadius: 4, border: '1px solid #fca5a5', background: '#fff', fontSize: '0.8rem' }}>
-                      {FAIL_OPTS.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                    </select>
-                    {step.failAction === 'back' && (
-                      <select value={step.backToId} title="ย้อนกลับไปขั้น"
-                        onChange={e => setStep(step.id, { backToId: e.target.value })}
+                {/* จุดตรวจ → เงื่อนไขผ่าน + ถ้าไม่ผ่านทำยังไง */}
+                {!isViewer && isCheck && (
+                  <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6, padding: '10px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#991b1b', whiteSpace: 'nowrap' }}>✗ ถ้าไม่ผ่าน →</span>
+                      <select value={step.failAction} title="การจัดการเมื่อไม่ผ่าน"
+                        onChange={e => setStep(step.id, { failAction: e.target.value as FailAction })}
                         style={{ padding: 6, borderRadius: 4, border: '1px solid #fca5a5', background: '#fff', fontSize: '0.8rem' }}>
-                        <option value="">— ขั้นที่ย้อนไป (ดีฟอลต์: ขั้นก่อนหน้า) —</option>
-                        {steps.slice(0, index).map((x, xi) => <option key={x.id} value={x.id}>Step {xi + 1}: {x.process}</option>)}
+                        {FAIL_OPTS.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                       </select>
-                    )}
-                    {(step.failAction === 'rework' || step.failAction === 'rework_station' || step.failAction === 'back') && (
-                      <label style={{ fontSize: '0.8rem', color: '#991b1b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        วนได้ไม่เกิน
-                        <input type="number" min="0" value={step.maxRetry || ''} placeholder="0" title="จำนวนครั้งสูงสุด (0 = ไม่จำกัด)"
-                          onChange={e => setStep(step.id, { maxRetry: e.target.value === '' ? 0 : Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
-                          style={{ width: 52, padding: 5, borderRadius: 4, border: '1px solid #fca5a5', textAlign: 'center' }} />
-                        ครั้ง (0=ไม่จำกัด)
-                      </label>
-                    )}
+                      {step.failAction === 'back' && (
+                        <select value={step.backToId} title="ย้อนกลับไปขั้น"
+                          onChange={e => setStep(step.id, { backToId: e.target.value })}
+                          style={{ padding: 6, borderRadius: 4, border: '1px solid #fca5a5', background: '#fff', fontSize: '0.8rem' }}>
+                          <option value="">— ขั้นที่ย้อนไป (ดีฟอลต์: ขั้นก่อนหน้า) —</option>
+                          {steps.slice(0, index).map((x, xi) => <option key={x.id} value={x.id}>Step {xi + 1}: {x.process}</option>)}
+                        </select>
+                      )}
+                      {(step.failAction === 'rework' || step.failAction === 'rework_station' || step.failAction === 'back') && (
+                        <label style={{ fontSize: '0.8rem', color: '#991b1b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          วนได้ไม่เกิน
+                          <input type="number" min="0" value={step.maxRetry || ''} placeholder="0" title="จำนวนครั้งสูงสุด (0 = ไม่จำกัด)"
+                            onChange={e => setStep(step.id, { maxRetry: e.target.value === '' ? 0 : Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
+                            style={{ width: 52, padding: 5, borderRadius: 4, border: '1px solid #fca5a5', textAlign: 'center' }} />
+                          ครั้ง (0=ไม่จำกัด)
+                        </label>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-            ))}
+            );})}
           </div>
         )}
       </div>
@@ -539,16 +571,34 @@ export function WorkflowBuilder() {
         <strong style={{ fontSize: '1.25rem', color: '#0284c7' }}>{fmtTime(totalSec)}</strong>
       </div>
 
-      {/* บันทึกผลเดินสายผลิต — ผลรวมคำนวณจากปุ่ม PASS/FAIL ของแต่ละกระบวนการ (เชื่อมกับ FlowChart) */}
+      {/* บันทึกผลเดินสายผลิต — กดผ่าน/ไม่ผ่าน เฉพาะ "จุดตรวจ" ของ Serial จริง */}
       {!isViewer && (
         <div style={{ padding: 15, background: 'var(--bg-panel)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+          <div style={{ fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10 }}>📝 บันทึกผลเดินสายผลิต (Serial จริง)</div>
+          {checkpoints.length === 0 ? (
+            <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: 10 }}>ยังไม่มีจุดตรวจในเวิร์กโฟลว์ — ผลรวมจะเป็น PASS โดยอัตโนมัติ</div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {checkpoints.map(s => {
+                const failed = runFail.has(s.id);
+                const i = steps.findIndex(x => x.id === s.id);
+                return (
+                  <button key={s.id} type="button" onClick={() => toggleRun(s.id)}
+                    title="กดสลับ ผ่าน/ไม่ผ่าน ของจุดตรวจนี้"
+                    style={{ padding: '6px 12px', borderRadius: 6, border: `1px solid ${failed ? '#dc2626' : '#16a34a'}`, background: failed ? '#fee2e2' : '#dcfce7', color: failed ? '#991b1b' : '#166534', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                    {i + 1}. {s.process}: {failed ? '✗ ไม่ผ่าน' : '✓ ผ่าน'}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>ผลรวม (Result):</span>
-              <ResultBadge value={steps.some(s => !s.pass) ? 'FAIL' : 'PASS'} />
-              {steps.some(s => !s.pass) && (
+              <ResultBadge value={overallRun} />
+              {overallRun === 'FAIL' && (
                 <span style={{ fontSize: '0.82rem', color: '#991b1b', fontWeight: 600 }}>
-                  ✗ FAIL ที่ {steps.map((s, i) => !s.pass ? `Step ${i + 1}` : null).filter(Boolean).join(', ')}
+                  ✗ ไม่ผ่านที่ {checkpoints.filter(s => runFail.has(s.id)).map(s => `Step ${steps.findIndex(x => x.id === s.id) + 1}`).join(', ')}
                 </span>
               )}
             </div>
@@ -557,7 +607,6 @@ export function WorkflowBuilder() {
               {recordResult.isPending ? 'กำลังบันทึก...' : '💾 บันทึกผล'}
             </button>
           </div>
-          <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 8 }}>* ตั้ง PASS/FAIL ที่ปุ่มของแต่ละกระบวนการด้านบน — ผลรวมนี้คำนวณให้อัตโนมัติ</div>
         </div>
       )}
 
@@ -575,7 +624,7 @@ export function WorkflowBuilder() {
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>FlowChart</h3>
             <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(customer, model, flowSvg)}>🖨️ Export PDF</button>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · <span style={{ color: '#16a34a' }}>เขียว</span>=ผ่าน · <span style={{ color: '#dc2626' }}>แดง</span>=มีลูปแก้ไข (FAIL)</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · <span style={{ color: '#6366f1' }}>ฟ้า</span>=ขั้นผลิต · <span style={{ color: '#d97706' }}>เหลือง</span>=จุดตรวจ (มีทางออกเมื่อไม่ผ่าน)</p>
           <div style={{ display: 'flex', justifyContent: 'center', overflowX: 'auto', padding: '8px 0' }} dangerouslySetInnerHTML={{ __html: flowSvg }} />
           <details style={{ marginTop: 24 }}>
             <summary style={{ cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Mermaid</summary>

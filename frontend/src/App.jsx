@@ -41,10 +41,10 @@ const MAIN_ITEMS = [
   { to: '/admin/panel',      label: 'Admin Panel' },
 ];
 
-const SIDEBAR_BG   = '#1e3a5f';
-const SIDEBAR_TEXT = 'rgba(255,255,255,0.85)';
-const SIDEBAR_ACTIVE_BG = 'rgba(255,255,255,0.15)';
-const SIDEBAR_HOVER_BG  = 'rgba(255,255,255,0.08)';
+const SIDEBAR_BG   = 'var(--sidebar-bg)';
+const SIDEBAR_TEXT = 'var(--frame-text)';
+const SIDEBAR_ACTIVE_BG = 'var(--frame-active-bg)';
+const SIDEBAR_HOVER_BG  = 'var(--frame-hover-bg)';
 
 // ─── Sidebar ───────────────────────────────────────────────────────
 const SIDEBAR_W = 220; // expanded width
@@ -71,7 +71,7 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
         padding: '0.5rem 0.75rem',
         borderRadius: 6,
         fontSize: '0.875rem',
-        color: (isActive || hov) ? '#fff' : SIDEBAR_TEXT,
+        color: (isActive || hov) ? 'var(--frame-text-active)' : SIDEBAR_TEXT,
         background: 'transparent',
         fontWeight: isActive ? 600 : 400,
         textDecoration: 'none',
@@ -147,6 +147,7 @@ function Sidebar() {
         left: 0, top: 0, bottom: 0,
         width: expanded ? SIDEBAR_W : ICON_W,
         background: SIDEBAR_BG,
+        borderRight: '1px solid var(--frame-line)',
         transition: 'width 0.2s ease',
         overflow: 'hidden',
         zIndex: 200,
@@ -164,7 +165,7 @@ function Sidebar() {
           justifyContent: expanded ? 'flex-start' : 'center',
           gap: '0.75rem',
           padding: expanded ? '1rem 0.875rem' : '1rem 0',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          borderBottom: '1px solid var(--frame-line)',
           marginBottom: '0.5rem',
           flexShrink: 0,
           minHeight: 60,
@@ -173,12 +174,12 @@ function Sidebar() {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
-          <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
-          <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
-          <span style={{ display: 'block', width: 24, height: 2.5, background: '#fff', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 24, height: 2.5, background: 'var(--frame-logo)', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 24, height: 2.5, background: 'var(--frame-logo)', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 24, height: 2.5, background: 'var(--frame-logo)', borderRadius: 2 }} />
         </div>
         {expanded && (
-          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--frame-logo)', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
             SYNTECH MES
           </span>
         )}
@@ -282,7 +283,7 @@ function NavLink({ to, children, innerRef }) {
       style={{
         padding: '0.4rem 0.85rem',
         borderRadius: 6,
-        color: isActive ? '#fff' : 'rgba(255,255,255,0.72)',
+        color: isActive ? 'var(--frame-text-active)' : 'var(--frame-text)',
         textDecoration: 'none',
         fontWeight: isActive ? 600 : 400,
         fontSize: '0.875rem',
@@ -292,8 +293,8 @@ function NavLink({ to, children, innerRef }) {
         transition: 'color 0.2s',
         outline: 'none',
       }}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#fff'; }}
-      onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.72)'; }}
+      onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--frame-text-active)'; }}
+      onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--frame-text)'; }}
     >
       {children}
     </Link>
@@ -347,10 +348,10 @@ function NotificationBell() {
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
           width: 36, height: 36, borderRadius: 8, flexShrink: 0, border: 'none', cursor: 'pointer',
-          background: open ? 'rgba(255,255,255,0.15)' : 'transparent',
-          color: 'rgba(255,255,255,0.8)', fontSize: '1.1rem', transition: 'background 0.15s',
+          background: open ? 'var(--frame-active-bg)' : 'transparent',
+          color: 'var(--frame-text)', fontSize: '1.1rem', transition: 'background 0.15s',
         }}
-        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'var(--frame-hover-bg)'; }}
         onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent'; }}
       >
         🔔
@@ -388,11 +389,11 @@ function NotificationBell() {
                 style={{
                   display: 'flex', gap: '0.6rem', padding: '0.7rem 1rem', cursor: 'pointer',
                   borderBottom: '1px solid #f1f5f9',
-                  background: n.isRead ? '#fff' : 'rgba(59,130,246,0.06)',
-                  borderLeft: n.isRead ? '3px solid transparent' : '3px solid #3b82f6',
+                  background: n.isRead ? '#fff' : 'rgba(46,125,79,0.07)',
+                  borderLeft: n.isRead ? '3px solid transparent' : '3px solid var(--brand)',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = n.isRead ? '#fff' : 'rgba(59,130,246,0.06)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = n.isRead ? '#fff' : 'rgba(46,125,79,0.07)'; }}
               >
                 <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{NOTIF_ICON[n.type] ?? '🔔'}</span>
                 <div style={{ minWidth: 0 }}>
@@ -407,7 +408,7 @@ function NotificationBell() {
           <Link
             to="/notifications"
             onClick={() => setOpen(false)}
-            style={{ display: 'block', textAlign: 'center', padding: '0.7rem', fontSize: '0.85rem', fontWeight: 600, color: '#3b82f6', textDecoration: 'none', borderTop: '1px solid #f1f5f9' }}
+            style={{ display: 'block', textAlign: 'center', padding: '0.7rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--brand)', textDecoration: 'none', borderTop: '1px solid #f1f5f9' }}
           >
             ดูทั้งหมด →
           </Link>
@@ -469,7 +470,7 @@ function TopNav() {
       <div ref={sliderRef} style={{
         position: 'absolute', top: '50%', height: '1.8rem',
         transform: 'translateY(-50%)',
-        background: 'rgba(255,255,255,0.2)',
+        background: 'var(--frame-active-bg)',
         borderRadius: 6, pointerEvents: 'none', zIndex: 0, opacity: 0,
       }} />
       <NavLink to="/dashboard"       innerRef={ref('/dashboard')}><NavLabel full="Dashboard" short="Home" /></NavLink>
@@ -481,7 +482,7 @@ function TopNav() {
       <NavLink to="/traceability"    innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
       <NavLink to="/4m-change"       innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
       {(role === 'admin' || role === 'member') && <NavLink to="/scm-cases" innerRef={ref('/scm-cases')}><NavLabel full="SCM Cases" short="SCM" /></NavLink>}
-      <NavLink to="/equipment-borrow" innerRef={ref('/equipment-borrow')}><NavLabel full="ยืม-คืนอุปกรณ์" short="ยืม-คืน" /></NavLink>
+      <NavLink to="/equipment-borrow" innerRef={ref('/equipment-borrow')}><NavLabel full="Equipment Borrow" short="Borrow" /></NavLink>
       {role === 'admin' && <NavLink to="/admin/panel" innerRef={ref('/admin/panel')}><NavLabel full="Admin Panel" short="Admin" /></NavLink>}
     </nav>
       <NotificationBell />
@@ -494,7 +495,7 @@ function EquipmentBorrowPage() {
   return (
     <div style={{ margin: '-1.5rem', overflow: 'hidden' }}>
       <iframe
-        src="https://pengthanason.github.io/equipment-dashboard/"
+        src={`${import.meta.env.BASE_URL}equipment-borrow/index.html`}
         title="ระบบยืม-คืนอุปกรณ์"
         style={{ width: '100%', height: 'calc(100vh - 56px)', border: 'none', display: 'block' }}
       />
@@ -582,8 +583,8 @@ function Shell({ children }) {
             font-family: inherit;
           }
           .field input:focus, .field select:focus, .field textarea:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.12);
           }
           .field span {
             display: block; margin-bottom: 0.35rem; font-weight: 600;
@@ -618,8 +619,8 @@ function Shell({ children }) {
         <header className="app-header" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: '1rem', flexWrap: 'wrap',
-          borderBottom: '1px solid #0f2744',
-          background: '#162d4a',
+          borderBottom: '1px solid var(--frame-line)',
+          background: 'var(--header-bg)',
           position: 'sticky', top: 0, zIndex: 100,
         }}>
           <TopNav />
@@ -629,7 +630,7 @@ function Shell({ children }) {
           {children}
         </main>
 
-        <footer className="app-footer" style={{ marginBottom: '5px', borderTop: '1px solid #2d5a8e', textAlign: 'center', color: '#2d5a8e', fontSize: '0.8rem', flexShrink: 0 }}>
+        <footer className="app-footer" style={{ marginBottom: '5px', borderTop: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', flexShrink: 0 }}>
           © 2026 Synergy Technology · SYNTECH MES v0.1
         </footer>
       </div>

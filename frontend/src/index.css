@@ -9,18 +9,37 @@
   --text-main:      #1e293b;
   --text-body:      #334155;
   --text-muted:     #64748b;
-  --primary:        #3b82f6;
-  --primary-hover:  #2563eb;
+  --primary:        var(--brand);
+  --primary-hover:  var(--brand-dark);
   --success:        #10b981;
   --danger:         #ef4444;
   --warning:        #f59e0b;
   --border:         #e2e8f0;   /* alias */
+  /* ฟอนต์: อังกฤษ=Archivo, ไทย=Prompt (Archivo ไม่มี glyph ไทย → fallback ไป Prompt อัตโนมัติ) */
+  --font-sans:      'Archivo', 'Prompt', system-ui, -apple-system, sans-serif;
+  /* ── ธีมสี: เปลี่ยนแค่ชุดนี้ก็เปลี่ยนทั้งเว็บ (กำลังลอง: ขาว minimal) ──
+     เขียว: brand #2e7d4f/#246340 · sidebar #246340 · header #1c4d33 · frame-text ขาว
+     ดำ:   brand #262626/#0a0a0a · sidebar #171717 · header #0a0a0a · frame-text ขาว
+     ทอง:  brand #b58100/#8a6200 · sidebar #8a6200 · header #6b4d00 · frame-text ขาว     */
+  --brand:          #2e7d4f;   /* accent หลัก (ปุ่ม/ลิงก์) — เขียว SYNTECH */
+  --brand-dark:     #246340;
+  --brand-soft:     #e7f3ec;
+  --sidebar-bg:     #246340;   /* แถบข้าง */
+  --header-bg:      #1c4d33;   /* แถบบน */
+  --accent-gold:    #f5b400;
+  /* สีตัวอักษร/overlay บนเฟรม — ธีมเข้ม(เขียว)ใช้ขาว */
+  --frame-text:        rgba(255,255,255,0.85);
+  --frame-text-active: #ffffff;
+  --frame-active-bg:   rgba(255,255,255,0.16);
+  --frame-hover-bg:    rgba(255,255,255,0.09);
+  --frame-line:        rgba(255,255,255,0.14);
+  --frame-logo:        #ffffff;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--bg-content);
   color: var(--text-main);
   min-height: 100vh;

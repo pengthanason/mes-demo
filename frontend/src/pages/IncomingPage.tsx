@@ -121,7 +121,7 @@ export function IncomingPage() {
           </div>
           {!isViewer && (
             <button type="button" className="btn" onClick={() => setShowForm(v => !v)}
-              style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600 }}>
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>
               {showForm ? '✕ ยกเลิก' : '+ รับของเข้า'}
             </button>
           )}
@@ -136,7 +136,7 @@ export function IncomingPage() {
 
         {/* Receive form */}
         {showForm && !isViewer && (
-          <div className="panel" style={{ borderLeft: '4px solid #0ea5e9', marginTop: '1.25rem' }}>
+          <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
             <h3 className="panel__title panel__title--sm">รับของเข้าใหม่</h3>
             <form onSubmit={handleReceive} className="stack" style={{ marginTop: '0.75rem', gap: '0.85rem' }}>
               <div className="grid-2col">
@@ -160,7 +160,7 @@ export function IncomingPage() {
                 </label>
               </div>
               <button type="submit" className="btn" disabled={!partNo.trim() || !lotNo.trim() || !Number(qty) || receiveMut.isPending}
-                style={{ background: '#0ea5e9', borderColor: '#0ea5e9', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
+                style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
                 {receiveMut.isPending ? 'กำลังบันทึก...' : 'บันทึกรับของ (สถานะ: รอ QA ตรวจ)'}
               </button>
             </form>

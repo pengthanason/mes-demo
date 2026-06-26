@@ -10,7 +10,8 @@ export const PROCESSES = [
 export interface WfStep {
   process: string;
   seconds: number | null;
-  pass?: boolean;              // ขั้นนี้ผ่านโดยปริยายไหม (false = มี FAIL path)
+  kind?: 'process' | 'checkpoint'; // ชนิดขั้นตอน (จุดตรวจ = มีทางออกเมื่อไม่ผ่าน)
+  pass?: boolean;              // (legacy) preset เก่า — ใช้เดา kind ตอนโหลด
   failAction?: string;         // 'rework' | 'back' | 'rework_station' | 'scrap' | 'hold'
   backToIndex?: number | null; // ถ้า failAction='back' → index ของ step ปลายทาง (เก็บเป็น index กัน id เพี้ยนตอนโหลด)
   maxRetry?: number;
@@ -34,6 +35,7 @@ function normSteps(raw: any): WfStep[] {
       : {
           process: String(s?.process ?? ''),
           seconds: s?.seconds ?? null,
+          kind: (s?.kind === 'process' || s?.kind === 'checkpoint') ? s.kind : undefined,
           pass: s?.pass !== false,                                            // เก่าที่ไม่มี field → true
           failAction: s?.failAction ?? 'rework',
           backToIndex: typeof s?.backToIndex === 'number' ? s.backToIndex : null,
