@@ -39,12 +39,22 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* คงแถบเลื่อนแนวตั้งไว้เสมอ → หน้าสั้น/ยาวสลับกัน ความกว้างไม่เปลี่ยน → navbar/คอนเทนต์ไม่ขยับ */
+html { overflow-y: scroll; }
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-content);
   color: var(--text-main);
   min-height: 100vh;
 }
+
+/* page transition — เปลี่ยนหน้าแล้วค่อยๆ ปรากฏ (fade + เลื่อนขึ้นเล็กน้อย) */
+@keyframes pageFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-fade { animation: pageFade 0.35s ease both; }
 
 /* ─── Buttons ────────────────────────────────────────────────────── */
 .btn {

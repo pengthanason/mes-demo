@@ -173,6 +173,7 @@ function Sidebar() {
         display: 'flex',
         flexDirection: 'column',
         userSelect: 'none',   // กันคลิกตัวอักษรในเมนู/role/ชื่อ แล้วขึ้น caret พิมพ์
+        cursor: expanded ? 'default' : 'pointer',   // ยุบ=มือทั้งแถบ(กดเปิด) · เปิด=มือเฉพาะเมนู (พื้นที่ว่าง=ลูกศร)
       }}
     >
       {/* โลโก้/หัว sidebar — กดปุ่มสามขีดเพื่อเปิด/ปิด (ทั้งคอม+มือถือ) */}
@@ -217,7 +218,7 @@ function Sidebar() {
           opacity: 0,
         }} />
         {items.map(item => (
-          <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => setExpanded(true)} innerRef={setItemRef(item.to)} />
+          <SidebarItem key={item.to} to={item.to} label={item.label} expanded={expanded} onClick={() => setExpanded(isDesktop)} innerRef={setItemRef(item.to)} />
         ))}
 
       </div>
@@ -256,7 +257,7 @@ function Sidebar() {
             {expanded ? 'Logout' : ''}
           </button>
         ) : (
-          <SidebarItem to="/mes-auth" label="Login" expanded={expanded} onClick={() => setExpanded(true)} />
+          <SidebarItem to="/mes-auth" label="Login" expanded={expanded} onClick={() => setExpanded(isDesktop)} />
         )}
       </div>
     </div>
@@ -612,6 +613,7 @@ function TopBar() {
 
 // ─── Shell ─────────────────────────────────────────────────────────
 function Shell({ children }) {
+  const location = useLocation();
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
@@ -672,7 +674,7 @@ function Shell({ children }) {
         </header>
 
         <main className="app-main" style={{ maxWidth: 1380, margin: '0 auto', flex: 1, width: '100%', boxSizing: 'border-box' }}>
-          {children}
+          <div key={location.pathname} className="page-fade">{children}</div>
         </main>
 
         <footer className="app-footer" style={{ marginBottom: '5px', borderTop: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', flexShrink: 0 }}>
