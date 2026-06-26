@@ -141,11 +141,16 @@ export function DashboardPage() {
 
   return (
     <section className="stack-lg">
-      {/* แถบหัว Dashboard — บอกว่าเป็นข้อมูลสด + เวลาอัปเดต (เหมาะกับจอมอนิเตอร์) */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>📊 Production Dashboard</h1>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-          <span style={{ width: 9, height: 9, borderRadius: 99, background: '#22c55e', display: 'inline-block', boxShadow: '0 0 0 3px rgba(34,197,94,0.18)' }} />
+      {/* แถบหัว Dashboard แบรนด์ SYNTECH — โลโก้ + เขียว + ข้อมูลสด */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, background: 'linear-gradient(90deg, var(--brand), var(--brand-dark))', color: '#fff', padding: '14px 20px', borderRadius: 12, boxShadow: '0 4px 14px rgba(46,125,79,0.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ background: '#fff', borderRadius: 8, padding: '6px 12px', display: 'inline-flex', alignItems: 'center' }}>
+            <img src={`data:image/png;base64,${SYNTECH_LOGO_PNG_BASE64}`} alt="SYNTECH" style={{ height: 26, display: 'block' }} />
+          </span>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.3px' }}>Production Dashboard</h1>
+        </div>
+        <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.92)', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+          <span style={{ width: 9, height: 9, borderRadius: 99, background: '#86efac', display: 'inline-block', boxShadow: '0 0 0 3px rgba(134,239,172,0.3)' }} />
           อัปเดต {updatedAt.toLocaleTimeString('th-TH')}
         </span>
       </div>
@@ -160,18 +165,18 @@ export function DashboardPage() {
           </div>
           {!isViewer && (
             <button type="button" className="btn" title="เพิ่มโปรเจกต์ใหม่เข้าตาราง Production Plan" onClick={() => setAdding(true)}
-              style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}>+ เพิ่มโปรเจกต์</button>
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>+ เพิ่มโปรเจกต์</button>
           )}
         </div>
 
         {/* KPI — กดเพื่อกรองสถานะในตารางด้านล่าง */}
         <div className="dash-grid-3" style={{ marginTop: '1.5rem' }}>
-          <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#6366f1" onClick={() => setF('status', '')} active={!filters.status} />
+          <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#2e7d4f" onClick={() => setF('status', '')} active={!filters.status} />
           <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => setF('status', 'DONE')} active={filters.status === 'DONE'} />
           <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => setF('status', 'ON_PROCESS')} active={filters.status === 'ON_PROCESS'} />
           <KpiCard icon="⏰" label="Late" value={agg.late} accent="#dc2626" onClick={() => setF('status', 'LATE')} active={filters.status === 'LATE'} />
           <KpiCard icon="📥" label="Mat'l coming" value={agg.matl} accent="#d97706" onClick={() => setF('status', 'MATL_COMING')} active={filters.status === 'MATL_COMING'} />
-          <StatCard icon="🎯" label="Yield เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#7c3aed" />
+          <StatCard icon="🎯" label="Yield เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
         </div>
       </div>
 
@@ -181,7 +186,7 @@ export function DashboardPage() {
           <Donut data={agg.byStatus} />
         </ChartCard>
         <ChartCard title="จำนวนงานตามลูกค้า (Top 8)">
-          {agg.byCustomer.length ? agg.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#6366f1" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
+          {agg.byCustomer.length ? agg.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#2e7d4f" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
         </ChartCard>
         <ChartCard title="ผลผลิตรวม (OK vs NG)">
           <BarRow label="Total OK" value={agg.totalOk} max={Math.max(1, agg.totalOk + agg.totalNg)} color="#16a34a" />

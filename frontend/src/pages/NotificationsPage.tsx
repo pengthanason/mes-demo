@@ -55,15 +55,15 @@ export function NotificationsPage() {
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: '0.875rem',
                 padding: '0.875rem 1rem',
-                background: n.isRead ? 'transparent' : 'rgba(59,130,246,0.06)',
-                borderLeft: n.isRead ? '3px solid transparent' : '3px solid #3b82f6',
+                background: n.isRead ? 'transparent' : 'rgba(46,125,79,0.06)',
+                borderLeft: n.isRead ? '3px solid transparent' : '3px solid var(--brand)',
                 borderRadius: 6,
                 cursor: n.link ? 'pointer' : 'default',
                 marginBottom: 2,
                 transition: 'background 0.15s',
               }}
-              onMouseEnter={e => { if (n.link) (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,0.1)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = n.isRead ? 'transparent' : 'rgba(59,130,246,0.06)'; }}
+              onMouseEnter={e => { if (n.link) (e.currentTarget as HTMLDivElement).style.background = 'rgba(46,125,79,0.1)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = n.isRead ? 'transparent' : 'rgba(46,125,79,0.06)'; }}
             >
               <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{TYPE_ICON[n.type] ?? TYPE_ICON.DEFAULT}</span>
               <div style={{ flex: 1 }}>
@@ -75,7 +75,7 @@ export function NotificationsPage() {
                   {timeAgo(n.createdAt)}
                 </span>
                 {!n.isRead && (
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--brand)', display: 'inline-block' }} />
                 )}
               </div>
             </div>

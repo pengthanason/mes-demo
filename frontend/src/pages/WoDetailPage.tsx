@@ -83,7 +83,7 @@ export function WoDetailPage() {
             <button
               type="button"
               className="btn"
-              style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}
               onClick={handleAdvance}
               disabled={patchMut.isPending}
             >
@@ -150,12 +150,12 @@ export function WoDetailPage() {
           <div style={{ color: 'var(--text-muted)', padding: '0.5rem 0' }}>ยังไม่มีผล QC สำหรับ WO นี้ — บันทึกได้ที่หน้า QC → QC Result</div>
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-            <table className="table" style={{ minWidth: 680, width: '100%' }}>
+            <table className="table" style={{ minWidth: 820, width: '100%' }}>
               <thead>
                 <tr>
                   <th>วันที่</th><th>Lot</th>
                   <th style={{ textAlign: 'center' }}>ตรวจ</th><th style={{ textAlign: 'center' }}>ผ่าน</th><th style={{ textAlign: 'center' }}>เสีย</th>
-                  <th style={{ textAlign: 'center' }}>ผล QC</th><th>QA Verify</th>
+                  <th style={{ textAlign: 'center' }}>ผล QC</th><th>ของเสีย / หมายเหตุ</th><th>QA Verify</th>
                 </tr>
               </thead>
               <tbody>
@@ -167,6 +167,11 @@ export function WoDetailPage() {
                     <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>{r.qtyPass}</td>
                     <td style={{ textAlign: 'center', color: r.qtyFail > 0 ? '#dc2626' : 'inherit', fontWeight: r.qtyFail > 0 ? 600 : 400 }}>{r.qtyFail}</td>
                     <td style={{ textAlign: 'center' }}><ResultBadge value={r.overall} /></td>
+                    <td style={{ fontSize: '0.8rem', maxWidth: 240, whiteSpace: 'normal' }}>
+                      {r.defectDesc && <div style={{ color: '#dc2626' }}>{r.defectDesc}</div>}
+                      {r.remark && <div style={{ color: 'var(--text-muted)' }}>📝 {r.remark}</div>}
+                      {!r.defectDesc && !r.remark && <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
                     <td style={{ fontSize: '0.82rem' }}>
                       {r.verdict
                         ? <span style={{ color: r.verdict === 'APPROVED' ? '#166534' : '#991b1b', fontWeight: 600 }}>{r.verdict === 'APPROVED' ? '✅ อนุมัติ' : '❌ ตีกลับ'} {r.verifiedBy ? `· ${r.verifiedBy}` : ''}</span>

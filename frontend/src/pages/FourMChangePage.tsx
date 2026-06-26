@@ -78,14 +78,14 @@ export function FourMChangePage() {
           </div>
           {!isViewer && (
             <button type="button" className="btn" onClick={() => setShowForm(v => !v)}
-              style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}>
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>
               {showForm ? '✕ ยกเลิก' : '+ เปิด CR ใหม่'}
             </button>
           )}
         </div>
 
         {showForm && (
-          <div className="panel" style={{ borderLeft: '4px solid #6366f1', marginTop: '1.25rem' }}>
+          <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
             <h3 className="panel__title panel__title--sm">เปิด Change Request ใหม่</h3>
             <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem' }}>
               <label className="field">
@@ -113,7 +113,7 @@ export function FourMChangePage() {
                   placeholder="กระทบไลน์ไหน คุณภาพ/เวลา/ต้นทุนอย่างไร..." />
               </label>
               <button type="submit" className="btn" disabled={!mType || !description.trim() || createMut.isPending}
-                style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
+                style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
                 {createMut.isPending ? 'กำลังเปิด CR...' : 'ยืนยันเปิด CR'}
               </button>
             </form>

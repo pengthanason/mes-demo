@@ -97,6 +97,7 @@ export function QcResultPage() {
   const [qtyChecked,  setQtyChecked]  = useState('');
   const [qtyPass,     setQtyPass]     = useState('');
   const [defectDesc,  setDefectDesc]  = useState('');
+  const [remark,      setRemark]      = useState('');
 
   const qtyCheckedN = Number(qtyChecked) || 0;
   const qtyPassN    = Number(qtyPass)    || 0;
@@ -137,12 +138,12 @@ export function QcResultPage() {
     e.preventDefault();
     if (!woId.trim() || !lotNo.trim() || !qtyCheckedN || !overall) return;
     createMut.mutate(
-      { woId: woId.trim(), lotNo: lotNo.trim(), qtyChecked: qtyCheckedN, qtyPass: qtyPassN, qtyFail: qtyFailN, overall, defectDesc },
+      { woId: woId.trim(), lotNo: lotNo.trim(), qtyChecked: qtyCheckedN, qtyPass: qtyPassN, qtyFail: qtyFailN, overall, defectDesc, remark },
       {
         onSuccess: (result) => {
           showToast(`บันทึก QC Result สำเร็จ — ${overall}`, overall === 'PASS' ? 'success' : 'error');
           // reset form
-          setLotNo(''); setQtyChecked(''); setQtyPass(''); setDefectDesc('');
+          setLotNo(''); setQtyChecked(''); setQtyPass(''); setDefectDesc(''); setRemark('');
           setShowForm(false);
           if (overall !== 'PASS') setReworkFor(result);
         },
@@ -161,7 +162,7 @@ export function QcResultPage() {
           </div>
           {!isViewer && (
             <button type="button" className="btn" onClick={() => setShowForm(v => !v)}
-              style={{ background: '#3b82f6', borderColor: '#3b82f6', color: '#fff', fontWeight: 600 }}>
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>
               {showForm ? '✕ ยกเลิก' : '+ บันทึก QC Result'}
             </button>
           )}
@@ -169,7 +170,7 @@ export function QcResultPage() {
 
         {/* ─── Form ─────────────────────────────────────────────── */}
         {showForm && !isViewer && (
-          <div className="panel" style={{ borderLeft: '4px solid #3b82f6', marginTop: '1.25rem' }}>
+          <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
             <h3 className="panel__title panel__title--sm">บันทึกผล QC</h3>
             <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem', gap: '0.75rem' }}>
               <div className="grid-2col">
@@ -223,9 +224,17 @@ export function QcResultPage() {
                 </label>
               )}
 
+              {needsDefect && (
+                <label className="field">
+                  <span>หมายเหตุ (Remark)</span>
+                  <textarea value={remark} onChange={e => setRemark(e.target.value)} rows={2}
+                    placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ) — เช่น สาเหตุเบื้องต้น, การติดตาม..." />
+                </label>
+              )}
+
               <button type="submit" className="btn"
                 disabled={!woId.trim() || !lotNo.trim() || !qtyCheckedN || !overall || (needsDefect && !defectDesc.trim()) || createMut.isPending}
-                style={{ background: '#3b82f6', borderColor: '#3b82f6', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
+                style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
                 {createMut.isPending ? 'กำลังบันทึก...' : 'ยืนยันบันทึก QC Result'}
               </button>
             </form>
@@ -242,7 +251,7 @@ export function QcResultPage() {
 
         {/* ─── Table ────────────────────────────────────────────── */}
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-          <table className="table table-readonly" style={{ minWidth: 760, width: '100%' }}>
+          <table className="table table-readonly" style={{ minWidth: 920, width: '100%' }}>
             <thead>
               <tr>
                 <th>วันที่</th>
@@ -252,15 +261,16 @@ export function QcResultPage() {
                 <th style={{ textAlign: 'center' }}>Pass</th>
                 <th style={{ textAlign: 'center' }}>Fail</th>
                 <th style={{ textAlign: 'center' }}>Overall</th>
+                <th>ของเสีย / หมายเหตุ</th>
                 <th style={{ textAlign: 'center' }}>QA Verify</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{woFilter.trim() ? 'ไม่พบรายการตามตัวกรอง — ล้างช่องค้นหา WO เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล QC Result — กด “+ บันทึก QC Result” เพื่อเริ่ม'}</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{woFilter.trim() ? 'ไม่พบรายการตามตัวกรอง — ล้างช่องค้นหา WO เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล QC Result — กด “+ บันทึก QC Result” เพื่อเริ่ม'}</td></tr>
               ) : pagedList.map(r => (
                 <tr key={r.id}>
                   <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(r.createdAt).toLocaleDateString('th-TH')}</td>
@@ -270,13 +280,18 @@ export function QcResultPage() {
                   <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>{r.qtyPass}</td>
                   <td style={{ textAlign: 'center', color: r.qtyFail > 0 ? '#dc2626' : 'var(--text-muted)', fontWeight: r.qtyFail > 0 ? 600 : 400 }}>{r.qtyFail}</td>
                   <td style={{ textAlign: 'center' }}><OverallBadge overall={r.overall} /></td>
+                  <td style={{ fontSize: '0.8rem', maxWidth: 260, whiteSpace: 'normal' }}>
+                    {r.defectDesc && <div style={{ color: '#dc2626' }}>{r.defectDesc}</div>}
+                    {r.remark && <div style={{ color: 'var(--text-muted)' }}>📝 {r.remark}</div>}
+                    {!r.defectDesc && !r.remark && <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                  </td>
                   <td style={{ textAlign: 'center' }}>
                     {r.verifyId ? (
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: r.verdict === 'APPROVED' ? '#16a34a' : '#dc2626' }}>
                         {r.verdict === 'APPROVED' ? '✓ Approved' : '✗ Rejected'}
                       </span>
                     ) : (
-                      <Link to={`/qa-verify/${r.id}`} style={{ fontSize: '0.82rem', color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}>
+                      <Link to={`/qa-verify/${r.id}`} style={{ fontSize: '0.82rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
                         Verify →
                       </Link>
                     )}

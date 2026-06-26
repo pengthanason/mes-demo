@@ -88,7 +88,7 @@ export function WorkOrdersPage() {
           </div>
           {!isViewer && (
             <button type="button" className="btn" title="เปิด Work Order ใหม่" onClick={() => setShowCreate(true)}
-              style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}>+ เปิด WO</button>
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>+ เปิด WO</button>
           )}
         </div>
 
@@ -110,7 +110,7 @@ export function WorkOrdersPage() {
               ) : paged.map(w => (
                 <tr key={w.woId} style={{ cursor: 'pointer' }} onClick={() => navigate(`/wo/${w.woId}`)}
                   title="กดเพื่อดูรายละเอียด / FAI / ปิดงาน">
-                  <td style={{ fontWeight: 600, color: '#6366f1' }}>{w.woId}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--brand)' }}>{w.woId}</td>
                   <td>{w.productCode}</td>
                   <td>{w.customer}</td>
                   <td style={{ textAlign: 'center' }}>{w.qty.toLocaleString()}</td>

@@ -364,7 +364,7 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
     setF(p => ({ ...p, date_record: v, wk: v ? isoWeek(v) : null }));
   };
   const Section = ({ title }: { title: string }) => (
-    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '0.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>{title}</div>
+    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '0.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>{title}</div>
   );
 
   return (
