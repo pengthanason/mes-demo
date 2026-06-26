@@ -36,7 +36,7 @@ const MAIN_ITEMS = [
   { to: '/traceability',     label: 'Traceability' },
   { to: '/4m-change',        label: '4M Change' },
   { to: '/scm-cases',        label: 'SCM Cases' },
-  { to: '/equipment-borrow', label: 'ยืม-คืนอุปกรณ์' },
+  { to: '/equipment-borrow', label: 'Equipment Borrow' },
   { to: '/notifications',    label: 'Notifications' },
   { to: '/admin/panel',      label: 'Admin Panel' },
 ];
@@ -49,6 +49,19 @@ const SIDEBAR_HOVER_BG  = 'var(--frame-hover-bg)';
 // ─── Sidebar ───────────────────────────────────────────────────────
 const SIDEBAR_W = 220; // expanded width
 const ICON_W    = 58;  // collapsed width (icon strip)
+
+// hook: เช็คขนาดจอ — desktop (เปิดค้าง) vs มือถือ (กดเปิด/ปิด)
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const handler = () => setMatches(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [query]);
+  return matches;
+}
 
 function SidebarItem({ to, label, expanded, onClick, innerRef }) {
   const location = useLocation();
@@ -84,6 +97,7 @@ function SidebarItem({ to, label, expanded, onClick, innerRef }) {
         position: 'relative',
         zIndex: 1,
         outline: 'none',
+        userSelect: 'none',
       }}
     >
       {expanded ? label : ''}
@@ -101,7 +115,9 @@ function visibleMainItems(role) {
 }
 
 function Sidebar() {
-  const [expanded, setExpanded] = useState(false);
+  // const [expanded, setExpanded] = useState(false);   // เดิม: เริ่มยุบ + กางตอน hover
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const [expanded, setExpanded] = useState(isDesktop);   // เริ่มต้น: คอมเปิด / มือถือยุบ · กดปุ่มสามขีดเปิด-ปิด
   const auth     = useMockAuth();
   const location = useLocation();
   const items    = visibleMainItems(auth.role);
@@ -140,8 +156,10 @@ function Sidebar() {
 
   return (
     <div
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
+      // โหมดเดิม (hover เข้า=กาง / ออก=ยุบ) — uncomment 2 บรรทัดนี้เพื่อกลับ:
+      // onMouseEnter={() => setExpanded(true)}
+      // onMouseLeave={() => setExpanded(false)}
+      onClick={() => { if (!expanded) setExpanded(true); }}   // กดที่แถบตอนยุบ = เปิด (ไม่ต้องกดเบอร์เกอร์)
       style={{
         position: 'fixed',
         left: 0, top: 0, bottom: 0,
@@ -154,9 +172,10 @@ function Sidebar() {
         boxShadow: expanded ? '4px 0 24px rgba(0,0,0,0.25)' : 'none',
         display: 'flex',
         flexDirection: 'column',
+        userSelect: 'none',   // กันคลิกตัวอักษรในเมนู/role/ชื่อ แล้วขึ้น caret พิมพ์
       }}
     >
-      {/* Hamburger / logo row — กดเพื่อเปิด/ปิดได้ (รองรับ touch ที่ไม่มี hover) */}
+      {/* โลโก้/หัว sidebar — กดปุ่มสามขีดเพื่อเปิด/ปิด (ทั้งคอม+มือถือ) */}
       <div
         onClick={() => setExpanded(v => !v)}
         style={{
@@ -164,11 +183,11 @@ function Sidebar() {
           alignItems: 'center',
           justifyContent: expanded ? 'flex-start' : 'center',
           gap: '0.75rem',
-          padding: expanded ? '1rem 0.875rem' : '1rem 0',
+          padding: expanded ? '0 0.875rem' : '0',
           borderBottom: '1px solid var(--frame-line)',
           marginBottom: '0.5rem',
           flexShrink: 0,
-          minHeight: 60,
+          height: 'var(--topbar-h)',
           userSelect: 'none',
           cursor: 'pointer',
         }}
@@ -497,7 +516,7 @@ function EquipmentBorrowPage() {
       <iframe
         src={`${import.meta.env.BASE_URL}equipment-borrow/index.html`}
         title="ระบบยืม-คืนอุปกรณ์"
-        style={{ width: '100%', height: 'calc(100vh - 56px)', border: 'none', display: 'block' }}
+        style={{ width: '100%', height: 'calc(100vh - var(--topbar-h))', border: 'none', display: 'block' }}
       />
     </div>
   );
@@ -567,6 +586,30 @@ function ToastContainer() {
   );
 }
 
+// ─── Top info bar (นาฬิกา + สถานะ) — แทนแถบเมนู (เมนูย้ายไปอยู่ sidebar) ───
+function TopBar() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' });
+  const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', minWidth: 0, color: 'var(--frame-text)' }}>
+        <span className="topbar-extra" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{dateStr}</span>
+        <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>{timeStr}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.76rem', whiteSpace: 'nowrap' }}>
+          <span style={{ width: 8, height: 8, borderRadius: 99, background: '#4ade80', boxShadow: '0 0 0 3px rgba(74,222,128,0.25)', display: 'inline-block' }} />
+          ออนไลน์
+        </span>
+      </div>
+      <NotificationBell />
+    </>
+  );
+}
+
 // ─── Shell ─────────────────────────────────────────────────────────
 function Shell({ children }) {
   return (
@@ -598,7 +641,7 @@ function Shell({ children }) {
           }
           header nav::-webkit-scrollbar { display: none; }
           .nav-label-short { display: none; }
-          .app-header { padding: 0.875rem 1.5rem; }
+          .app-header { padding: 0 1.5rem; }
           .app-main   { padding: 1.5rem; }
           .app-footer { padding: 1rem 1.5rem; }
           @media (max-width: 768px) {
@@ -606,9 +649,10 @@ function Shell({ children }) {
             .nav-label-short { display: inline; }
           }
           @media (max-width: 600px) {
-            .app-header { padding: 0.6rem 0.75rem; }
+            .app-header { padding: 0 0.75rem; }
             .app-main   { padding: 0.75rem; }
             .app-footer { padding: 0.75rem; font-size: 0.72rem; }
+            .topbar-extra { display: none !important; }
           }
           @media (max-width: 380px) {
             .app-main { padding: 0.5rem; }
@@ -617,13 +661,14 @@ function Shell({ children }) {
 
         {/* Top header */}
         <header className="app-header" style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: '1rem', flexWrap: 'wrap',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+          gap: '1.1rem', flexWrap: 'nowrap',
           borderBottom: '1px solid var(--frame-line)',
           background: 'var(--header-bg)',
           position: 'sticky', top: 0, zIndex: 100,
+          height: 'var(--topbar-h)',
         }}>
-          <TopNav />
+          <TopBar />
         </header>
 
         <main className="app-main" style={{ maxWidth: 1380, margin: '0 auto', flex: 1, width: '100%', boxSizing: 'border-box' }}>

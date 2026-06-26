@@ -34,6 +34,7 @@
   --frame-hover-bg:    rgba(255,255,255,0.09);
   --frame-line:        rgba(255,255,255,0.14);
   --frame-logo:        #ffffff;
+  --topbar-h:          60px;       /* ความสูงร่วม: header (nav) = หัว sidebar → เส้นขอบล่างตรงกัน */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
