@@ -90,7 +90,7 @@ export function KittingPage() {
               <form onSubmit={handleIssue} className="stack" style={{ gap: '0.85rem' }}>
                 <label className="field">
                   <span>WO ที่จะเบิกให้ *</span>
-                  <WoInput value={woId} onChange={setWoId} required />
+                  <WoInput value={woId} onChange={setWoId} required asSelect />
                 </label>
                 <label className="field">
                   <span>Part No *</span>
