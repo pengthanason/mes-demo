@@ -9,7 +9,7 @@ const STEPS = [
   { n: 3, icon: '📦', title: 'Kitting', desc: 'เบิกของให้ WO เข้าไลน์ ตัด stock แบบ FIFO', to: '/incoming', color: '#6366f1' },
   { n: 4, icon: '🔀', title: 'Production Plan · Workflow', desc: 'สแกน Serial เดินกระบวนการ + บันทึกผล PASS/FAIL', to: '/production-plan', color: '#8b5cf6' },
   { n: 5, icon: '🧪', title: 'QC / Jig Test', desc: 'ตรวจคุณภาพชิ้นงาน — QC Board / Jig / OBA', to: '/qc-board', color: '#f59e0b' },
-  { n: 6, icon: '🧬', title: 'Traceability', desc: 'ค้น Serial ดูประวัติทุกสเตชัน + รายงานรายวัน', to: '/traceability', color: '#0891b2' },
+  { n: 6, icon: '🧬', title: 'Traceability', desc: 'ค้น Serial ดูประวัติทุกสเตชัน + รายงานรายวัน', to: '/traceability', external: 'https://jig-api.syntechnology.com/traceability/knex_gw', color: '#0891b2' },
 ];
 
 export function FlowGuide() {
@@ -33,7 +33,7 @@ export function FlowGuide() {
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 6, marginTop: '1.1rem' }}>
           {STEPS.map((s, i) => (
             <div key={s.n} style={{ display: 'flex', alignItems: 'stretch', gap: 6, flex: '1 1 200px', minWidth: 0 }}>
-              <button type="button" onClick={() => nav(s.to)}
+              <button type="button" onClick={() => s.external ? window.open(s.external, '_blank', 'noopener,noreferrer') : nav(s.to)}
                 style={{ flex: 1, textAlign: 'left', background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '0.85rem 0.9rem', cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', minWidth: 0 }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.10)'; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
