@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePpProjects, usePpDelete, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject, type PpFilters } from '../lib/ppApi';
 import { useIsViewer } from '../lib/useMockStore';
@@ -93,10 +93,27 @@ function KpiCard({ icon, label, value, accent, onClick, active }: {
   );
 }
 
+// เลื่อนหน้าจอแบบ custom (easeOutCubic) — คุม duration เองให้ค่อย ๆ เลื่อน ไม่พึ่ง behavior:'smooth'
+function smoothScrollTo(targetY: number, duration: number) {
+  const startY = window.scrollY;
+  const dist = targetY - startY;
+  if (Math.abs(dist) < 2) return;
+  let start: number | null = null;
+  const step = (now: number) => {
+    if (start === null) start = now;
+    const p = Math.min(1, (now - start) / duration);
+    const e = 1 - Math.pow(1 - p, 3); // easeOutCubic
+    window.scrollTo(0, startY + dist * e);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 export function DashboardPage() {
   const isViewer = useIsViewer();
   const [filters, setFilters] = useState<PpFilters>({});
-  const { data: rows = [], isLoading } = usePpProjects(filters);
+  const { data: rows = [], isLoading } = usePpProjects(filters);        // ตาราง — ตามตัวกรอง
+  const { data: allRows = [] } = usePpProjects({});                     // KPI การ์ด + กราฟ — ภาพรวมทั้งหมด (ไม่ขึ้นกับตัวกรอง)
   const del = usePpDelete();
   const queryClient = useQueryClient();
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
@@ -110,24 +127,44 @@ export function DashboardPage() {
   const [page, setPage] = useState(1);
   const PAGE = 12;
 
-  const customers = useMemo(() => [...new Set(rows.map(r => r.customer).filter(Boolean))], [rows]);
+  const customers = useMemo(() => [...new Set(allRows.map(r => r.customer).filter(Boolean))], [allRows]);
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE));
   const paged = rows.slice((page - 1) * PAGE, page * PAGE);
   const setF = (k: keyof PpFilters, v: string) => { setFilters(p => ({ ...p, [k]: v || undefined })); setPage(1); };
   const hasFilter = Object.values(filters).some(Boolean);
 
-  // aggregates สำหรับกราฟ
+  // กดการ์ด → ตั้งตัวกรองสถานะ + ค่อยๆ เลื่อนหน้าจอลงมาให้เห็นกราฟ+ตารางที่ถูกกรอง
+  const chartsRef = useRef<HTMLDivElement>(null);
+  const selectStatus = (v: string) => {
+    setF('status', v);
+    // รอ 1 เฟรมให้ DOM อัปเดตก่อน แล้วค่อย ๆ เลื่อน (custom smooth — กัน behavior:'smooth' วาป/ไม่ทำงาน)
+    requestAnimationFrame(() => {
+      const el = chartsRef.current;
+      if (!el) return;
+      const headerOffset = 72; // topbar 60px + เผื่อระยะ
+      const target = Math.max(0, el.getBoundingClientRect().top + window.scrollY - headerOffset);
+      smoothScrollTo(target, 700);
+    });
+  };
+
+  // การ์ด KPI — คิดจาก allRows (ภาพรวมทั้งหมด) เสมอ เพื่อให้ตัวเลขไม่หายตอนกดกรอง
   const agg = useMemo(() => {
+    const by = (s: string) => allRows.filter(r => r.status === s).length;
+    const ys = allRows.map(ppYield).filter((v): v is number => v != null);
+    const avgYield = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : null;
+    return { total: allRows.length, done: by('DONE'), onProc: by('ON_PROCESS'), late: by('LATE'), matl: by('MATL_COMING'), avgYield };
+  }, [allRows]);
+
+  // กราฟ — คิดจาก rows (ตามตัวกรองที่เลือก) เพื่อให้กราฟตรงกับสิ่งที่กรองในตาราง
+  const chart = useMemo(() => {
     const by = (s: string) => rows.filter(r => r.status === s).length;
     const totalOk = rows.reduce((s, r) => s + (r.total_ok || 0), 0);
     const totalNg = rows.reduce((s, r) => s + (r.total_ng || 0), 0);
-    const ys = rows.map(ppYield).filter((v): v is number => v != null);
-    const avgYield = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : null;
     const byStatus = PP_STATUS.map(s => ({ label: PP_STATUS_LABEL[s], value: by(s), color: STATUS_STYLE[s].text }));
     const cm: Record<string, number> = {};
     rows.forEach(r => { const c = r.customer || '(ไม่ระบุ)'; cm[c] = (cm[c] || 0) + 1; });
     const byCustomer = Object.entries(cm).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
-    return { total: rows.length, done: by('DONE'), onProc: by('ON_PROCESS'), late: by('LATE'), matl: by('MATL_COMING'), totalOk, totalNg, avgYield, byStatus, byCustomer };
+    return { totalOk, totalNg, byStatus, byCustomer };
   }, [rows]);
 
   function handleDelete(p: PpProject) {
@@ -135,7 +172,7 @@ export function DashboardPage() {
     del.mutate(p.id, { onSuccess: () => showToast('ลบแล้ว', 'info'), onError: (e: any) => showToast(e.message, 'error') });
   }
 
-  const maxCust = Math.max(1, ...agg.byCustomer.map(x => x.value));
+  const maxCust = Math.max(1, ...chart.byCustomer.map(x => x.value));
   const { groupRow, subRow } = buildHeaderRows(XLSX_COLUMNS);
   const colCount = XLSX_COLUMNS.length + (isViewer ? 0 : 1);
 
@@ -169,28 +206,28 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* KPI — กดเพื่อกรองสถานะในตารางด้านล่าง */}
+        {/* KPI — กดเพื่อกรองสถานะ (เลื่อนหน้าจอลงมาให้เห็นกราฟ+ตารางที่กรอง) */}
         <div className="dash-grid-3" style={{ marginTop: '1.5rem' }}>
-          <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#2e7d4f" onClick={() => setF('status', '')} active={!filters.status} />
-          <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => setF('status', 'DONE')} active={filters.status === 'DONE'} />
-          <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => setF('status', 'ON_PROCESS')} active={filters.status === 'ON_PROCESS'} />
-          <KpiCard icon="⏰" label="Late" value={agg.late} accent="#dc2626" onClick={() => setF('status', 'LATE')} active={filters.status === 'LATE'} />
-          <KpiCard icon="📥" label="Mat'l coming" value={agg.matl} accent="#d97706" onClick={() => setF('status', 'MATL_COMING')} active={filters.status === 'MATL_COMING'} />
+          <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#2e7d4f" onClick={() => selectStatus('')} active={!filters.status} />
+          <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => selectStatus('DONE')} active={filters.status === 'DONE'} />
+          <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => selectStatus('ON_PROCESS')} active={filters.status === 'ON_PROCESS'} />
+          <KpiCard icon="⏰" label="Late" value={agg.late} accent="#dc2626" onClick={() => selectStatus('LATE')} active={filters.status === 'LATE'} />
+          <KpiCard icon="📥" label="Mat'l coming" value={agg.matl} accent="#d97706" onClick={() => selectStatus('MATL_COMING')} active={filters.status === 'MATL_COMING'} />
           <StatCard icon="🎯" label="Yield เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
         </div>
       </div>
 
-      {/* กราฟ */}
-      <div className="dash-grid-3">
+      {/* กราฟ — ตามตัวกรองที่เลือก (ref ไว้เลื่อนหน้าจอมาตรงนี้ตอนกดการ์ด) */}
+      <div className="dash-grid-3" ref={chartsRef} style={{ scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
         <ChartCard title="สัดส่วนงานตามสถานะ">
-          <Donut data={agg.byStatus} />
+          <Donut data={chart.byStatus} />
         </ChartCard>
         <ChartCard title="จำนวนงานตามลูกค้า (Top 8)">
-          {agg.byCustomer.length ? agg.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#2e7d4f" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
+          {chart.byCustomer.length ? chart.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#2e7d4f" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
         </ChartCard>
         <ChartCard title="ผลผลิตรวม (OK vs NG)">
-          <BarRow label="Total OK" value={agg.totalOk} max={Math.max(1, agg.totalOk + agg.totalNg)} color="#16a34a" />
-          <BarRow label="Total NG" value={agg.totalNg} max={Math.max(1, agg.totalOk + agg.totalNg)} color="#dc2626" />
+          <BarRow label="Total OK" value={chart.totalOk} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#16a34a" />
+          <BarRow label="Total NG" value={chart.totalNg} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#dc2626" />
         </ChartCard>
       </div>
 

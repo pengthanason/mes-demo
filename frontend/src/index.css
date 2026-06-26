@@ -54,7 +54,10 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.page-fade { animation: pageFade 0.35s ease both; }
+/* fill = backwards (ไม่ใช่ both): หลัง animation จบ ค่า transform จะกลับเป็น none
+   ถ้าใช้ both จะค้างที่ translateY(0) ซึ่งเป็น transform ≠ none → สร้าง containing block
+   ทำให้ position:fixed ของ .modal-overlay ไปยึดกับกรอบหน้าแทน viewport (ป็อปอัพมืดแค่ส่วนเนื้อหา) */
+.page-fade { animation: pageFade 0.35s ease backwards; }
 
 /* ─── Buttons ────────────────────────────────────────────────────── */
 .btn {
@@ -242,6 +245,17 @@ select:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+/* select = การ "เลือก" ไม่ใช่ "พิมพ์" → ไม่ต้องมี text caret กระพริบตอน focus */
+select { caret-color: transparent; }
+
+/* ─── ฟิลด์อ่านอย่างเดียว (พิมพ์ไม่ได้) ───────────────────────────────
+   เช่น WW / Yield (ฟอร์ม Add Project) และ Qty Fail (หน้า QC)
+   เดิมคลิกแล้วขึ้น text caret กระพริบ + เมาส์เป็น I-beam ทั้งที่พิมพ์ไม่ได้ */
+input[readonly],
+textarea[readonly] {
+  cursor: default;
+  caret-color: transparent;
 }
 
 /* ─── Table ──────────────────────────────────────────────────────── */

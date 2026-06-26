@@ -20,13 +20,23 @@ function StepBadge({ step }: { step: string }) {
   return <span style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, padding: '2px 10px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap' }}>{s.label}</span>;
 }
 
-function CreateWoModal({ onClose }: { onClose: () => void }) {
+export function WorkOrdersPage() {
+  const navigate = useNavigate();
+  const isViewer = useIsViewer();
+  const { data: wos = [], isLoading } = useWoBoard();
+  const create = useWoCreate();
+  const [showForm, setShowForm] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE = 12;
+  const totalPages = Math.max(1, Math.ceil(wos.length / PAGE));
+  const paged = wos.slice((page - 1) * PAGE, page * PAGE);
+
+  // ฟอร์มเปิด WO ใหม่ (inline เหนือตาราง — อ่านตารางไปพร้อมกันได้ เหมือนหน้า 4M Change)
   const [productCode, setProductCode] = useState('');
   const [customer, setCustomer] = useState('');
   const [qty, setQty] = useState('');
   const [expectedDate, setExpectedDate] = useState('');
   const [err, setErr] = useState('');
-  const create = useWoCreate();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,48 +45,13 @@ function CreateWoModal({ onClose }: { onClose: () => void }) {
     if (!productCode.trim() || !n || n <= 0) return setErr('กรุณากรอก Product Code และจำนวน');
     create.mutate(
       { productCode: productCode.trim(), customer: customer.trim() || '—', qty: n, station: '', currentStep: 'DRAFT', expectedDate: expectedDate || undefined },
-      { onSuccess: () => { showToast('สร้าง Work Order แล้ว (สถานะ: ร่าง)', 'success'); onClose(); },
+      { onSuccess: () => {
+          showToast('สร้าง Work Order แล้ว (สถานะ: ร่าง)', 'success');
+          setProductCode(''); setCustomer(''); setQty(''); setExpectedDate(''); setShowForm(false);
+        },
         onError: (e: any) => setErr(e.message) }
     );
   }
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
-        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>เปิด Work Order ใหม่</h2>
-        <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>
-          <label className="field"><span>Product Code *</span>
-            <input value={productCode} onChange={e => setProductCode(e.target.value)} placeholder="เช่น PCB-A100" autoFocus required />
-          </label>
-          <label className="field"><span>Customer</span>
-            <input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="เช่น Toyota TH" />
-          </label>
-          <label className="field"><span>จำนวน (Qty) *</span>
-            <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} placeholder="เช่น 200" required />
-          </label>
-          <label className="field"><span>Expected date</span>
-            <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
-          </label>
-          {err && <div className="notice err">{err}</div>}
-          <div className="modal-actions">
-            <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
-            <button type="submit" className="btn" disabled={create.isPending}>{create.isPending ? 'กำลังสร้าง...' : 'เปิด WO'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-export function WorkOrdersPage() {
-  const navigate = useNavigate();
-  const isViewer = useIsViewer();
-  const { data: wos = [], isLoading } = useWoBoard();
-  const [showCreate, setShowCreate] = useState(false);
-  const [page, setPage] = useState(1);
-  const PAGE = 12;
-  const totalPages = Math.max(1, Math.ceil(wos.length / PAGE));
-  const paged = wos.slice((page - 1) * PAGE, page * PAGE);
 
   return (
     <section className="stack-lg">
@@ -87,10 +62,41 @@ export function WorkOrdersPage() {
             <p className="panel__subtitle">เปิด/ปล่อยงานผลิต (WO Release) และติดตามสถานะ — กดที่ WO เพื่อดูรายละเอียด · FAI · ปิดงาน</p>
           </div>
           {!isViewer && (
-            <button type="button" className="btn" title="เปิด Work Order ใหม่" onClick={() => setShowCreate(true)}
-              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>+ เปิด WO</button>
+            <button type="button" className="btn" title="เปิด Work Order ใหม่" onClick={() => { setShowForm(v => !v); setErr(''); }}
+              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>
+              {showForm ? '✕ ยกเลิก' : '+ เปิด WO'}
+            </button>
           )}
         </div>
+
+        {showForm && !isViewer && (
+          <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
+            <h3 className="panel__title panel__title--sm">เปิด Work Order ใหม่</h3>
+            <form onSubmit={submit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem', gap: '0.85rem' }}>
+              <div className="grid-2col">
+                <label className="field"><span>Product Code *</span>
+                  <input value={productCode} onChange={e => setProductCode(e.target.value)} placeholder="เช่น PCB-A100" autoFocus required />
+                </label>
+                <label className="field"><span>Customer</span>
+                  <input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="เช่น Toyota TH" />
+                </label>
+              </div>
+              <div className="grid-2col">
+                <label className="field"><span>จำนวน (Qty) *</span>
+                  <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} placeholder="เช่น 200" required />
+                </label>
+                <label className="field"><span>Expected date</span>
+                  <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
+                </label>
+              </div>
+              {err && <div className="notice err">{err}</div>}
+              <button type="submit" className="btn" disabled={create.isPending}
+                style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
+                {create.isPending ? 'กำลังสร้าง...' : 'เปิด WO'}
+              </button>
+            </form>
+          </div>
+        )}
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, marginTop: '1.25rem' }}>
           <table className="table" style={{ minWidth: 760, width: '100%' }}>
@@ -125,8 +131,6 @@ export function WorkOrdersPage() {
         </div>
         <Paginator page={page} totalPages={totalPages} onPage={setPage} total={wos.length} />
       </div>
-
-      {showCreate && <CreateWoModal onClose={() => setShowCreate(false)} />}
     </section>
   );
 }
