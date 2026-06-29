@@ -528,6 +528,29 @@ async function migrate() {
     // ชื่อ Preset (ตั้งชื่อ workflow ได้)
     await client.query(`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS name VARCHAR(150) NOT NULL DEFAULT ''`);
 
+    // ── Work Centers (เครื่อง/สถานี — master data: จำนวนเครื่องขนาน + efficiency) ──
+    // operation ใน workflow อ้างถึง work center เพื่อดึงจำนวนเครื่อง/ประสิทธิภาพ (นิยามที่เดียว ใช้ซ้ำได้ทุก product)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS work_centers (
+        id          SERIAL PRIMARY KEY,
+        name        VARCHAR(150) NOT NULL,
+        stations    INTEGER      NOT NULL DEFAULT 1,   -- จำนวนเครื่อง/หัวที่ทำขนานกัน
+        efficiency  INTEGER      NOT NULL DEFAULT 100,  -- % ความเร็วจริงเทียบมาตรฐาน (100 = ตามมาตรฐาน)
+        note        TEXT         NOT NULL DEFAULT '',
+        created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    const wcCount = await client.query('SELECT COUNT(*) FROM work_centers');
+    if (SEED_DEMO && Number(wcCount.rows[0].count) === 0) {
+      await client.query(`
+        INSERT INTO work_centers (name, stations, efficiency, note) VALUES
+          ('SMT Line 1',   1, 100, 'สายติดตั้งชิ้นส่วน SMT'),
+          ('FCT Tester',   4,  95, 'เครื่องทดสอบ FCT 4 หัว ทำขนาน'),
+          ('Setup Station', 1, 100, 'จุดตั้งเครื่อง/โหลดโปรแกรม')
+      `);
+      console.log('[migrate] seeded work centers');
+    }
+
     // ── Workflow Results (บันทึกผลการเดินสายผลิต: Serial + PASS/FAIL + cycle time) ──
     await client.query(`
       CREATE TABLE IF NOT EXISTS workflow_results (

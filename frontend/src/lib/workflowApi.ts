@@ -15,6 +15,9 @@ export interface WfStep {
   failAction?: string;         // 'rework' | 'back' | 'rework_station' | 'scrap' | 'hold'
   backToIndex?: number | null; // ถ้า failAction='back' → index ของ step ปลายทาง (เก็บเป็น index กัน id เพี้ยนตอนโหลด)
   maxRetry?: number;
+  timeScope?: 'per_unit' | 'once'; // 'once' = setup ครั้งเดียวต่อล็อต · 'per_unit' = ต่อชิ้น (× จำนวน)
+  stations?: number;               // จำนวนเครื่อง/สถานีที่ทำขนาน (กรอกเอง ใช้เมื่อไม่ผูก work center)
+  workCenterId?: number | null;    // อ้างถึง work_centers.id — ถ้ามี จะใช้ stations/efficiency จากเครื่องนั้น
 }
 
 export interface Workflow {
@@ -40,6 +43,9 @@ function normSteps(raw: any): WfStep[] {
           failAction: s?.failAction ?? 'rework',
           backToIndex: typeof s?.backToIndex === 'number' ? s.backToIndex : null,
           maxRetry: Number(s?.maxRetry) || 0,
+          timeScope: (s?.timeScope === 'once' || s?.timeScope === 'per_unit') ? s.timeScope : undefined, // เก่าไม่มี → เดาตอนโหลด
+          stations: Number(s?.stations) > 0 ? Number(s.stations) : undefined,
+          workCenterId: Number(s?.workCenterId) > 0 ? Number(s.workCenterId) : null,
         }
   );
 }
