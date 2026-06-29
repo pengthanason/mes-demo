@@ -35,6 +35,7 @@ app.use('/api/inventory',     require('./routes/inventory'));
 app.use('/api/production',     require('./routes/production'));
 app.use('/api/pp',             require('./routes/productionPlan'));
 app.use('/api/workflow',       require('./routes/workflow'));
+app.use('/api/work-centers',   require('./routes/workCenters'));
 app.use('/api',               require('./routes/records'));
 
 // ── Static frontend (single-service deploy: เสิร์ฟหน้าเว็บจาก /public) ─

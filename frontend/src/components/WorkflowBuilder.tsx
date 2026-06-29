@@ -4,6 +4,7 @@ import {
   useWorkflowResults, useWorkflowResultCreate, useWorkflowResultDelete,
   type Workflow,
 } from '../lib/workflowApi';
+import { useWorkCenters, useWorkCenterCreate, useWorkCenterDelete } from '../lib/workCenterApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { ResultBadge } from './ResultBadge';
@@ -19,10 +20,15 @@ const FAIL_OPTS: { id: FailAction; name: string }[] = [
 
 // ชนิดขั้นตอน: process = ไหลผ่าน · checkpoint = จุดตรวจ/ทดสอบ (มีเงื่อนไขผ่าน + ทางออกเมื่อไม่ผ่าน)
 type StepKind = 'process' | 'checkpoint';
+// ชนิดเวลา: per_unit = ต่อชิ้น (× จำนวน) · once = ครั้งเดียวต่อล็อต (เช่น setup เครื่อง)
+type TimeScope = 'per_unit' | 'once';
 type Step = {
   id: string; process: string; seconds: number | '';
   kind: StepKind;                                     // checkpoint = จุดตรวจ (มีทางออกเมื่อไม่ผ่าน)
   failAction: FailAction; backToId: string; maxRetry: number;
+  timeScope: TimeScope;                               // ต่อชิ้น / ครั้งเดียว(setup)
+  stations: number;                                   // จำนวนเครื่องขนาน (กรอกเอง — ใช้เมื่อไม่ผูก work center)
+  workCenterId: number | null;                        // ผูกกับ work center → ดึงจำนวนเครื่อง+efficiency จากเครื่องนั้น
 };
 const CUSTOM_PROC_KEY = 'mes_custom_processes';
 
@@ -30,10 +36,14 @@ const CUSTOM_PROC_KEY = 'mes_custom_processes';
 const CHECK_KEYWORDS = ['TEST', 'ICT', 'FCT', 'IPQC', 'OQC', 'FQC', 'AOI', 'SPI', 'INSPECT', 'CHECK', 'QC', 'VERIFY'];
 const guessKind = (p: string): StepKind => CHECK_KEYWORDS.some(k => p.toUpperCase().includes(k)) ? 'checkpoint' : 'process';
 
+// เดาชนิดเวลา — งาน setup/ตั้งเครื่อง/เตรียม → ครั้งเดียว, ที่เหลือ → ต่อชิ้น
+const ONCE_KEYWORDS = ['SET UP', 'SETUP', 'SET-UP', 'ตั้งเครื่อง', 'เตรียม', 'PROGRAM', 'FIXTURE', 'JIG SET'];
+const guessScope = (p: string): TimeScope => ONCE_KEYWORDS.some(k => p.toUpperCase().includes(k.toUpperCase())) ? 'once' : 'per_unit';
+
 const uid =() => (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.round(performance.now())}`);
 const newStep = (): Step => {
   const process = PROCESSES[0];
-  return { id: uid(), process, seconds: '', kind: guessKind(process), failAction: 'rework', backToId: '', maxRetry: 0 };
+  return { id: uid(), process, seconds: '', kind: guessKind(process), failAction: 'rework', backToId: '', maxRetry: 0, timeScope: guessScope(process), stations: 1, workCenterId: null };
 };
 const fmtTime = (sec: number) => {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
@@ -277,6 +287,7 @@ export function WorkflowBuilder() {
   const [serial, setSerial] = useState('');
   const [customer, setCustomer] = useState('');
   const [model, setModel] = useState('');
+  const [qty, setQty] = useState<number | ''>('');     // จำนวนชิ้นในล็อต — ใช้คำนวณเวลารวมทั้งล็อต (ประมาณการ)
   const [steps, setSteps] = useState<Step[]>([newStep()]);
   const [showFlow, setShowFlow] = useState(false);
   // ผลรันจริง: เซ็ตของ id จุดตรวจที่ "ไม่ผ่าน" (design กับ run แยกกัน)
@@ -290,6 +301,9 @@ export function WorkflowBuilder() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [grabId, setGrabId] = useState<string | null>(null);
+  // แต่ละ step ย่อ/ขยายตัวเลือกย่อย (ชนิด/เวลา/เครื่อง/เงื่อนไข) — เก็บ id ที่กางอยู่
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  const toggleOpen = (id: string) => setOpenIds(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const create = useWorkflowCreate();
   const del = useWorkflowDelete();
@@ -298,7 +312,38 @@ export function WorkflowBuilder() {
   const delResult = useWorkflowResultDelete();
   const { data: results = [] } = useWorkflowResults();
 
-  const totalSec = steps.reduce((sum, s) => sum + (Number(s.seconds) || 0), 0);
+  // Work Centers (เครื่อง/สถานี — master data ใช้ร่วมกันทุก product)
+  const { data: workCenters = [] } = useWorkCenters();
+  const wcCreate = useWorkCenterCreate();
+  const wcDelete = useWorkCenterDelete();
+  const wcById = new Map(workCenters.map(w => [w.id, w]));
+  const [wcName, setWcName] = useState('');
+  const [wcStations, setWcStations] = useState('');
+  const [wcEff, setWcEff] = useState('');
+  // หาจำนวนเครื่องขนาน + efficiency ของ step: ถ้าผูก work center ใช้ของเครื่อง, ไม่งั้นใช้ค่ากรอกเอง
+  const resolveWc = (s: Step) => {
+    const wc = s.workCenterId ? wcById.get(s.workCenterId) : undefined;
+    return {
+      wc,
+      stations: wc ? Math.max(1, wc.stations) : Math.max(1, Number(s.stations) || 1),
+      eff: wc ? Math.max(1, wc.efficiency) : 100,
+    };
+  };
+
+  // เวลามาตรฐาน 3 ก้อน (ประมาณการ):
+  //  setupSec   = Σ step ครั้งเดียว (setup) — ไม่คูณจำนวน
+  //  perUnitSec = Σ step ต่อชิ้น — เวลาที่ 1 ชิ้นไหลผ่านครบ (ยังไม่หารเครื่องขนาน)
+  //  lotSec     = setup + Σ(ต่อชิ้น × จำนวน ÷ จำนวนเครื่องขนาน)  → เวลารวมทั้งล็อต
+  const qtyN = Number(qty) || 0;
+  // เวลาจริงต่อ step = เวลา ÷ (efficiency/100) — เครื่องช้ากว่ามาตรฐาน เวลาก็มากขึ้น
+  const effSec = (s: Step) => (Number(s.seconds) || 0) * 100 / resolveWc(s).eff;
+  const setupSec   = steps.reduce((sum, s) => sum + (s.timeScope === 'once' ? effSec(s) : 0), 0);
+  const perUnitSec = steps.reduce((sum, s) => sum + (s.timeScope === 'once' ? 0 : effSec(s)), 0);
+  const lotSec = setupSec + steps.reduce((sum, s) => {
+    if (s.timeScope === 'once') return sum;
+    return sum + effSec(s) * qtyN / resolveWc(s).stations;   // ต่อชิ้น × จำนวน ÷ จำนวนเครื่องขนาน
+  }, 0);
+  const totalSec = Math.round(perUnitSec); // เวลาต่อ 1 ชิ้น — ใช้เป็น cycle ตอนบันทึกผล Serial จริง
   const flowSvg = buildFlowSvg(steps);
   const checkpoints = steps.filter(s => s.kind === 'checkpoint');
   const overallRun = checkpoints.some(s => runFail.has(s.id)) ? 'FAIL' : 'PASS';
@@ -338,6 +383,9 @@ export function WorkflowBuilder() {
         failAction: s.failAction,
         backToIndex: s.kind === 'checkpoint' && s.failAction === 'back' && idToIndex.has(s.backToId) ? idToIndex.get(s.backToId)! : null,
         maxRetry: s.maxRetry,
+        timeScope: s.timeScope,
+        stations: s.timeScope === 'once' ? 1 : Math.max(1, Number(s.stations) || 1),
+        workCenterId: s.workCenterId,
       })),
     }, {
       onSuccess: () => showToast(`บันทึก Preset "${name.trim()}" สำเร็จ`, 'success'),
@@ -358,6 +406,10 @@ export function WorkflowBuilder() {
       failAction: (VALID_FAIL.includes(s.failAction as FailAction) ? s.failAction : 'rework') as FailAction,
       backToId: '',
       maxRetry: Number(s.maxRetry) || 0,
+      // timeScope/stations: ใช้ที่บันทึก ถ้าไม่มี (preset เก่า) → เดาจากชื่อ / default 1 เครื่อง
+      timeScope: (s.timeScope === 'once' || s.timeScope === 'per_unit') ? s.timeScope : guessScope(s.process),
+      stations: Number(s.stations) > 0 ? Number(s.stations) : 1,
+      workCenterId: Number(s.workCenterId) > 0 ? Number(s.workCenterId) : null,
     }));
     // กู้ backToId จาก index ที่บันทึกไว้ (ชี้ไปยัง step ที่สร้าง id ใหม่แล้ว)
     ws.forEach((s, i) => {
@@ -385,13 +437,29 @@ export function WorkflowBuilder() {
       setCustomProcs(prev => [...prev, t]);
       showToast(`เพิ่มกระบวนการ "${t}" แล้ว`, 'success');
     }
-    setStep(stepId, { process: t, kind: guessKind(t) });
+    setStep(stepId, { process: t, kind: guessKind(t), timeScope: guessScope(t) });
   }
 
   function deleteCustomProcess(name: string) {
     if (!confirm(`ลบกระบวนการ "${name}"?\n(ออกจากลิสต์ของบราวเซอร์นี้)`)) return;
     setCustomProcs(prev => prev.filter(n => n !== name));
-    setSteps(prev => prev.map(s => s.process === name ? { ...s, process: PROCESSES[0], kind: guessKind(PROCESSES[0]) } : s));
+    setSteps(prev => prev.map(s => s.process === name ? { ...s, process: PROCESSES[0], kind: guessKind(PROCESSES[0]), timeScope: guessScope(PROCESSES[0]) } : s));
+  }
+
+  /* เพิ่ม/ลบ Work Center (เครื่อง/สถานี) — master data ใน DB ใช้ร่วมกันทุก product */
+  function addWorkCenter() {
+    if (!wcName.trim()) { showToast('ใส่ชื่อเครื่อง/สถานี', 'error'); return; }
+    wcCreate.mutate(
+      { name: wcName.trim(), stations: Math.max(1, Math.floor(Number(wcStations)) || 1), efficiency: Math.min(1000, Math.max(1, Math.floor(Number(wcEff)) || 100)) },
+      {
+        onSuccess: () => { showToast(`เพิ่มเครื่อง "${wcName.trim()}" แล้ว`, 'success'); setWcName(''); setWcStations(''); setWcEff(''); },
+        onError: (e: any) => showToast(e.message, 'error'),
+      }
+    );
+  }
+  function delWorkCenter(id: number, name: string) {
+    if (!confirm(`ลบเครื่อง "${name}"?\n(ขั้นตอนที่ผูกเครื่องนี้ไว้จะกลับไปกรอกจำนวนเครื่องเอง)`)) return;
+    wcDelete.mutate(id, { onSuccess: () => showToast('ลบเครื่องแล้ว', 'info'), onError: (e: any) => showToast(e.message, 'error') });
   }
 
   /* บันทึกผลรันจริง — PASS/FAIL อ่านจากจุดตรวจที่กดไว้ (ขั้นผลิตถือว่าผ่านเสมอ) */
@@ -449,6 +517,47 @@ export function WorkflowBuilder() {
         </div>
       </div>
 
+      {/* Work Centers (เครื่อง/สถานี) — นิยามจำนวนเครื่องขนาน + efficiency ที่เดียว ใช้ซ้ำได้ทุก step/product */}
+      <div style={{ marginBottom: 15, background: 'var(--bg-panel)', padding: 15, borderRadius: 6, border: '1px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>🏭 เครื่อง/สถานี (Work Center)</strong>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>นิยามจำนวนเครื่องขนาน + ประสิทธิภาพ ที่เดียว → เลือกใช้ในแต่ละขั้นตอนได้เลย</span>
+        </div>
+
+        {/* รายการเครื่องที่มี */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: workCenters.length ? 12 : 0 }}>
+          {workCenters.map(w => (
+            <span key={w.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#ecfeff', border: '1px solid #a5f3fc', borderRadius: 20, padding: '4px 6px 4px 12px', fontSize: '0.8rem', color: '#155e75' }}>
+              <span><strong>🏭 {w.name}</strong> · ×{w.stations} เครื่อง · {w.efficiency}%</span>
+              {!isViewer && (
+                <button type="button" onClick={() => delWorkCenter(w.id, w.name)} title="ลบเครื่องนี้"
+                  style={{ border: 'none', background: 'transparent', color: '#e11d48', cursor: 'pointer', fontWeight: 700, fontSize: 12, lineHeight: 1, padding: '2px 4px' }}>✕</button>
+              )}
+            </span>
+          ))}
+          {workCenters.length === 0 && <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>ยังไม่มีเครื่อง/สถานี — เพิ่มด้านล่าง (ถ้าไม่เพิ่มก็กรอกจำนวนเครื่องในแต่ละขั้นเองได้)</span>}
+        </div>
+
+        {/* ฟอร์มเพิ่มเครื่อง */}
+        {!isViewer && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <input value={wcName} onChange={e => setWcName(e.target.value)} placeholder="ชื่อเครื่อง เช่น FCT Tester"
+              style={{ flex: '1 1 180px', minWidth: 140, padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc' }} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap' }} title="จำนวนเครื่อง/หัวที่ทำขนานกัน">
+              ×<input type="number" min="1" value={wcStations} onChange={e => setWcStations(e.target.value)} placeholder="1"
+                style={{ width: 56, padding: '8px 4px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'center' }} /> เครื่อง
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap' }} title="ประสิทธิภาพ % เทียบมาตรฐาน (100 = ตามมาตรฐาน, 50 = ช้า 2 เท่า)">
+              eff<input type="number" min="1" max="1000" value={wcEff} onChange={e => setWcEff(e.target.value)} placeholder="100"
+                style={{ width: 56, padding: '8px 4px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'center' }} />%
+            </label>
+            <button type="button" className="btn secondary" onClick={addWorkCenter} disabled={wcCreate.isPending || !wcName.trim()}>
+              {wcCreate.isPending ? 'กำลังเพิ่ม...' : '➕ เพิ่มเครื่อง'}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* steps */}
       <div style={{ background: '#f8f9fa', padding: 20, border: '1px solid #e2e8f0', borderRadius: 6 }}>
         {!isViewer && (
@@ -465,6 +574,9 @@ export function WorkflowBuilder() {
           <div className="stack">
             {steps.map((step, index) => {
               const isCheck = step.kind === 'checkpoint';
+              const isOnce = step.timeScope === 'once';
+              const open = openIds.has(step.id);
+              const wc = resolveWc(step);
               return (
               <div key={step.id}
                 draggable={grabId === step.id}
@@ -491,7 +603,7 @@ export function WorkflowBuilder() {
                 {/* process dropdown: หลัก(A-Z) + custom + เพิ่มกระบวนการ (เปลี่ยนชื่อ → เดาชนิดให้) */}
                 <div style={{ display: 'flex', flexGrow: 1, gap: 8, minWidth: 200 }}>
                   <ProcessSelect value={step.process} main={PROCESSES} custom={customProcs}
-                    onChange={v => setStep(step.id, { process: v, kind: guessKind(v) })}
+                    onChange={v => setStep(step.id, { process: v, kind: guessKind(v), timeScope: guessScope(v) })}
                     onAdd={() => addCustomProcess(step.id)}
                     onDeleteCustom={deleteCustomProcess}
                     disabled={isViewer} />
@@ -520,43 +632,84 @@ export function WorkflowBuilder() {
                   );
                 })()}
 
-                {/* สลับชนิด: ขั้นผลิต / จุดตรวจ */}
-                <button type="button" onClick={() => !isViewer && setStep(step.id, { kind: isCheck ? 'process' : 'checkpoint' })} disabled={isViewer}
-                  title="ขั้นผลิต = ไหลผ่าน / จุดตรวจ = มีเงื่อนไขผ่าน + ทางออกเมื่อไม่ผ่าน"
-                  style={{ padding: '7px 12px', borderRadius: 6, border: `1px solid ${isCheck ? '#d97706' : '#6366f1'}`, background: isCheck ? '#fffbeb' : '#eef2ff', color: isCheck ? '#92400e' : '#3730a3', fontWeight: 700, cursor: isViewer ? 'default' : 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                  {isCheck ? '🔎 จุดตรวจ' : '⚙️ ขั้นผลิต'}
+                {/* สรุปย่อ (อ่านอย่างเดียว) — เห็นชนิด/เวลา/เครื่อง โดยไม่ต้องกาง */}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: '0.76rem' }}>
+                  <span style={{ padding: '3px 8px', borderRadius: 20, border: `1px solid ${isOnce ? '#a5f3fc' : '#bbf7d0'}`, background: isOnce ? '#ecfeff' : '#f0fdf4', color: isOnce ? '#155e75' : '#166534', fontWeight: 600, whiteSpace: 'nowrap' }}>{isOnce ? '📌 ครั้งเดียว' : '🔁 ต่อชิ้น'}</span>
+                  <span style={{ padding: '3px 8px', borderRadius: 20, border: `1px solid ${isCheck ? '#fde68a' : '#c7d2fe'}`, background: isCheck ? '#fffbeb' : '#eef2ff', color: isCheck ? '#92400e' : '#3730a3', fontWeight: 600, whiteSpace: 'nowrap' }}>{isCheck ? '🔎 จุดตรวจ' : '⚙️ ขั้นผลิต'}</span>
+                  {!isOnce && <span style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{wc.wc ? `🏭 ${wc.wc.name}` : `×${wc.stations} เครื่อง`}</span>}
+                </span>
+
+                {/* ปุ่มกาง/ยุบ ตั้งค่าขั้นตอน */}
+                <button type="button" onClick={() => toggleOpen(step.id)} title="ตั้งค่าขั้นตอน (ชนิด / เวลา / เครื่อง / เงื่อนไขเมื่อไม่ผ่าน)"
+                  style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: open ? '#e2e8f0' : '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                  ⚙️ ตั้งค่า {open ? '▴' : '▾'}
                 </button>
 
                 {!isViewer && <button className="btn danger" onClick={() => removeStep(step.id)} disabled={steps.length === 1}>ลบ</button>}
 
-                {/* จุดตรวจ → เงื่อนไขผ่าน + ถ้าไม่ผ่านทำยังไง */}
-                {!isViewer && isCheck && (
-                  <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6, padding: '10px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
+                {/* แผงตั้งค่า (กาง/ยุบได้) — ชนิดขั้น/เวลา/เครื่อง + เงื่อนไขเมื่อไม่ผ่าน */}
+                {open && (
+                  <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8, padding: '12px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#991b1b', whiteSpace: 'nowrap' }}>✗ ถ้าไม่ผ่าน →</span>
-                      <select value={step.failAction} title="การจัดการเมื่อไม่ผ่าน"
-                        onChange={e => setStep(step.id, { failAction: e.target.value as FailAction })}
-                        style={{ padding: 6, borderRadius: 4, border: '1px solid #fca5a5', background: '#fff', fontSize: '0.8rem' }}>
-                        {FAIL_OPTS.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                      </select>
-                      {step.failAction === 'back' && (
-                        <select value={step.backToId} title="ย้อนกลับไปขั้น"
-                          onChange={e => setStep(step.id, { backToId: e.target.value })}
-                          style={{ padding: 6, borderRadius: 4, border: '1px solid #fca5a5', background: '#fff', fontSize: '0.8rem' }}>
-                          <option value="">— ขั้นที่ย้อนไป (ดีฟอลต์: ขั้นก่อนหน้า) —</option>
-                          {steps.slice(0, index).map((x, xi) => <option key={x.id} value={x.id}>Step {xi + 1}: {x.process}</option>)}
+                      {/* ชนิดขั้น: ขั้นผลิต / จุดตรวจ */}
+                      <button type="button" onClick={() => !isViewer && setStep(step.id, { kind: isCheck ? 'process' : 'checkpoint' })} disabled={isViewer}
+                        title="ขั้นผลิต = ไหลผ่าน / จุดตรวจ = มีเงื่อนไขผ่าน + ทางออกเมื่อไม่ผ่าน"
+                        style={{ padding: '7px 12px', borderRadius: 6, border: `1px solid ${isCheck ? '#d97706' : '#6366f1'}`, background: isCheck ? '#fffbeb' : '#eef2ff', color: isCheck ? '#92400e' : '#3730a3', fontWeight: 700, cursor: isViewer ? 'default' : 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        {isCheck ? '🔎 จุดตรวจ' : '⚙️ ขั้นผลิต'}
+                      </button>
+                      {/* ชนิดเวลา: ต่อชิ้น / ครั้งเดียว(setup) */}
+                      <button type="button" onClick={() => !isViewer && setStep(step.id, { timeScope: isOnce ? 'per_unit' : 'once' })} disabled={isViewer}
+                        title="ต่อชิ้น = เวลา × จำนวนชิ้น / ครั้งเดียว = setup ต่อล็อต (ไม่คูณจำนวน)"
+                        style={{ padding: '7px 12px', borderRadius: 6, border: `1px solid ${isOnce ? '#0891b2' : '#16a34a'}`, background: isOnce ? '#ecfeff' : '#f0fdf4', color: isOnce ? '#155e75' : '#166534', fontWeight: 700, cursor: isViewer ? 'default' : 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        {isOnce ? '📌 ครั้งเดียว (setup)' : '🔁 ต่อชิ้น'}
+                      </button>
+                      {/* เครื่อง (เฉพาะ step ต่อชิ้น) */}
+                      {!isOnce && workCenters.length > 0 && (
+                        <select value={step.workCenterId ?? ''} disabled={isViewer}
+                          title="เลือกเครื่อง/สถานี (Work Center) — ดึงจำนวนเครื่องขนาน + efficiency มาคิดเวลาให้"
+                          onChange={e => setStep(step.id, { workCenterId: e.target.value ? Number(e.target.value) : null })}
+                          style={{ maxWidth: 220, padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: '0.8rem' }}>
+                          <option value="">🔧 กรอกเครื่องเอง</option>
+                          {workCenters.map(w => <option key={w.id} value={w.id}>🏭 {w.name} (×{w.stations}, {w.efficiency}%)</option>)}
                         </select>
                       )}
-                      {(step.failAction === 'rework' || step.failAction === 'rework_station' || step.failAction === 'back') && (
-                        <label style={{ fontSize: '0.8rem', color: '#991b1b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          วนได้ไม่เกิน
-                          <input type="number" min="0" value={step.maxRetry || ''} placeholder="0" title="จำนวนครั้งสูงสุด (0 = ไม่จำกัด)"
-                            onChange={e => setStep(step.id, { maxRetry: e.target.value === '' ? 0 : Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
-                            style={{ width: 52, padding: 5, borderRadius: 4, border: '1px solid #fca5a5', textAlign: 'center' }} />
-                          ครั้ง (0=ไม่จำกัด)
+                      {!isOnce && !step.workCenterId && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', color: '#64748b', whiteSpace: 'nowrap' }} title="จำนวนเครื่อง/สถานีที่ทำขนานกัน — ยิ่งมากเวลารวมทั้งล็อตยิ่งลด">
+                          ×<input type="number" min="1" value={step.stations || 1} disabled={isViewer}
+                            onChange={e => setStep(step.id, { stations: Math.max(1, Math.floor(Number(e.target.value)) || 1) })}
+                            style={{ width: 46, padding: '6px 4px', borderRadius: 4, border: '1px solid #ccc', textAlign: 'center' }} /> เครื่อง
                         </label>
                       )}
                     </div>
+
+                    {/* จุดตรวจ → เงื่อนไขเมื่อไม่ผ่าน */}
+                    {!isViewer && isCheck && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#991b1b', whiteSpace: 'nowrap' }}>✗ ถ้าไม่ผ่าน →</span>
+                        <select value={step.failAction} title="การจัดการเมื่อไม่ผ่าน"
+                          onChange={e => setStep(step.id, { failAction: e.target.value as FailAction })}
+                          style={{ padding: 6, borderRadius: 4, border: '1px solid #fca5a5', background: '#fff', fontSize: '0.8rem' }}>
+                          {FAIL_OPTS.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                        </select>
+                        {step.failAction === 'back' && (
+                          <select value={step.backToId} title="ย้อนกลับไปขั้น"
+                            onChange={e => setStep(step.id, { backToId: e.target.value })}
+                            style={{ padding: 6, borderRadius: 4, border: '1px solid #fca5a5', background: '#fff', fontSize: '0.8rem' }}>
+                            <option value="">— ขั้นที่ย้อนไป (ดีฟอลต์: ขั้นก่อนหน้า) —</option>
+                            {steps.slice(0, index).map((x, xi) => <option key={x.id} value={x.id}>Step {xi + 1}: {x.process}</option>)}
+                          </select>
+                        )}
+                        {(step.failAction === 'rework' || step.failAction === 'rework_station' || step.failAction === 'back') && (
+                          <label style={{ fontSize: '0.8rem', color: '#991b1b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            วนได้ไม่เกิน
+                            <input type="number" min="0" value={step.maxRetry || ''} placeholder="0" title="จำนวนครั้งสูงสุด (0 = ไม่จำกัด)"
+                              onChange={e => setStep(step.id, { maxRetry: e.target.value === '' ? 0 : Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
+                              style={{ width: 52, padding: 5, borderRadius: 4, border: '1px solid #fca5a5', textAlign: 'center' }} />
+                            ครั้ง (0=ไม่จำกัด)
+                          </label>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -565,10 +718,34 @@ export function WorkflowBuilder() {
         )}
       </div>
 
-      {/* total cycle time */}
-      <div style={{ padding: 15, background: '#e0f2fe', borderRadius: 6, border: '1px solid #bae6fd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 'bold', color: '#0369a1' }}>⏱️ Total Cycle Time:</span>
-        <strong style={{ fontSize: '1.25rem', color: '#0284c7' }}>{fmtTime(totalSec)}</strong>
+      {/* เวลามาตรฐาน (ประมาณการ): Setup ครั้งเดียว + ต่อชิ้น × จำนวน ÷ เครื่องขนาน */}
+      <div style={{ padding: 16, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+          <span style={{ fontWeight: 700, color: '#0369a1' }}>⏱️ เวลามาตรฐาน (ประมาณการ)</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: '#0369a1', whiteSpace: 'nowrap' }}>
+            จำนวนชิ้นในล็อต (Qty)
+            <input type="number" min="0" value={qty} disabled={isViewer} placeholder="เช่น 3000"
+              onChange={e => setQty(e.target.value === '' ? '' : Math.max(0, Math.floor(Number(e.target.value)) || 0))}
+              style={{ width: 110, padding: '7px 10px', borderRadius: 6, border: '1px solid #7dd3fc', textAlign: 'right' }} />
+          </label>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+          <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0f2fe', padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>📌 Setup (ครั้งเดียว/ล็อต)</div>
+            <strong style={{ fontSize: '1.05rem', color: '#155e75' }}>{fmtTime(setupSec)}</strong>
+          </div>
+          <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0f2fe', padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>🔁 ต่อชิ้น (1 ชิ้นผ่านครบ)</div>
+            <strong style={{ fontSize: '1.05rem', color: '#166534' }}>{fmtTime(perUnitSec)}</strong>
+          </div>
+          <div style={{ background: '#fff', borderRadius: 8, border: '2px solid #38bdf8', padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>📦 รวมทั้งล็อต (ประมาณ)</div>
+            <strong style={{ fontSize: '1.15rem', color: '#0284c7' }}>{qtyN > 0 ? fmtTime(Math.round(lotSec)) : '— ใส่ Qty —'}</strong>
+          </div>
+        </div>
+        <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
+          รวมทั้งล็อต = Setup + Σ(เวลาต่อชิ้น × จำนวน ÷ จำนวนเครื่องขนาน) · เป็น<strong>ค่าประมาณการ</strong>สำหรับวางแผน — เวลาจริง (actual) ขึ้นกับคิว/เครื่องว่าง/การพัก ต้องวัดจากหน้างาน
+        </div>
       </div>
 
       {/* บันทึกผลเดินสายผลิต — กดผ่าน/ไม่ผ่าน เฉพาะ "จุดตรวจ" ของ Serial จริง */}
