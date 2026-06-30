@@ -41,49 +41,12 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
-export const yesNo = (b: boolean) => b ? '✓' : '';
 
 /* ── นิยามคอลัมน์ชุดเดียว — เรียงตามตาราง Dashboard (สำคัญขึ้นก่อน) ──
    ใช้ร่วมกันทั้ง Dashboard table / Excel / PDF เพื่อให้ลำดับตรงกันเสมอ
    headerColor = สีหัวคอลัมน์พิเศษ (hex 6 หลัก ไม่มี #) · center = จัดกึ่งกลาง */
 const ckMark = (b: boolean) => b ? '✓' : '';
 export type PpCol = { key: string; header: string; w: number; center?: boolean; headerColor?: string; group?: string; value: (p: PpProject) => string };
-export const PP_COLUMNS: PpCol[] = [
-  { key: 'status',       header: 'Status',      w: 12, center: true, value: p => PP_STATUS_LABEL[p.status] ?? p.status },
-  { key: 'product_pn',   header: 'Product P/N', w: 17, value: p => p.product_pn || '' },
-  { key: 'model',        header: 'MODEL',       w: 26, value: p => p.model || '' },
-  { key: 'customer',     header: 'Customer',    w: 14, value: p => p.customer || '' },
-  { key: 'qty',          header: 'QTY',         w: 7,  center: true, value: p => (p.qty != null ? String(p.qty) : '') },
-  { key: 'date_record',  header: 'DATE Record', w: 12, center: true, value: p => xlsxDate(p.date_record) },
-  { key: 'expected',     header: 'Expected',    w: 12, center: true, headerColor: 'FFC000', value: p => xlsxDate(p.expected_date) },
-  { key: 'revised',      header: 'Revised',     w: 12, center: true, headerColor: 'FFFF00', value: p => xlsxDate(p.revised_date) },
-  { key: 'ok_per_day',   header: 'OK/DAY',      w: 8,  center: true, value: p => (p.ok_per_day ? String(p.ok_per_day) : '') },
-  { key: 'total_ng',     header: 'NG',          w: 7,  center: true, value: p => (p.total_ng != null ? String(p.total_ng) : '') },
-  { key: 'total_ok',     header: 'OK',          w: 7,  center: true, value: p => (p.total_ok != null ? String(p.total_ok) : '') },
-  { key: 'yield',        header: 'Yield',       w: 8,  center: true, value: p => { const y = ppYield(p); return y == null ? '' : `${y.toFixed(0)}%`; } },
-  { key: 'done',         header: 'DONE',        w: 7,  center: true, headerColor: '00B050', value: p => ckMark(p.done) },
-  { key: 'wk',           header: 'WW',          w: 6,  center: true, value: p => (p.wk != null ? String(p.wk) : '') },
-  { key: 'work_order',   header: 'WO',          w: 14, value: p => p.work_order || '' },
-  { key: 'chk_man',      header: 'Man',         w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_man) },
-  { key: 'chk_mac',      header: 'Mac',         w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_mac) },
-  { key: 'chk_med',      header: 'Med',         w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_med) },
-  { key: 'chk_mat',      header: 'Mat',         w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_mat) },
-  { key: 'pd_pcba',      header: 'PCBA',        w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_pcba) },
-  { key: 'pd_bbas',      header: 'BBAS',        w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_bbas) },
-  { key: 'pd_test',      header: 'TEST',        w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_test) },
-  { key: 'pd_rma',       header: 'RMA',         w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_rma) },
-  { key: 'pd_prep',      header: 'PREP',        w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_prep) },
-  { key: 'qa_test_rate', header: 'Sampling%',   w: 10, center: true, value: p => p.qa_test_rate || '' },
-  { key: 'pd_start',     header: 'PD Start',    w: 12, center: true, value: p => xlsxDate(p.pd_start_date) },
-  { key: 'pd_finish',    header: 'PD Finish',   w: 12, center: true, value: p => xlsxDate(p.pd_finish_date) },
-  { key: 'qa_finish',    header: 'QA Finish',   w: 12, center: true, value: p => xlsxDate(p.qa_finish_date) },
-  { key: 'store',        header: 'Store',       w: 12, center: true, value: p => xlsxDate(p.store_received) },
-  { key: 'matl_coming',  header: "Mat'l coming",w: 18, value: p => p.matl_coming || '' },
-  { key: 'pd_pic',       header: 'PD PIC',      w: 12, value: p => p.pd_pic || '' },
-  { key: 'team_member',  header: 'Team',        w: 7,  center: true, value: p => (p.team_member ? String(p.team_member) : '') },
-  { key: 'remark',       header: 'Remark',      w: 30, value: p => p.remark || '' },
-];
 
 /* ── ลำดับคอลัมน์เฉพาะ Excel export — หัวตารางตามฟอร์มจริง (Status·WW·DATE Record·Product P/N·
    MODEL·QTY·SYN Requestor·[PM|Work Order]·Customer·…) แยกจาก PP_COLUMNS เพื่อไม่กระทบ Dashboard/PDF */

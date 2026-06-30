@@ -192,8 +192,6 @@ export function DashboardPage() {
         </span>
       </div>
 
-      <FactoryOverview />
-
       <div className="panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -296,6 +294,9 @@ export function DashboardPage() {
         </div>
         <Paginator page={page} totalPages={totalPages} onPage={setPage} total={rows.length} />
       </div>
+
+      {/* สรุปข้ามโมดูล — ใต้ Production Plan */}
+      <FactoryOverview />
 
       {/* คู่มือขั้นตอน — ล่างสุด */}
       <FlowGuide />
