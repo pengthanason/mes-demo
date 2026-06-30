@@ -18,6 +18,8 @@ export interface WfStep {
   timeScope?: 'per_unit' | 'once'; // 'once' = setup ครั้งเดียวต่อล็อต · 'per_unit' = ต่อชิ้น (× จำนวน)
   stations?: number;               // จำนวนเครื่อง/สถานีที่ทำขนาน (กรอกเอง ใช้เมื่อไม่ผูก work center)
   workCenterId?: number | null;    // อ้างถึง work_centers.id — ถ้ามี จะใช้ stations/efficiency จากเครื่องนั้น
+  role?: 'incoming' | 'setup' | 'smt' | 'packing' | 'store'; // บทบาทในสายผลิต (ล็อกหัว-ท้าย / SMT แก้ได้)
+  repeat?: number;                 // จำนวนรอบที่ทำขั้นนี้ (เฉพาะ SMT — คูณเวลา)
 }
 
 export interface Workflow {
@@ -46,6 +48,8 @@ function normSteps(raw: any): WfStep[] {
           timeScope: (s?.timeScope === 'once' || s?.timeScope === 'per_unit') ? s.timeScope : undefined, // เก่าไม่มี → เดาตอนโหลด
           stations: Number(s?.stations) > 0 ? Number(s.stations) : undefined,
           workCenterId: Number(s?.workCenterId) > 0 ? Number(s.workCenterId) : null,
+          role: ['incoming', 'setup', 'smt', 'packing', 'store'].includes(s?.role) ? s.role : undefined,
+          repeat: Number(s?.repeat) > 0 ? Number(s.repeat) : undefined,
         }
   );
 }

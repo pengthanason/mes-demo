@@ -136,10 +136,8 @@ function visibleMainItems(role) {
   return MAIN_ITEMS; // admin
 }
 
-function Sidebar() {
-  // const [expanded, setExpanded] = useState(false);   // เดิม: เริ่มยุบ + กางตอน hover
-  const isDesktop = useMediaQuery('(min-width: 768px)');
-  const [expanded, setExpanded] = useState(isDesktop);   // เริ่มต้น: คอมเปิด / มือถือยุบ · กดปุ่มสามขีดเปิด-ปิด
+function Sidebar({ expanded, setExpanded, isDesktop }) {
+  // state expanded/isDesktop ถูกยกไปไว้ที่ Shell แล้ว — แชร์ให้ content ดันตามความกว้าง sidebar (กันทับตอนจอเล็ก/ซูม)
   const auth     = useMockAuth();
   const location = useLocation();
   const items    = visibleMainItems(auth.role);
@@ -314,45 +312,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ─── Top nav link ──────────────────────────────────────────────────
-function NavLink({ to, children, innerRef }) {
-  const location = useLocation();
-  const isActive = location.hash === `#${to}` || location.pathname === to;
-  return (
-    <Link
-      ref={innerRef}
-      to={to}
-      style={{
-        padding: '0.4rem 0.85rem',
-        borderRadius: 6,
-        color: isActive ? 'var(--frame-text-active)' : 'var(--frame-text)',
-        textDecoration: 'none',
-        fontWeight: isActive ? 600 : 400,
-        fontSize: '0.875rem',
-        whiteSpace: 'nowrap',
-        position: 'relative',
-        zIndex: 1,
-        transition: 'color 0.2s',
-        outline: 'none',
-      }}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--frame-text-active)'; }}
-      onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--frame-text)'; }}
-    >
-      {children}
-    </Link>
-  );
-}
-
-// label เต็มบน desktop / ย่อบนจอแคบ (สลับด้วย media query ใน Shell)
-function NavLabel({ full, short }) {
-  return (
-    <>
-      <span className="nav-label-full">{full}</span>
-      <span className="nav-label-short">{short}</span>
-    </>
-  );
-}
-
 // ─── Notification Bell + Dropdown ─────────────────────────────────
 const NOTIF_ICON = { WO_OPEN: '🔧', QC_FAIL: '❌', CR_APPROVED: '✅', WO_CLOSED: '✔️', REWORK: '🔨' };
 
@@ -456,78 +415,6 @@ function NotificationBell() {
           </Link>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Top nav (role-aware) ─────────────────────────────────────────
-function TopNav() {
-  const auth    = useMockAuth();
-  const role    = auth.role;
-  const location = useLocation();
-  const navRef   = useRef(null);
-  const sliderRef = useRef(null);
-  const itemRefs  = useRef({});
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    const slider = sliderRef.current;
-    const nav    = navRef.current;
-    if (!slider || !nav) return;
-    const path = location.pathname;
-    const el   = itemRefs.current[path];
-    if (!el) { slider.style.opacity = '0'; return; }
-    const navRect = nav.getBoundingClientRect();
-    const elRect  = el.getBoundingClientRect();
-    const left  = elRect.left - navRect.left + nav.scrollLeft;
-    const width = elRect.width;
-    if (!initialized.current) {
-      slider.style.transition = 'none';
-      slider.style.left    = `${left}px`;
-      slider.style.width   = `${width}px`;
-      slider.style.opacity = '1';
-      requestAnimationFrame(() => {
-        if (slider) slider.style.transition = 'left 0.28s cubic-bezier(0.4,0,0.2,1), width 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s';
-      });
-      initialized.current = true;
-    } else {
-      slider.style.left    = `${left}px`;
-      slider.style.width   = `${width}px`;
-      slider.style.opacity = '1';
-    }
-  }, [location.pathname, role]);
-
-  const ref = (to) => (el) => { if (el) itemRefs.current[to] = el; };
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: 'auto', minWidth: 0, maxWidth: '100%' }}>
-    <nav ref={navRef} style={{
-      display: 'flex', gap: '0.4rem', flexWrap: 'nowrap', alignItems: 'center',
-      position: 'relative', minWidth: 0,
-      overflowX: 'auto', overflowY: 'hidden',
-      scrollbarWidth: 'none', msOverflowStyle: 'none',
-      WebkitOverflowScrolling: 'touch',
-    }}>
-      {/* sliding pill */}
-      <div ref={sliderRef} style={{
-        position: 'absolute', top: '50%', height: '1.8rem',
-        transform: 'translateY(-50%)',
-        background: 'var(--frame-active-bg)',
-        borderRadius: 6, pointerEvents: 'none', zIndex: 0, opacity: 0,
-      }} />
-      <NavLink to="/dashboard"       innerRef={ref('/dashboard')}><NavLabel full="Dashboard" short="Home" /></NavLink>
-      {(role === 'admin' || role === 'member') && <NavLink to="/production-plan" innerRef={ref('/production-plan')}><NavLabel full="Production Plan" short="Plan" /></NavLink>}
-      {(role === 'admin' || role === 'member') && <NavLink to="/incoming" innerRef={ref('/incoming')}><NavLabel full="Incoming & Kitting" short="คลัง" /></NavLink>}
-      {(role === 'admin' || role === 'member') && <NavLink to="/work-orders" innerRef={ref('/work-orders')}><NavLabel full="Work Orders" short="WO" /></NavLink>}
-      <NavLink to="/qc-board"        innerRef={ref('/qc-board')}><NavLabel full="QC" short="QC" /></NavLink>
-      <NavLink to="/jig-test"        innerRef={ref('/jig-test')}><NavLabel full="Jig Test" short="Jig" /></NavLink>
-      <NavLink to="/traceability"    innerRef={ref('/traceability')}><NavLabel full="Traceability" short="Trace" /></NavLink>
-      <NavLink to="/4m-change"       innerRef={ref('/4m-change')}><NavLabel full="4M Change" short="4M" /></NavLink>
-      {(role === 'admin' || role === 'member') && <NavLink to="/scm-cases" innerRef={ref('/scm-cases')}><NavLabel full="SCM Cases" short="SCM" /></NavLink>}
-      <NavLink to="/equipment-borrow" innerRef={ref('/equipment-borrow')}><NavLabel full="Equipment Borrow" short="Borrow" /></NavLink>
-      {role === 'admin' && <NavLink to="/admin/panel" innerRef={ref('/admin/panel')}><NavLabel full="Admin Panel" short="Admin" /></NavLink>}
-    </nav>
-      <NotificationBell />
     </div>
   );
 }
@@ -636,11 +523,18 @@ function TopBar() {
 // ─── Shell ─────────────────────────────────────────────────────────
 function Shell({ children }) {
   const location = useLocation();
+  // const [expanded, setExpanded] = useState(false);   // เดิม: เริ่มยุบ + กางตอน hover
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const [expanded, setExpanded] = useState(isDesktop);   // คอมเปิด / มือถือยุบ — แชร์ให้ทั้ง Sidebar + content
+  // เปิด sidebar = เนื้อหาขยับขวา "นิดเดียว" (SHIFT_ON_OPEN) ไม่ดันเต็มความกว้าง sidebar · sidebar กางทับส่วนที่เหลือแบบ drawer
+  // เนื้อหายังอยู่กึ่งกลาง (margin auto) · ปรับเลข SHIFT_ON_OPEN เพื่อเพิ่ม/ลดระยะขยับ (0 = ไม่ขยับเลย)
+  const SHIFT_ON_OPEN =  150;
+  const contentLeft = isDesktop && expanded ? ICON_W + SHIFT_ON_OPEN : ICON_W;
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar />
+      <Sidebar expanded={expanded} setExpanded={setExpanded} isDesktop={isDesktop} />
 
-      <div style={{ flex: 1, marginLeft: ICON_W, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f1f5f9' }}>
+      <div style={{ flex: 1, marginLeft: contentLeft, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f1f5f9', transition: 'margin-left 0.2s ease' }}>
         <style>{`
           .field input, .field select, .field textarea {
             width: 100%; padding: 0.55rem 0.75rem;
