@@ -20,6 +20,8 @@ const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
 
 const CHECK_KEYS = new Set(['chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'done']);
 const ckEl = (b: boolean) => b ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span> : <span style={{ color: '#cbd5e1' }}>·</span>;
+// เซลล์ว่าง — ขีด "—" จัดกึ่งกลางเสมอทุกคอลัมน์ (สีจาง) ให้เท่ากันหมด
+const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' };
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ Excel (ลำดับ/หัว = แหล่งเดียวกับ Excel)
 function renderCell(c: PpCol, p: PpProject, y: number | null) {
@@ -28,9 +30,10 @@ function renderCell(c: PpCol, p: PpProject, y: number | null) {
   if (c.key === 'yield') return <td key={c.key} style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>;
   if (c.key === 'total_ng') return <td key={c.key} style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>;
   if (c.key === 'total_ok') return <td key={c.key} style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>;
-  if (c.key === 'product_pn') return <td key={c.key} style={{ fontWeight: 600 }}>{p.product_pn || '—'}</td>;
+  if (c.key === 'product_pn') return <td key={c.key} style={p.product_pn ? { fontWeight: 600 } : DASH_STYLE}>{p.product_pn || '—'}</td>;
   const v = c.value(p);
-  return <td key={c.key} style={c.center ? { textAlign: 'center', whiteSpace: 'nowrap' } : { color: c.key === 'remark' || c.key === 'matl_coming' ? 'var(--text-muted)' : undefined }}>{v || '—'}</td>;
+  if (!v) return <td key={c.key} style={DASH_STYLE}>—</td>;
+  return <td key={c.key} style={c.center ? { textAlign: 'center', whiteSpace: 'nowrap' } : { color: c.key === 'remark' || c.key === 'matl_coming' ? 'var(--text-muted)' : undefined }}>{v}</td>;
 }
 
 /* ── พิมพ์เป็น PDF — โครงเดียวกับ Excel (XLSX_COLUMNS + หัวซ้อน 2 ชั้น) + โลโก้/สี SYNTECH ── */
@@ -171,19 +174,6 @@ export function DashboardPage() {
   const sortedRows = useMemo(() => [...rows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))), [rows]);
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE));
   const paged = sortedRows.slice((page - 1) * PAGE, page * PAGE);
-  const tableRef = useRef<HTMLDivElement>(null);
-  // เปลี่ยนหน้า — ถ้าไป "หน้าสุดท้าย" (แถวมักไม่เต็ม ตำแหน่งเพี้ยน) เลื่อนขึ้นให้เห็นหัวตาราง · หน้าอื่นไม่ขยับ
-  const goPage = (p: number) => {
-    setPage(p);
-    if (p === totalPages && p !== page) {
-      requestAnimationFrame(() => {
-        const el = tableRef.current;
-        if (!el) return;
-        const target = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 72);
-        smoothScrollTo(target, 600);
-      });
-    }
-  };
   const setF = (k: keyof PpFilters, v: string) => { setFilters(p => ({ ...p, [k]: v || undefined })); setPage(1); };
   const hasFilter = Object.values(filters).some(Boolean);
 
@@ -311,8 +301,8 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div ref={tableRef} style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
-          <table className="table table-readonly table--grid table--dense" style={{ minWidth: 1280, width: '100%' }}>
+        <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+          <table className="table table-readonly table--grid table--dense" style={{ minWidth: 1408, width: '100%' }}>
             <thead>
               <tr>
                 <th rowSpan={2} style={{ textAlign: 'center' }}>#</th>
@@ -349,7 +339,7 @@ export function DashboardPage() {
             </tbody>
           </table>
         </div>
-        <Paginator page={page} totalPages={totalPages} onPage={goPage} total={rows.length} />
+        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={rows.length} />
       </div>
 
       {/* สรุปข้ามโมดูล — ใต้ Production Plan */}

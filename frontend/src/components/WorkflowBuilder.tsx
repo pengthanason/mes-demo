@@ -86,9 +86,15 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
   workflows: Workflow[]; onLoad: (w: Workflow) => void; onDelete: (id: number) => void; canDelete: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const showSearch = workflows.length > 10;   // preset เยอะ → มีช่องค้นหา
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? workflows.filter(w => `${w.name} ${w.customer} ${w.model}`.toLowerCase().includes(needle)) : workflows;
+  useEffect(() => { if (open && showSearch) requestAnimationFrame(() => searchRef.current?.focus()); }, [open, showSearch]);
   return (
     <div style={{ position: 'relative', flexGrow: 1, minWidth: 0 }}>
-      <div onClick={() => setOpen(o => !o)}
+      <div onClick={() => { if (!open) setQ(''); setOpen(o => !o); }}
         style={{ padding: '8px 10px', border: '1px solid #ccc', borderRadius: 4, background: '#f8fafc', color: '#64748b', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>📂 โหลด Preset ที่บันทึกไว้...</span>
         <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
@@ -96,9 +102,19 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
       {open && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, maxHeight: 260, overflowY: 'auto' }}>
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, maxHeight: 300, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {showSearch && (
+              <div style={{ padding: 6, borderBottom: '1px solid #e2e8f0' }}>
+                <input ref={searchRef} value={q} onChange={e => setQ(e.target.value)} onClick={e => e.stopPropagation()}
+                  onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
+                  placeholder="🔍 ค้นหา preset..." aria-label="ค้นหา preset"
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4, fontSize: '0.82rem', fontFamily: 'inherit' }} />
+              </div>
+            )}
+            <div style={{ overflowY: 'auto' }}>
             {workflows.length === 0 && <div style={{ padding: '10px', color: '#94a3b8', fontSize: '0.85rem' }}>ยังไม่มี preset ที่บันทึก</div>}
-            {workflows.map(w => (
+            {workflows.length > 0 && shown.length === 0 && <div style={{ padding: '10px', color: '#94a3b8', fontSize: '0.85rem' }}>ไม่พบ “{q}”</div>}
+            {shown.map(w => (
               <div key={w.id} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
                 <div style={{ flexGrow: 1, padding: '8px 10px', cursor: 'pointer', color: '#334155', minWidth: 0 }} onClick={() => { onLoad(w); setOpen(false); }}>
                   <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{w.name || `${w.customer || '—'} · ${w.model || '—'}`}</div>
@@ -111,6 +127,7 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
                 )}
               </div>
             ))}
+            </div>
           </div>
         </>
       )}
@@ -331,14 +348,23 @@ function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ เพิ่�
   onPick: (v: string) => void; onAdd?: () => void; addLabel?: string; onDelete?: (v: string) => void; disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
   const boxRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const toggle = () => {
     if (disabled) return;
-    if (!open) { const r = boxRef.current?.getBoundingClientRect(); if (r) setPos({ top: r.bottom + 2, left: r.left, width: r.width }); }
+    if (!open) { const r = boxRef.current?.getBoundingClientRect(); if (r) setPos({ top: r.bottom + 2, left: r.left, width: r.width }); setQ(''); }
     setOpen(o => !o);
   };
   const current = groups.flatMap(g => g.items).find(i => i.value === value);
+  const totalItems = groups.reduce((n, g) => n + g.items.length, 0);
+  const showSearch = totalItems > 10;   // ตัวเลือกเยอะ → มีช่องค้นหาให้พิมพ์กรอง
+  const needle = q.trim().toLowerCase();
+  const shownGroups = needle
+    ? groups.map(g => ({ ...g, items: g.items.filter(it => `${it.label} ${it.value}`.toLowerCase().includes(needle)) })).filter(g => g.items.length)
+    : groups;
+  useEffect(() => { if (open && showSearch) requestAnimationFrame(() => searchRef.current?.focus()); }, [open, showSearch]);
   return (
     <div style={{ width: '100%', minWidth: 0 }}>
       <div ref={boxRef} onClick={toggle}
@@ -348,27 +374,38 @@ function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ เพิ่�
       {open && pos && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,0.15)', zIndex: 1000, maxHeight: 320, overflowY: 'auto' }}>
-            {groups.map((g, gi) => (
-              <div key={gi}>
-                {g.header && <div style={{ padding: '5px 10px', fontSize: '0.7rem', fontWeight: 700, color: '#6366f1', background: '#eef2ff', borderBottom: '1px solid #e2e8f0' }}>{g.header}</div>}
-                {g.items.map(it => (
-                  <div key={it.value} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f1f5f9', background: value === it.value ? '#e0f2fe' : '#fff' }}>
-                    <div style={{ flexGrow: 1, padding: '8px 10px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: value === it.value ? '#0369a1' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                      onClick={() => { onPick(it.value); setOpen(false); }}>{it.label}</div>
-                    {it.deletable && onDelete && (
-                      <button type="button" title={`ลบ "${it.label}"`} onClick={e => { e.stopPropagation(); onDelete(it.value); }}
-                        onMouseOver={e => (e.currentTarget.style.background = '#fee2e2')} onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                        style={{ background: 'transparent', border: 'none', color: '#e11d48', cursor: 'pointer', padding: '8px 11px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>✕</button>
-                    )}
-                  </div>
-                ))}
+          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,0.15)', zIndex: 1000, maxHeight: 340, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {showSearch && (
+              <div style={{ padding: 6, borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
+                <input ref={searchRef} value={q} onChange={e => setQ(e.target.value)} onClick={e => e.stopPropagation()}
+                  onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
+                  placeholder="🔍 พิมพ์เพื่อค้นหา..." aria-label="ค้นหา"
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4, fontSize: '0.82rem', fontFamily: 'inherit' }} />
               </div>
-            ))}
-            {onAdd && (
-              <div onClick={() => { setOpen(false); onAdd(); }}
-                style={{ padding: '8px 10px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: '#0369a1', background: '#f0f9ff', borderTop: '1px solid #e2e8f0' }}>{addLabel}</div>
             )}
+            <div style={{ overflowY: 'auto' }}>
+              {shownGroups.length === 0 && <div style={{ padding: '8px 10px', color: '#94a3b8', fontSize: '0.82rem' }}>ไม่พบ “{q}”</div>}
+              {shownGroups.map((g, gi) => (
+                <div key={gi}>
+                  {g.header && <div style={{ padding: '5px 10px', fontSize: '0.7rem', fontWeight: 700, color: '#6366f1', background: '#eef2ff', borderBottom: '1px solid #e2e8f0' }}>{g.header}</div>}
+                  {g.items.map(it => (
+                    <div key={it.value} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f1f5f9', background: value === it.value ? '#e0f2fe' : '#fff' }}>
+                      <div style={{ flexGrow: 1, padding: '8px 10px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: value === it.value ? '#0369a1' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        onClick={() => { onPick(it.value); setOpen(false); }}>{it.label}</div>
+                      {it.deletable && onDelete && (
+                        <button type="button" title={`ลบ "${it.label}"`} onClick={e => { e.stopPropagation(); onDelete(it.value); }}
+                          onMouseOver={e => (e.currentTarget.style.background = '#fee2e2')} onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                          style={{ background: 'transparent', border: 'none', color: '#e11d48', cursor: 'pointer', padding: '8px 11px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {onAdd && (
+                <div onClick={() => { setOpen(false); onAdd(); }}
+                  style={{ padding: '8px 10px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: '#0369a1', background: '#f0f9ff', borderTop: '1px solid #e2e8f0' }}>{addLabel}</div>
+              )}
+            </div>
           </div>
         </>
       )}

@@ -7,6 +7,7 @@ export interface JigProject {
   name: string;
   jigId: string;
   isActive: boolean;
+  testType: 'ICT' | 'FCT';         // ชนิดเทส — ใช้จัดกลุ่มการ์ด
   total: number;
   passCount: number;
   failCount: number;
@@ -37,6 +38,7 @@ export interface JigTimeseries {
 function mapProject(r: any): JigProject {
   return {
     id: r.id, projectCode: r.project_code, name: r.name, jigId: r.jig_id, isActive: r.is_active,
+    testType: r.test_type === 'FCT' ? 'FCT' : 'ICT',
     total: Number(r.total) || 0, passCount: Number(r.pass_count) || 0,
     failCount: Number(r.fail_count) || 0, passRate: Number(r.pass_rate) || 0,
   };
@@ -67,8 +69,8 @@ export function useJigProjects() {
 export function useJigProjectCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { projectCode: string; name: string; jigId: string }) => {
-      const res = await api.post('/jig/projects', { project_code: p.projectCode, name: p.name, jig_id: p.jigId });
+    mutationFn: async (p: { projectCode: string; name: string; jigId: string; testType: 'ICT' | 'FCT' }) => {
+      const res = await api.post('/jig/projects', { project_code: p.projectCode, name: p.name, jig_id: p.jigId, test_type: p.testType });
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'สร้างโปรเจกต์ไม่สำเร็จ');
       return res.data;
     },
