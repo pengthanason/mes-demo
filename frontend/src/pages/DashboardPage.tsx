@@ -171,6 +171,19 @@ export function DashboardPage() {
   const sortedRows = useMemo(() => [...rows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))), [rows]);
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE));
   const paged = sortedRows.slice((page - 1) * PAGE, page * PAGE);
+  const tableRef = useRef<HTMLDivElement>(null);
+  // เปลี่ยนหน้า — ถ้าไป "หน้าสุดท้าย" (แถวมักไม่เต็ม ตำแหน่งเพี้ยน) เลื่อนขึ้นให้เห็นหัวตาราง · หน้าอื่นไม่ขยับ
+  const goPage = (p: number) => {
+    setPage(p);
+    if (p === totalPages && p !== page) {
+      requestAnimationFrame(() => {
+        const el = tableRef.current;
+        if (!el) return;
+        const target = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 72);
+        smoothScrollTo(target, 600);
+      });
+    }
+  };
   const setF = (k: keyof PpFilters, v: string) => { setFilters(p => ({ ...p, [k]: v || undefined })); setPage(1); };
   const hasFilter = Object.values(filters).some(Boolean);
 
@@ -298,7 +311,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+        <div ref={tableRef} style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
           <table className="table table-readonly table--grid table--dense" style={{ minWidth: 1280, width: '100%' }}>
             <thead>
               <tr>
@@ -336,7 +349,7 @@ export function DashboardPage() {
             </tbody>
           </table>
         </div>
-        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={rows.length} />
+        <Paginator page={page} totalPages={totalPages} onPage={goPage} total={rows.length} />
       </div>
 
       {/* สรุปข้ามโมดูล — ใต้ Production Plan */}
