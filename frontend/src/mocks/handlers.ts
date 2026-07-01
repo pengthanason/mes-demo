@@ -142,9 +142,9 @@ const auditLogs = [
 ];
 
 const jigProjects = [
-  { id: 1, project_code: 'PCB-A100', name: 'PCB Assembly A100', jig_id: 'JIG-PCB-001', is_active: true,  total: 168, pass_count: 158, fail_count: 10, pass_rate: 94.05 },
-  { id: 2, project_code: 'ASY-300',  name: 'Assembly Unit 300',  jig_id: 'JIG-ASY-002', is_active: true,  total: 120, pass_count: 96,  fail_count: 24, pass_rate: 80.00 },
-  { id: 3, project_code: 'MOT-4500', name: 'Motor Drive 4500',   jig_id: 'JIG-MOT-003', is_active: false, total: 84,  pass_count: 82,  fail_count: 2,  pass_rate: 97.62 },
+  { id: 1, project_code: 'PCB-A100', name: 'PCB Assembly A100', jig_id: 'JIG-PCB-001', is_active: true,  test_type: 'ICT', total: 168, pass_count: 158, fail_count: 10, pass_rate: 94.05 },
+  { id: 2, project_code: 'ASY-300',  name: 'Assembly Unit 300',  jig_id: 'JIG-ASY-002', is_active: true,  test_type: 'ICT', total: 120, pass_count: 96,  fail_count: 24, pass_rate: 80.00 },
+  { id: 3, project_code: 'MOT-4500', name: 'Motor Drive 4500',   jig_id: 'JIG-MOT-003', is_active: false, test_type: 'FCT', total: 84,  pass_count: 82,  fail_count: 2,  pass_rate: 97.62 },
 ];
 
 const jigRecords: Record<string, any[]> = {
@@ -872,7 +872,7 @@ export const handlers = [
   // ── Jig create project + record (demo) ──────────────────────────────────────
   http.post('/api/jig/projects', async ({ request }) => {
     const b = await request.json() as any;
-    jigProjects.push({ id: jigProjects.length + 1, project_code: b.project_code, name: b.name, jig_id: b.jig_id || '', is_active: true, total: 0, pass_count: 0, fail_count: 0, pass_rate: 0 });
+    jigProjects.push({ id: jigProjects.length + 1, project_code: b.project_code, name: b.name, jig_id: b.jig_id || '', is_active: true, test_type: b.test_type === 'FCT' ? 'FCT' : 'ICT', total: 0, pass_count: 0, fail_count: 0, pass_rate: 0 });
     jigRecords[b.project_code] = [];
     return HttpResponse.json({ status: 'success', data: { project_code: b.project_code, name: b.name } }, { status: 201 });
   }),

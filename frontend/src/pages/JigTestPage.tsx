@@ -4,6 +4,9 @@ import { useJigProjects, useJigProjectCreate, useJigProjectDelete, JigProject } 
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 
+// KNEX_GW — การ์ดจริง เชื่อมระบบ Traceability ภายนอก (ข้อมูล trace ดึงจากเว็บนี้)
+const TRACE_URL = 'https://jig-api.syntechnology.com/traceability/knex_gw';
+
 function PassRateBar({ rate }: { rate: number }) {
   const color = rate >= 95 ? '#22c55e' : rate >= 80 ? '#f59e0b' : '#ef4444';
   return (
@@ -75,10 +78,49 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
   );
 }
 
+// KNEX_GW — การ์ดจริง หน้าตา/สีเหมือนการ์ดอื่น · กดดูรายละเอียด = เปิดระบบ Traceability จริง (แท็บใหม่)
+// สถิติ (Total/Pass/Fail) ยังเป็น — เพราะข้อมูลสดอยู่บนเว็บภายนอก (fetch ตรงจาก browser ติด CORS — รอ endpoint/พร็อกซี)
+function TraceKnexCard() {
+  return (
+    <div
+      className="panel"
+      onClick={() => window.open(TRACE_URL, '_blank', 'noopener,noreferrer')}
+      title="เปิดระบบ Traceability (แท็บใหม่)"
+      style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 0 280px' }}
+      onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)')}
+      onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '1rem' }}>KNEX_GW</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>Traceability · Knex Gateway</div>
+        </div>
+        <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#22c55e22', color: '#22c55e', flexShrink: 0 }}>ACTIVE</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        {['Total', 'Pass', 'Fail'].map(l => (
+          <div key={l} style={{ background: 'var(--bg-muted)', padding: '0.5rem', borderRadius: 6, textAlign: 'center' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#cbd5e1' }}>—</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center' }}>ข้อมูลสดอยู่ในระบบ Traceability</div>
+
+      <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
+        <span style={{ fontSize: '0.78rem', color: 'var(--primary)' }}>ดูรายละเอียด →</span>
+      </div>
+    </div>
+  );
+}
+
 function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
   const [projectCode, setProjectCode] = useState('');
   const [name, setName] = useState('');
   const [jigId, setJigId] = useState('');
+  const [testType, setTestType] = useState<'ICT' | 'FCT'>('ICT');
   const [err, setErr] = useState('');
   const mut = useJigProjectCreate();
 
@@ -87,7 +129,7 @@ function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
     setErr('');
     if (!projectCode.trim() || !name.trim()) return setErr('กรุณาใส่ Project Code และชื่อ');
     mut.mutate(
-      { projectCode: projectCode.trim(), name: name.trim(), jigId: jigId.trim() },
+      { projectCode: projectCode.trim(), name: name.trim(), jigId: jigId.trim(), testType },
       { onSuccess: () => { showToast('สร้างโปรเจกต์ Jig สำเร็จ', 'success'); onClose(); },
         onError: (e: any) => setErr(e.message) }
     );
@@ -106,6 +148,12 @@ function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
           </label>
           <label className="field"><span>Jig ID</span>
             <input value={jigId} onChange={e => setJigId(e.target.value)} placeholder="เช่น JIG-001" />
+          </label>
+          <label className="field"><span>ชนิดเทส (Test Type)</span>
+            <select value={testType} onChange={e => setTestType(e.target.value as 'ICT' | 'FCT')}>
+              <option value="ICT">ICT Test</option>
+              <option value="FCT">FCT Test</option>
+            </select>
           </label>
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions">
@@ -133,8 +181,8 @@ export function JigTestPage() {
     });
   };
 
-  const active   = projects.filter(p => p.isActive);
-  const inactive = projects.filter(p => !p.isActive);
+  const ict = projects.filter(p => p.testType === 'ICT');
+  const fct = projects.filter(p => p.testType === 'FCT');
 
   return (
     <div className="panel">
@@ -150,26 +198,27 @@ export function JigTestPage() {
       {isLoading && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
       {error && <div style={{ padding: '1rem', color: 'var(--danger)', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>เกิดข้อผิดพลาด</div>}
 
-      {active.length > 0 && (
+      {!isLoading && (
         <div style={{ marginTop: '1.75rem' }}>
           <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem' }}>
-            Active Projects ({active.length})
+            ICT Test ({ict.length})
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
-            {active.map(p => (
+            {ict.length ? ict.map(p => (
               <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} />
-            ))}
+            )) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem' }}>— ยังไม่มีโปรเจกต์ ICT —</div>}
           </div>
         </div>
       )}
 
-      {inactive.length > 0 && (
-        <div style={{ marginTop: '1.5rem' }}>
-          <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-            Inactive Projects ({inactive.length})
+      {!isLoading && (
+        <div style={{ marginTop: '1.75rem' }}>
+          <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem' }}>
+            FCT Test ({fct.length + 1})
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
-            {inactive.map(p => (
+            <TraceKnexCard />
+            {fct.map(p => (
               <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} />
             ))}
           </div>

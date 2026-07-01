@@ -4,6 +4,7 @@ import { useCrList, useCrCreate, type MType, type CrState } from '../lib/crApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { WoInput } from '../components/WoInput';
 
 export const CR_STATE_STYLE: Record<CrState, { bg: string; text: string; border: string; label: string }> = {
   DRAFT:       { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', label: 'DRAFT' },
@@ -99,8 +100,8 @@ export function FourMChangePage() {
                 </select>
               </label>
               <label className="field">
-                <span>WO / Product ที่เกี่ยวข้อง</span>
-                <input value={woRef} onChange={e => setWoRef(e.target.value)} placeholder="เช่น WO-202606-001 หรือ PCB-A100" />
+                <span>WO ที่เกี่ยวข้อง</span>
+                <WoInput value={woRef} onChange={setWoRef} placeholder="เลือก/พิมพ์ WO..." />
               </label>
               <label className="field">
                 <span>รายละเอียดการเปลี่ยนแปลง (what + why) *</span>

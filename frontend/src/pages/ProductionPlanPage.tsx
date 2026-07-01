@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ProjectForm } from '../components/ppParts';
 import { WorkflowBuilder } from '../components/WorkflowBuilder';
-import { ObaPage } from './ObaPage';
 
 /* ── Tab: Add Project (ฟอร์มเต็มหน้า) ── */
 function AddProjectTab() {
@@ -14,11 +13,10 @@ function AddProjectTab() {
 }
 
 /* ── Main ── */
-type Tab = 'add' | 'workflow' | 'oba';
+type Tab = 'add' | 'workflow';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'add', label: 'Add Project' },
   { key: 'workflow', label: 'Workflow' },
-  { key: 'oba', label: 'OBA' },
 ];
 
 export function ProductionPlanPage() {
@@ -27,7 +25,7 @@ export function ProductionPlanPage() {
     <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">Production Plan</h1>
-        <p className="panel__subtitle">Add Project · Workflow · OBA — ดูภาพรวม/ตารางได้ที่หน้า Dashboard</p>
+        <p className="panel__subtitle">Add Project · Workflow — ดูภาพรวม/ตารางได้ที่หน้า Dashboard</p>
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
           {TABS.map(t => (
             <button key={t.key} className={`mes-module-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
@@ -37,7 +35,6 @@ export function ProductionPlanPage() {
       </div>
 
       {tab === 'workflow' && <WorkflowBuilder />}
-      {tab === 'oba' && <ObaPage />}
     </section>
   );
 }

@@ -101,16 +101,16 @@ router.get('/projects/:code/timeseries', async (req, res) => {
 
 // ── สร้างโปรเจกต์ Jig (กรอกมือ) ──
 router.post('/projects', async (req, res) => {
-  const { project_code, name, jig_id } = req.body;
+  const { project_code, name, jig_id, test_type } = req.body;
   if (!project_code || !name) {
     return res.status(400).json({ status: 'error', message: 'project_code, name required' });
   }
   try {
     const { rows } = await db.query(
-      `INSERT INTO jig_projects (project_code, name, jig_id)
-       VALUES ($1,$2,$3)
-       RETURNING id, project_code, name, jig_id, is_active`,
-      [project_code.trim(), name.trim(), (jig_id || '').trim()]
+      `INSERT INTO jig_projects (project_code, name, jig_id, test_type)
+       VALUES ($1,$2,$3,$4)
+       RETURNING id, project_code, name, jig_id, is_active, test_type`,
+      [project_code.trim(), name.trim(), (jig_id || '').trim(), test_type === 'FCT' ? 'FCT' : 'ICT']
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {

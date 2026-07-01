@@ -8,6 +8,7 @@ import { WoDetailPage } from './pages/WoDetailPage.tsx';
 import { CloseWoPage } from './pages/CloseWoPage.tsx';
 import { FaiPage } from './pages/FaiPage.tsx';
 import { ProductionPlanPage } from './pages/ProductionPlanPage.tsx';
+import { ObaPage } from './pages/ObaPage.tsx';
 import { FourMChangePage } from './pages/FourMChangePage.tsx';
 import { CrDetailPage } from './pages/CrDetailPage.tsx';
 import { QcResultPage } from './pages/QcResultPage.tsx';
@@ -30,11 +31,11 @@ const MAIN_ITEMS = [
   { to: '/production-plan',  label: 'Production Plan' },
   { to: '/incoming',         label: 'Incoming & Kitting' },
   { to: '/work-orders',      label: 'Work Orders' },
-  { to: '/qc-board',         label: 'QC' },
   { to: '/jig-test',         label: 'Jig Test' },
-  { to: '/traceability',     label: 'Traceability', external: 'https://jig-api.syntechnology.com/traceability/knex_gw' },
+  { to: '/oba',              label: 'OBA' },
   { to: '/4m-change',        label: '4M Change' },
   { to: '/scm-cases',        label: 'SCM Cases' },
+  { to: '/qc-board',         label: 'QC' },
   { to: '/equipment-borrow', label: 'Equipment Borrow' },
   { to: '/notifications',    label: 'Notifications' },
   { to: '/admin/panel',      label: 'Admin Panel' },
@@ -127,8 +128,8 @@ function SidebarItem({ to, label, expanded, onClick, innerRef, external }) {
   );
 }
 
-const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/jig-test', '/traceability', '/equipment-borrow', '/notifications'];
-const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/work-orders', '/4m-change', '/qc-board', '/jig-test', '/scm-cases', '/traceability', '/equipment-borrow', '/notifications'];
+const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/jig-test', '/equipment-borrow', '/notifications'];
+const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/work-orders', '/4m-change', '/qc-board', '/jig-test', '/oba', '/scm-cases', '/equipment-borrow', '/notifications'];
 
 function visibleMainItems(role) {
   if (!role || role === 'viewer') return MAIN_ITEMS.filter(i => VIEWER_ITEMS.includes(i.to));
@@ -623,6 +624,7 @@ export default function App() {
               <Route path="/jig-test"          element={<AuthGuard><JigTestPage /></AuthGuard>} />
               {/* active routes */}
               <Route path="/production-plan"   element={<RoleGuard allowed={['admin','member']}><ProductionPlanPage /></RoleGuard>} />
+              <Route path="/oba"               element={<RoleGuard allowed={['admin','member']}><ObaPage /></RoleGuard>} />
               <Route path="/incoming"          element={<RoleGuard allowed={['admin','member']}><IncomingKittingPage /></RoleGuard>} />
               <Route path="/kitting"           element={<Navigate to="/incoming" replace />} />
               <Route path="/4m-change"         element={<AuthGuard><FourMChangePage /></AuthGuard>} />

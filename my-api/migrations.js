@@ -278,6 +278,7 @@ async function migrate() {
         created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
+    await client.query(`ALTER TABLE jig_projects ADD COLUMN IF NOT EXISTS test_type VARCHAR(10) NOT NULL DEFAULT 'ICT'`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS jig_test_records (
         id           SERIAL PRIMARY KEY,
@@ -295,10 +296,10 @@ async function migrate() {
     const jigCount = await client.query('SELECT COUNT(*) FROM jig_projects');
     if (SEED_DEMO && Number(jigCount.rows[0].count) === 0) {
       await client.query(`
-        INSERT INTO jig_projects (project_code, name, jig_id) VALUES
-          ('PCB-A100', 'PCB Assembly A100', 'JIG-001'),
-          ('ASY-300',  'Motor Assembly 300', 'JIG-002'),
-          ('MOT-4500', 'Motor Unit 4500',    'JIG-003')
+        INSERT INTO jig_projects (project_code, name, jig_id, test_type) VALUES
+          ('PCB-A100', 'PCB Assembly A100', 'JIG-001', 'ICT'),
+          ('ASY-300',  'Motor Assembly 300', 'JIG-002', 'ICT'),
+          ('MOT-4500', 'Motor Unit 4500',    'JIG-003', 'FCT')
       `);
       await client.query(`
         INSERT INTO jig_test_records (project_code, serial, result, tested_at, voltage, current_ma, temp_c, fail_param)

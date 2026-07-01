@@ -308,7 +308,7 @@ textarea[readonly] {
 
 /* ตารางแบบแน่น (dense) — บีบ padding/ฟอนต์ + หัวคอลัมน์ขึ้นบรรทัดได้ ให้เห็นคอลัมน์ครบขึ้น (Dashboard) */
 .table--dense th,
-.table--dense td { padding: 3px 6px; font-size: 0.7rem; line-height: 1.25; }
+.table--dense td { padding: 3px 6px; font-size: 0.8125rem; line-height: 1.25; }
 .table--dense th { white-space: normal; letter-spacing: 0; }
 
 /* bare table fallback (non-.table) */
