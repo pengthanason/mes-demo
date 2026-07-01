@@ -45,6 +45,12 @@ function toErrorMessage(error: unknown): string {
   return 'request failed';
 }
 
+// api (lib/api.ts) ไม่ throw เอง — คืน { data, status } เสมอ ต้องเช็ค status เองกัน "success ปลอม"
+function ensureOk(res: { status: number; data: any }): void {
+  if (res.status === 0) throw new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
+  if (res.status >= 400) throw new Error(res.data?.error || res.data?.message || `ทำรายการไม่สำเร็จ (${res.status})`);
+}
+
 export function ScmCasesPage() {
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -80,10 +86,11 @@ export function ScmCasesPage() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
-      const { data } = await api.get<{ success: boolean; cases: ScmCase[] }>(`/scm/cases?${params.toString()}`, {
+      const res = await api.get<{ success: boolean; cases: ScmCase[] }>(`/scm/cases?${params.toString()}`, {
         headers: { 'X-Client-Page': 'react_scm_cases' },
       });
-      return data.cases || [];
+      ensureOk(res);
+      return res.data?.cases || [];
     },
   });
 
@@ -97,7 +104,7 @@ export function ScmCasesPage() {
         part_no: normalizeText(caseForm.part_no).toUpperCase(),
         due_date: caseForm.due_date ? new Date(caseForm.due_date).toISOString() : null,
       };
-      await api.post('/scm/cases', payload, { headers: { 'X-Client-Page': 'react_scm_cases' } });
+      ensureOk(await api.post('/scm/cases', payload, { headers: { 'X-Client-Page': 'react_scm_cases' } }));
     },
     onSuccess: async () => {
       setCaseForm({ case_id: '', case_type: 'DOC_PENDING', ref_po: '', ref_inv: '', part_no: '', due_date: '' });
@@ -110,11 +117,11 @@ export function ScmCasesPage() {
   const resolveCase = useMutation({
     mutationFn: async () => {
       if (!resolveTarget) throw new Error('No case selected');
-      await api.put(
+      ensureOk(await api.put(
         `/scm/cases/${encodeURIComponent(resolveTarget.case_id)}/resolve`,
         { resolution_note: normalizeText(resolutionNote) },
         { headers: { 'X-Client-Page': 'react_scm_cases' } },
-      );
+      ));
     },
     onSuccess: async () => {
       setNotice({ kind: 'ok', message: 'Case resolved' });
@@ -128,7 +135,7 @@ export function ScmCasesPage() {
   const createDisposition = useMutation({
     mutationFn: async () => {
       if (!dispositionTarget) throw new Error('No case selected');
-      await api.post(
+      ensureOk(await api.post(
         '/scm/dispositions',
         {
           case_id: dispositionTarget.case_id,
@@ -137,7 +144,7 @@ export function ScmCasesPage() {
           return_qty: parseNumber(dispositionForm.return_qty),
         },
         { headers: { 'X-Client-Page': 'react_scm_cases' } },
-      );
+      ));
     },
     onSuccess: async () => {
       setNotice({ kind: 'ok', message: 'Supplier disposition submitted' });
@@ -150,7 +157,7 @@ export function ScmCasesPage() {
 
   const splitLot = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<{ success: boolean; split: SplitResult }>(
+      const res = await api.post<{ success: boolean; split: SplitResult }>(
         '/scm/lots/split',
         {
           original_uid: normalizeText(splitForm.original_uid),
@@ -160,7 +167,8 @@ export function ScmCasesPage() {
         },
         { headers: { 'X-Client-Page': 'react_scm_cases' } },
       );
-      return data.split;
+      ensureOk(res);
+      return res.data.split;
     },
     onSuccess: (payload) => {
       setSplitResult(payload);

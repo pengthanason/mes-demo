@@ -26,12 +26,15 @@ const reports = [
   { id: '2', code: 'ASY-300',  customer: 'Honda Mfg',  status: 'IN_PROGRESS', qty: 150, delivery: '2026-06-20', stage: 'QC',         is_completed: false },
   { id: '3', code: 'MOT-4500', customer: 'Denso Corp', status: 'IN_PROGRESS', qty: 500, delivery: '2026-06-28', stage: 'Production', is_completed: false },
   { id: '4', code: 'CAB-200',  customer: 'Sumitomo',   status: 'OPEN',        qty: 80,  delivery: '2026-06-25', stage: 'Planning',   is_completed: false },
+  { id: '5', code: 'SEN-100',  customer: 'AISIN',      status: 'IN_PROGRESS', qty: 300, delivery: '2026-06-30', stage: 'SMT',        is_completed: false },
 ];
 
 const boms = [
   { bom_id: 'BOM-001', name: 'PCB-A100 Assembly', version: 'v1.2', approved: true,  approved_at: '2026-05-15T09:00:00Z' },
   { bom_id: 'BOM-002', name: 'ASY-300 Unit',       version: 'v2.0', approved: true,  approved_at: '2026-05-20T10:00:00Z' },
   { bom_id: 'BOM-003', name: 'MOT-4500 Drive',     version: 'v1.0', approved: false, approved_at: null },
+  { bom_id: 'BOM-004', name: 'CAB-200 Harness',    version: 'v1.1', approved: true,  approved_at: '2026-06-01T09:00:00Z' },
+  { bom_id: 'BOM-005', name: 'SEN-100 Sensor',     version: 'v1.0', approved: false, approved_at: null },
 ];
 
 const bomLines: Record<string, any[]> = {
@@ -54,6 +57,9 @@ let _preWoId = 10;
 const preWoList = [
   { req_id: 'REQ-001', bom_id: 'BOM-002', bom_name: 'ASY-300 Unit', qty: 100, due_date: '2026-07-01', status: 'PENDING',   created_at: '2026-06-10T08:00:00Z' },
   { req_id: 'REQ-002', bom_id: 'BOM-003', bom_name: 'MOT-4500 Drive', qty: 200, due_date: '2026-07-15', status: 'APPROVED', created_at: '2026-06-11T09:00:00Z' },
+  { req_id: 'REQ-003', bom_id: 'BOM-001', bom_name: 'PCB-A100 Assembly', qty: 500, due_date: '2026-07-05', status: 'APPROVED', created_at: '2026-06-12T09:00:00Z' },
+  { req_id: 'REQ-004', bom_id: 'BOM-002', bom_name: 'ASY-300 Unit', qty: 150, due_date: '2026-07-20', status: 'PENDING',  created_at: '2026-06-13T10:00:00Z' },
+  { req_id: 'REQ-005', bom_id: 'BOM-001', bom_name: 'PCB-A100 Assembly', qty: 300, due_date: '2026-07-10', status: 'REJECTED', created_at: '2026-06-13T14:00:00Z' },
 ];
 
 let _crId = 10;
@@ -61,6 +67,8 @@ const crList = [
   { id: 1, cr_no: 'CR-2026-001', m_type: 'Machine', wo_ref: 'WO-2026-002', description: 'เปลี่ยนหัวเชื่อม SMT จากรุ่น A ไป B', impact: 'อาจส่งผลต่อ solder quality', state: 'G2_APPROVED', g1_note: 'ตรวจสอบแล้ว OK', g1_at: '2026-06-12T10:00:00Z', g2_note: 'อนุมัติ proceed', g2_at: '2026-06-13T11:00:00Z', g3_note: null, g3_at: null, created_at: '2026-06-11T09:00:00Z' },
   { id: 2, cr_no: 'CR-2026-002', m_type: 'Material', wo_ref: 'WO-2026-003', description: 'เปลี่ยน supplier ฟลักซ์จาก Kester ไป AIM', impact: 'ต้องทดสอบ wettability ก่อน', state: 'G1_REVIEW', g1_note: null, g1_at: null, g2_note: null, g2_at: null, g3_note: null, g3_at: null, created_at: '2026-06-13T14:00:00Z' },
   { id: 3, cr_no: 'CR-2026-003', m_type: 'Method', wo_ref: 'WO-2026-001', description: 'ปรับ reflow profile อุณหภูมิ peak +5°C', impact: 'ลด voiding ใน BGA', state: 'ACTIVE', g1_note: 'OK', g1_at: '2026-06-08T09:00:00Z', g2_note: 'อนุมัติ', g2_at: '2026-06-09T10:00:00Z', g3_note: 'Active ใช้งานได้', g3_at: '2026-06-10T11:00:00Z', created_at: '2026-06-07T08:00:00Z' },
+  { id: 4, cr_no: 'CR-2026-004', m_type: 'Man', wo_ref: 'WO-2026-004', description: 'เพิ่มพนักงานสาย SMT กะดึก 2 คน', impact: 'เพิ่มกำลังผลิต ~15%', state: 'DRAFT', g1_note: null, g1_at: null, g2_note: null, g2_at: null, g3_note: null, g3_at: null, created_at: '2026-06-14T08:00:00Z' },
+  { id: 5, cr_no: 'CR-2026-005', m_type: 'Machine', wo_ref: 'WO-2026-005', description: 'เพิ่มเครื่อง FCT Tester หัวที่ 5', impact: 'ลดคอขวดที่สถานีเทส', state: 'G2_APPROVED', g1_note: 'ตรวจแล้ว', g1_at: '2026-06-13T10:00:00Z', g2_note: 'อนุมัติงบ', g2_at: '2026-06-14T09:00:00Z', g3_note: null, g3_at: null, created_at: '2026-06-12T08:00:00Z' },
 ];
 
 let _qcId = 10;
@@ -68,6 +76,8 @@ const qcResults = [
   { id: 1, wo_id: 'WO-2026-001', lot_no: 'LOT-001', qty_checked: 50, qty_pass: 50, qty_fail: 0, overall: 'PASS',    defect_desc: null,                 created_at: '2026-06-12T10:00:00Z', verify_id: 1, verdict: 'APPROVED', verified_by: 'วิชัย', verified_at: '2026-06-12T11:00:00Z' },
   { id: 2, wo_id: 'WO-2026-002', lot_no: 'LOT-002', qty_checked: 50, qty_pass: 47, qty_fail: 3, overall: 'PARTIAL', defect_desc: 'Cold solder ที่ C12-C15', created_at: '2026-06-13T09:00:00Z', verify_id: null, verdict: null, verified_by: null, verified_at: null },
   { id: 3, wo_id: 'WO-2026-002', lot_no: 'LOT-003', qty_checked: 50, qty_pass: 45, qty_fail: 5, overall: 'FAIL',    defect_desc: 'Solder bridge ที่ U4',  created_at: '2026-06-13T14:00:00Z', verify_id: null, verdict: null, verified_by: null, verified_at: null },
+  { id: 4, wo_id: 'WO-2026-003', lot_no: 'LOT-004', qty_checked: 100, qty_pass: 100, qty_fail: 0, overall: 'PASS', defect_desc: null,                created_at: '2026-06-14T09:00:00Z', verify_id: null, verdict: null, verified_by: null, verified_at: null },
+  { id: 5, wo_id: 'WO-2026-001', lot_no: 'LOT-005', qty_checked: 80,  qty_pass: 78,  qty_fail: 2, overall: 'PARTIAL', defect_desc: 'Scratch ที่ผิว 2 ชิ้น', created_at: '2026-06-14T11:00:00Z', verify_id: null, verdict: null, verified_by: null, verified_at: null },
 ];
 
 const transferVerify: Record<number, any> = {
@@ -78,17 +88,25 @@ let _reworkId = 10;
 const reworkList = [
   { id: 1, qc_result_id: 2, wo_id: 'WO-2026-002', defect_type: 'Cold Solder', assigned_to: 'ช่างนิพนธ์', due_date: '2026-06-16', status: 'IN_PROGRESS', lot_no: 'LOT-002', qc_overall: 'PARTIAL', created_at: '2026-06-13T10:00:00Z' },
   { id: 2, qc_result_id: 3, wo_id: 'WO-2026-002', defect_type: 'Solder Bridge', assigned_to: 'ช่างสมศักดิ์', due_date: '2026-06-17', status: 'OPEN',        lot_no: 'LOT-003', qc_overall: 'FAIL',    created_at: '2026-06-13T14:30:00Z' },
+  { id: 3, qc_result_id: 5, wo_id: 'WO-2026-001', defect_type: 'Scratch',       assigned_to: 'ช่างนิพนธ์',  due_date: '2026-06-18', status: 'DONE',        lot_no: 'LOT-005', qc_overall: 'PARTIAL', created_at: '2026-06-14T11:30:00Z' },
+  { id: 4, qc_result_id: 2, wo_id: 'WO-2026-002', defect_type: 'Cold Solder',   assigned_to: 'ช่างแมน',    due_date: '2026-06-16', status: 'DONE',        lot_no: 'LOT-002', qc_overall: 'PARTIAL', created_at: '2026-06-13T11:00:00Z' },
+  { id: 5, qc_result_id: 3, wo_id: 'WO-2026-002', defect_type: 'Solder Bridge', assigned_to: 'ช่างสมศักดิ์', due_date: '2026-06-19', status: 'IN_PROGRESS', lot_no: 'LOT-003', qc_overall: 'FAIL',    created_at: '2026-06-14T08:00:00Z' },
 ];
 
 const obaRecords = [
   { id: 1, wo_id: 'WO-2026-001', lot_no: 'LOT-001', sample_qty: 10, result: 'PASS', defect_note: '',              created_at: '2026-06-12T15:00:00Z' },
   { id: 2, wo_id: 'WO-2026-002', lot_no: 'LOT-002', sample_qty: 10, result: 'FAIL', defect_note: 'ฝาปิดหลวม',    created_at: '2026-06-13T16:00:00Z' },
+  { id: 3, wo_id: 'WO-2026-003', lot_no: 'LOT-004', sample_qty: 15, result: 'PASS', defect_note: '',              created_at: '2026-06-14T10:00:00Z' },
+  { id: 4, wo_id: 'WO-2026-001', lot_no: 'LOT-005', sample_qty: 8,  result: 'PASS', defect_note: '',              created_at: '2026-06-14T12:00:00Z' },
+  { id: 5, wo_id: 'WO-2026-002', lot_no: 'LOT-003', sample_qty: 10, result: 'FAIL', defect_note: 'บัดกรีไม่เต็ม', created_at: '2026-06-14T13:00:00Z' },
 ];
 
 const qcRecords = [
   { id: 1, sn: 'SN-A100-0001', status: 'PASS', error: null, created_at: '2026-06-14T08:01:00Z' },
   { id: 2, sn: 'SN-A100-0002', status: 'FAIL', error: 'SHORT_CIRCUIT', created_at: '2026-06-14T08:03:00Z' },
   { id: 3, sn: 'SN-A100-0003', status: 'PASS', error: null, created_at: '2026-06-14T08:05:00Z' },
+  { id: 4, sn: 'SN-A100-0004', status: 'FAIL', error: 'VOLTAGE_LOW', created_at: '2026-06-14T08:07:00Z' },
+  { id: 5, sn: 'SN-A100-0005', status: 'PASS', error: null, created_at: '2026-06-14T08:09:00Z' },
 ];
 
 const routingRecords = [
@@ -102,6 +120,9 @@ let _scmId = 10;
 const scmCases = [
   { case_id: 'SCM-2026-001', lot_uid: 'LOT-SCM-001', product: 'PCB-A100', defect_type: 'Cosmetic', qty_ng: 5,  status: 'OPEN',   created_at: '2026-06-13T09:00:00Z', resolved_at: null, dispositions: [{ id: 1, action: 'Rework', qty: 5, note: 'ขัดรอยและทาสี', created_at: '2026-06-13T10:00:00Z' }] },
   { case_id: 'SCM-2026-002', lot_uid: 'LOT-SCM-002', product: 'ASY-300',  defect_type: 'Functional', qty_ng: 10, status: 'CLOSED', created_at: '2026-06-10T08:00:00Z', resolved_at: '2026-06-12T14:00:00Z', dispositions: [{ id: 2, action: 'Scrap', qty: 3, note: 'เสียหายไม่คุ้มซ่อม', created_at: '2026-06-11T09:00:00Z' }, { id: 3, action: 'Use-As-Is', qty: 7, note: 'defect ไม่กระทบ function หลัก', created_at: '2026-06-11T10:00:00Z' }] },
+  { case_id: 'SCM-2026-003', lot_uid: 'LOT-SCM-003', product: 'MOT-4500', defect_type: 'Dimension',  qty_ng: 8,  status: 'OPEN',   created_at: '2026-06-14T08:00:00Z', resolved_at: null, dispositions: [] },
+  { case_id: 'SCM-2026-004', lot_uid: 'LOT-SCM-004', product: 'PCB-A100', defect_type: 'Functional', qty_ng: 12, status: 'OPEN',   created_at: '2026-06-14T10:00:00Z', resolved_at: null, dispositions: [{ id: 4, action: 'RTV', qty: 12, note: 'ส่งคืน supplier', created_at: '2026-06-14T11:00:00Z' }] },
+  { case_id: 'SCM-2026-005', lot_uid: 'LOT-SCM-005', product: 'CAB-200',  defect_type: 'Cosmetic',   qty_ng: 4,  status: 'CLOSED', created_at: '2026-06-11T08:00:00Z', resolved_at: '2026-06-13T09:00:00Z', dispositions: [{ id: 5, action: 'Rework', qty: 4, note: 'ตัดแต่งสายใหม่', created_at: '2026-06-12T10:00:00Z' }] },
 ];
 
 let _adminUserId = 10;
@@ -245,14 +266,38 @@ const inventoryLots: any[] = [
   { id: 5, part_no: 'STL-ROD', part_name: 'Steel Rod 10mm',    lot_no: 'LOT-STL-X1',  qty_received: 2000, qty_available: 0,    status: 'REJECTED', note: 'ขนาดไม่ตรงสเปก', received_at: '2026-06-11T08:00:00Z', reviewed_at: '2026-06-11T13:00:00Z' },
 ];
 let _issueId = 100;
-const kittingIssues: any[] = [];
+const kittingIssues: any[] = [
+  { id: 1, wo_id: 'WO-2026-001', part_no: 'R-100K', qty: 800, lot_no: 'LOT-R100K-A', issued_at: '2026-06-10T08:30:00Z' },
+  { id: 2, wo_id: 'WO-2026-001', part_no: 'C-10UF', qty: 400, lot_no: 'LOT-C10UF-A', issued_at: '2026-06-10T08:35:00Z' },
+  { id: 3, wo_id: 'WO-2026-002', part_no: 'IC-555', qty: 150, lot_no: 'LOT-IC555-A', issued_at: '2026-06-11T09:00:00Z' },
+  { id: 4, wo_id: 'WO-2026-003', part_no: 'MTR-DC', qty: 500, lot_no: 'LOT-MTR-0608', issued_at: '2026-06-12T10:00:00Z' },
+  { id: 5, wo_id: 'WO-2026-002', part_no: 'C-10UF', qty: 300, lot_no: 'LOT-C10UF-A', issued_at: '2026-06-11T09:05:00Z' },
+];
 
 let _scanId = 100;
-const productionScans: any[] = [];
-const productionUnits: any[] = [];
+const productionScans: any[] = [
+  { id: 1, wo_id: 'WO-2026-003', serial: 'SN-M450-0001', station: 'SMT',  result: 'PASS', operator: 'นิพนธ์', note: null,           scanned_at: '2026-06-14T07:30:00Z' },
+  { id: 2, wo_id: 'WO-2026-003', serial: 'SN-M450-0002', station: 'SMT',  result: 'PASS', operator: 'นิพนธ์', note: null,           scanned_at: '2026-06-14T07:35:00Z' },
+  { id: 3, wo_id: 'WO-2026-003', serial: 'SN-M450-0003', station: 'SMT',  result: 'FAIL', operator: 'นิพนธ์', note: 'ชิ้นส่วนเลื่อน', scanned_at: '2026-06-14T07:40:00Z' },
+  { id: 4, wo_id: 'WO-2026-003', serial: 'SN-M450-0001', station: 'TEST', result: 'PASS', operator: 'วิชัย',  note: null,           scanned_at: '2026-06-14T08:10:00Z' },
+  { id: 5, wo_id: 'WO-2026-003', serial: 'SN-M450-0002', station: 'TEST', result: 'PASS', operator: 'วิชัย',  note: null,           scanned_at: '2026-06-14T08:15:00Z' },
+];
+const productionUnits: any[] = [
+  { id: 1, wo_id: 'WO-2026-003', serial: 'SN-M450-0001', last_station: 'TEST', last_result: 'PASS', scan_count: 2, updated_at: '2026-06-14T08:10:00Z' },
+  { id: 2, wo_id: 'WO-2026-003', serial: 'SN-M450-0002', last_station: 'TEST', last_result: 'PASS', scan_count: 2, updated_at: '2026-06-14T08:15:00Z' },
+  { id: 3, wo_id: 'WO-2026-003', serial: 'SN-M450-0003', last_station: 'SMT',  last_result: 'FAIL', scan_count: 1, updated_at: '2026-06-14T07:40:00Z' },
+  { id: 4, wo_id: 'WO-2026-003', serial: 'SN-M450-0004', last_station: 'SMT',  last_result: 'PASS', scan_count: 1, updated_at: '2026-06-14T07:45:00Z' },
+  { id: 5, wo_id: 'WO-2026-003', serial: 'SN-M450-0005', last_station: 'SMT',  last_result: 'PASS', scan_count: 1, updated_at: '2026-06-14T07:50:00Z' },
+];
 
 let _retestId = 100;
-const jigRetests: any[] = [];
+const jigRetests: any[] = [
+  { id: 1, project_code: 'PCB-A100', serial: 'SN-A100-0016', status: 'REQUESTED', requested_by: 'วิชัย',    requested_at: '2026-06-14T09:00:00Z' },
+  { id: 2, project_code: 'ASY-300',  serial: 'SN-A300-0005', status: 'DONE',      requested_by: 'สมศักดิ์', requested_at: '2026-06-13T10:00:00Z' },
+  { id: 3, project_code: 'ASY-300',  serial: 'SN-A300-0010', status: 'REQUESTED', requested_by: 'สมศักดิ์', requested_at: '2026-06-14T08:00:00Z' },
+  { id: 4, project_code: 'MOT-4500', serial: 'SN-M450-0050', status: 'REQUESTED', requested_by: 'สุรศักดิ์', requested_at: '2026-06-14T10:00:00Z' },
+  { id: 5, project_code: 'PCB-A100', serial: 'SN-A100-0032', status: 'DONE',      requested_by: 'วิชัย',    requested_at: '2026-06-13T15:00:00Z' },
+];
 
 // ── Production Plan (pp_projects) ──
 let _ppId = 50;
@@ -285,18 +330,44 @@ const ppProjects: any[] = [
 let _wfId = 10, _wfrId = 10;
 const workflows: any[] = [
   { id: 1, name: 'WL Rice - Line A', customer: 'Toyota TH', model: 'Water Level Rice', steps: ['CHECK MATERIAL', 'SMT', 'IPQC', 'TEST', 'PACKING'].map(p => ({ process: p, seconds: 30 })), created_at: '2026-06-10T08:00:00Z' },
+  { id: 2, name: 'SMARTNAV - Line B', customer: 'Honda Mfg', model: 'SMARTNAV', created_at: '2026-06-11T08:00:00Z', steps: [
+    { process: 'Check material (incoming)', seconds: 120, role: 'incoming', kind: 'process', timeScope: 'once' },
+    { process: 'SET UP MACHINE', seconds: 1800, role: 'smt', kind: 'process', timeScope: 'once' },
+    { process: 'SMT', seconds: 45, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 2, machine: 'SMT Line', failAction: 'rework', maxRetry: 2 },
+    { process: 'FCT TEST', seconds: 90, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 4, machine: 'FCT Tester', failAction: 'scrap' },
+    { process: 'PACKING', seconds: 25, role: 'packing', kind: 'process', timeScope: 'per_unit' },
+    { process: 'STORE', seconds: 60, role: 'store', kind: 'process', timeScope: 'once' },
+  ] },
+  { id: 3, name: 'Motor Drive - Line C', customer: 'Denso Corp', model: 'MOT-4500', created_at: '2026-06-12T08:00:00Z', steps: [
+    { process: 'Check material (incoming)', seconds: 90, role: 'incoming', kind: 'process', timeScope: 'once' },
+    { process: 'SET UP LINE', seconds: 1200, role: 'smt', kind: 'process', timeScope: 'once' },
+    { process: 'WAV', seconds: 60, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', failAction: 'rework', maxRetry: 1 },
+    { process: 'ICT TEST', seconds: 75, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', failAction: 'back', backToIndex: 2 },
+    { process: 'PACKING', seconds: 40, role: 'packing', kind: 'process', timeScope: 'per_unit' },
+    { process: 'STORE', seconds: 60, role: 'store', kind: 'process', timeScope: 'once' },
+  ] },
+  { id: 4, name: 'Sensor - Line A', customer: 'AISIN', model: 'SEN-100', created_at: '2026-06-13T08:00:00Z', steps: [
+    { process: 'Check material (incoming)', seconds: 60, role: 'incoming', kind: 'process', timeScope: 'once' },
+    { process: 'SMT', seconds: 35, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', failAction: 'rework', maxRetry: 3 },
+    { process: 'TEST', seconds: 50, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', failAction: 'hold' },
+    { process: 'PACKING', seconds: 20, role: 'packing', kind: 'process', timeScope: 'per_unit' },
+    { process: 'STORE', seconds: 45, role: 'store', kind: 'process', timeScope: 'once' },
+  ] },
+  { id: 5, name: 'Cable Assy - Line D', customer: 'Sumitomo', model: 'CAB-200', created_at: '2026-06-14T08:00:00Z', steps: [
+    { process: 'Check material (incoming)', seconds: 80, role: 'incoming', kind: 'process', timeScope: 'once' },
+    { process: 'INSERT', seconds: 40, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', failAction: 'rework', maxRetry: 2 },
+    { process: 'SOLDERING', seconds: 55, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', failAction: 'rework', maxRetry: 2 },
+    { process: 'FQC', seconds: 30, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', failAction: 'scrap' },
+    { process: 'PACKING', seconds: 25, role: 'packing', kind: 'process', timeScope: 'per_unit' },
+    { process: 'STORE', seconds: 50, role: 'store', kind: 'process', timeScope: 'once' },
+  ] },
 ];
 const workflowResults: any[] = [
   { id: 1, serial: 'SN-0001', customer: 'Toyota TH', model: 'Water Level Rice', sequence: 'CHECK MATERIAL(30s) → SMT(30s) → TEST(30s)', result: 'PASS', total_sec: 90, created_at: '2026-06-14T08:00:00Z' },
   { id: 2, serial: 'SN-0002', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(20s) → TEST❌(15s)', result: 'FAIL', total_sec: 35, created_at: '2026-06-14T09:00:00Z' },
-];
-
-// ── Work Centers (เครื่อง/สถานี — master data) ──
-let _wcId = 10;
-const workCenters: any[] = [
-  { id: 1, name: 'SMT Line 1',    stations: 1, efficiency: 100, note: 'สายติดตั้งชิ้นส่วน SMT',  created_at: '2026-06-10T08:00:00Z' },
-  { id: 2, name: 'FCT Tester',    stations: 4, efficiency: 95,  note: 'เครื่องทดสอบ FCT 4 หัว',   created_at: '2026-06-10T08:00:00Z' },
-  { id: 3, name: 'Setup Station', stations: 1, efficiency: 100, note: 'จุดตั้งเครื่อง/โหลดโปรแกรม', created_at: '2026-06-10T08:00:00Z' },
+  { id: 3, serial: 'SN-0003', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(45s) → FCT TEST(90s) → PACKING(25s)', result: 'PASS', total_sec: 160, created_at: '2026-06-14T09:30:00Z' },
+  { id: 4, serial: 'SN-0004', customer: 'Denso Corp', model: 'MOT-4500', sequence: 'WAV(60s) → ICT TEST(75s) → PACKING(40s)', result: 'PASS', total_sec: 175, created_at: '2026-06-14T10:00:00Z' },
+  { id: 5, serial: 'SN-0005', customer: 'AISIN', model: 'SEN-100', sequence: 'SMT(35s) → TEST❌(50s)', result: 'FAIL', total_sec: 85, created_at: '2026-06-14T10:30:00Z' },
 ];
 
 function ok(data: unknown) { return HttpResponse.json({ status: 'success', data }); }
@@ -360,28 +431,6 @@ export const handlers = [
     workflowResults.unshift(row);
     return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
   }),
-  // ── Work Centers (เครื่อง/สถานี) ──────────────────────────────────────────
-  http.get('/api/work-centers', () => ok(workCenters)),
-  http.post('/api/work-centers', async ({ request }) => {
-    const b: any = await request.json();
-    const row = {
-      id: ++_wcId,
-      name: String(b.name || '').trim(),
-      stations: Math.max(1, Math.floor(Number(b.stations)) || 1),
-      efficiency: Math.min(1000, Math.max(1, Math.floor(Number(b.efficiency)) || 100)),
-      note: b.note || '',
-      created_at: now(),
-    };
-    workCenters.push(row);
-    workCenters.sort((a, b) => a.name.localeCompare(b.name));
-    return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
-  }),
-  http.delete('/api/work-centers/:id', ({ params }) => {
-    const i = workCenters.findIndex(w => String(w.id) === String(params.id));
-    if (i >= 0) workCenters.splice(i, 1);
-    return ok({ deleted: true });
-  }),
-
   http.delete('/api/workflow/results/:id', ({ params }) => {
     const i = workflowResults.findIndex(r => String(r.id) === String(params.id));
     if (i >= 0) workflowResults.splice(i, 1);

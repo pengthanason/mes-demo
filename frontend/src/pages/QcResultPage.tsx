@@ -245,7 +245,10 @@ export function QcResultPage() {
         <div style={{ marginTop: '1.5rem', marginBottom: '1rem', maxWidth: 320 }}>
           <label className="field">
             <span>Filter by WO</span>
-            <input list="wo-options" value={woFilter} onChange={e => { setWoFilter(e.target.value); setPage(1); }} placeholder="พิมพ์ WO เพื่อกรอง..." />
+            <input list="wo-filter-options" value={woFilter} onChange={e => { setWoFilter(e.target.value); setPage(1); }} placeholder="พิมพ์ WO เพื่อกรอง..." />
+            <datalist id="wo-filter-options">
+              {[...new Set(allResults.map(r => r.woId).filter(Boolean))].map(w => <option key={w} value={w} />)}
+            </datalist>
           </label>
         </div>
 

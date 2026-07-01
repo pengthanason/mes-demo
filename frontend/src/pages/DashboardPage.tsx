@@ -164,11 +164,13 @@ export function DashboardPage() {
   const [adding, setAdding] = useState(false);
   const [saveAs, setSaveAs] = useState<'xlsx' | 'pdf' | null>(null);   // เปิดป๊อปอัพตั้งชื่อไฟล์ก่อนโหลด
   const [page, setPage] = useState(1);
-  const PAGE = 12;
+  const PAGE = 10;
 
   const customers = useMemo(() => [...new Set(allRows.map(r => r.customer).filter(Boolean))], [allRows]);
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE));
-  const paged = rows.slice((page - 1) * PAGE, page * PAGE);
+  // เรียงตามวันที่สร้าง (created_at) — ใหม่สุดขึ้นก่อน
+  const sortedRows = useMemo(() => [...rows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))), [rows]);
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE));
+  const paged = sortedRows.slice((page - 1) * PAGE, page * PAGE);
   const setF = (k: keyof PpFilters, v: string) => { setFilters(p => ({ ...p, [k]: v || undefined })); setPage(1); };
   const hasFilter = Object.values(filters).some(Boolean);
 
@@ -208,12 +210,12 @@ export function DashboardPage() {
 
   function handleDelete(p: PpProject) {
     if (!confirm(`ลบโปรเจกต์ "${p.product_pn || p.model}"?\nลบแล้วกู้ไม่ได้`)) return;
-    del.mutate(p.id, { onSuccess: () => showToast('ลบแล้ว', 'info'), onError: (e: any) => showToast(e.message, 'error') });
+    del.mutate(p.id, { onSuccess: () => { showToast('ลบแล้ว', 'info'); setPage(1); }, onError: (e: any) => showToast(e.message, 'error') });
   }
 
   const maxCust = Math.max(1, ...chart.byCustomer.map(x => x.value));
   const { groupRow, subRow } = buildHeaderRows(DASH_COLUMNS);   // ตาราง Dashboard ตัด STATUS pipeline (excelOnly) ออก
-  const colCount = DASH_COLUMNS.length + (isViewer ? 0 : 1);
+  const colCount = DASH_COLUMNS.length + 1 + (isViewer ? 0 : 1);   // +1 = คอลัมน์ลำดับ (#)
 
   return (
     <section className="stack-lg">
@@ -300,6 +302,7 @@ export function DashboardPage() {
           <table className="table table-readonly table--grid table--dense" style={{ minWidth: 1280, width: '100%' }}>
             <thead>
               <tr>
+                <th rowSpan={2} style={{ textAlign: 'center' }}>#</th>
                 {groupRow.map((h, i) => <th key={i} colSpan={h.colSpan} rowSpan={h.rowSpan} style={hdrStyle(h)}>{h.label}</th>)}
                 {!isViewer && <th rowSpan={2} style={{ textAlign: 'center' }}>จัดการ</th>}
               </tr>
@@ -312,10 +315,12 @@ export function DashboardPage() {
                 <tr><td colSpan={colCount} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               ) : paged.length === 0 ? (
                 <tr><td colSpan={colCount} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
-              ) : paged.map(p => {
+              ) : paged.map((p, idx) => {
                 const y = ppYield(p);
+                const no = (page - 1) * PAGE + idx + 1;   // ลำดับต่อเนื่องข้ามหน้า
                 return (
                   <tr key={p.id} style={p.status === 'LATE' ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626' } : undefined}>
+                    <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
                     {DASH_COLUMNS.map(c => renderCell(c, p, y))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
@@ -348,7 +353,7 @@ export function DashboardPage() {
           defaultBase={`production-plan-${new Date().toISOString().slice(0, 10)}`}
           ext={saveAs}
           onCancel={() => setSaveAs(null)}
-          onConfirm={(name) => { if (saveAs === 'xlsx') void exportXlsx(rows, name); else printPdf(rows, name); setSaveAs(null); }}
+          onConfirm={(name) => { if (saveAs === 'xlsx') void exportXlsx(sortedRows, name); else printPdf(sortedRows, name); setSaveAs(null); }}
         />
       )}
     </section>
