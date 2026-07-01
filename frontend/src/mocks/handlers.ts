@@ -291,14 +291,6 @@ const workflowResults: any[] = [
   { id: 2, serial: 'SN-0002', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(20s) → TEST❌(15s)', result: 'FAIL', total_sec: 35, created_at: '2026-06-14T09:00:00Z' },
 ];
 
-// ── Work Centers (เครื่อง/สถานี — master data) ──
-let _wcId = 10;
-const workCenters: any[] = [
-  { id: 1, name: 'SMT Line 1',    stations: 1, efficiency: 100, note: 'สายติดตั้งชิ้นส่วน SMT',  created_at: '2026-06-10T08:00:00Z' },
-  { id: 2, name: 'FCT Tester',    stations: 4, efficiency: 95,  note: 'เครื่องทดสอบ FCT 4 หัว',   created_at: '2026-06-10T08:00:00Z' },
-  { id: 3, name: 'Setup Station', stations: 1, efficiency: 100, note: 'จุดตั้งเครื่อง/โหลดโปรแกรม', created_at: '2026-06-10T08:00:00Z' },
-];
-
 function ok(data: unknown) { return HttpResponse.json({ status: 'success', data }); }
 function okSuccess(extra?: object) { return HttpResponse.json({ status: 'success', ...extra }); }
 
@@ -360,28 +352,6 @@ export const handlers = [
     workflowResults.unshift(row);
     return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
   }),
-  // ── Work Centers (เครื่อง/สถานี) ──────────────────────────────────────────
-  http.get('/api/work-centers', () => ok(workCenters)),
-  http.post('/api/work-centers', async ({ request }) => {
-    const b: any = await request.json();
-    const row = {
-      id: ++_wcId,
-      name: String(b.name || '').trim(),
-      stations: Math.max(1, Math.floor(Number(b.stations)) || 1),
-      efficiency: Math.min(1000, Math.max(1, Math.floor(Number(b.efficiency)) || 100)),
-      note: b.note || '',
-      created_at: now(),
-    };
-    workCenters.push(row);
-    workCenters.sort((a, b) => a.name.localeCompare(b.name));
-    return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
-  }),
-  http.delete('/api/work-centers/:id', ({ params }) => {
-    const i = workCenters.findIndex(w => String(w.id) === String(params.id));
-    if (i >= 0) workCenters.splice(i, 1);
-    return ok({ deleted: true });
-  }),
-
   http.delete('/api/workflow/results/:id', ({ params }) => {
     const i = workflowResults.findIndex(r => String(r.id) === String(params.id));
     if (i >= 0) workflowResults.splice(i, 1);

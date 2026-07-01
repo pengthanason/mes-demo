@@ -41,6 +41,8 @@ export interface PpProject {
   // STATUS pipeline (ขั้นตอนการผลิต) — ติ๊กหลายช่อง · โชว์ฟอร์ม+Excel ไม่โชว์ตาราง Dashboard
   st_pr_po: boolean; st_wait_mat: boolean; st_incoming: boolean; st_create_bo: boolean;
   st_test: boolean; st_rework: boolean; st_smt: boolean; st_thr: boolean; st_bbas: boolean;
+  created_at?: string;             // วันที่สร้าง (จาก backend/mock — ใช้เรียงลำดับ)
+  updated_at?: string;
 }
 
 export type PpFilters = {

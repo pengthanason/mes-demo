@@ -51,9 +51,9 @@ export type PpCol = { key: string; header: string; w: number; center?: boolean; 
 /* STATUS pipeline (ขั้นตอนการผลิต) — ลำดับ + ป้าย · ใช้ทั้งฟอร์มและ Excel (ไม่โชว์ตาราง Dashboard) */
 export const PP_PIPELINE: { key: keyof PpProject; label: string }[] = [
   { key: 'st_pr_po',     label: 'PR/PO' },
-  { key: 'st_wait_mat',  label: 'Wait Mat' },
+  { key: 'st_wait_mat',  label: "Wait Mat'l" },
   { key: 'st_incoming',  label: 'Incoming' },
-  { key: 'st_create_bo', label: 'Create BO' },
+  { key: 'st_create_bo', label: 'Create BOM' },
   { key: 'st_test',      label: 'Test' },
   { key: 'st_rework',    label: 'Rework' },
   { key: 'st_smt',       label: 'SMT' },
@@ -78,7 +78,7 @@ export const XLSX_COLUMNS: PpCol[] = [
   { key: 'ok_per_day',   header: 'OK/DAY',        w: 8,  center: true, value: p => (p.ok_per_day ? String(p.ok_per_day) : '') },
   { key: 'total_ng',     header: 'Total NG',      w: 9,  center: true, value: p => (p.total_ng != null ? String(p.total_ng) : '') },
   { key: 'total_ok',     header: 'Total OK',      w: 9,  center: true, value: p => (p.total_ok != null ? String(p.total_ok) : '') },
-  { key: 'yield',        header: 'Yield',         w: 8,  center: true, value: p => { const y = ppYield(p); return y == null ? '' : `${y.toFixed(0)}%`; } },
+  { key: 'yield',        header: 'Yield',         w: 8,  center: true, value: p => { const y = ppYield(p); return y == null ? '' : `${y.toFixed(2)}%`; } },
   { key: 'done',         header: 'DONE',          w: 7,  center: true, headerColor: '00B050', value: p => ckMark(p.done) },
   { key: 'chk_man',      header: 'Man',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_man) },
   { key: 'chk_mac',      header: 'Mac',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_mac) },
