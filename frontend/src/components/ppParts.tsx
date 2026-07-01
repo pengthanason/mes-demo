@@ -46,10 +46,24 @@ export function StatusBadge({ status }: { status: string }) {
    ใช้ร่วมกันทั้ง Dashboard table / Excel / PDF เพื่อให้ลำดับตรงกันเสมอ
    headerColor = สีหัวคอลัมน์พิเศษ (hex 6 หลัก ไม่มี #) · center = จัดกึ่งกลาง */
 const ckMark = (b: boolean) => b ? '✓' : '';
-export type PpCol = { key: string; header: string; w: number; center?: boolean; headerColor?: string; group?: string; value: (p: PpProject) => string };
+export type PpCol = { key: string; header: string; w: number; center?: boolean; headerColor?: string; group?: string; excelOnly?: boolean; value: (p: PpProject) => string };
 
-/* ── ลำดับคอลัมน์เฉพาะ Excel export — หัวตารางตามฟอร์มจริง (Status·WW·DATE Record·Product P/N·
-   MODEL·QTY·SYN Requestor·[PM|Work Order]·Customer·…) แยกจาก PP_COLUMNS เพื่อไม่กระทบ Dashboard/PDF */
+/* STATUS pipeline (ขั้นตอนการผลิต) — ลำดับ + ป้าย · ใช้ทั้งฟอร์มและ Excel (ไม่โชว์ตาราง Dashboard) */
+export const PP_PIPELINE: { key: keyof PpProject; label: string }[] = [
+  { key: 'st_pr_po',     label: 'PR/PO' },
+  { key: 'st_wait_mat',  label: 'Wait Mat' },
+  { key: 'st_incoming',  label: 'Incoming' },
+  { key: 'st_create_bo', label: 'Create BO' },
+  { key: 'st_test',      label: 'Test' },
+  { key: 'st_rework',    label: 'Rework' },
+  { key: 'st_smt',       label: 'SMT' },
+  { key: 'st_thr',       label: 'THR' },
+  { key: 'st_bbas',      label: 'BBAS' },
+];
+
+/* ── นิยามคอลัมน์ชุดเดียว — กลุ่ม WO/Type/PD PLAN/PIC (หัวบน + ย่อยล่าง) ──
+   ใช้ร่วมกัน: Dashboard table (กรอง excelOnly ออก) · Excel/PDF (ครบทุกคอลัมน์)
+   excelOnly = โชว์เฉพาะ Excel/PDF (เช่น STATUS pipeline) ไม่โชว์ในตาราง Dashboard */
 export const XLSX_COLUMNS: PpCol[] = [
   { key: 'status',       header: 'Status',        w: 12, center: true, value: p => PP_STATUS_LABEL[p.status] ?? p.status },
   { key: 'wk',           header: 'WW',            w: 6,  center: true, value: p => (p.wk != null ? String(p.wk) : '') },
@@ -58,10 +72,9 @@ export const XLSX_COLUMNS: PpCol[] = [
   { key: 'model',        header: 'MODEL',         w: 26, value: p => p.model || '' },
   { key: 'qty',          header: 'QTY',           w: 7,  center: true, value: p => (p.qty != null ? String(p.qty) : '') },
   { key: 'syn_requestor',header: 'SYN Requestor', w: 14, center: true, headerColor: '4472C4', value: p => p.syn_requestor || '' },
-  { key: 'work_order',   header: 'Work Order',    w: 14, center: true, group: 'PM', value: p => p.work_order || '' },
+  { key: 'work_order',   header: 'No.',           w: 14, center: true, group: 'WO', value: p => p.work_order || '' },
+  { key: 'wo_name',      header: 'Name',          w: 16,              group: 'WO', value: p => p.wo_name || '' },
   { key: 'customer',     header: 'Customer',      w: 14, value: p => p.customer || '' },
-  { key: 'expected',     header: 'Expected',      w: 12, center: true, headerColor: 'FFC000', value: p => xlsxDate(p.expected_date) },
-  { key: 'revised',      header: 'Revised',       w: 12, center: true, headerColor: 'FFFF00', value: p => xlsxDate(p.revised_date) },
   { key: 'ok_per_day',   header: 'OK/DAY',        w: 8,  center: true, value: p => (p.ok_per_day ? String(p.ok_per_day) : '') },
   { key: 'total_ng',     header: 'Total NG',      w: 9,  center: true, value: p => (p.total_ng != null ? String(p.total_ng) : '') },
   { key: 'total_ok',     header: 'Total OK',      w: 9,  center: true, value: p => (p.total_ok != null ? String(p.total_ok) : '') },
@@ -71,21 +84,27 @@ export const XLSX_COLUMNS: PpCol[] = [
   { key: 'chk_mac',      header: 'Mac',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_mac) },
   { key: 'chk_med',      header: 'Med',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_med) },
   { key: 'chk_mat',      header: 'Mat',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_mat) },
-  { key: 'pd_pcba',      header: 'PCBA',          w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_pcba) },
-  { key: 'pd_bbas',      header: 'BBAS',          w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_bbas) },
-  { key: 'pd_test',      header: 'TEST',          w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_test) },
-  { key: 'pd_rma',       header: 'RMA',           w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_rma) },
-  { key: 'pd_prep',      header: 'PREP',          w: 6,  center: true, group: 'PD Plan', value: p => ckMark(p.pd_prep) },
-  { key: 'pd_start',     header: 'PD Start',      w: 12, center: true, group: 'PD Plan', value: p => xlsxDate(p.pd_start_date) },
-  { key: 'pd_finish',    header: 'PD Finish',     w: 12, center: true, group: 'PD Plan', value: p => xlsxDate(p.pd_finish_date) },
+  { key: 'pd_pcba',      header: 'PCBA',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_pcba) },
+  { key: 'pd_bbas',      header: 'BBAS',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_bbas) },
+  { key: 'pd_test',      header: 'TEST',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_test) },
+  { key: 'pd_start',     header: 'PD Start',      w: 12, center: true, group: 'PD PLAN', value: p => xlsxDate(p.pd_start_date) },
+  { key: 'pd_finish',    header: 'PD Done',       w: 12, center: true, group: 'PD PLAN', value: p => xlsxDate(p.pd_finish_date) },
+  { key: 'expected',     header: 'Expected date', w: 12, center: true, headerColor: 'FFC000', group: 'PD PLAN', value: p => xlsxDate(p.expected_date) },
+  { key: 'revised',      header: 'Revised',       w: 12, center: true, headerColor: 'FFFF00', value: p => xlsxDate(p.revised_date) },
   { key: 'qa_test_rate', header: 'Sampling%',     w: 10, center: true, group: 'QA', value: p => p.qa_test_rate || '' },
   { key: 'qa_finish',    header: 'QA Finish',     w: 12, center: true, group: 'QA', value: p => xlsxDate(p.qa_finish_date) },
   { key: 'store',        header: 'Received date', w: 12, center: true, group: 'Store', value: p => xlsxDate(p.store_received) },
   { key: 'matl_coming',  header: "Mat'l coming",  w: 18, group: 'SC', value: p => p.matl_coming || '' },
-  { key: 'pd_pic',       header: 'PD PIC',        w: 12, value: p => p.pd_pic || '' },
+  { key: 'pd_pic',       header: 'Name',          w: 12, group: 'PIC', value: p => p.pd_pic || '' },
+  { key: 'pic_responsible', header: 'Responsible', w: 13, group: 'PIC', value: p => p.pic_responsible || '' },
   { key: 'team_member',  header: 'Team',          w: 7,  center: true, value: p => (p.team_member ? String(p.team_member) : '') },
+  // STATUS pipeline — Excel/PDF เท่านั้น (ไม่โชว์ตาราง Dashboard)
+  ...PP_PIPELINE.map((s): PpCol => ({ key: s.key as string, header: s.label, w: 8, center: true, group: 'STATUS', excelOnly: true, value: p => ckMark(!!p[s.key]) })),
   { key: 'remark',       header: 'Remark',        w: 30, value: p => p.remark || '' },
 ];
+
+/* คอลัมน์สำหรับตาราง Dashboard บนจอ — ตัด excelOnly (STATUS pipeline) ออก */
+export const DASH_COLUMNS: PpCol[] = XLSX_COLUMNS.filter(c => !c.excelOnly);
 
 /* ── สร้างโครงหัวตาราง 2 ชั้นจาก cols (ใช้ร่วม Dashboard HTML + PDF ให้ตรงกับ Excel) ──
    groupRow = แถวบน (คอลัมน์ไม่มีกลุ่ม rowSpan=2, กลุ่ม colSpan=จำนวนสมาชิก)
@@ -111,7 +130,7 @@ export function buildHeaderRows(cols: PpCol[]): { groupRow: HeaderCell[]; subRow
 }
 
 /* ── Excel (.xlsx) export — ตาม XLSX_COLUMNS + หัวซ้อน 2 ชั้น (กลุ่ม PM/4M/PD) + โลโก้/สี SYNTECH ── */
-export async function exportXlsx(rows: PpProject[]) {
+export async function exportXlsx(rows: PpProject[], filename?: string) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
   // ล็อกหัวตาราง 3 แถวบน + คอลัมน์ด้านหน้า 11 คอลัมน์ (Status…Revised) ให้ค้างตอนเลื่อน
@@ -207,7 +226,7 @@ export async function exportXlsx(rows: PpProject[]) {
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `production-plan-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.href = url; a.download = filename || `production-plan-${new Date().toISOString().slice(0, 10)}.xlsx`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
@@ -332,10 +351,12 @@ export function ChartCard({ title, children }: { title: string; children: React.
 
 /* ── Add/Edit Project Form (modal) — ปิดได้เฉพาะปุ่มยกเลิก ── */
 const EMPTY: Partial<PpProject> = {
-  status: 'ON_PROCESS', product_pn: '', model: '', customer: '', qty: 0, syn_requestor: '', work_order: '',
+  status: 'ON_PROCESS', product_pn: '', model: '', customer: '', qty: 0, syn_requestor: '', work_order: '', wo_name: '',
   matl_coming: '', chk_man: false, chk_mac: false, chk_med: false, chk_mat: false,
-  pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, qa_test_rate: '', pd_pic: '', team_member: 0,
+  pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, qa_test_rate: '', pd_pic: '', pic_responsible: '', team_member: 0,
   ok_per_day: 0, total_ng: 0, total_ok: 0, remark: '',
+  st_pr_po: false, st_wait_mat: false, st_incoming: false, st_create_bo: false,
+  st_test: false, st_rework: false, st_smt: false, st_thr: false, st_bbas: false,
 };
 
 /** ฟอร์มกรอกข้อมูลโปรเจกต์ (ใช้ทั้ง inline ในหน้า Add Project และในป๊อปอัพแก้ไข) */
@@ -392,7 +413,26 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             <label className="field"><span>QTY</span><input type="number" value={f.qty ?? 0} onChange={num('qty')} /></label>
             <label className="field"><span>Customer</span><input value={f.customer ?? ''} onChange={txt('customer')} /></label>
             <label className="field"><span>SYN Requestor</span><input value={f.syn_requestor ?? ''} onChange={txt('syn_requestor')} placeholder="ผู้ขอจาก SYN" /></label>
-            <label className="field"><span>WO (Work Order)</span><input value={f.work_order ?? ''} onChange={txt('work_order')} /></label>
+            <label className="field"><span>WO No.</span><input value={f.work_order ?? ''} onChange={txt('work_order')} placeholder="เลขที่ WO" /></label>
+            <label className="field"><span>WO Name</span><input value={f.wo_name ?? ''} onChange={txt('wo_name')} placeholder="ชื่องาน WO" /></label>
+          </div>
+
+          <Section title="STATUS (ขั้นตอนการผลิต)" />
+          <div style={{ display: 'flex', gap: '0.8rem 1.2rem', flexWrap: 'wrap' }}>
+            {PP_PIPELINE.map(s => (
+              <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
+                <input type="checkbox" checked={!!f[s.key]} onChange={chk(s.key)} style={{ width: 18, height: 18 }} /> {s.label}
+              </label>
+            ))}
+          </div>
+
+          <Section title="Type" />
+          <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
+            {([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST']] as const).map(([k, l]) => (
+              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
+                <input type="checkbox" checked={!!f[k]} onChange={chk(k)} style={{ width: 18, height: 18 }} /> {l}
+              </label>
+            ))}
           </div>
 
           <Section title="4M Check & Waiting" />
@@ -405,17 +445,11 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
           </div>
           <label className="field"><span>Waiting (Mat'l coming)</span><input value={f.matl_coming ?? ''} onChange={txt('matl_coming')} placeholder="Components, PCB, Stencil, etc." /></label>
 
-          <Section title="PD Plan" />
-          <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-            {([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST'], ['pd_rma', 'RMA'], ['pd_prep', 'PREP']] as const).map(([k, l]) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
-                <input type="checkbox" checked={!!f[k]} onChange={chk(k)} style={{ width: 18, height: 18 }} /> {l}
-              </label>
-            ))}
-          </div>
-          <div className="grid-2col">
-            <label className="field"><span>PD Start date</span><input type="date" value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} /></label>
-            <label className="field"><span>PD Finish date</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} /></label>
+          <Section title="PD PLAN" />
+          <div className="grid-3col">
+            <label className="field"><span>PD Start</span><input type="date" value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} /></label>
+            <label className="field"><span>PD Done</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} /></label>
+            <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} /></label>
           </div>
 
           <Section title="QA / Store / กำหนดส่ง" />
@@ -423,13 +457,13 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             <label className="field"><span>Sampling rate%</span><input value={f.qa_test_rate ?? ''} onChange={txt('qa_test_rate')} placeholder="เช่น 1.00%" /></label>
             <label className="field"><span>QA Finish date</span><input type="date" value={f.qa_finish_date ?? ''} onChange={txt('qa_finish_date')} /></label>
             <label className="field"><span>Store Received</span><input type="date" value={f.store_received ?? ''} onChange={txt('store_received')} /></label>
-            <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} /></label>
             <label className="field"><span>Revised date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
           </div>
 
-          <Section title="ผู้รับผิดชอบ / ทีม" />
-          <div className="grid-2col">
-            <label className="field"><span>PD PIC</span><input value={f.pd_pic ?? ''} onChange={txt('pd_pic')} placeholder="Noi,Kiert" /></label>
+          <Section title="PIC / ทีม" />
+          <div className="grid-3col">
+            <label className="field"><span>PIC Name</span><input value={f.pd_pic ?? ''} onChange={txt('pd_pic')} placeholder="Noi,Kiert" /></label>
+            <label className="field"><span>Responsible</span><input value={f.pic_responsible ?? ''} onChange={txt('pic_responsible')} placeholder="ผู้รับผิดชอบ" /></label>
             <label className="field"><span>Team Member</span><input type="number" value={f.team_member ?? 0} onChange={num('team_member')} /></label>
           </div>
 

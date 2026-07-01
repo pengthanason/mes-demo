@@ -2,18 +2,21 @@ const router = require('express').Router();
 const db     = require('../db');
 
 const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn_requestor,
-  work_order, matl_coming, chk_man, chk_mac, chk_med, chk_mat,
+  work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat,
   pd_pcba, pd_bbas, pd_test, pd_rma, pd_prep, pd_start_date, pd_finish_date,
   qa_test_rate, qa_finish_date, store_received, expected_date, revised_date, done,
-  pd_pic, team_member, ok_per_day, total_ng, total_ok, remark, created_at, updated_at`;
+  pd_pic, pic_responsible, team_member, ok_per_day, total_ng, total_ok, remark,
+  st_pr_po, st_wait_mat, st_incoming, st_create_bo, st_test, st_rework, st_smt, st_thr, st_bbas,
+  created_at, updated_at`;
 
 // field ที่ยอมให้เขียน (กันยิงมั่ว)
 const WRITABLE = [
   'status', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'syn_requestor',
-  'work_order', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat',
+  'work_order', 'wo_name', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat',
   'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date',
   'qa_test_rate', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'done',
-  'pd_pic', 'team_member', 'ok_per_day', 'total_ng', 'total_ok', 'remark',
+  'pd_pic', 'pic_responsible', 'team_member', 'ok_per_day', 'total_ng', 'total_ok', 'remark',
+  'st_pr_po', 'st_wait_mat', 'st_incoming', 'st_create_bo', 'st_test', 'st_rework', 'st_smt', 'st_thr', 'st_bbas',
 ];
 const DATE_FIELDS = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date'];
 

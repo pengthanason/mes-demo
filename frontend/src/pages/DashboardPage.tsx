@@ -9,7 +9,7 @@ import { FlowGuide } from '../components/FlowGuide';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
   STATUS_STYLE, StatusBadge, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal,
-  XLSX_COLUMNS, buildHeaderRows, type PpCol, type HeaderCell,
+  XLSX_COLUMNS, DASH_COLUMNS, buildHeaderRows, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 
 // หัวคอลัมน์: สีพิเศษ (Expected/Revised/DONE/SYN) + จัดกึ่งกลาง
@@ -34,8 +34,9 @@ function renderCell(c: PpCol, p: PpProject, y: number | null) {
 }
 
 /* ── พิมพ์เป็น PDF — โครงเดียวกับ Excel (XLSX_COLUMNS + หัวซ้อน 2 ชั้น) + โลโก้/สี SYNTECH ── */
-function printPdf(rows: PpProject[]) {
+function printPdf(rows: PpProject[], filename?: string) {
   const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const docTitle = (filename || 'Production Plan').replace(/\.pdf$/i, '');   // ชื่อที่ขึ้นเป็น default ตอน Save as PDF
   const hStyle = (c?: string) => c ? ` style="background:#${c}${c === '00B050' || c === '4472C4' ? ';color:#fff' : ''}"` : '';
   const { groupRow, subRow } = buildHeaderRows(XLSX_COLUMNS);
   const hr1 = groupRow.map(h => `<th colspan="${h.colSpan}" rowspan="${h.rowSpan}"${hStyle(h.headerColor)}>${esc(h.label)}</th>`).join('');
@@ -50,7 +51,7 @@ function printPdf(rows: PpProject[]) {
     }).join('');
     return `<tr>${tds}</tr>`;
   }).join('');
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Production Plan</title>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(docTitle)}</title>
     <style>
       @page { size: A4 landscape; margin: 7mm; }
       body{font-family:'Segoe UI',Tahoma,sans-serif;color:#1e293b;margin:0}
@@ -109,6 +110,43 @@ function smoothScrollTo(targetY: number, duration: number) {
   requestAnimationFrame(step);
 }
 
+// ป๊อปอัพตั้งชื่อไฟล์ก่อนดาวน์โหลด — เติมชื่อปัจจุบันให้ + คลุมไฮไลต์เฉพาะชื่อ (ไม่รวมนามสกุล) เหมือนตอน rename ไฟล์
+function FileNamePromptModal({ title, defaultBase, ext, onConfirm, onCancel }: {
+  title: string; defaultBase: string; ext: string; onConfirm: (name: string) => void; onCancel: () => void;
+}) {
+  const [name, setName] = useState(`${defaultBase}.${ext}`);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    const dot = el.value.lastIndexOf('.');                 // คลุมเฉพาะส่วนชื่อ ไม่รวม ".ext"
+    el.setSelectionRange(0, dot > 0 ? dot : el.value.length);
+  }, []);
+  const confirm = () => {
+    let v = name.trim();
+    if (!v) return;
+    if (!v.toLowerCase().endsWith(`.${ext}`)) v = `${v.replace(/\.+$/, '')}.${ext}`;   // กันลืมนามสกุล → เติมให้
+    onConfirm(v);
+  };
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
+        <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>{title}</h2>
+        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>ตั้งชื่อไฟล์ แล้วกด “ตกลง” เพื่อดาวน์โหลด</p>
+        <label className="field"><span>ชื่อไฟล์</span>
+          <input ref={inputRef} value={name} onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } else if (e.key === 'Escape') onCancel(); }} />
+        </label>
+        <div className="modal-actions" style={{ marginTop: '1.2rem' }}>
+          <button type="button" className="btn secondary" onClick={onCancel}>ยกเลิก</button>
+          <button type="button" className="btn" onClick={confirm}>ตกลง</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const isViewer = useIsViewer();
   const [filters, setFilters] = useState<PpFilters>({});
@@ -124,6 +162,7 @@ export function DashboardPage() {
   }, [queryClient]);
   const [edit, setEdit] = useState<PpProject | null>(null);
   const [adding, setAdding] = useState(false);
+  const [saveAs, setSaveAs] = useState<'xlsx' | 'pdf' | null>(null);   // เปิดป๊อปอัพตั้งชื่อไฟล์ก่อนโหลด
   const [page, setPage] = useState(1);
   const PAGE = 12;
 
@@ -173,8 +212,8 @@ export function DashboardPage() {
   }
 
   const maxCust = Math.max(1, ...chart.byCustomer.map(x => x.value));
-  const { groupRow, subRow } = buildHeaderRows(XLSX_COLUMNS);
-  const colCount = XLSX_COLUMNS.length + (isViewer ? 0 : 1);
+  const { groupRow, subRow } = buildHeaderRows(DASH_COLUMNS);   // ตาราง Dashboard ตัด STATUS pipeline (excelOnly) ออก
+  const colCount = DASH_COLUMNS.length + (isViewer ? 0 : 1);
 
   return (
     <section className="stack-lg">
@@ -252,13 +291,13 @@ export function DashboardPage() {
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{rows.length} โปรเจกต์</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => { setFilters({}); setPage(1); }}>ล้าง filter</button>}
-            <button type="button" className="btn secondary" title="ดาวน์โหลดเป็นไฟล์ Excel ตามฟอร์ม FM03 (โลโก้+สี)" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => { void exportXlsx(rows); }}>⬇️ Excel</button>
-            <button type="button" className="btn secondary" title="พิมพ์/บันทึกเป็น PDF ตามฟอร์ม" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => printPdf(rows)}>🖨️ PDF</button>
+            <button type="button" className="btn secondary" title="ดาวน์โหลดเป็นไฟล์ Excel ตามฟอร์ม FM03 (โลโก้+สี)" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => setSaveAs('xlsx')}>⬇️ Excel</button>
+            <button type="button" className="btn secondary" title="พิมพ์/บันทึกเป็น PDF ตามฟอร์ม" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => setSaveAs('pdf')}>🖨️ PDF</button>
           </div>
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-          <table className="table table-readonly" style={{ minWidth: 1950, width: '100%', fontSize: '0.78rem' }}>
+          <table className="table table-readonly table--grid table--dense" style={{ minWidth: 1280, width: '100%' }}>
             <thead>
               <tr>
                 {groupRow.map((h, i) => <th key={i} colSpan={h.colSpan} rowSpan={h.rowSpan} style={hdrStyle(h)}>{h.label}</th>)}
@@ -277,7 +316,7 @@ export function DashboardPage() {
                 const y = ppYield(p);
                 return (
                   <tr key={p.id} style={p.status === 'LATE' ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626' } : undefined}>
-                    {XLSX_COLUMNS.map(c => renderCell(c, p, y))}
+                    {DASH_COLUMNS.map(c => renderCell(c, p, y))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -303,6 +342,15 @@ export function DashboardPage() {
 
       {adding && <ProjectFormModal initial={null} onClose={() => setAdding(false)} />}
       {edit && <ProjectFormModal initial={edit} onClose={() => setEdit(null)} />}
+      {saveAs && (
+        <FileNamePromptModal
+          title={saveAs === 'xlsx' ? '⬇️ บันทึกเป็น Excel' : '🖨️ บันทึกเป็น PDF'}
+          defaultBase={`production-plan-${new Date().toISOString().slice(0, 10)}`}
+          ext={saveAs}
+          onCancel={() => setSaveAs(null)}
+          onConfirm={(name) => { if (saveAs === 'xlsx') void exportXlsx(rows, name); else printPdf(rows, name); setSaveAs(null); }}
+        />
+      )}
     </section>
   );
 }

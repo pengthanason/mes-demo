@@ -19,6 +19,7 @@ export interface PpProject {
   qty: number;
   syn_requestor: string;
   work_order: string;
+  wo_name: string;                 // WO → Name
   matl_coming: string;
   chk_man: boolean; chk_mac: boolean; chk_med: boolean; chk_mat: boolean;
   pd_pcba: boolean; pd_bbas: boolean; pd_test: boolean; pd_rma: boolean; pd_prep: boolean;
@@ -31,11 +32,15 @@ export interface PpProject {
   revised_date: string | null;
   done: boolean;
   pd_pic: string;
+  pic_responsible: string;         // PIC → Responsible
   team_member: number;
   ok_per_day: number;
   total_ng: number;
   total_ok: number;
   remark: string;
+  // STATUS pipeline (ขั้นตอนการผลิต) — ติ๊กหลายช่อง · โชว์ฟอร์ม+Excel ไม่โชว์ตาราง Dashboard
+  st_pr_po: boolean; st_wait_mat: boolean; st_incoming: boolean; st_create_bo: boolean;
+  st_test: boolean; st_rework: boolean; st_smt: boolean; st_thr: boolean; st_bbas: boolean;
 }
 
 export type PpFilters = {

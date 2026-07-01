@@ -514,6 +514,12 @@ async function migrate() {
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS done BOOLEAN NOT NULL DEFAULT false`);
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pd_rma  BOOLEAN NOT NULL DEFAULT false`);
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pd_prep BOOLEAN NOT NULL DEFAULT false`);
+    // ── PP เพิ่มฟิลด์ (Type ใช้ pd_pcba/bbas/test เดิม · PIC Responsible · WO Name · STATUS pipeline 9 ขั้น) ──
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pic_responsible VARCHAR(150) NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS wo_name         VARCHAR(150) NOT NULL DEFAULT ''`);
+    for (const c of ['st_pr_po', 'st_wait_mat', 'st_incoming', 'st_create_bo', 'st_test', 'st_rework', 'st_smt', 'st_thr', 'st_bbas']) {
+      await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS ${c} BOOLEAN NOT NULL DEFAULT false`);
+    }
 
     // ── Workflow (ลำดับกระบวนการผลิต — Manufacturing Sequence) ──
     await client.query(`
