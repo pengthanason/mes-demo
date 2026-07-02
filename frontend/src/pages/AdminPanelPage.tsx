@@ -267,18 +267,23 @@ function UsersTab() {
   );
 }
 
-// ── ลิงก์ปลายทางของ log (คลิกไปดูข้อมูลที่ผู้ใช้ทำ) ──
+// ── ลิงก์ปลายทางของ log (คลิกไปดูข้อมูล/หน้าที่เกี่ยวข้อง) — มี id ไปหน้ารายตัว, ไม่มีก็ไปหน้ารวม ──
 function targetLink(targetType: string | null, targetId: string | null): string | null {
-  if (!targetType || !targetId) return null;
+  if (!targetType) return null;
   switch (targetType) {
-    case 'wo':        return `/wo/${targetId}`;
-    case 'cr':        return `/4m-change/${targetId}`;
-    case 'workflow':  return '/production-plan?tab=workflow';
-    case 'jig':       return `/jig-test/${targetId}`;
-    case 'pp':        return '/dashboard';
+    case 'wo':            return targetId ? `/wo/${targetId}` : '/work-orders';
+    case 'cr':            return targetId ? `/4m-change/${targetId}` : '/4m-change';
+    case 'workflow':      return '/production-plan?tab=workflow';
+    case 'pp':            return targetId ? `/dashboard?pp=${targetId}` : '/dashboard';   // เปิดรายละเอียดรายการนั้นบน Dashboard
+    case 'jig':           return targetId ? `/jig-test/${targetId}` : '/jig-test';
+    case 'scm':           return '/scm-cases';
+    case 'rework':        return '/qc-board?tab=rework';
+    case 'inventory':     return '/incoming';
+    case 'notifications': return '/notifications';
+    case 'production':    return '/dashboard';
     case 'app_user':
-    case 'user':      return '/admin/panel?tab=users';
-    default:          return null;
+    case 'user':          return '/admin/panel?tab=users';
+    default:              return null;
   }
 }
 

@@ -147,6 +147,53 @@ const auditLogs = [
   { id: 10, actor: 'viewer1', action: 'LOGIN',       target_type: null,       target_id: null, detail: 'เข้าสู่ระบบสำเร็จ',   created_at: '2026-06-22T13:00:00Z' },
 ];
 
+// ── Activity auto-log (เดโม): บันทึกทุก mutation ที่สำเร็จลง auditLogs อัตโนมัติ ──
+function actorFromAuth(authHeader: string | null): string {
+  try { const m = /^Bearer\s+(.+)$/i.exec(authHeader || ''); if (!m) return 'system'; return atob(m[1]).split(':')[0] || 'system'; } catch { return 'system'; }
+}
+const ACT_RES: [string, string, string][] = [
+  ['/api/pp', 'Production Plan', 'pp'],
+  ['/api/workflow', 'Workflow', 'workflow'],
+  ['/api/wo', 'Work Order', 'wo'],
+  ['/api/bom', 'BOM', 'bom'],
+  ['/api/cr', 'Change Request (4M)', 'cr'],
+  ['/api/jig', 'Jig Test', 'jig'],
+  ['/api/scm', 'SCM Case', 'scm'],
+  ['/api/rework', 'Rework', 'rework'],
+  ['/api/inventory', 'Kitting/Store', 'inventory'],
+  ['/api/notifications', 'Notification', 'notifications'],
+  ['/api/production', 'Production', 'production'],
+];
+function describeActivity(method: string, path: string, row: any) {
+  const r = ACT_RES.find(([pre]) => path === pre || path.startsWith(pre + '/'));
+  const [, label, type] = r || ['', 'ข้อมูล', 'other'];
+  const verb = method === 'POST' ? 'CREATE' : method === 'DELETE' ? 'DELETE' : 'UPDATE';
+  const th = verb === 'CREATE' ? 'สร้าง' : verb === 'DELETE' ? 'ลบ' : 'แก้ไข';
+  const segs = path.split('/').filter(Boolean);
+  const last = segs[segs.length - 1];
+  const pathId = (method !== 'POST' && last && !/^(projects|results|users|board|cases)$/.test(last) && !ACT_RES.some(([pre]) => pre.endsWith('/' + last))) ? last : null;
+  const name = row ? String(row.product_pn || row.model || row.name || row.wo_name || row.cr_no || row.crNo || row.title || row.serial || row.project_code || '') : '';
+  const rid = row && row.id != null ? String(row.id) : null;
+  const id = type === 'wo' ? ((row && (row.wo_id || row.woId)) || pathId || rid)
+    : type === 'jig' ? ((row && row.project_code) || pathId || rid)
+    : (rid || pathId);
+  return { action: `${verb}_${type.toUpperCase()}`, type, id, detail: `${th} ${label}${name ? `: ${name}` : (id ? ` #${id}` : '')}` };
+}
+export function recordApiActivity(method: string, url: string, status: number, authHeader: string | null, body?: any) {
+  try {
+    if (status < 200 || status >= 300) return;
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return;
+    let path: string;
+    try { path = new URL(url, 'http://localhost').pathname; } catch { path = String(url).split('?')[0]; }   // รองรับทั้ง url เต็มและ relative
+    if (!path.startsWith('/api') || path.startsWith('/api/auth')) return;
+    if (path.startsWith('/api/admin/users')) return;   // handler บันทึกเองแล้ว
+    if (path.includes('audit-log')) return;
+    const row = body && body.data ? body.data : null;
+    const { action, type, id, detail } = describeActivity(method, path, row);
+    auditLogs.push({ id: ++_auditId, actor: actorFromAuth(authHeader), action, target_type: type, target_id: id, detail, created_at: now() });
+  } catch { /* noop */ }
+}
+
 const jigProjects = [
   { id: 1, project_code: 'PCB-A100', name: 'PCB Assembly A100', jig_id: 'JIG-PCB-001', is_active: true,  test_type: 'ICT', total: 168, pass_count: 158, fail_count: 10, pass_rate: 94.05 },
   { id: 2, project_code: 'ASY-300',  name: 'Assembly Unit 300',  jig_id: 'JIG-ASY-002', is_active: true,  test_type: 'ICT', total: 120, pass_count: 96,  fail_count: 24, pass_rate: 80.00 },

@@ -21,6 +21,8 @@ app.get('/api/health', (req, res) => {
 
 // ── บังคับสิทธิ์รายหน้า (permissions) จาก Bearer token — ปลอดภัย: ไม่มี token/ไม่พบ user = ผ่าน, admin ผ่านหมด ──
 app.use(require('./authz'));
+// ── บันทึกทุกการกระทำ (create/update/delete) ลง Activity อัตโนมัติ ──
+app.use(require('./activityLog'));
 
 // ── Routes ─────────────────────────────────────────────────────────
 app.use('/api/auth',          require('./routes/auth'));

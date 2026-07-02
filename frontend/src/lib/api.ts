@@ -115,6 +115,13 @@ async function request<T>(
     // Return null data instead of throwing — pages with fallback data show empty state
     return { data: null as T, status: res.status, headers: res.headers };
   }
+  // แจ้ง mutation ที่สำเร็จ (POST/PUT/PATCH/DELETE) → โหมดเดโมเก็บเป็น Activity (ดักที่ browser.ts)
+  try {
+    const mm = method.toUpperCase();
+    if ((mm === 'POST' || mm === 'PUT' || mm === 'PATCH' || mm === 'DELETE') && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mes:mutation', { detail: { method: mm, url, status: res.status, auth: headers.Authorization || null, data } }));
+    }
+  } catch { /* noop */ }
   return { data: data as T, status: res.status, headers: res.headers };
 }
 

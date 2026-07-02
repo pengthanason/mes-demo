@@ -49,6 +49,7 @@ const MAIN_ITEMS = [
   { to: '/notifications',    label: 'Notifications' },
   { to: '/admin/panel',      label: 'Admin Panel', sub: [
     { tab: 'users', label: 'จัดการผู้ใช้' },
+    { tab: 'activities', label: 'Activities' },
     { tab: 'audit', label: 'Audit Log' },
   ] },
 ];
