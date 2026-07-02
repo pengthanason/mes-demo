@@ -459,7 +459,7 @@ export const handlers = [
   http.get('/api/workflow/results', () => ok(workflowResults)),
   http.post('/api/workflow/results', async ({ request }) => {
     const b: any = await request.json();
-    const row = { id: ++_wfrId, serial: b.serial, customer: b.customer || '', model: b.model || '', sequence: b.sequence || '', result: b.result === 'FAIL' ? 'FAIL' : 'PASS', total_sec: Number(b.total_sec) || 0, line: b.line === 'external' ? 'external' : 'internal', created_at: now() };
+    const row = { id: ++_wfrId, serial: b.serial, customer: b.customer || '', model: b.model || '', sequence: b.sequence || '', result: b.result === 'FAIL' ? 'FAIL' : 'PASS', total_sec: Number(b.total_sec) || 0, line: (b.line === 'external' || b.line === 'mix') ? b.line : 'internal', created_at: now() };
     workflowResults.unshift(row);
     return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
   }),

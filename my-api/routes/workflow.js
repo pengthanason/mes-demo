@@ -58,7 +58,7 @@ router.post('/results', async (req, res) => {
     return res.status(400).json({ status: 'error', message: 'ต้องมี Serial Number' });
   }
   const r = (result === 'FAIL') ? 'FAIL' : 'PASS';
-  const ln = (line === 'external') ? 'external' : 'internal';
+  const ln = (line === 'external' || line === 'mix') ? line : 'internal';
   const sn = String(serial).trim();
   try {
     const { rows } = await db.query(

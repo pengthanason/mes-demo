@@ -23,8 +23,21 @@ const ROLE_CFG: Record<Role, { kind: StepKind; timeScope: TimeScope; color: stri
 };
 
 // กระบวนการที่เลือกได้ในช่วง SMT (REWORK เป็นปลายทาง fail อัตโนมัติ — ไม่อยู่ในลิสต์)
-// กระบวนการช่วง SMT (ผู้ใช้เพิ่ม/ลบ custom ได้) — SET UP แยกไปกลุ่มของตัวเอง (SETUP_OPTS)
+// สถานีของแท็บ Internal (ผู้ใช้เพิ่ม/ลบ custom ได้) — SET UP แยกไปกลุ่มของตัวเอง (SETUP_OPTS)
 const SMT_DEFAULT = ['BBAS', 'WAV', 'TEST', 'SOLDERING', 'SMT', 'FQC', 'IPQC', 'INSERT', 'ICT TEST', 'FCT TEST', 'REWORK'];
+// สถานีของแท็บ External — แยกหัวข้อตามประเภทกระบวนการ (จ้างข้างนอก) ให้อ่านเข้าใจง่าย
+const EXTERNAL_GROUPS: { header: string; items: string[] }[] = [
+  { header: '🧴 Injection Molding', items: [
+    'Preparation', 'Feeding', 'Heating & Melting', 'Injection', 'Molding & Cooling', 'Demolding & Ejection', 'Finished',
+  ] },
+  { header: '💨 Blow Molding', items: [
+    'Parison Formation', 'Mold Clamping', 'Blowing', 'Cooling', 'Ejection & Trimming',
+  ] },
+  { header: '🔌 Electronics (SMT)', items: [
+    'Solder Paste Printing', 'Component Placement', 'Reflow Soldering', 'AOI (Automated Optical Inspection)', 'Testing', 'Assembly & Packing',
+  ] },
+];
+const EXTERNAL_PROC = EXTERNAL_GROUPS.flatMap(g => g.items);
 // ชื่อที่ถือเป็นงาน setup (ครั้งเดียว ไม่คูณจำนวน)
 const isSetupName = (p: string) => /SET\s*UP/i.test(p || '');
 const SETUP_OPTS = ['SET UP LINE', 'SET UP MACHINE'];
@@ -478,6 +491,21 @@ function exportFlowchartPdf(customer: string, model: string, svg: string) {
 
 const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
 
+// ป้ายบอกสายที่บันทึกผล — Internal (ในโรงงาน) / External (จ้างข้างนอก) / Mix (รวม)
+const LINE_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  internal: { label: '🏭 Internal', bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' },
+  external: { label: '🚚 External', bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+  mix:      { label: '🔀 Mix',      bg: '#ede9fe', color: '#5b21b6', border: '#c4b5fd' },
+};
+function LineBadge({ value }: { value: string }) {
+  const s = LINE_BADGE[value] || LINE_BADGE.internal;
+  return (
+    <span style={{ display: 'inline-block', padding: '2px 9px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+      {s.label}
+    </span>
+  );
+}
+
 // ── Dropdown กลาง — ใช้ทุกช่อง (setup/SMT/เครื่อง) ให้หน้าตาเหมือนกันหมด ──
 // groups = แยกเป็นหัวข้อได้ (เช่น Set up / Custom process) · item.deletable = มี ✕ ลบในตัว · onAdd = ปุ่ม "+ เพิ่ม"
 // ลูกศรดรอปดาวน์ — SVG ตัวเดียวกับ <select> ทั่วเว็บ (index.css) ให้หน้าตาตรงกัน
@@ -605,10 +633,12 @@ export function WorkflowBuilder() {
   const [customer, setCustomer] = useState('');
   const [model, setModel] = useState('');
   const [qty, setQty] = useState<number | ''>('');
-  // Routing แยก 2 แท็บ: Internal (ในโรงงาน) / External (จ้างข้างนอก) — แต่ละแท็บมี routing ของตัวเอง
+  // Routing แยก 3 แท็บ: Internal (ในโรงงาน) / External (จ้างข้างนอก) / Mix (รวมสถานีทั้งสอง สร้างร่วมกัน)
   // steps = ชุดของแท็บที่เลือกอยู่ · setSteps เขียนกลับเฉพาะแท็บนั้น → โค้ดคำนวณ/Gantt/Flow/save เดิมทำงานต่อได้เลย
-  const [tab, setTab] = useState<'internal' | 'external'>('internal');
-  const [stepsMap, setStepsMap] = useState<{ internal: Step[]; external: Step[] }>(() => ({ internal: initialSteps(), external: initialSteps() }));
+  type WfTab = 'internal' | 'external' | 'mix';
+  const [tab, setTab] = useState<WfTab>('internal');
+  // Internal = สายมาตรฐาน (มี 4 สเตชั่นตั้งต้นให้) · External/Mix = เริ่มว่าง ให้ผู้ใช้สร้างเอง
+  const [stepsMap, setStepsMap] = useState<Record<WfTab, Step[]>>(() => ({ internal: initialSteps(), external: [], mix: [] }));
   const steps = stepsMap[tab];
   const setSteps: React.Dispatch<React.SetStateAction<Step[]>> = (u) =>
     setStepsMap(m => ({ ...m, [tab]: typeof u === 'function' ? (u as (p: Step[]) => Step[])(m[tab]) : u }));
@@ -631,6 +661,14 @@ export function WorkflowBuilder() {
   useEffect(() => { localStorage.removeItem('mes_smt_processes_v2'); }, []);
   const smtMain = [...SMT_DEFAULT].sort((a, b) => a.localeCompare(b));            // default เรียง A-Z (บน)
   const smtCustomSorted = [...customProcs].sort((a, b) => a.localeCompare(b));   // custom เรียง A-Z (ล่าง)
+  // สถานีที่เลือกได้ในดรอปดาว "Process" ตามแท็บ — แยกหัวข้อกลุ่มให้อ่านเข้าใจง่าย
+  const internalGroup: DDGroup = { header: '🏭 In-House Line', items: smtMain.map(o => ({ value: o, label: o })) };
+  const externalGroups: DDGroup[] = EXTERNAL_GROUPS.map(g => ({ header: g.header, items: g.items.map(o => ({ value: o, label: o })) }));
+  const procGroups: DDGroup[] =
+    tab === 'internal' ? [internalGroup]
+    : tab === 'external' ? externalGroups
+    : [internalGroup, ...externalGroups];   // mix = รวมทุกหัวข้อ
+  const defaultProc = tab === 'external' ? EXTERNAL_PROC[0] : (smtMain[0] || 'SMT');   // สถานีเริ่มต้นตอนกด "เพิ่มขั้นตอน"
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [grabId, setGrabId] = useState<string | null>(null);
@@ -640,9 +678,7 @@ export function WorkflowBuilder() {
   const { data: saved = [] } = useWorkflows();
   const recordResult = useWorkflowResultCreate();
   const delResult = useWorkflowResultDelete();
-  const { data: results = [] } = useWorkflowResults();
-  const [resTab, setResTab] = useState<'internal' | 'external'>('internal');   // แท็บของตาราง "ผลการบันทึก" (เลือกดูแยกได้เอง)
-  const tabResults = results.filter(r => r.line === resTab);
+  const { data: results = [] } = useWorkflowResults();   // ตารางผลด้านล่างแสดงรวมทุกสาย (Internal/External/Mix) ไม่แยกแท็บแล้ว
 
   // เครื่อง/สถานี — ลิสต์ในดรอปดาวของแต่ละ process (ผู้ใช้เพิ่ม/ลบเองได้ เก็บใน localStorage)
   const [machines, setMachines] = useState<string[]>(() => {
@@ -688,7 +724,7 @@ export function WorkflowBuilder() {
   };
   // เพิ่มขั้น SMT — แทรกก่อน Packing เสมอ
   const addSmt = () => setSteps(s => {
-    const ns = makeStep('smt', smtMain[0] || 'SMT');
+    const ns = makeStep('smt', defaultProc);
     const i = s.findIndex(x => x.role === 'packing');
     if (i < 0) return [...s, ns];
     const next = [...s]; next.splice(i, 0, ns); return next;
@@ -872,9 +908,9 @@ export function WorkflowBuilder() {
           )}
         </div>
 
-        {/* แท็บ Internal / External — แต่ละแท็บมี routing แยกกัน (เลือกสถานี/ลากขยับได้เหมือนกัน) */}
+        {/* แท็บ Internal / External / Mix — แต่ละแท็บมี routing แยกกัน · Mix รวมสถานีของทั้งสองไว้เลือกร่วมกัน */}
         <div style={{ display: 'flex', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 14, width: 'fit-content' }}>
-          {([['internal', '🏭 Internal'], ['external', '🚚 External']] as const).map(([k, label]) => (
+          {([['internal', '🏭 Internal'], ['external', '🚚 External'], ['mix', '🔀 Mix']] as const).map(([k, label]) => (
             <button key={k} type="button" onClick={() => { if (tab !== k) { setTab(k); setRunFail(new Set()); setShowFlow(false); setShowGantt(false); } }}
               style={{
                 padding: '7px 22px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700,
@@ -930,7 +966,7 @@ export function WorkflowBuilder() {
                       groups={[
                         { header: 'สถานีหลัก', items: MAIN_OPTS.map(o => ({ value: o, label: o })) },
                         { header: 'Set up', items: SETUP_OPTS.map(o => ({ value: o, label: o })) },
-                        { header: 'Process', items: smtMain.map(o => ({ value: o, label: o })) },
+                        ...procGroups,
                         { header: 'Custom process', items: smtCustomSorted.map(o => ({ value: o, label: o, deletable: true })) },
                       ]}
                       onPick={v => pickProcess(step.id, v)}
@@ -988,7 +1024,11 @@ export function WorkflowBuilder() {
               </div>
               );
             })}
-            {smtCount === 0 && (
+            {steps.length === 0 ? (
+              <div style={{ padding: '18px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', background: '#fffdf6' }}>
+                ยังไม่มีขั้นตอน — กด “+ เพิ่มขั้นตอน” เพื่อเริ่มสร้าง routing เอง
+              </div>
+            ) : smtCount === 0 && (
               <div style={{ padding: '14px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', background: '#fffdf6' }}>
                 ยังไม่มีขั้น SMT ตรงกลาง — กด “+ เพิ่มขั้นตอน” เพื่อใส่ BBAS / SMT / TEST ฯลฯ
               </div>
@@ -1135,36 +1175,24 @@ export function WorkflowBuilder() {
         </div>
       )}
 
-      {/* ตารางผล — มีแท็บ Internal/External ของตัวเอง (เลือกดูแยกได้อิสระ) */}
+      {/* ตารางผล — รวมทุกสาย (Internal/External/Mix) ในตารางเดียว · คอลัมน์ "สาย" บอกที่มา */}
       <div>
-        <h3 className="panel__title panel__title--sm" style={{ marginBottom: 10 }}>📋 ผลการบันทึก</h3>
-        {/* แท็บเลือกดูผลตามสาย — เหมือนแถบด้านบน */}
-        <div style={{ display: 'flex', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 12, width: 'fit-content' }}>
-          {([['internal', '🏭 Internal'], ['external', '🚚 External']] as const).map(([k, label]) => (
-            <button key={k} type="button" onClick={() => setResTab(k)}
-              style={{
-                padding: '7px 22px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700,
-                background: resTab === k ? '#fff' : 'transparent', color: resTab === k ? 'var(--brand)' : '#64748b',
-                boxShadow: resTab === k ? '0 1px 3px rgba(0,0,0,0.14)' : 'none', transition: 'all .12s',
-              }}>
-              {label} <span style={{ fontWeight: 600, color: resTab === k ? '#94a3b8' : '#b0bac6' }}>({results.filter(r => r.line === k).length})</span>
-            </button>
-          ))}
-        </div>
+        <h3 className="panel__title panel__title--sm" style={{ marginBottom: 10 }}>📋 ผลการบันทึก {results.length > 0 && `(${results.length})`}</h3>
         <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-          <table className="table" style={{ minWidth: 760 }}>
+          <table className="table" style={{ minWidth: 820 }}>
             <thead>
               <tr>
-                <th>วันที่/เวลา</th><th>Serial</th><th>Customer</th><th>Model</th><th>ลำดับกระบวนการ</th><th>Cycle</th><th>ผล</th>{!isViewer && <th></th>}
+                <th>วันที่/เวลา</th><th>Serial</th><th>สาย</th><th>Customer</th><th>Model</th><th>ลำดับกระบวนการ</th><th>Cycle</th><th>ผล</th>{!isViewer && <th></th>}
               </tr>
             </thead>
             <tbody>
-              {tabResults.length === 0 ? (
-                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>ยังไม่มีผลของสาย {resTab === 'external' ? 'External' : 'Internal'} — กรอก Serial + เวลา แล้วกด “บันทึกผล”</td></tr>
-              ) : tabResults.map(r => (
+              {results.length === 0 ? (
+                <tr><td colSpan={isViewer ? 8 : 9} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>ยังไม่มีผลที่บันทึก — กรอก Serial + เวลา แล้วกด “บันทึกผล”</td></tr>
+              ) : results.map(r => (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: '#64748b' }}>{fmtDateTime(r.created_at)}</td>
                   <td style={{ fontWeight: 600 }}>{r.serial}</td>
+                  <td><LineBadge value={r.line} /></td>
                   <td>{r.customer || '—'}</td>
                   <td>{r.model || '—'}</td>
                   <td style={{ fontSize: '0.8rem', color: '#475569', minWidth: 260, maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>{r.sequence || '—'}</td>
