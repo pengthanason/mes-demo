@@ -62,6 +62,7 @@ export interface WorkflowResult {
   sequence: string;
   result: 'PASS' | 'FAIL';
   total_sec: number;
+  line: 'internal' | 'external' | 'mix';   // สายที่บันทึกผล (แท็บ Internal/External/Mix) — เก่าที่ไม่มี → internal
   created_at: string;
 }
 
@@ -114,7 +115,7 @@ export function useWorkflowResults() {
       return ((res.data as any)?.data ?? []).map((r: any) => ({
         id: r.id, serial: r.serial ?? '', customer: r.customer ?? '', model: r.model ?? '',
         sequence: r.sequence ?? '', result: r.result === 'FAIL' ? 'FAIL' : 'PASS',
-        total_sec: Number(r.total_sec) || 0, created_at: r.created_at,
+        total_sec: Number(r.total_sec) || 0, line: (r.line === 'external' || r.line === 'mix') ? r.line : 'internal', created_at: r.created_at,
       }));
     },
   });
@@ -123,7 +124,7 @@ export function useWorkflowResults() {
 export function useWorkflowResultCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { serial: string; customer: string; model: string; sequence: string; result: string; total_sec: number; steps?: { process: string; result: string }[] }) => {
+    mutationFn: async (input: { serial: string; customer: string; model: string; sequence: string; result: string; total_sec: number; line?: 'internal' | 'external' | 'mix'; steps?: { process: string; result: string }[] }) => {
       const res = await api.post('/workflow/results', input);
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึกผลไม่สำเร็จ');
       return res.data;

@@ -571,6 +571,8 @@ async function migrate() {
         created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
+    // สายที่บันทึกผล (แท็บ Internal/External) — additive
+    await client.query(`ALTER TABLE workflow_results ADD COLUMN IF NOT EXISTS line VARCHAR(10) NOT NULL DEFAULT 'internal'`);
 
     // Seed ข้อมูลตัวอย่างถ้ายังว่าง
     const { rows } = await client.query('SELECT COUNT(*) FROM boms');

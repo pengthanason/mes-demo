@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMockAuth } from '../lib/useMockStore';
 import {
   useAdminUsers, useAdminUserCreate, useAdminUserUpdate, useAdminUserDelete,
@@ -261,7 +262,9 @@ function AuditTab() {
 
 export function AdminPanelPage() {
   const { role } = useMockAuth();
-  const [tab, setTab] = useState<'users' | 'audit'>('users');
+  const [params, setParams] = useSearchParams();
+  const tab: 'users' | 'audit' = params.get('tab') === 'audit' ? 'audit' : 'users';   // แท็บอ่านจาก URL (?tab=)
+  const setTab = (t: 'users' | 'audit') => setParams({ tab: t }, { replace: true });
 
   if (role !== 'admin') {
     return (

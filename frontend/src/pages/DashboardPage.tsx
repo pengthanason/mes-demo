@@ -9,7 +9,7 @@ import { FlowGuide } from '../components/FlowGuide';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
   STATUS_STYLE, StatusBadge, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal,
-  XLSX_COLUMNS, DASH_COLUMNS, buildHeaderRows, type PpCol, type HeaderCell,
+  XLSX_COLUMNS, DASH_COLUMNS, PP_PIPELINE, buildHeaderRows, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 
 // หัวคอลัมน์: สีพิเศษ (Expected/Revised/DONE/SYN) + จัดกึ่งกลาง
@@ -24,16 +24,99 @@ const ckEl = (b: boolean) => b ? <span style={{ color: '#16a34a', fontWeight: 70
 const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' };
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ Excel (ลำดับ/หัว = แหล่งเดียวกับ Excel)
-function renderCell(c: PpCol, p: PpProject, y: number | null) {
+function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void) {
   if (c.key === 'status') return <td key={c.key}><StatusBadge status={p.status} /></td>;
   if (CHECK_KEYS.has(c.key)) return <td key={c.key} style={{ textAlign: 'center' }}>{ckEl(!!(p as any)[c.key])}</td>;
   if (c.key === 'yield') return <td key={c.key} style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>;
   if (c.key === 'total_ng') return <td key={c.key} style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>;
   if (c.key === 'total_ok') return <td key={c.key} style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>;
-  if (c.key === 'product_pn') return <td key={c.key} style={p.product_pn ? { fontWeight: 600 } : DASH_STYLE}>{p.product_pn || '—'}</td>;
+  if (c.key === 'product_pn') return (
+    <td key={c.key} style={p.product_pn ? undefined : DASH_STYLE}>
+      {p.product_pn
+        ? <button type="button" onClick={onOpen} title="ดูรายละเอียดสินค้า"
+            style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, textAlign: 'left' }}>
+            {p.product_pn}
+          </button>
+        : '—'}
+    </td>
+  );
   const v = c.value(p);
   if (!v) return <td key={c.key} style={DASH_STYLE}>—</td>;
   return <td key={c.key} style={c.center ? { textAlign: 'center', whiteSpace: 'nowrap' } : { color: c.key === 'remark' || c.key === 'matl_coming' ? 'var(--text-muted)' : undefined }}>{v}</td>;
+}
+
+/* ── Popup รายละเอียดสินค้า — คลิก Product P/N ในตาราง → รูป (placeholder) + ข้อมูลทั้งหมดของรายการ ── */
+function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void }) {
+  const y = ppYield(p);
+  const fmtD = (v: string | null | undefined) => { if (!v) return '—'; const d = new Date(v); return isNaN(+d) ? String(v) : d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }); };
+  const val = (v: any) => (v === null || v === undefined || v === '' ? '—' : v);
+  const groups: { title: string; items: [string, React.ReactNode][] }[] = [
+    { title: '📋 ข้อมูลงาน', items: [
+      ['Customer', val(p.customer)], ['Qty', p.qty ? p.qty.toLocaleString() : '—'], ['Week (WK)', val(p.wk)], ['วันที่บันทึก', fmtD(p.date_record)],
+      ['Work Order', val(p.work_order)], ['WO Name', val(p.wo_name)], ['SYN Requestor', val(p.syn_requestor)],
+    ] },
+    { title: '👤 ผู้รับผิดชอบ', items: [
+      ['PD PIC', val(p.pd_pic)], ['PIC Responsible', val(p.pic_responsible)], ['Team Member', p.team_member || '—'], ['OK / วัน', p.ok_per_day || '—'],
+    ] },
+    { title: '📅 กำหนดการ', items: [
+      ['PD Start', fmtD(p.pd_start_date)], ['PD Finish', fmtD(p.pd_finish_date)], ['Expected', fmtD(p.expected_date)], ['Revised', fmtD(p.revised_date)],
+      ['Store Received', fmtD(p.store_received)], ["Mat'l Coming", val(p.matl_coming)], ['QA Finish', fmtD(p.qa_finish_date)], ['QA Test Rate', val(p.qa_test_rate)],
+    ] },
+    { title: '📊 ผลผลิต', items: [
+      ['Total OK', <span style={{ color: '#16a34a', fontWeight: 700 }}>{p.total_ok || 0}</span>],
+      ['Total NG', <span style={{ color: '#dc2626', fontWeight: 700 }}>{p.total_ng || 0}</span>],
+      ['Yield', y == null ? '—' : <span style={{ fontWeight: 700, color: y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y.toFixed(2)}%</span>],
+    ] },
+  ];
+  const chips = (arr: [string, string][]) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {arr.map(([k, l]) => { const on = !!(p as any)[k]; return (
+        <span key={k} style={{ padding: '3px 11px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 600, border: `1px solid ${on ? '#93c5fd' : '#e5e9f0'}`, background: on ? '#dbeafe' : '#f8fafc', color: on ? '#1e40af' : '#cbd5e1' }}>{on ? '✓ ' : ''}{l}</span>
+      ); })}
+    </div>
+  );
+  const sectionTitle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 700, color: '#475569', margin: '16px 0 8px' };
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 680px)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', wordBreak: 'break-word' }}>{p.product_pn || '—'}</div>
+            <div style={{ fontSize: '0.9rem', color: '#64748b', marginTop: 2 }}>{[p.model, p.customer].filter(Boolean).join(' · ') || '—'}</div>
+          </div>
+          <button type="button" className="btn secondary" style={{ padding: '4px 12px', flexShrink: 0 }} onClick={onClose}>✕</button>
+        </div>
+        <div style={{ marginTop: 10 }}><StatusBadge status={p.status} /></div>
+        {/* รูปสินค้า (placeholder — ของจริงจะแนบภายหลัง) */}
+        <div style={{ marginTop: 14, height: 180, borderRadius: 10, border: '2px dashed #cbd5e1', background: 'linear-gradient(135deg,#f8fafc,#eef2f7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#94a3b8' }}>
+          <span style={{ fontSize: 40, lineHeight: 1 }}>🖼️</span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>ยังไม่มีรูปสินค้า</span>
+          <span style={{ fontSize: '0.75rem' }}>รูปจริงของโปรดักต์จะถูกแนบเมื่อใช้งานจริง</span>
+        </div>
+        {groups.map(g => (
+          <div key={g.title}>
+            <div style={sectionTitle}>{g.title}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px 16px' }}>
+              {g.items.map(([label, value], i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.3 }}>{label}</span>
+                  <span style={{ fontSize: '0.9rem', color: '#1e293b', fontWeight: 500, wordBreak: 'break-word' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div style={sectionTitle}>🏷️ Type</div>{chips([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST'], ['pd_rma', 'RMA'], ['pd_prep', 'PREP']])}
+        <div style={sectionTitle}>🧩 4M Check</div>{chips([['chk_man', 'Man'], ['chk_mac', 'Machine'], ['chk_med', 'Method'], ['chk_mat', 'Material']])}
+        <div style={sectionTitle}>🔧 STATUS (ขั้นตอนการผลิต)</div>{chips(PP_PIPELINE.map(s => [s.key as string, s.label]))}
+        {p.remark && (<><div style={sectionTitle}>📝 หมายเหตุ</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.remark}</div></>)}
+        <div style={{ marginTop: 18, paddingTop: 10, borderTop: '1px solid #eef2f7', fontSize: '0.72rem', color: '#94a3b8', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+          {p.created_at && <span>สร้าง: {fmtD(p.created_at)}</span>}
+          {p.updated_at && <span>แก้ไขล่าสุด: {fmtD(p.updated_at)}</span>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ── พิมพ์เป็น PDF — โครงเดียวกับ Excel (XLSX_COLUMNS + หัวซ้อน 2 ชั้น) + โลโก้/สี SYNTECH ── */
@@ -165,6 +248,7 @@ export function DashboardPage() {
   }, [queryClient]);
   const [edit, setEdit] = useState<PpProject | null>(null);
   const [adding, setAdding] = useState(false);
+  const [detail, setDetail] = useState<PpProject | null>(null);   // ป๊อปอัพรายละเอียดสินค้า (คลิก Product P/N)
   const [saveAs, setSaveAs] = useState<'xlsx' | 'pdf' | null>(null);   // เปิดป๊อปอัพตั้งชื่อไฟล์ก่อนโหลด
   const [page, setPage] = useState(1);
   const PAGE = 10;
@@ -255,7 +339,7 @@ export function DashboardPage() {
           <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => selectStatus('ON_PROCESS')} active={filters.status === 'ON_PROCESS'} />
           <KpiCard icon="⏰" label="Late" value={agg.late} accent="#dc2626" onClick={() => selectStatus('LATE')} active={filters.status === 'LATE'} />
           <KpiCard icon="📥" label="Mat'l coming" value={agg.matl} accent="#d97706" onClick={() => selectStatus('MATL_COMING')} active={filters.status === 'MATL_COMING'} />
-          <StatCard icon="🎯" label="Yield เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
+          <StatCard icon="🎯" label="Yield Good เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
         </div>
       </div>
 
@@ -324,7 +408,7 @@ export function DashboardPage() {
                 return (
                   <tr key={p.id} style={p.status === 'LATE' ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626' } : undefined}>
                     <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
-                    {DASH_COLUMNS.map(c => renderCell(c, p, y))}
+                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p)))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -350,6 +434,7 @@ export function DashboardPage() {
 
       {adding && <ProjectFormModal initial={null} onClose={() => setAdding(false)} />}
       {edit && <ProjectFormModal initial={edit} onClose={() => setEdit(null)} />}
+      {detail && <ProductDetailModal p={detail} onClose={() => setDetail(null)} />}
       {saveAs && (
         <FileNamePromptModal
           title={saveAs === 'xlsx' ? '⬇️ บันทึกเป็น Excel' : '🖨️ บันทึกเป็น PDF'}
