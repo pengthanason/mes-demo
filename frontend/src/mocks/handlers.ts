@@ -127,19 +127,72 @@ const scmCases = [
 
 let _adminUserId = 10;
 const adminUsers = [
-  { id: 1, username: 'admin',   full_name: 'ผู้ดูแลระบบ',    role: 'ADMIN',  is_active: true, created_at: '2026-01-01T00:00:00Z' },
-  { id: 2, username: 'member',  full_name: 'พนักงานสาย 1',   role: 'MEMBER', is_active: true, created_at: '2026-01-15T00:00:00Z' },
-  { id: 3, username: 'viewer',  full_name: 'ผู้สังเกตการณ์',  role: 'VIEWER', is_active: true, created_at: '2026-02-01T00:00:00Z' },
-  { id: 4, username: 'somchai', full_name: 'สมชาย วงศ์ไทย',  role: 'MEMBER', is_active: false, created_at: '2026-03-01T00:00:00Z' },
+  { id: 1, username: 'admin',   full_name: 'ผู้ดูแลระบบ',    role: 'ADMIN',  is_active: true,  permissions: [],                                                                                created_at: '2026-01-01T00:00:00Z' },
+  { id: 2, username: 'member1', full_name: 'วิชัย สุขใจ',     role: 'MEMBER', is_active: true,  permissions: ['dashboard', 'production_plan', 'work_orders', 'qc', 'jig_test', 'notifications'], created_at: '2026-01-15T00:00:00Z' },
+  { id: 3, username: 'viewer1', full_name: 'สมหมาย ดีใจ',    role: 'VIEWER', is_active: true,  permissions: [],                                                                                created_at: '2026-02-01T00:00:00Z' },
+  { id: 4, username: 'somchai', full_name: 'สมชาย วงศ์ไทย',  role: 'MEMBER', is_active: false, permissions: [],                                                                                created_at: '2026-03-01T00:00:00Z' },
 ];
 
 let _auditId = 20;
 const auditLogs = [
-  { id: 1, actor: 'admin', action: 'CREATE_USER', target_type: 'app_user', target_id: '2', detail: 'สร้างผู้ใช้ member',  created_at: '2026-01-15T08:00:00Z' },
-  { id: 2, actor: 'admin', action: 'CREATE_USER', target_type: 'app_user', target_id: '3', detail: 'สร้างผู้ใช้ viewer',  created_at: '2026-02-01T09:00:00Z' },
-  { id: 3, actor: 'admin', action: 'DELETE_USER', target_type: 'app_user', target_id: '5', detail: 'ลบผู้ใช้ testuser',  created_at: '2026-04-01T10:00:00Z' },
-  { id: 4, actor: 'admin', action: 'UPDATE_USER', target_type: 'app_user', target_id: '4', detail: 'Disable somchai', created_at: '2026-05-10T11:00:00Z' },
+  { id: 1,  actor: 'admin',   action: 'CREATE_USER', target_type: 'app_user', target_id: '2', detail: 'สร้างผู้ใช้ member',   created_at: '2026-01-15T08:00:00Z' },
+  { id: 2,  actor: 'admin',   action: 'CREATE_USER', target_type: 'app_user', target_id: '3', detail: 'สร้างผู้ใช้ viewer',   created_at: '2026-02-01T09:00:00Z' },
+  { id: 3,  actor: 'admin',   action: 'DELETE_USER', target_type: 'app_user', target_id: '5', detail: 'ลบผู้ใช้ testuser',    created_at: '2026-04-01T10:00:00Z' },
+  { id: 4,  actor: 'admin',   action: 'UPDATE_USER', target_type: 'app_user', target_id: '4', detail: 'Disable somchai',      created_at: '2026-05-10T11:00:00Z' },
+  { id: 5,  actor: 'member1', action: 'LOGIN',       target_type: null,       target_id: null, detail: 'เข้าสู่ระบบสำเร็จ',   created_at: '2026-06-20T08:05:00Z' },
+  { id: 6,  actor: 'member1', action: 'CREATE_WO',   target_type: 'wo',       target_id: 'WO-202606-001', detail: 'เปิด WO-202606-001 (PCB-A100)', created_at: '2026-06-20T08:20:00Z' },
+  { id: 7,  actor: 'member1', action: 'CREATE_CR',   target_type: 'cr',       target_id: '1', detail: 'เปิด CR-001 (Machine)', created_at: '2026-06-20T09:10:00Z' },
+  { id: 8,  actor: 'admin',   action: 'LOGIN',       target_type: null,       target_id: null, detail: 'เข้าสู่ระบบสำเร็จ',   created_at: '2026-06-21T07:50:00Z' },
+  { id: 9,  actor: 'admin',   action: 'SAVE_WORKFLOW', target_type: 'workflow', target_id: '6', detail: 'บันทึก Preset: PCBA SMT+THT', created_at: '2026-06-21T10:30:00Z' },
+  { id: 10, actor: 'viewer1', action: 'LOGIN',       target_type: null,       target_id: null, detail: 'เข้าสู่ระบบสำเร็จ',   created_at: '2026-06-22T13:00:00Z' },
 ];
+
+// ── Activity auto-log (เดโม): บันทึกทุก mutation ที่สำเร็จลง auditLogs อัตโนมัติ ──
+function actorFromAuth(authHeader: string | null): string {
+  try { const m = /^Bearer\s+(.+)$/i.exec(authHeader || ''); if (!m) return 'system'; return atob(m[1]).split(':')[0] || 'system'; } catch { return 'system'; }
+}
+const ACT_RES: [string, string, string][] = [
+  ['/api/pp', 'Production Plan', 'pp'],
+  ['/api/workflow', 'Workflow', 'workflow'],
+  ['/api/wo', 'Work Order', 'wo'],
+  ['/api/bom', 'BOM', 'bom'],
+  ['/api/cr', 'Change Request (4M)', 'cr'],
+  ['/api/jig', 'Jig Test', 'jig'],
+  ['/api/scm', 'SCM Case', 'scm'],
+  ['/api/rework', 'Rework', 'rework'],
+  ['/api/inventory', 'Kitting/Store', 'inventory'],
+  ['/api/notifications', 'Notification', 'notifications'],
+  ['/api/production', 'Production', 'production'],
+];
+function describeActivity(method: string, path: string, row: any) {
+  const r = ACT_RES.find(([pre]) => path === pre || path.startsWith(pre + '/'));
+  const [, label, type] = r || ['', 'ข้อมูล', 'other'];
+  const verb = method === 'POST' ? 'CREATE' : method === 'DELETE' ? 'DELETE' : 'UPDATE';
+  const th = verb === 'CREATE' ? 'สร้าง' : verb === 'DELETE' ? 'ลบ' : 'แก้ไข';
+  const segs = path.split('/').filter(Boolean);
+  const last = segs[segs.length - 1];
+  const pathId = (method !== 'POST' && last && !/^(projects|results|users|board|cases)$/.test(last) && !ACT_RES.some(([pre]) => pre.endsWith('/' + last))) ? last : null;
+  const name = row ? String(row.product_pn || row.model || row.name || row.wo_name || row.cr_no || row.crNo || row.title || row.serial || row.project_code || '') : '';
+  const rid = row && row.id != null ? String(row.id) : null;
+  const id = type === 'wo' ? ((row && (row.wo_id || row.woId)) || pathId || rid)
+    : type === 'jig' ? ((row && row.project_code) || pathId || rid)
+    : (rid || pathId);
+  return { action: `${verb}_${type.toUpperCase()}`, type, id, detail: `${th} ${label}${name ? `: ${name}` : (id ? ` #${id}` : '')}` };
+}
+export function recordApiActivity(method: string, url: string, status: number, authHeader: string | null, body?: any) {
+  try {
+    if (status < 200 || status >= 300) return;
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return;
+    let path: string;
+    try { path = new URL(url, 'http://localhost').pathname; } catch { path = String(url).split('?')[0]; }   // รองรับทั้ง url เต็มและ relative
+    if (!path.startsWith('/api') || path.startsWith('/api/auth')) return;
+    if (path.startsWith('/api/admin/users')) return;   // handler บันทึกเองแล้ว
+    if (path.includes('audit-log')) return;
+    const row = body && body.data ? body.data : null;
+    const { action, type, id, detail } = describeActivity(method, path, row);
+    auditLogs.push({ id: ++_auditId, actor: actorFromAuth(authHeader), action, target_type: type, target_id: id, detail, created_at: now() });
+  } catch { /* noop */ }
+}
 
 const jigProjects = [
   { id: 1, project_code: 'PCB-A100', name: 'PCB Assembly A100', jig_id: 'JIG-PCB-001', is_active: true,  test_type: 'ICT', total: 168, pass_count: 158, fail_count: 10, pass_rate: 94.05 },
@@ -704,7 +757,7 @@ export const handlers = [
   http.get('/api/admin/users', () => ok(adminUsers)),
   http.post('/api/admin/users', async ({ request }) => {
     const body: any = await request.json();
-    const u = { id: ++_adminUserId, username: body.username, full_name: body.full_name, role: body.role, is_active: true, created_at: now() };
+    const u = { id: ++_adminUserId, username: body.username, full_name: body.full_name, role: body.role, is_active: true, permissions: Array.isArray(body.permissions) ? body.permissions : [], created_at: now() };
     adminUsers.push(u);
     auditLogs.push({ id: ++_auditId, actor: 'admin', action: 'CREATE_USER', target_type: 'app_user', target_id: String(u.id), detail: `สร้างผู้ใช้ ${u.username}`, created_at: now() });
     return ok(u);
@@ -887,7 +940,11 @@ export const handlers = [
     if (!u || b.password !== b.username) {
       return HttpResponse.json({ status: 'error', message: 'username หรือ password ไม่ถูกต้อง' }, { status: 401 });
     }
-    return ok({ id: 1, username: b.username, fullName: u.name, role: u.role, token: btoa(`${b.username}:${u.role}:demo`) });
+    // permissions: ถ้ามี record ใน adminUsers ใช้ค่านั้น ไม่งั้นว่าง (= ใช้ค่าตาม role)
+    const rec = adminUsers.find(x => x.username === b.username);
+    const permissions = rec ? rec.permissions : [];
+    auditLogs.push({ id: ++_auditId, actor: b.username, action: 'LOGIN', target_type: null, target_id: null, detail: 'เข้าสู่ระบบสำเร็จ', created_at: now() });
+    return ok({ id: rec?.id ?? 1, username: b.username, fullName: u.name, role: u.role, permissions, token: btoa(`${b.username}:${u.role}:demo`) });
   }),
 
   // ── BOM create (demo) ──────────────────────────────────────────────────────

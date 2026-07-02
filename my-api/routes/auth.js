@@ -10,7 +10,7 @@ router.post('/login', async (req, res) => {
   }
   try {
     const { rows } = await db.query(
-      'SELECT id, username, full_name, role, is_active, password_hash FROM app_users WHERE username=$1',
+      'SELECT id, username, full_name, role, is_active, password_hash, permissions FROM app_users WHERE username=$1',
       [String(username).trim()]
     );
     const u = rows[0];
@@ -27,7 +27,8 @@ router.post('/login', async (req, res) => {
     ).catch(() => {});
     // ออก token ให้ client แนบใน header Authorization: Bearer ทุก request ที่ไม่ใช่ login
     const token = Buffer.from(`${u.username}:${u.role}:${Date.now()}`).toString('base64');
-    res.json({ status: 'success', data: { id: u.id, username: u.username, fullName: u.full_name, role: u.role, token } });
+    const permissions = Array.isArray(u.permissions) ? u.permissions : [];
+    res.json({ status: 'success', data: { id: u.id, username: u.username, fullName: u.full_name, role: u.role, permissions, token } });
   } catch (e) {
     res.status(500).json({ status: 'error', message: e.message });
   }

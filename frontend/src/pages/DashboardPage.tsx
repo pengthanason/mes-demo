@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePpProjects, usePpDelete, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject, type PpFilters } from '../lib/ppApi';
 import { useIsViewer } from '../lib/useMockStore';
@@ -252,6 +253,15 @@ export function DashboardPage() {
   const [saveAs, setSaveAs] = useState<'xlsx' | 'pdf' | null>(null);   // เปิดป๊อปอัพตั้งชื่อไฟล์ก่อนโหลด
   const [page, setPage] = useState(1);
   const PAGE = 10;
+
+  // เปิดรายละเอียดสินค้าอัตโนมัติเมื่อมากับ ?pp=<id> (ลิงก์จากหน้า Activities)
+  const [params, setParams] = useSearchParams();
+  const ppParam = params.get('pp');
+  useEffect(() => {
+    if (!ppParam) return;
+    const proj = allRows.find(r => String(r.id) === ppParam);
+    if (proj) { setDetail(proj); const n = new URLSearchParams(params); n.delete('pp'); setParams(n, { replace: true }); }
+  }, [ppParam, allRows]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const customers = useMemo(() => [...new Set(allRows.map(r => r.customer).filter(Boolean))], [allRows]);
   // เรียงตามวันที่สร้าง (created_at) — ใหม่สุดขึ้นก่อน

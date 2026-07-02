@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } f
 import { useMockAuth } from './lib/useMockStore.ts';
 import { mockLogout } from './lib/mockStore.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
+import { PERMISSIONS, effectivePerms, hasPerm } from './lib/permissions.ts';
 import { MesAuthPage } from './pages/MesAuthPage.tsx';
 import { WoDetailPage } from './pages/WoDetailPage.tsx';
 import { CloseWoPage } from './pages/CloseWoPage.tsx';
@@ -48,6 +49,7 @@ const MAIN_ITEMS = [
   { to: '/notifications',    label: 'Notifications' },
   { to: '/admin/panel',      label: 'Admin Panel', sub: [
     { tab: 'users', label: 'จัดการผู้ใช้' },
+    { tab: 'activities', label: 'Activities' },
     { tab: 'audit', label: 'Audit Log' },
   ] },
 ];
@@ -188,20 +190,20 @@ function SidebarItem({ to, label, expanded, onClick, innerRef, external, hasSub,
   );
 }
 
-const VIEWER_ITEMS = ['/dashboard', '/4m-change', '/qc-board', '/jig-test', '/equipment-borrow', '/notifications'];
-const MEMBER_ITEMS = ['/dashboard', '/production-plan', '/incoming', '/work-orders', '/4m-change', '/qc-board', '/jig-test', '/oba', '/scm-cases', '/equipment-borrow', '/notifications'];
+// route → permission key (จาก PERMISSIONS) — ใช้กรองเมนู + กันเข้าหน้า ตามสิทธิ์ที่ admin กำหนด
+const ROUTE_PERM = Object.fromEntries(PERMISSIONS.map(p => [p.route, p.key]));
 
-function visibleMainItems(role) {
-  if (!role || role === 'viewer') return MAIN_ITEMS.filter(i => VIEWER_ITEMS.includes(i.to));
-  if (role === 'member') return MAIN_ITEMS.filter(i => MEMBER_ITEMS.includes(i.to));
-  return MAIN_ITEMS; // admin
+function visibleMainItems(auth) {
+  const eff = effectivePerms(auth?.role, auth?.permissions);
+  // Dashboard เป็นหน้าหลักที่ทุกคนเข้าได้เสมอ (เป็นปลายทาง fallback) · ที่เหลือกรองตามสิทธิ์
+  return MAIN_ITEMS.filter(i => i.to === '/dashboard' || !ROUTE_PERM[i.to] || eff.includes(ROUTE_PERM[i.to]));
 }
 
 function Sidebar({ expanded, setExpanded, isDesktop }) {
   // state expanded/isDesktop ถูกยกไปไว้ที่ Shell แล้ว — แชร์ให้ content ดันตามความกว้าง sidebar (กันทับตอนจอเล็ก/ซูม)
   const auth     = useMockAuth();
   const location = useLocation();
-  const items    = visibleMainItems(auth.role);
+  const items    = visibleMainItems(auth);
   const listRef   = useRef(null);
   const sliderRef = useRef(null);
   const itemRefs  = useRef({});
@@ -555,11 +557,11 @@ function AuthGuard({ children }) {
   return children;
 }
 
-// ─── Role guard ───────────────────────────────────────────────────
-function RoleGuard({ allowed, children }) {
+// ─── Permission guard ─── กันเข้าหน้าตามสิทธิ์รายหน้า (ไม่มีสิทธิ์ → เด้งกลับ Dashboard)
+function PermGuard({ perm, children }) {
   const auth = useMockAuth();
   if (!auth.isLoggedIn) return <Navigate to="/mes-auth" replace />;
-  if (!allowed.includes(auth.role)) return <Navigate to="/dashboard" replace />;
+  if (perm && !hasPerm(auth.role, auth.permissions, perm)) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -734,27 +736,27 @@ export default function App() {
               <Route path="/wo-dashboard"      element={<Navigate to="/work-orders" replace />} />
               <Route path="/production-report" element={<Navigate to="/dashboard" replace />} />
               <Route path="/routing-history"   element={<Navigate to="/dashboard" replace />} />
-              <Route path="/scm-cases"         element={<RoleGuard allowed={['admin','member']}><ScmCasesPage /></RoleGuard>} />
-              <Route path="/jig-test"          element={<AuthGuard><JigTestPage /></AuthGuard>} />
+              <Route path="/scm-cases"         element={<PermGuard perm="scm"><ScmCasesPage /></PermGuard>} />
+              <Route path="/jig-test"          element={<PermGuard perm="jig_test"><JigTestPage /></PermGuard>} />
               {/* active routes */}
-              <Route path="/production-plan"   element={<RoleGuard allowed={['admin','member']}><ProductionPlanPage /></RoleGuard>} />
-              <Route path="/oba"               element={<RoleGuard allowed={['admin','member']}><ObaPage /></RoleGuard>} />
-              <Route path="/incoming"          element={<RoleGuard allowed={['admin','member']}><IncomingKittingPage /></RoleGuard>} />
+              <Route path="/production-plan"   element={<PermGuard perm="production_plan"><ProductionPlanPage /></PermGuard>} />
+              <Route path="/oba"               element={<PermGuard perm="oba"><ObaPage /></PermGuard>} />
+              <Route path="/incoming"          element={<PermGuard perm="incoming"><IncomingKittingPage /></PermGuard>} />
               <Route path="/kitting"           element={<Navigate to="/incoming" replace />} />
-              <Route path="/4m-change"         element={<AuthGuard><FourMChangePage /></AuthGuard>} />
-              <Route path="/4m-change/:crId"   element={<AuthGuard><CrDetailPage /></AuthGuard>} />
-              <Route path="/work-orders"       element={<RoleGuard allowed={['admin','member']}><WorkOrdersPage /></RoleGuard>} />
-              <Route path="/qc-board"          element={<AuthGuard><QcPage /></AuthGuard>} />
+              <Route path="/4m-change"         element={<PermGuard perm="cr"><FourMChangePage /></PermGuard>} />
+              <Route path="/4m-change/:crId"   element={<PermGuard perm="cr"><CrDetailPage /></PermGuard>} />
+              <Route path="/work-orders"       element={<PermGuard perm="work_orders"><WorkOrdersPage /></PermGuard>} />
+              <Route path="/qc-board"          element={<PermGuard perm="qc"><QcPage /></PermGuard>} />
               <Route path="/qc-result"         element={<Navigate to="/qc-board" replace />} />
-              <Route path="/qc/:woId"          element={<RoleGuard allowed={['admin','member']}><QcResultPage /></RoleGuard>} />
-              <Route path="/qa-verify/:reqId"  element={<RoleGuard allowed={['admin','member']}><QaVerifyPage /></RoleGuard>} />
-              <Route path="/wo/:woId"          element={<AuthGuard><WoDetailPage /></AuthGuard>} />
-              <Route path="/wo/:woId/close"    element={<RoleGuard allowed={['admin','member']}><CloseWoPage /></RoleGuard>} />
-              <Route path="/fai/:woId"         element={<RoleGuard allowed={['admin','member']}><FaiPage /></RoleGuard>} />
-              <Route path="/notifications"     element={<AuthGuard><NotificationsPage /></AuthGuard>} />
-              <Route path="/jig-test/:projectCode" element={<AuthGuard><JigProjectPage /></AuthGuard>} />
-              <Route path="/admin/panel"       element={<RoleGuard allowed={['admin']}><AdminPanelPage /></RoleGuard>} />
-              <Route path="/equipment-borrow" element={<AuthGuard><EquipmentBorrowPage /></AuthGuard>} />
+              <Route path="/qc/:woId"          element={<PermGuard perm="qc"><QcResultPage /></PermGuard>} />
+              <Route path="/qa-verify/:reqId"  element={<PermGuard perm="qc"><QaVerifyPage /></PermGuard>} />
+              <Route path="/wo/:woId"          element={<PermGuard perm="work_orders"><WoDetailPage /></PermGuard>} />
+              <Route path="/wo/:woId/close"    element={<PermGuard perm="work_orders"><CloseWoPage /></PermGuard>} />
+              <Route path="/fai/:woId"         element={<PermGuard perm="work_orders"><FaiPage /></PermGuard>} />
+              <Route path="/notifications"     element={<PermGuard perm="notifications"><NotificationsPage /></PermGuard>} />
+              <Route path="/jig-test/:projectCode" element={<PermGuard perm="jig_test"><JigProjectPage /></PermGuard>} />
+              <Route path="/admin/panel"       element={<PermGuard perm="admin"><AdminPanelPage /></PermGuard>} />
+              <Route path="/equipment-borrow" element={<PermGuard perm="equipment"><EquipmentBorrowPage /></PermGuard>} />
               <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </ErrorBoundary>

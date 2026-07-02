@@ -9,6 +9,7 @@ export interface AppUser {
   fullName: string;
   role: AppRole;
   isActive: boolean;
+  permissions: string[];   // สิทธิ์รายหน้า (ว่าง = ใช้ค่าตาม role)
   createdAt: string;
 }
 
@@ -23,7 +24,7 @@ export interface AuditLog {
 }
 
 function mapUser(r: any): AppUser {
-  return { id: r.id, username: r.username, fullName: r.full_name, role: r.role, isActive: r.is_active, createdAt: r.created_at };
+  return { id: r.id, username: r.username, fullName: r.full_name, role: r.role, isActive: r.is_active, permissions: Array.isArray(r.permissions) ? r.permissions : [], createdAt: r.created_at };
 }
 
 function mapLog(r: any): AuditLog {
@@ -46,8 +47,8 @@ export function useAdminUsers() {
 export function useAdminUserCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { username: string; fullName: string; role: AppRole; password: string }) => {
-      const res = await api.post('/admin/users', { username: p.username, full_name: p.fullName, role: p.role, password: p.password });
+    mutationFn: async (p: { username: string; fullName: string; role: AppRole; password: string; permissions?: string[] }) => {
+      const res = await api.post('/admin/users', { username: p.username, full_name: p.fullName, role: p.role, password: p.password, permissions: p.permissions ?? [] });
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'สร้างผู้ใช้ไม่สำเร็จ');
       return mapUser((res.data as any)?.data);
     },
@@ -58,12 +59,13 @@ export function useAdminUserCreate() {
 export function useAdminUserUpdate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { id: number; fullName?: string; role?: AppRole; isActive?: boolean; password?: string }) => {
+    mutationFn: async (p: { id: number; fullName?: string; role?: AppRole; isActive?: boolean; password?: string; permissions?: string[] }) => {
       const body: any = {};
       if (p.fullName !== undefined) body.full_name = p.fullName;
       if (p.role !== undefined)     body.role = p.role;
       if (p.isActive !== undefined) body.is_active = p.isActive;
       if (p.password)               body.password = p.password;
+      if (p.permissions !== undefined) body.permissions = p.permissions;
       const res = await api.put(`/admin/users/${p.id}`, body);
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'แก้ไขไม่สำเร็จ');
       return mapUser((res.data as any)?.data);

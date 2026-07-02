@@ -34,6 +34,7 @@ export interface AuthState {
   isLoggedIn: boolean;
   username: string;
   role: UserRole;
+  permissions?: string[];   // สิทธิ์รายหน้า (ว่าง = ใช้ค่าตาม role) — ใช้กรองเมนู/กันเข้าหน้า
 }
 
 export interface RoutingRecord {
@@ -103,6 +104,7 @@ export async function apiLogin(username: string, password: string): Promise<{ ok
       isLoggedIn: true,
       username: u.username,
       role: String(u.role).toLowerCase() as UserRole,
+      permissions: Array.isArray(u.permissions) ? u.permissions : [],
     }));
     dispatch();
     return { ok: true };
