@@ -19,6 +19,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', version: '1.0.0', service: 'my-api' });
 });
 
+// ── บังคับสิทธิ์รายหน้า (permissions) จาก Bearer token — ปลอดภัย: ไม่มี token/ไม่พบ user = ผ่าน, admin ผ่านหมด ──
+app.use(require('./authz'));
+
 // ── Routes ─────────────────────────────────────────────────────────
 app.use('/api/auth',          require('./routes/auth'));
 app.use('/api/bom',           require('./routes/bom'));

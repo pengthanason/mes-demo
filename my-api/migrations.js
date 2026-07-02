@@ -258,6 +258,8 @@ async function migrate() {
 
     // ── Auth: คอลัมน์รหัสผ่าน + ตั้งรหัสเริ่มต้น (= username) ให้ผู้ใช้ที่ยังไม่มี ──
     await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(100) NOT NULL DEFAULT ''`);
+    // สิทธิ์รายหน้า (permissions) — additive · ว่าง [] = ใช้ค่าเริ่มต้นตาม role
+    await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '[]'::jsonb`);
     {
       const bcrypt = require('bcryptjs');
       const needPw = await client.query("SELECT id, username FROM app_users WHERE password_hash = ''");

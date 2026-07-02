@@ -45,6 +45,15 @@ export function SearchableSelect({
   useEffect(() => {
     if (open && showSearch) requestAnimationFrame(() => searchRef.current?.focus());
   }, [open, showSearch]);
+  // เปิดอยู่แล้วเลื่อนจอ/รีไซส์ → คำนวณตำแหน่ง panel ใหม่ให้ติดกับช่องเสมอ (ไม่ลอยตามจอ)
+  useEffect(() => {
+    if (!open) return;
+    const reposition = () => { const r = boxRef.current?.getBoundingClientRect(); if (r) setPos({ top: r.bottom + 2, left: r.left, width: r.width }); };
+    reposition();
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    return () => { window.removeEventListener('scroll', reposition, true); window.removeEventListener('resize', reposition); };
+  }, [open]);
 
   return (
     <div style={{ position: 'relative', width: '100%', minWidth: 0, ...style }}>
@@ -72,7 +81,7 @@ export function SearchableSelect({
           <div style={{
             position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#fff',
             border: '1px solid var(--border-color)', borderRadius: 6, boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
-            zIndex: 1000, maxHeight: 300, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            zIndex: 1000, maxHeight: 390, display: 'flex', flexDirection: 'column', overflow: 'hidden',
           }}>
             {showSearch && (
               <div style={{ padding: 6, borderBottom: '1px solid var(--border-color)' }}>

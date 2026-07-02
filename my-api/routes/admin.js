@@ -7,7 +7,7 @@ const db     = require('../db');
 router.get('/users', async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, username, full_name, role, is_active, created_at FROM app_users ORDER BY created_at DESC'
+      'SELECT id, username, full_name, role, is_active, permissions, created_at FROM app_users ORDER BY created_at DESC'
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
@@ -16,20 +16,21 @@ router.get('/users', async (req, res) => {
 });
 
 router.post('/users', async (req, res) => {
-  const { username, full_name, role, password } = req.body;
+  const { username, full_name, role, password, permissions } = req.body;
   if (!username || !full_name || !['ADMIN','MEMBER','VIEWER'].includes(role)) {
     return res.status(400).json({ status: 'error', message: 'username, full_name, role(ADMIN|MEMBER|VIEWER) required' });
   }
   if (!password || String(password).length < 4) {
     return res.status(400).json({ status: 'error', message: 'password ต้องยาวอย่างน้อย 4 ตัวอักษร' });
   }
+  const perms = Array.isArray(permissions) ? permissions.filter(p => typeof p === 'string') : [];
   try {
     const hash = bcrypt.hashSync(String(password), 10);
     const { rows } = await db.query(
-      `INSERT INTO app_users (username, full_name, role, password_hash)
-       VALUES ($1,$2,$3,$4)
-       RETURNING id, username, full_name, role, is_active, created_at`,
-      [username.trim(), full_name.trim(), role, hash]
+      `INSERT INTO app_users (username, full_name, role, password_hash, permissions)
+       VALUES ($1,$2,$3,$4,$5::jsonb)
+       RETURNING id, username, full_name, role, is_active, permissions, created_at`,
+      [username.trim(), full_name.trim(), role, hash, JSON.stringify(perms)]
     );
     await db.query(
       `INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES ('admin','CREATE_USER','user',$1,$2)`,
@@ -43,13 +44,14 @@ router.post('/users', async (req, res) => {
 });
 
 router.put('/users/:id', async (req, res) => {
-  const { full_name, role, is_active, password } = req.body;
+  const { full_name, role, is_active, password, permissions } = req.body;
   try {
     const sets = [];
     const vals = [];
     if (full_name !== undefined)  { vals.push(full_name);  sets.push(`full_name=$${vals.length}`); }
     if (role !== undefined)        { vals.push(role);        sets.push(`role=$${vals.length}`); }
     if (is_active !== undefined)   { vals.push(is_active);   sets.push(`is_active=$${vals.length}`); }
+    if (Array.isArray(permissions)) { vals.push(JSON.stringify(permissions.filter(p => typeof p === 'string'))); sets.push(`permissions=$${vals.length}::jsonb`); }
     if (password) {
       if (String(password).length < 4) return res.status(400).json({ status: 'error', message: 'password ต้องยาวอย่างน้อย 4 ตัวอักษร' });
       vals.push(bcrypt.hashSync(String(password), 10)); sets.push(`password_hash=$${vals.length}`);
@@ -58,7 +60,7 @@ router.put('/users/:id', async (req, res) => {
     sets.push(`updated_at=NOW()`);
     vals.push(req.params.id);
     const { rows, rowCount } = await db.query(
-      `UPDATE app_users SET ${sets.join(', ')} WHERE id=$${vals.length} RETURNING id, username, full_name, role, is_active`,
+      `UPDATE app_users SET ${sets.join(', ')} WHERE id=$${vals.length} RETURNING id, username, full_name, role, is_active, permissions`,
       vals
     );
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'user not found' });
