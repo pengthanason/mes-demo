@@ -63,9 +63,19 @@ function useMediaQuery(query) {
   return matches;
 }
 
+// route ย่อยที่ prefix ไม่ตรงกับเมนู → ให้ยังไฮไลต์เมนูแม่ (เช่น เปิด WO รายตัว = ยังอยู่ Work Orders)
+const SIDEBAR_ALIAS = {
+  '/work-orders': ['/wo/', '/fai/'],
+  '/qc-board':    ['/qc/', '/qa-verify/'],
+};
+function menuActive(path, to) {
+  if (path === to || path.startsWith(`${to}/`)) return true;          // ตรง หรือเป็น sub-route prefix เดียวกัน (เช่น /4m-change/:id, /jig-test/:code)
+  return (SIDEBAR_ALIAS[to] || []).some(p => path.startsWith(p));      // sub-route คนละ prefix
+}
+
 function SidebarItem({ to, label, expanded, onClick, innerRef, external }) {
   const location = useLocation();
-  const isActive = !external && (location.hash === `#${to}` || location.pathname === to);
+  const isActive = !external && menuActive(location.pathname, to);
   const [hov, setHov] = useState(false);
   const itemStyle = {
     display: 'block',
@@ -153,7 +163,8 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
     if (!slider || !list) return;
     if (!expanded) { slider.style.opacity = '0'; return; }
     const path = location.pathname;
-    const el   = itemRefs.current[path];
+    const activeItem = items.find(it => menuActive(path, it.to));   // รองรับ sub-route → เลื่อนแถบไปเมนูแม่
+    const el   = activeItem ? itemRefs.current[activeItem.to] : null;
     if (!el) { slider.style.opacity = '0'; return; }
     const top    = el.offsetTop;
     const height = el.offsetHeight;

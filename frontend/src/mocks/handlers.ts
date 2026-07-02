@@ -361,6 +361,35 @@ const workflows: any[] = [
     { process: 'PACKING', seconds: 25, role: 'packing', kind: 'process', timeScope: 'per_unit' },
     { process: 'STORE', seconds: 50, role: 'store', kind: 'process', timeScope: 'once' },
   ] },
+  // ── ผลิต PCBA: สายเต็ม SMT + THT (Solder Paste → SPI → Pick&Place → Reflow → AOI → THT → Wave → ICT → FCT) ──
+  { id: 6, name: 'PCBA SMT+THT - Full Line', customer: 'Thanason Electronics', model: 'PCBA-X200', created_at: '2026-06-20T08:00:00Z', steps: [
+    { process: 'Check material (incoming)', seconds: 120, role: 'incoming', kind: 'process', timeScope: 'once' },
+    { process: 'SET UP MACHINE', seconds: 1800, role: 'setup', kind: 'process', timeScope: 'once' },
+    { process: 'SOLDER PASTE PRINT', seconds: 18, role: 'smt', kind: 'process', timeScope: 'per_unit', stations: 1, machine: 'Stencil Printer' },
+    { process: 'SPI (Solder Paste Inspection)', seconds: 12, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 1, failAction: 'rework', maxRetry: 2 },
+    { process: 'SMT PICK & PLACE', seconds: 40, role: 'smt', kind: 'process', timeScope: 'per_unit', stations: 2, machine: 'SMT Line' },
+    { process: 'REFLOW OVEN', seconds: 30, role: 'smt', kind: 'process', timeScope: 'per_unit', stations: 1, machine: 'Reflow Oven' },
+    { process: 'AOI (Optical Inspection)', seconds: 20, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 1, failAction: 'back', backToIndex: 4 },
+    { process: 'THT INSERTION', seconds: 45, role: 'smt', kind: 'process', timeScope: 'per_unit', stations: 3 },
+    { process: 'WAVE SOLDERING', seconds: 35, role: 'smt', kind: 'process', timeScope: 'per_unit', stations: 1, machine: 'Wave Solder' },
+    { process: 'ICT TEST', seconds: 60, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 2, machine: 'ICT Tester', failAction: 'rework', maxRetry: 2 },
+    { process: 'FCT TEST', seconds: 90, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 4, machine: 'FCT Tester', failAction: 'scrap' },
+    { process: 'PACKING', seconds: 25, role: 'packing', kind: 'process', timeScope: 'per_unit' },
+    { process: 'STORE', seconds: 60, role: 'store', kind: 'process', timeScope: 'once' },
+  ] },
+  // ── ผลิต PCBA: สาย SMT ล้วน (บอร์ดชิปล้วน ไม่มี THT/Wave) — สายเร็ว ──
+  { id: 7, name: 'PCBA SMT Only - Quick Line', customer: 'Thanason Electronics', model: 'PCBA-S50', created_at: '2026-06-21T08:00:00Z', steps: [
+    { process: 'Check material (incoming)', seconds: 90, role: 'incoming', kind: 'process', timeScope: 'once' },
+    { process: 'SET UP MACHINE', seconds: 1200, role: 'setup', kind: 'process', timeScope: 'once' },
+    { process: 'SOLDER PASTE PRINT', seconds: 15, role: 'smt', kind: 'process', timeScope: 'per_unit', stations: 1, machine: 'Stencil Printer' },
+    { process: 'SPI (Solder Paste Inspection)', seconds: 10, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 1, failAction: 'rework', maxRetry: 2 },
+    { process: 'SMT PICK & PLACE', seconds: 35, role: 'smt', kind: 'process', timeScope: 'per_unit', stations: 2, machine: 'SMT Line' },
+    { process: 'REFLOW OVEN', seconds: 28, role: 'smt', kind: 'process', timeScope: 'per_unit', stations: 1, machine: 'Reflow Oven' },
+    { process: 'AOI (Optical Inspection)', seconds: 18, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 1, failAction: 'rework', maxRetry: 1 },
+    { process: 'FCT TEST', seconds: 70, role: 'smt', kind: 'checkpoint', timeScope: 'per_unit', stations: 3, machine: 'FCT Tester', failAction: 'scrap' },
+    { process: 'PACKING', seconds: 20, role: 'packing', kind: 'process', timeScope: 'per_unit' },
+    { process: 'STORE', seconds: 45, role: 'store', kind: 'process', timeScope: 'once' },
+  ] },
 ];
 const workflowResults: any[] = [
   { id: 1, serial: 'SN-0001', customer: 'Toyota TH', model: 'Water Level Rice', sequence: 'CHECK MATERIAL(30s) → SMT(30s) → TEST(30s)', result: 'PASS', total_sec: 90, created_at: '2026-06-14T08:00:00Z' },
@@ -368,6 +397,9 @@ const workflowResults: any[] = [
   { id: 3, serial: 'SN-0003', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(45s) → FCT TEST(90s) → PACKING(25s)', result: 'PASS', total_sec: 160, created_at: '2026-06-14T09:30:00Z' },
   { id: 4, serial: 'SN-0004', customer: 'Denso Corp', model: 'MOT-4500', sequence: 'WAV(60s) → ICT TEST(75s) → PACKING(40s)', result: 'PASS', total_sec: 175, created_at: '2026-06-14T10:00:00Z' },
   { id: 5, serial: 'SN-0005', customer: 'AISIN', model: 'SEN-100', sequence: 'SMT(35s) → TEST❌(50s)', result: 'FAIL', total_sec: 85, created_at: '2026-06-14T10:30:00Z' },
+  { id: 6, serial: 'PCBA-0001', customer: 'Thanason Electronics', model: 'PCBA-X200', sequence: 'SOLDER PASTE PRINT(18s) → SPI(12s) → SMT PICK & PLACE(40s) → REFLOW(30s) → AOI(20s) → THT(45s) → WAVE(35s) → ICT(60s) → FCT(90s) → PACKING(25s)', result: 'PASS', total_sec: 375, created_at: '2026-06-20T13:00:00Z' },
+  { id: 7, serial: 'PCBA-0002', customer: 'Thanason Electronics', model: 'PCBA-X200', sequence: 'SPI(12s) → AOI❌(20s)', result: 'FAIL', total_sec: 32, created_at: '2026-06-20T13:20:00Z' },
+  { id: 8, serial: 'PCBA-0003', customer: 'Thanason Electronics', model: 'PCBA-S50', sequence: 'SOLDER PASTE PRINT(15s) → SPI(10s) → SMT PICK & PLACE(35s) → REFLOW(28s) → AOI(18s) → FCT(70s) → PACKING(20s)', result: 'PASS', total_sec: 196, created_at: '2026-06-21T14:00:00Z' },
 ];
 
 function ok(data: unknown) { return HttpResponse.json({ status: 'success', data }); }

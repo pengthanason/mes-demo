@@ -316,6 +316,147 @@ function buildFlowSvg(steps: Step[]): string {
   return `<svg viewBox="0 0 ${Wsvg} ${totalH}" width="${Wsvg}" height="${totalH}" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif">${defs}${parts.join('')}</svg>`;
 }
 
+/* ── Gantt chart (SVG) — สไตล์คลาสสิก · แถว = สถานี(task) · 1 แท่ง/สถานี (ชิ้นแรกเข้า → ชิ้นสุดท้ายออก) ──
+   หัวตารางเวลา 2 ชั้น (ช่วงใหญ่ = น้ำเงิน / ช่องย่อย = เทา) + เส้น grid
+   ตารางเวลา flow-shop: ชิ้น p ออกสถานี i เมื่อ C[p][i] = max(ออกจากสถานีก่อนหน้า, เครื่องว่าง) + เวลา
+   ยุบเป็นแท่งเดียว: start_i = เวลาที่ชิ้นแรกเข้าสถานี i, end_i = เวลาที่ชิ้นสุดท้ายออกสถานี i */
+function buildGanttSvg(steps: Step[], qty: number): string {
+  const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const sec = (s: Step) => Number(s.seconds) || 0;
+  const mach = (s: Step) => Math.max(1, Number(s.stations) || 1);
+  const N = Math.max(1, Math.floor(qty) || 1);
+
+  type Row = { label: string; t: number; m: number; start: number; end: number; once: boolean };
+  const rows: Row[] = steps.map(s => ({ label: s.process, t: sec(s), m: mach(s), start: 0, end: 0, once: s.timeScope === 'once' }));
+
+  // ตำแหน่งสถานี "ทุกชิ้น" (per) — ใช้แบ่ง once เป็น ก่อนผลิต(setup) / หลังผลิต(เก็บ/แพ็ก)
+  const perPos = steps.map((s, i) => (s.timeScope !== 'once' ? i : -1)).filter(i => i >= 0);
+  const S = perPos.length;
+
+  if (S === 0) {
+    // ไม่มีสถานีผลิต → ทุกขั้นเรียงต่อกันตามลำดับ
+    let c = 0;
+    for (const r of rows) { r.start = c; r.end = c + r.t; c += r.t; }
+  } else {
+    const lastPer = perPos[perPos.length - 1];
+    // 1) setup ต้นสาย = once ที่อยู่ "ก่อน" สถานีผลิตสุดท้าย เรียงต่อกันจาก 0
+    let cum = 0;
+    steps.forEach((s, idx) => { if (s.timeScope === 'once' && idx < lastPer) { rows[idx].start = cum; rows[idx].end = cum + rows[idx].t; cum += rows[idx].t; } });
+    const setupSec = cum;                              // สถานีผลิตเริ่มหลัง setup
+
+    // 2) จำลองสายพาน (flow-shop) หา start/end ต่อสถานีผลิต (รองรับ m เครื่องขนาน)
+    const per = perPos.map(i => ({ t: sec(steps[i]), m: mach(steps[i]) }));
+    const bottleneck = per.reduce((mx, p) => Math.max(mx, p.t / p.m), 0);
+    const firstStart: number[] = new Array(S), lastEnd: number[] = new Array(S);
+    const SIM = Math.min(N, 20000);                    // จำลองพอถึง steady-state แล้ว extrapolate ที่เหลือ
+    const ring = per.map(p => new Array(p.m).fill(setupSec));   // เวลาว่างล่าสุดของ m เครื่องต่อสถานี
+    for (let p = 0; p < SIM; p++) {
+      let prevOut = setupSec;                          // ชิ้นเข้าสถานีแรกหลัง setup
+      for (let i = 0; i < S; i++) {
+        const slot = p % per[i].m;
+        const startT = Math.max(prevOut, ring[i][slot]);
+        const outT = startT + per[i].t;
+        ring[i][slot] = outT;
+        if (p === 0) firstStart[i] = startT;
+        if (p === SIM - 1) lastEnd[i] = outT;
+        prevOut = outT;
+      }
+    }
+    if (N > SIM) { const extra = (N - SIM) * bottleneck; for (let i = 0; i < S; i++) lastEnd[i] += extra; }
+    perPos.forEach((idx, i) => { rows[idx].start = firstStart[i]; rows[idx].end = lastEnd[i]; });
+
+    // 3) ขั้นปิดท้าย = once ที่อยู่ "หลัง" สถานีผลิตสุดท้าย (เช่น Store/Packing) ต่อจากผลิตเสร็จ
+    let tcum = lastEnd.length ? Math.max(...lastEnd) : setupSec;
+    steps.forEach((s, idx) => { if (s.timeScope === 'once' && idx > lastPer) { rows[idx].start = tcum; rows[idx].end = tcum + rows[idx].t; tcum += rows[idx].t; } });
+  }
+
+  const axisMax = rows.reduce((mx, r) => Math.max(mx, r.end), 0);
+
+  // ── layout ──
+  const LX = 176, TITLE_H = 34, H1 = 26, H2 = 24, ROW_H = 46, BAR_H = 22, PADR = 26;
+  const plotTop = TITLE_H + H1 + H2;
+  const R = rows.length;
+  const plotBot = plotTop + R * ROW_H;
+
+  if (!R || axisMax <= 0) {
+    const Wsvg = LX + 720 + PADR;
+    return `<svg viewBox="0 0 ${Wsvg} 120" width="${Wsvg}" height="120" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif"><text x="${Wsvg / 2}" y="60" text-anchor="middle" font-size="13" fill="#94a3b8">ยังไม่มีขั้นตอนที่มีเวลา — เพิ่มขั้นตอน + ใส่เวลาเพื่อดู Gantt</text></svg>`;
+  }
+
+  // ── เลือกหน่วยเวลาช่องย่อยแบบกลมๆ ให้ได้ ~6 ช่อง ──
+  const NICE = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 300, 600, 900, 1200, 1800, 2700, 3600, 7200, 10800, 14400, 21600, 43200, 86400, 172800, 432000, 864000];
+  let step = NICE[NICE.length - 1];
+  for (const s of NICE) { if (axisMax / s <= 6) { step = s; break; } }
+  const minorCount = Math.max(1, Math.ceil(axisMax / step));
+  const gridMax = minorCount * step;
+  const GROUP = 3;                                   // จับช่องย่อย 3 ช่อง = 1 ช่วงใหญ่ (เหมือน Q = 3 เดือน)
+
+  const colW = Math.min(160, Math.max(78, Math.round(760 / minorCount)));
+  const W = colW * minorCount;
+  const Wsvg = LX + W + PADR;
+  const svgH = plotBot + 18;
+  const x = (t: number) => LX + (t / gridMax) * W;
+
+  const C_BLUE = '#1e86c7', C_GREY = '#eceff1', C_GRID = '#d6dee6', C_GRIDH = '#e7ecf2', C_ONCE = '#818cf8';
+  const parts: string[] = [];
+
+  // title + total
+  parts.push(`<text x="0" y="22" font-size="15" font-weight="800" fill="#0f3f5f">📊 Gantt · Timeline การผลิต — ${esc(N.toLocaleString())} ชิ้น</text>`);
+  parts.push(`<text x="${Wsvg}" y="22" text-anchor="end" font-size="11" fill="#64748b">รวม ≈ ${esc(fmtTime(Math.round(axisMax)))}</text>`);
+
+  // header: Task Name cell (คร่อม 2 แถว)
+  parts.push(`<rect x="0" y="${TITLE_H}" width="${LX}" height="${H1 + H2}" fill="${C_BLUE}"/>`);
+  parts.push(`<text x="16" y="${TITLE_H + (H1 + H2) / 2}" dominant-baseline="central" font-size="15" font-weight="700" fill="#fff">Task Name</text>`);
+
+  // header ชั้นบน (ช่วงใหญ่ · น้ำเงิน)
+  for (let g = 0; g * GROUP < minorCount; g++) {
+    const c0 = g * GROUP, c1 = Math.min(minorCount, (g + 1) * GROUP);
+    const gx1 = x(c0 * step), gx2 = x(c1 * step);
+    parts.push(`<rect x="${gx1}" y="${TITLE_H}" width="${gx2 - gx1}" height="${H1}" fill="${C_BLUE}"/>`);
+    if (g > 0) parts.push(`<line x1="${gx1}" y1="${TITLE_H}" x2="${gx1}" y2="${TITLE_H + H1}" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1"/>`);
+    parts.push(`<text x="${gx1 + 8}" y="${TITLE_H + H1 / 2}" dominant-baseline="central" font-size="12.5" font-weight="700" fill="#fff">${esc(`${fmtTime(c0 * step)} – ${fmtTime(c1 * step)}`)}</text>`);
+  }
+  // header ชั้นล่าง (ช่องย่อย · เทา)
+  const y2 = TITLE_H + H1;
+  parts.push(`<rect x="${LX}" y="${y2}" width="${W}" height="${H2}" fill="${C_GREY}"/>`);
+  for (let k = 0; k < minorCount; k++) {
+    const cx1 = x(k * step), cx2 = x((k + 1) * step);
+    if (k > 0) parts.push(`<line x1="${cx1}" y1="${y2}" x2="${cx1}" y2="${y2 + H2}" stroke="#cbd5e1" stroke-width="1"/>`);
+    parts.push(`<text x="${(cx1 + cx2) / 2}" y="${y2 + H2 / 2}" text-anchor="middle" dominant-baseline="central" font-size="11.5" fill="#37474f">${esc(fmtTime((k + 1) * step))}</text>`);
+  }
+
+  // grid แนวตั้ง (ตามช่องย่อย) ทะลุถึงล่าง
+  for (let k = 0; k <= minorCount; k++) {
+    const gx = x(k * step);
+    parts.push(`<line x1="${gx}" y1="${plotTop}" x2="${gx}" y2="${plotBot}" stroke="${C_GRID}" stroke-width="1"/>`);
+  }
+  // grid แนวนอน (ตามแถว) ทะลุทั้งกว้าง
+  for (let r = 0; r <= R; r++) {
+    const gy = plotTop + r * ROW_H;
+    parts.push(`<line x1="0" y1="${gy}" x2="${LX + W}" y2="${gy}" stroke="${C_GRIDH}" stroke-width="1"/>`);
+  }
+
+  // แถว: ชื่อ task + แท่ง
+  rows.forEach((r, i) => {
+    const ry = plotTop + i * ROW_H, mid = ry + ROW_H / 2;
+    parts.push(`<text x="14" y="${mid - 6}" dominant-baseline="central" font-size="14.5" fill="#263238">${esc(r.label)}</text>`);
+    parts.push(`<text x="14" y="${mid + 11}" dominant-baseline="central" font-size="9.5" fill="#90a0ac">${esc(r.once ? `ครั้งเดียว · ${fmtTime(r.t)}` : `×${r.m} เครื่อง · ${fmtTime(r.t)}/ชิ้น`)}</text>`);
+    const bx = x(r.start), bw = Math.max(3, x(r.end) - x(r.start)), by = mid - BAR_H / 2;
+    const fill = r.once ? C_ONCE : 'url(#gg)';
+    parts.push(`<rect x="${bx.toFixed(1)}" y="${by}" width="${bw.toFixed(1)}" height="${BAR_H}" rx="4" fill="${fill}"/>`);
+    const durTxt = fmtTime(Math.round(r.end - r.start));
+    if (bx + bw + 46 < LX + W) parts.push(`<text x="${(bx + bw + 7).toFixed(1)}" y="${mid}" dominant-baseline="central" font-size="10" fill="#64748b">${esc(durTxt)}</text>`);
+    else parts.push(`<text x="${(bx + bw - 7).toFixed(1)}" y="${mid}" text-anchor="end" dominant-baseline="central" font-size="10" font-weight="600" fill="#fff">${esc(durTxt)}</text>`);
+  });
+
+  // เส้นแบ่ง task/timeline + กรอบนอก
+  parts.push(`<line x1="${LX}" y1="${TITLE_H}" x2="${LX}" y2="${plotBot}" stroke="#b4c1cf" stroke-width="1.5"/>`);
+  parts.push(`<rect x="0" y="${TITLE_H}" width="${LX + W}" height="${plotBot - TITLE_H}" fill="none" stroke="#b4c1cf" stroke-width="1.5"/>`);
+
+  const defs = `<defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4fc3e9"/><stop offset="1" stop-color="#1e86c7"/></linearGradient></defs>`;
+  return `<svg viewBox="0 0 ${Wsvg} ${svgH}" width="${Wsvg}" height="${svgH}" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif">${defs}${parts.join('')}</svg>`;
+}
+
 /* ── flowchart (SVG) → พิมพ์ (Save as PDF) ── */
 function exportFlowchartPdf(customer: string, model: string, svg: string) {
   const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -466,6 +607,7 @@ export function WorkflowBuilder() {
   const [qty, setQty] = useState<number | ''>('');
   const [steps, setSteps] = useState<Step[]>(initialSteps());
   const [showFlow, setShowFlow] = useState(false);
+  const [showGantt, setShowGantt] = useState(false);
   const [runFail, setRunFail] = useState<Set<string>>(new Set());
   // กระบวนการ SMT แยก 2 กลุ่ม: default (มาตรฐาน คงที่) + custom (ผู้ใช้เพิ่มเอง ลบได้) — แต่ละกลุ่มเรียง A-Z
   const [customProcs, setCustomProcs] = useState<string[]>(() => {
@@ -513,13 +655,15 @@ export function WorkflowBuilder() {
   const effSec = (s: Step) => Number(s.seconds) || 0;
   const unitSec = (s: Step) => effSec(s);
   const setupSec   = steps.reduce((sum, s) => sum + (s.timeScope === 'once' ? effSec(s) : 0), 0);
-  const perUnitSec = steps.reduce((sum, s) => sum + (s.timeScope === 'once' ? 0 : unitSec(s)), 0);
-  const lotSec = setupSec + steps.reduce((sum, s) => {
-    if (s.timeScope === 'once') return sum;
-    return sum + unitSec(s) * qtyN / stationsOf(s);
-  }, 0);
+  const perUnitSec = steps.reduce((sum, s) => sum + (s.timeScope === 'once' ? 0 : unitSec(s)), 0);  // latency: 1 ชิ้นผ่านครบสาย
+  // เวลารวมทั้งล็อตแบบ "สายพาน" (pipeline/flow-shop) — ชิ้นถัดไปไม่รอชิ้นก่อนจบทั้งสาย
+  // = เวลาครั้งเดียว(setup/รับของ/คลัง) + latency ชิ้นแรก + (N−1) × คอขวด (สถานีต่อชิ้นที่ช้าสุด ÷ เครื่องขนาน)
+  const perUnitSteps = steps.filter(s => s.timeScope !== 'once');
+  const bottleneckSec = perUnitSteps.reduce((m, s) => Math.max(m, effSec(s) / stationsOf(s)), 0);
+  const lotSec = qtyN > 0 ? setupSec + perUnitSec + (qtyN - 1) * bottleneckSec : setupSec + perUnitSec;
   const totalSec = Math.round(perUnitSec);
   const flowSvg = buildFlowSvg(steps);
+  const ganttSvg = buildGanttSvg(steps, qtyN);
   const checkpoints = steps.filter(s => s.kind === 'checkpoint');
   const overallRun = checkpoints.some(s => runFail.has(s.id)) ? 'FAIL' : 'PASS';
   const smtCount = steps.filter(s => s.role === 'smt').length;
@@ -852,15 +996,20 @@ export function WorkflowBuilder() {
             <strong style={{ fontSize: '1.05rem', color: '#166534' }}>{fmtTime(Math.round(perUnitSec))}</strong>
           </div>
           <div style={{ background: '#fff', borderRadius: 8, border: '2px solid #38bdf8', padding: '10px 12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>📦 รวมทั้งล็อต (ประมาณ)</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>📦 รวมทั้งล็อต (สายพาน)</div>
             <strong style={{ fontSize: '1.15rem', color: '#0284c7' }}>{qtyN > 0 ? fmtTime(Math.round(lotSec)) : '— ใส่ Qty —'}</strong>
+          </div>
+          <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0f2fe', padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>⛓️ คอขวด (สถานีช้าสุด/ชิ้น)</div>
+            <strong style={{ fontSize: '1.05rem', color: '#b45309' }}>{fmtTime(Math.round(bottleneckSec))}</strong>
           </div>
         </div>
         <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: 12, lineHeight: 1.6, background: '#fff', border: '1px solid #e0f2fe', borderRadius: 6, padding: '9px 12px' }}>
-          📦 <strong>รวมทั้งล็อต</strong> = <strong style={{ color: '#155e75' }}>{fmtTime(Math.round(setupSec))}</strong> <span style={{ color: '#64748b' }}>(เวลาครั้งเดียว)</span>
-          {' '}<strong>+</strong> <strong style={{ color: '#166534' }}>{fmtTime(Math.round(perUnitSec))}</strong><span style={{ color: '#64748b' }}>/ชิ้น</span> <strong>×</strong> {qtyN > 0 ? `${qtyN.toLocaleString()} ชิ้น` : '— ใส่ Qty —'} <span style={{ color: '#64748b' }}>(÷ เครื่องที่ทำขนานในแต่ละขั้น)</span>
+          📦 <strong>รวมทั้งล็อต (แบบสายพาน)</strong> = <strong style={{ color: '#155e75' }}>{fmtTime(Math.round(setupSec))}</strong> <span style={{ color: '#64748b' }}>(ครั้งเดียว)</span>
+          {' '}<strong>+</strong> <strong style={{ color: '#166534' }}>{fmtTime(Math.round(perUnitSec))}</strong> <span style={{ color: '#64748b' }}>(ชิ้นแรกผ่านครบสาย)</span>
+          {' '}<strong>+</strong> ({qtyN > 0 ? `${qtyN.toLocaleString()}` : 'N'}−1) <strong>×</strong> <strong style={{ color: '#b45309' }}>{fmtTime(Math.round(bottleneckSec))}</strong> <span style={{ color: '#64748b' }}>(คอขวด)</span>
           {qtyN > 0 && <> {' '}<strong>≈</strong> <strong style={{ color: '#0284c7' }}>{fmtTime(Math.round(lotSec))}</strong></>}
-          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 5 }}>เป็น<strong>ค่าประมาณการ</strong>สำหรับวางแผน — เวลาจริงขึ้นกับคิว/เครื่องว่าง/การพัก ต้องวัดหน้างาน</div>
+          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 5 }}>คิดแบบ<strong>สายพาน</strong>: ชิ้นถัดไปไม่รอชิ้นก่อนจบทั้งสาย เข้าสถานีถัดไปได้เลย จึงทำพร้อมกันได้ (parallel) — หลังสายเต็มแล้ว ผลผลิตออกทุกๆ "คอขวด" · เป็นค่าประมาณการ เวลาจริงขึ้นกับคิว/การพัก</div>
         </div>
       </div>
 
@@ -903,11 +1052,16 @@ export function WorkflowBuilder() {
         </div>
       )}
 
-      {/* Gen FlowChart */}
+      {/* Gen FlowChart / Gantt */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button type="button" className="btn" onClick={() => setShowFlow(v => !v)} disabled={steps.length === 0}
           style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}>
           {showFlow ? 'ซ่อน FlowChart' : '🔀 Gen FlowChart'}
+        </button>
+        <button type="button" className="btn" onClick={() => setShowGantt(v => !v)} disabled={steps.length === 0 || !qtyN}
+          title={!qtyN ? 'กรอกจำนวนผลิต (Qty) ก่อน' : ''}
+          style={{ background: '#0891b2', borderColor: '#0891b2', color: '#fff', fontWeight: 600 }}>
+          {showGantt ? 'ซ่อน Gantt' : '📊 Gen Gantt'}
         </button>
       </div>
 
@@ -934,6 +1088,28 @@ export function WorkflowBuilder() {
             <summary style={{ cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Mermaid</summary>
             <pre style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8, padding: 12, fontSize: '0.8rem', overflowX: 'auto', marginTop: 8 }}>{toMermaid(steps)}</pre>
           </details>
+        </div>
+      )}
+
+      {showGantt && (
+        <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>Gantt · Timeline การผลิต</h3>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(customer, model, ganttSvg)}>🖨️ Export PDF</button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · Qty: <strong>{qtyN.toLocaleString()}</strong> ชิ้น</span>
+            <span style={{ width: 1, height: 14, background: '#e2e8f0' }} />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 16, height: 11, borderRadius: 3, background: '#818cf8', display: 'inline-block' }} /> Set up (ครั้งเดียว)
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 16, height: 11, borderRadius: 3, background: 'linear-gradient(90deg,#4fc3e9,#1e86c7)', display: 'inline-block' }} /> สถานีผลิต
+            </span>
+            <span style={{ width: 1, height: 14, background: '#e2e8f0' }} />
+            <span>แต่ละแถว = 1 สถานี · แท่ง = ตั้งแต่ชิ้นแรกเข้า → ชิ้นสุดท้ายออก (แท่งเหลื่อมกัน = ทำพร้อมกัน)</span>
+          </div>
+          <div style={{ overflowX: 'auto', padding: '8px 0' }} dangerouslySetInnerHTML={{ __html: ganttSvg }} />
         </div>
       )}
 
