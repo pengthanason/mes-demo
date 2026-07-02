@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import QcBoard from './quality/index.jsx';
 import { QcResultPage } from './QcResultPage';
 import { ReworkPage } from './ReworkPage';
@@ -7,7 +7,10 @@ type Tab = 'board' | 'result' | 'rework';
 
 /* รวม QC Board (สแกนทีละชิ้น) · QC Result (สรุปผลตามล็อต) · Rework (งานซ่อม) ไว้ในหน้าเดียว */
 export function QcPage() {
-  const [tab, setTab] = useState<Tab>('board');
+  const [params, setParams] = useSearchParams();
+  const p = params.get('tab');
+  const tab: Tab = (p === 'result' || p === 'rework') ? p : 'board';   // แท็บอ่านจาก URL (?tab=)
+  const setTab = (t: Tab) => setParams({ tab: t }, { replace: true });
   return (
     <section className="stack-lg">
       <div className="panel">

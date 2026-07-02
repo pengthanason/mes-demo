@@ -605,7 +605,13 @@ export function WorkflowBuilder() {
   const [customer, setCustomer] = useState('');
   const [model, setModel] = useState('');
   const [qty, setQty] = useState<number | ''>('');
-  const [steps, setSteps] = useState<Step[]>(initialSteps());
+  // Routing แยก 2 แท็บ: Internal (ในโรงงาน) / External (จ้างข้างนอก) — แต่ละแท็บมี routing ของตัวเอง
+  // steps = ชุดของแท็บที่เลือกอยู่ · setSteps เขียนกลับเฉพาะแท็บนั้น → โค้ดคำนวณ/Gantt/Flow/save เดิมทำงานต่อได้เลย
+  const [tab, setTab] = useState<'internal' | 'external'>('internal');
+  const [stepsMap, setStepsMap] = useState<{ internal: Step[]; external: Step[] }>(() => ({ internal: initialSteps(), external: initialSteps() }));
+  const steps = stepsMap[tab];
+  const setSteps: React.Dispatch<React.SetStateAction<Step[]>> = (u) =>
+    setStepsMap(m => ({ ...m, [tab]: typeof u === 'function' ? (u as (p: Step[]) => Step[])(m[tab]) : u }));
   const [showFlow, setShowFlow] = useState(false);
   const [showGantt, setShowGantt] = useState(false);
   const [runFail, setRunFail] = useState<Set<string>>(new Set());
@@ -635,6 +641,8 @@ export function WorkflowBuilder() {
   const recordResult = useWorkflowResultCreate();
   const delResult = useWorkflowResultDelete();
   const { data: results = [] } = useWorkflowResults();
+  const [resTab, setResTab] = useState<'internal' | 'external'>('internal');   // แท็บของตาราง "ผลการบันทึก" (เลือกดูแยกได้เอง)
+  const tabResults = results.filter(r => r.line === resTab);
 
   // เครื่อง/สถานี — ลิสต์ในดรอปดาวของแต่ละ process (ผู้ใช้เพิ่ม/ลบเองได้ เก็บใน localStorage)
   const [machines, setMachines] = useState<string[]>(() => {
@@ -802,7 +810,7 @@ export function WorkflowBuilder() {
     const perStep = steps.map(s => ({ process: s.process, result: (s.kind === 'checkpoint' && runFail.has(s.id)) ? 'FAIL' : 'PASS' }));
     const seqStr = steps.map(s => `${s.process}${s.timeScope === 'per_unit' ? '×N' : ''}${s.kind === 'checkpoint' && runFail.has(s.id) ? '❌' : ''}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
     recordResult.mutate(
-      { serial: serial.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: overallRun, total_sec: totalSec, steps: perStep },
+      { serial: serial.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: overallRun, total_sec: totalSec, line: tab, steps: perStep },
       {
         onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${overallRun}) สำเร็จ`, 'success'); setSerial(''); setRunFail(new Set()); },
         onError: (e: any) => showToast(e.message, 'error'),
@@ -862,6 +870,20 @@ export function WorkflowBuilder() {
               + เพิ่มขั้นตอน
             </button>
           )}
+        </div>
+
+        {/* แท็บ Internal / External — แต่ละแท็บมี routing แยกกัน (เลือกสถานี/ลากขยับได้เหมือนกัน) */}
+        <div style={{ display: 'flex', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 14, width: 'fit-content' }}>
+          {([['internal', '🏭 Internal'], ['external', '🚚 External']] as const).map(([k, label]) => (
+            <button key={k} type="button" onClick={() => { if (tab !== k) { setTab(k); setRunFail(new Set()); setShowFlow(false); setShowGantt(false); } }}
+              style={{
+                padding: '7px 22px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700,
+                background: tab === k ? '#fff' : 'transparent', color: tab === k ? 'var(--brand)' : '#64748b',
+                boxShadow: tab === k ? '0 1px 3px rgba(0,0,0,0.14)' : 'none', transition: 'all .12s',
+              }}>
+              {label} <span style={{ fontWeight: 600, color: tab === k ? '#94a3b8' : '#b0bac6' }}>({stepsMap[k].length})</span>
+            </button>
+          ))}
         </div>
 
 
@@ -1113,9 +1135,22 @@ export function WorkflowBuilder() {
         </div>
       )}
 
-      {/* ตารางผล */}
+      {/* ตารางผล — มีแท็บ Internal/External ของตัวเอง (เลือกดูแยกได้อิสระ) */}
       <div>
-        <h3 className="panel__title panel__title--sm" style={{ marginBottom: 10 }}>📋 ผลการบันทึก {results.length > 0 && `(${results.length})`}</h3>
+        <h3 className="panel__title panel__title--sm" style={{ marginBottom: 10 }}>📋 ผลการบันทึก</h3>
+        {/* แท็บเลือกดูผลตามสาย — เหมือนแถบด้านบน */}
+        <div style={{ display: 'flex', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 12, width: 'fit-content' }}>
+          {([['internal', '🏭 Internal'], ['external', '🚚 External']] as const).map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setResTab(k)}
+              style={{
+                padding: '7px 22px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700,
+                background: resTab === k ? '#fff' : 'transparent', color: resTab === k ? 'var(--brand)' : '#64748b',
+                boxShadow: resTab === k ? '0 1px 3px rgba(0,0,0,0.14)' : 'none', transition: 'all .12s',
+              }}>
+              {label} <span style={{ fontWeight: 600, color: resTab === k ? '#94a3b8' : '#b0bac6' }}>({results.filter(r => r.line === k).length})</span>
+            </button>
+          ))}
+        </div>
         <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <table className="table" style={{ minWidth: 760 }}>
             <thead>
@@ -1124,9 +1159,9 @@ export function WorkflowBuilder() {
               </tr>
             </thead>
             <tbody>
-              {results.length === 0 ? (
-                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>ยังไม่มีผลที่บันทึก — กรอก Serial + เวลา แล้วกด “บันทึกผล”</td></tr>
-              ) : results.map(r => (
+              {tabResults.length === 0 ? (
+                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>ยังไม่มีผลของสาย {resTab === 'external' ? 'External' : 'Internal'} — กรอก Serial + เวลา แล้วกด “บันทึกผล”</td></tr>
+              ) : tabResults.map(r => (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: '#64748b' }}>{fmtDateTime(r.created_at)}</td>
                   <td style={{ fontWeight: 600 }}>{r.serial}</td>

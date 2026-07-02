@@ -392,14 +392,14 @@ const workflows: any[] = [
   ] },
 ];
 const workflowResults: any[] = [
-  { id: 1, serial: 'SN-0001', customer: 'Toyota TH', model: 'Water Level Rice', sequence: 'CHECK MATERIAL(30s) → SMT(30s) → TEST(30s)', result: 'PASS', total_sec: 90, created_at: '2026-06-14T08:00:00Z' },
-  { id: 2, serial: 'SN-0002', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(20s) → TEST❌(15s)', result: 'FAIL', total_sec: 35, created_at: '2026-06-14T09:00:00Z' },
-  { id: 3, serial: 'SN-0003', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(45s) → FCT TEST(90s) → PACKING(25s)', result: 'PASS', total_sec: 160, created_at: '2026-06-14T09:30:00Z' },
-  { id: 4, serial: 'SN-0004', customer: 'Denso Corp', model: 'MOT-4500', sequence: 'WAV(60s) → ICT TEST(75s) → PACKING(40s)', result: 'PASS', total_sec: 175, created_at: '2026-06-14T10:00:00Z' },
-  { id: 5, serial: 'SN-0005', customer: 'AISIN', model: 'SEN-100', sequence: 'SMT(35s) → TEST❌(50s)', result: 'FAIL', total_sec: 85, created_at: '2026-06-14T10:30:00Z' },
-  { id: 6, serial: 'PCBA-0001', customer: 'Thanason Electronics', model: 'PCBA-X200', sequence: 'SOLDER PASTE PRINT(18s) → SPI(12s) → SMT PICK & PLACE(40s) → REFLOW(30s) → AOI(20s) → THT(45s) → WAVE(35s) → ICT(60s) → FCT(90s) → PACKING(25s)', result: 'PASS', total_sec: 375, created_at: '2026-06-20T13:00:00Z' },
-  { id: 7, serial: 'PCBA-0002', customer: 'Thanason Electronics', model: 'PCBA-X200', sequence: 'SPI(12s) → AOI❌(20s)', result: 'FAIL', total_sec: 32, created_at: '2026-06-20T13:20:00Z' },
-  { id: 8, serial: 'PCBA-0003', customer: 'Thanason Electronics', model: 'PCBA-S50', sequence: 'SOLDER PASTE PRINT(15s) → SPI(10s) → SMT PICK & PLACE(35s) → REFLOW(28s) → AOI(18s) → FCT(70s) → PACKING(20s)', result: 'PASS', total_sec: 196, created_at: '2026-06-21T14:00:00Z' },
+  { id: 1, serial: 'SN-0001', customer: 'Toyota TH', model: 'Water Level Rice', sequence: 'CHECK MATERIAL(30s) → SMT(30s) → TEST(30s)', result: 'PASS', total_sec: 90, line: 'internal', created_at: '2026-06-14T08:00:00Z' },
+  { id: 2, serial: 'SN-0002', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(20s) → TEST❌(15s)', result: 'FAIL', total_sec: 35, line: 'internal', created_at: '2026-06-14T09:00:00Z' },
+  { id: 3, serial: 'SN-0003', customer: 'Honda Mfg', model: 'SMARTNAV', sequence: 'SMT(45s) → FCT TEST(90s) → PACKING(25s)', result: 'PASS', total_sec: 160, line: 'external', created_at: '2026-06-14T09:30:00Z' },
+  { id: 4, serial: 'SN-0004', customer: 'Denso Corp', model: 'MOT-4500', sequence: 'WAV(60s) → ICT TEST(75s) → PACKING(40s)', result: 'PASS', total_sec: 175, line: 'external', created_at: '2026-06-14T10:00:00Z' },
+  { id: 5, serial: 'SN-0005', customer: 'AISIN', model: 'SEN-100', sequence: 'SMT(35s) → TEST❌(50s)', result: 'FAIL', total_sec: 85, line: 'internal', created_at: '2026-06-14T10:30:00Z' },
+  { id: 6, serial: 'PCBA-0001', customer: 'Thanason Electronics', model: 'PCBA-X200', sequence: 'SOLDER PASTE PRINT(18s) → SPI(12s) → SMT PICK & PLACE(40s) → REFLOW(30s) → AOI(20s) → THT(45s) → WAVE(35s) → ICT(60s) → FCT(90s) → PACKING(25s)', result: 'PASS', total_sec: 375, line: 'internal', created_at: '2026-06-20T13:00:00Z' },
+  { id: 7, serial: 'PCBA-0002', customer: 'Thanason Electronics', model: 'PCBA-X200', sequence: 'SPI(12s) → AOI❌(20s)', result: 'FAIL', total_sec: 32, line: 'internal', created_at: '2026-06-20T13:20:00Z' },
+  { id: 8, serial: 'PCBA-0003', customer: 'Thanason Electronics', model: 'PCBA-S50', sequence: 'SOLDER PASTE PRINT(15s) → SPI(10s) → SMT PICK & PLACE(35s) → REFLOW(28s) → AOI(18s) → FCT(70s) → PACKING(20s)', result: 'PASS', total_sec: 196, line: 'external', created_at: '2026-06-21T14:00:00Z' },
 ];
 
 function ok(data: unknown) { return HttpResponse.json({ status: 'success', data }); }
@@ -459,7 +459,7 @@ export const handlers = [
   http.get('/api/workflow/results', () => ok(workflowResults)),
   http.post('/api/workflow/results', async ({ request }) => {
     const b: any = await request.json();
-    const row = { id: ++_wfrId, serial: b.serial, customer: b.customer || '', model: b.model || '', sequence: b.sequence || '', result: b.result === 'FAIL' ? 'FAIL' : 'PASS', total_sec: Number(b.total_sec) || 0, created_at: now() };
+    const row = { id: ++_wfrId, serial: b.serial, customer: b.customer || '', model: b.model || '', sequence: b.sequence || '', result: b.result === 'FAIL' ? 'FAIL' : 'PASS', total_sec: Number(b.total_sec) || 0, line: b.line === 'external' ? 'external' : 'internal', created_at: now() };
     workflowResults.unshift(row);
     return HttpResponse.json({ status: 'success', data: row }, { status: 201 });
   }),

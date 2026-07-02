@@ -44,7 +44,7 @@ router.delete('/:id', async (req, res) => {
 router.get('/results', async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, serial, customer, model, sequence, result, total_sec, created_at FROM workflow_results ORDER BY created_at DESC'
+      'SELECT id, serial, customer, model, sequence, result, total_sec, line, created_at FROM workflow_results ORDER BY created_at DESC'
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
@@ -53,18 +53,19 @@ router.get('/results', async (req, res) => {
 });
 
 router.post('/results', async (req, res) => {
-  const { serial, customer, model, sequence, result, total_sec, steps } = req.body;
+  const { serial, customer, model, sequence, result, total_sec, line, steps } = req.body;
   if (!serial || !String(serial).trim()) {
     return res.status(400).json({ status: 'error', message: 'ต้องมี Serial Number' });
   }
   const r = (result === 'FAIL') ? 'FAIL' : 'PASS';
+  const ln = (line === 'external') ? 'external' : 'internal';
   const sn = String(serial).trim();
   try {
     const { rows } = await db.query(
-      `INSERT INTO workflow_results (serial, customer, model, sequence, result, total_sec)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING id, serial, customer, model, sequence, result, total_sec, created_at`,
-      [sn, customer || '', model || '', sequence || '', r, Number(total_sec) || 0]
+      `INSERT INTO workflow_results (serial, customer, model, sequence, result, total_sec, line)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id, serial, customer, model, sequence, result, total_sec, line, created_at`,
+      [sn, customer || '', model || '', sequence || '', r, Number(total_sec) || 0, ln]
     );
     // ป้อนข้อมูลเข้า traceability: เขียน production_scans 1 แถวต่อ 1 กระบวนการ (ค้น serial ใน Traceability เจอ + กราฟรายวันมีข้อมูล)
     if (Array.isArray(steps) && steps.length) {

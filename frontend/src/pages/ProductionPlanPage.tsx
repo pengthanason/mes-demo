@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ProjectForm } from '../components/ppParts';
 import { WorkflowBuilder } from '../components/WorkflowBuilder';
 
@@ -20,7 +20,9 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export function ProductionPlanPage() {
-  const [tab, setTab] = useState<Tab>('add');
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = params.get('tab') === 'workflow' ? 'workflow' : 'add';   // แท็บอ่านจาก URL (?tab=) → เมนูย่อยใน sidebar ลิงก์มาได้
+  const setTab = (t: Tab) => setParams({ tab: t }, { replace: true });
   return (
     <section className="stack-lg">
       <div className="panel">

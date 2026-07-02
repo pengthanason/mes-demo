@@ -26,19 +26,30 @@ import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificatio
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ─── Sidebar nav items ─────────────────────────────────────────────
+// sub = เมนูย่อย (แท็บในหน้า) → คลิกไป ?tab=<tab> · แท็บแรก = ค่าเริ่มต้นของหน้า
 const MAIN_ITEMS = [
   { to: '/dashboard',        label: 'Dashboard' },
-  { to: '/production-plan',  label: 'Production Plan' },
+  { to: '/production-plan',  label: 'Production Plan', sub: [
+    { tab: 'add',      label: 'Production Plan' },
+    { tab: 'workflow', label: 'Workflow' },
+  ] },
   { to: '/incoming',         label: 'Incoming & Kitting' },
   { to: '/work-orders',      label: 'Work Orders' },
   { to: '/jig-test',         label: 'Jig Test' },
   { to: '/oba',              label: 'OBA' },
   { to: '/4m-change',        label: '4M Change' },
   { to: '/scm-cases',        label: 'SCM Cases' },
-  { to: '/qc-board',         label: 'QC' },
+  { to: '/qc-board',         label: 'QC', sub: [
+    { tab: 'board',  label: 'QC Board' },
+    { tab: 'result', label: 'QC Result' },
+    { tab: 'rework', label: 'Rework' },
+  ] },
   { to: '/equipment-borrow', label: 'Equipment Borrow' },
   { to: '/notifications',    label: 'Notifications' },
-  { to: '/admin/panel',      label: 'Admin Panel' },
+  { to: '/admin/panel',      label: 'Admin Panel', sub: [
+    { tab: 'users', label: 'จัดการผู้ใช้' },
+    { tab: 'audit', label: 'Audit Log' },
+  ] },
 ];
 
 const SIDEBAR_BG   = 'var(--sidebar-bg)';
@@ -73,15 +84,54 @@ function menuActive(path, to) {
   return (SIDEBAR_ALIAS[to] || []).some(p => path.startsWith(p));      // sub-route คนละ prefix
 }
 
-function SidebarItem({ to, label, expanded, onClick, innerRef, external }) {
+// เมนูย่อย (แท็บ) — ลิงก์ไป ?tab= · แสดงเยื้องเข้ามาใต้เมนูแม่ (accordion)
+function SubLink({ to, label, active, onClick, innerRef }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <Link
+      ref={innerRef}
+      to={to}
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'block',
+        padding: '0.45rem 0.75rem 0.45rem 1.75rem',
+        borderRadius: 6,
+        fontSize: '0.95rem',
+        color: (active || hov) ? 'var(--frame-text-active)' : 'rgba(255,255,255,0.62)',
+        background: 'transparent',   // ไฮไลต์ใช้ pill ที่เลื่อนได้ (ครอบทั้งเมนูหลัก/ย่อย) · hover = แค่ตัวอักษรขาว
+        fontWeight: active ? 600 : 400,
+        textDecoration: 'none',
+        marginBottom: 2,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        position: 'relative',
+        zIndex: 1,
+        transition: 'color 0.15s',
+      }}
+    >
+      {label}
+    </Link>
+  );
+}
+
+function SidebarItem({ to, label, expanded, onClick, innerRef, external, hasSub, subOpen }) {
   const location = useLocation();
   const isActive = !external && menuActive(location.pathname, to);
   const [hov, setHov] = useState(false);
+  const labelNode = hasSub ? (
+    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+      <span style={{ fontSize: 10, opacity: 0.7, transition: 'transform 0.15s', transform: subOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▾</span>
+    </span>
+  ) : label;
   const itemStyle = {
     display: 'block',
-    padding: '0.5rem 0.75rem',
+    padding: '0.55rem 0.75rem',
     borderRadius: 6,
-    fontSize: '0.875rem',
+    fontSize: '1.02rem',
     color: (isActive || hov) ? 'var(--frame-text-active)' : SIDEBAR_TEXT,
     background: 'transparent',
     fontWeight: isActive ? 600 : 400,
@@ -133,7 +183,7 @@ function SidebarItem({ to, label, expanded, onClick, innerRef, external }) {
       onMouseLeave={() => setHov(false)}
       style={itemStyle}
     >
-      {expanded ? label : ''}
+      {expanded ? labelNode : ''}
     </Link>
   );
 }
@@ -156,42 +206,73 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
   const sliderRef = useRef(null);
   const itemRefs  = useRef({});
   const initialized = useRef(false);
+  const [openKey, setOpenKey] = useState(null);   // เมนูแม่ที่กำลัง hover → กาง accordion เมนูย่อย
+  const searchTab = new URLSearchParams(location.search).get('tab');
+  const SLIDE_TR = 'top 0.28s cubic-bezier(0.4,0,0.2,1), height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.15s';
 
+  // element ที่ active จริง — เมนูย่อยที่เลือกอยู่ (ถ้าหน้านั้นมีแท็บ) ไม่งั้นเมนูหลัก → แถบไฮไลต์ครอบทั้งหลัก/รอง
+  const resolveActiveEl = () => {
+    const activeItem = items.find(it => menuActive(location.pathname, it.to));
+    if (!activeItem) return null;
+    if (activeItem.sub && activeItem.sub.length) {
+      const eff = searchTab || activeItem.sub[0].tab;
+      return itemRefs.current[`${activeItem.to}?tab=${eff}`] || itemRefs.current[activeItem.to] || null;
+    }
+    return itemRefs.current[activeItem.to] || null;
+  };
+
+  // (A) เปลี่ยนหน้า/แท็บย่อย/เปิด-ปิดแถบ → แถบไฮไลต์ค่อยๆ slide ไปช่อง active ใหม่ (ทั้งเมนูหลักและเมนูย่อย)
   useEffect(() => {
     const slider = sliderRef.current;
     const list   = listRef.current;
     if (!slider || !list) return;
     if (!expanded) { slider.style.opacity = '0'; return; }
-    const path = location.pathname;
-    const activeItem = items.find(it => menuActive(path, it.to));   // รองรับ sub-route → เลื่อนแถบไปเมนูแม่
-    const el   = activeItem ? itemRefs.current[activeItem.to] : null;
+    const el = resolveActiveEl();
     if (!el) { slider.style.opacity = '0'; return; }
-    const top    = el.offsetTop;
-    const height = el.offsetHeight;
+    const apply = () => { slider.style.top = `${el.offsetTop}px`; slider.style.height = `${el.offsetHeight}px`; slider.style.opacity = '1'; };
     if (!initialized.current) {
       slider.style.transition = 'none';
-      slider.style.top    = `${top}px`;
-      slider.style.height = `${height}px`;
-      slider.style.opacity = '1';
-      requestAnimationFrame(() => {
-        if (slider) slider.style.transition = 'top 0.28s cubic-bezier(0.4,0,0.2,1), height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.15s';
-      });
+      apply();
+      requestAnimationFrame(() => { if (slider) slider.style.transition = SLIDE_TR; });
       initialized.current = true;
-    } else {
-      slider.style.top    = `${top}px`;
-      slider.style.height = `${height}px`;
-      slider.style.opacity = '1';
+      return;
     }
-  }, [location.pathname, auth.role, expanded]);
+    slider.style.transition = SLIDE_TR;
+    // chase ช่วงสั้นๆ เผื่อ accordion ของหน้าใหม่กำลังกาง (target ยังขยับ) → pill slide ตามจนนิ่ง
+    let raf; let stopped = false;
+    const t0 = performance.now();
+    const step = (now) => { apply(); if (!stopped && now - t0 < 340) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+    return () => { stopped = true; cancelAnimationFrame(raf); };
+  }, [location.pathname, location.search, auth.role, expanded]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // (B) accordion เปิด/ปิด (hover) → เมนูอื่นขยับตำแหน่ง · ให้แถบไฮไลต์ตามช่อง active แบบเรียลไทม์ทุกเฟรม (sync เป๊ะ ไม่หน่วง)
+  useEffect(() => {
+    const slider = sliderRef.current;
+    if (!slider || !expanded) return;
+    const el = resolveActiveEl();
+    if (!el) return;
+    slider.style.transition = 'none';   // ตามช่องเฟรมต่อเฟรม ไม่ให้มี lag ซ้อน
+    let raf; let stopped = false;
+    const t0 = performance.now();
+    const follow = (now) => {
+      slider.style.top = `${el.offsetTop}px`;
+      slider.style.height = `${el.offsetHeight}px`;
+      if (!stopped && now - t0 < 340) raf = requestAnimationFrame(follow);   // ตามจนกว่า accordion (0.3s) จะเลื่อนจบ
+      else slider.style.transition = SLIDE_TR;
+    };
+    raf = requestAnimationFrame(follow);
+    return () => { stopped = true; cancelAnimationFrame(raf); slider.style.transition = SLIDE_TR; };
+  }, [openKey]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const setItemRef = (to) => (el) => { if (el) itemRefs.current[to] = el; else delete itemRefs.current[to]; };
 
   return (
     <div
-      // โหมดเดิม (hover เข้า=กาง / ออก=ยุบ) — uncomment 2 บรรทัดนี้เพื่อกลับ:
-      // onMouseEnter={() => setExpanded(true)}
-      // onMouseLeave={() => setExpanded(false)}
-      onClick={() => { if (!expanded) setExpanded(true); }}   // กดที่แถบตอนยุบ = เปิด (ไม่ต้องกดเบอร์เกอร์)
+      // เดสก์ท็อป: เอาเมาส์ชี้เข้าแถบ = กางอัตโนมัติ · ออก = ยุบ + ปิด accordion
+      onMouseEnter={() => { if (isDesktop) setExpanded(true); }}
+      onMouseLeave={() => { if (isDesktop) { setExpanded(false); setOpenKey(null); } }}
+      onClick={() => { if (!expanded) setExpanded(true); }}   // มือถือ (ไม่มี hover): แตะที่แถบตอนยุบ = เปิด
       style={{
         position: 'fixed',
         left: 0, top: 0, bottom: 0,
@@ -249,9 +330,32 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
           zIndex: 0,
           opacity: 0,
         }} />
-        {items.map(item => (
-          <SidebarItem key={item.to} to={item.to} label={item.label} external={item.external} expanded={expanded} onClick={() => setExpanded(isDesktop)} innerRef={setItemRef(item.to)} />
-        ))}
+        {items.map(item => {
+          const hasSub = expanded && item.sub && item.sub.length > 0;
+          const parentActive = menuActive(location.pathname, item.to);
+          const open = hasSub && (openKey === item.to || parentActive);   // กางเมื่อ hover เมนูแม่ หรือกำลังอยู่หน้านั้น
+          const effTab = searchTab || (item.sub ? item.sub[0].tab : null);
+          return (
+            <div key={item.to} onMouseEnter={() => setOpenKey(item.to)}>
+              <SidebarItem to={item.to} label={item.label} external={item.external} expanded={expanded}
+                onClick={() => setExpanded(isDesktop)} innerRef={setItemRef(item.to)}
+                hasSub={hasSub} subOpen={open} />
+              {hasSub && (
+                // เมนูย่อย: animate ความสูงด้วย grid-rows 0fr↔1fr → ค่อยๆ เปิด/ปิด ลื่นๆ
+                <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
+                  <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                    {item.sub.map(s => (
+                      <SubLink key={s.tab} to={`${item.to}?tab=${s.tab}`} label={s.label}
+                        active={parentActive && effTab === s.tab}
+                        innerRef={setItemRef(`${item.to}?tab=${s.tab}`)}
+                        onClick={() => setExpanded(isDesktop)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
 
       </div>
 
@@ -535,9 +639,8 @@ function TopBar() {
 // ─── Shell ─────────────────────────────────────────────────────────
 function Shell({ children }) {
   const location = useLocation();
-  // const [expanded, setExpanded] = useState(false);   // เดิม: เริ่มยุบ + กางตอน hover
   const isDesktop = useMediaQuery('(min-width: 768px)');
-  const [expanded, setExpanded] = useState(isDesktop);   // คอมเปิด / มือถือยุบ — แชร์ให้ทั้ง Sidebar + content
+  const [expanded, setExpanded] = useState(false);   // เริ่มยุบเสมอ — เดสก์ท็อป: เอาเมาส์ชี้เข้าแถบ = กางอัตโนมัติ · มือถือ: แตะเปิด
   // เปิด sidebar = เนื้อหาขยับขวา "นิดเดียว" (SHIFT_ON_OPEN) ไม่ดันเต็มความกว้าง sidebar · sidebar กางทับส่วนที่เหลือแบบ drawer
   // เนื้อหายังอยู่กึ่งกลาง (margin auto) · ปรับเลข SHIFT_ON_OPEN เพื่อเพิ่ม/ลดระยะขยับ (0 = ไม่ขยับเลย)
   const SHIFT_ON_OPEN =  150;
