@@ -10,6 +10,7 @@ import { useJigProjects } from '../lib/jigApi';
 import { useDailyReport } from '../lib/traceApi';
 import { useReworkList } from '../lib/qcResultApi';
 import { useObaRecords } from '../lib/recordsApi';
+import { TRACE_URL } from '../lib/jigTrace';
 
 const rate = (pass: number, total: number) => total > 0 ? (pass / total) * 100 : null;
 const rateColor = (r: number | null) => r == null ? '#94a3b8' : r >= 95 ? '#16a34a' : r >= 85 ? '#d97706' : '#dc2626';
@@ -105,7 +106,7 @@ export function FactoryOverview() {
 
         {/* KPI ข้ามโมดูล */}
         <div className="dash-grid-4" style={{ marginTop: '1.5rem' }}>
-          <ClickCard to="/traceability" external="https://jig-api.syntechnology.com/traceability/knex_gw" icon="✅" label="Production Pass Rate" value={pct(m.prodRate)} accent={rateColor(m.prodRate)} />
+          <ClickCard to="/traceability" external={TRACE_URL} icon="✅" label="Production Pass Rate" value={pct(m.prodRate)} accent={rateColor(m.prodRate)} />
           <ClickCard to="/jig-test" icon="🧪" label="Jig Pass Rate" value={pct(m.jigRate)} accent={rateColor(m.jigRate)} />
           <ClickCard to="/production-plan" icon="📑" label="OBA Pass Rate" value={pct(m.obaRate)} accent={rateColor(m.obaRate)} />
           <ClickCard to="/production-plan" icon="🔀" label="เดินสาย Pass Rate" value={pct(m.wfRate)} accent={rateColor(m.wfRate)} />

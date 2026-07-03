@@ -23,6 +23,7 @@ import { DashboardPage } from './pages/DashboardPage.tsx';
 import { IncomingKittingPage } from './pages/IncomingKittingPage.tsx';
 import { WorkOrdersPage } from './pages/WorkOrdersPage.tsx';
 import { QcPage } from './pages/QcPage.tsx';
+import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
 import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -37,6 +38,7 @@ const MAIN_ITEMS = [
   { to: '/incoming',         label: 'Incoming & Kitting' },
   { to: '/work-orders',      label: 'Work Orders' },
   { to: '/jig-test',         label: 'Jig Test' },
+  { to: '/traceability',     label: 'Traceability', perm: 'jig_test' },
   { to: '/oba',              label: 'OBA' },
   { to: '/4m-change',        label: '4M Change' },
   { to: '/scm-cases',        label: 'SCM Cases' },
@@ -195,8 +197,8 @@ const ROUTE_PERM = Object.fromEntries(PERMISSIONS.map(p => [p.route, p.key]));
 
 function visibleMainItems(auth) {
   const eff = effectivePerms(auth?.role, auth?.permissions);
-  // Dashboard เป็นหน้าหลักที่ทุกคนเข้าได้เสมอ (เป็นปลายทาง fallback) · ที่เหลือกรองตามสิทธิ์
-  return MAIN_ITEMS.filter(i => i.to === '/dashboard' || !ROUTE_PERM[i.to] || eff.includes(ROUTE_PERM[i.to]));
+  // Dashboard เป็นหน้าหลักที่ทุกคนเข้าได้เสมอ (เป็นปลายทาง fallback) · ที่เหลือกรองตามสิทธิ์ (perm ที่ระบุ หรือ map จาก route)
+  return MAIN_ITEMS.filter(i => { const pk = i.perm || ROUTE_PERM[i.to]; return i.to === '/dashboard' || !pk || eff.includes(pk); });
 }
 
 function Sidebar({ expanded, setExpanded, isDesktop }) {
@@ -755,6 +757,7 @@ export default function App() {
               <Route path="/fai/:woId"         element={<PermGuard perm="work_orders"><FaiPage /></PermGuard>} />
               <Route path="/notifications"     element={<PermGuard perm="notifications"><NotificationsPage /></PermGuard>} />
               <Route path="/jig-test/:projectCode" element={<PermGuard perm="jig_test"><JigProjectPage /></PermGuard>} />
+              <Route path="/traceability"      element={<PermGuard perm="jig_test"><TraceabilityPage /></PermGuard>} />
               <Route path="/admin/panel"       element={<PermGuard perm="admin"><AdminPanelPage /></PermGuard>} />
               <Route path="/equipment-borrow" element={<PermGuard perm="equipment"><EquipmentBorrowPage /></PermGuard>} />
               <Route path="*"                  element={<Navigate to="/dashboard" replace />} />

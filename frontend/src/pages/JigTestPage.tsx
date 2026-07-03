@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useJigProjects, useJigProjectCreate, useJigProjectDelete, JigProject } from '../lib/jigApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
-
-// KNEX_GW — การ์ดจริง เชื่อมระบบ Traceability ภายนอก (ข้อมูล trace ดึงจากเว็บนี้)
-const TRACE_URL = 'https://jig-api.syntechnology.com/traceability/knex_gw';
+import { TRACE_URL } from '../lib/jigTrace';   // KNEX_GW — URL Traceability ภายนอก (จาก env, ไม่ hardcode)
 
 function PassRateBar({ rate }: { rate: number }) {
   const color = rate >= 95 ? '#22c55e' : rate >= 80 ? '#f59e0b' : '#ef4444';

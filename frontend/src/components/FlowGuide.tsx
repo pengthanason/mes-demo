@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { TRACE_URL } from '../lib/jigTrace';
 
 const KEY = 'mes_flowguide_collapsed';
 
@@ -9,7 +10,7 @@ const STEPS = [
   { n: 3, icon: '📦', title: 'Kitting', desc: 'เบิกของให้ WO เข้าไลน์ ตัด stock แบบ FIFO', to: '/incoming', color: '#6366f1' },
   { n: 4, icon: '🔀', title: 'Production Plan · Workflow', desc: 'สแกน Serial เดินกระบวนการ + บันทึกผล PASS/FAIL', to: '/production-plan', color: '#8b5cf6' },
   { n: 5, icon: '🧪', title: 'QC / Jig Test', desc: 'ตรวจคุณภาพชิ้นงาน — QC Board / Jig / OBA', to: '/qc-board', color: '#f59e0b' },
-  { n: 6, icon: '🧬', title: 'Traceability', desc: 'ค้น Serial ดูประวัติทุกสเตชัน + รายงานรายวัน', to: '/traceability', external: 'https://jig-api.syntechnology.com/traceability/knex_gw', color: '#0891b2' },
+  { n: 6, icon: '🧬', title: 'Traceability', desc: 'ค้น Serial ดูประวัติทุกสเตชัน + รายงานรายวัน', to: '/traceability', external: TRACE_URL, color: '#0891b2' },
 ];
 
 export function FlowGuide() {

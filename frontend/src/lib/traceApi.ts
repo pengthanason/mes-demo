@@ -58,3 +58,30 @@ export function useDailyReport() {
     },
   });
 }
+
+export interface BoxSummary { box_id: string; product: string; wo: string; packed_at: string; serial_count: number; }
+export interface BoxItem { serial: string; product: string; last_step: string; last_status: 'PASS' | 'FAIL'; }
+export interface BoxDetail extends BoxSummary { items: BoxItem[]; }
+
+export function useBoxList() {
+  return useQuery({
+    queryKey: ['trace-boxes'],
+    queryFn: async (): Promise<BoxSummary[]> => {
+      const res = await api.get('/jumbo/packing/boxes');
+      return (res.data as any)?.data ?? [];
+    },
+  });
+}
+
+export function useBoxDetail(boxId: string | null) {
+  return useQuery({
+    queryKey: ['trace-box', boxId],
+    enabled: !!boxId,
+    queryFn: async (): Promise<BoxDetail> => {
+      const res = await api.get(`/jumbo/packing/boxes/${encodeURIComponent(boxId!)}`);
+      if (res.status === 404 || res.status === 0) throw new Error((res.data as any)?.message || 'ไม่พบกล่องนี้');
+      return (res.data as any)?.data;
+    },
+    retry: false,
+  });
+}

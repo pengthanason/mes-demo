@@ -72,6 +72,10 @@ export function useWoBoard() {
     queryKey: WO_BOARD_KEY,
     queryFn: async (): Promise<MockWO[]> => {
       const res = await api.get<{ data: WoBoardRow[] }>('/wo/board');
+      // api.ts ไม่ throw เอง (คืน status/data) → เช็คเองเพื่อให้ error state ทำงาน (401/500/เชื่อมต่อไม่ได้)
+      if (res.status >= 400 || res.status === 0) {
+        throw new Error(res.status === 401 ? 'ไม่มีสิทธิ์ (401) — กรุณาล็อกอินใหม่' : 'โหลดรายการ WO ไม่สำเร็จ');
+      }
       const rows = (res.data as any)?.data ?? [];
       return rows.map(mapRow);
     },

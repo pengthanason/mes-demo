@@ -23,7 +23,7 @@ function StepBadge({ step }: { step: string }) {
 export function WorkOrdersPage() {
   const navigate = useNavigate();
   const isViewer = useIsViewer();
-  const { data: wos = [], isLoading } = useWoBoard();
+  const { data: wos = [], isLoading, isError, error, refetch } = useWoBoard();
   const create = useWoCreate();
   const [showForm, setShowForm] = useState(false);
   const [page, setPage] = useState(1);
@@ -111,6 +111,13 @@ export function WorkOrdersPage() {
             <tbody>
               {isLoading ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+              ) : isError ? (
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 10, alignItems: 'center', color: '#dc2626' }}>
+                    <span>⚠️ {(error as Error)?.message || 'โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่'}</span>
+                    <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => refetch()}>ลองใหม่</button>
+                  </div>
+                </td></tr>
               ) : paged.length === 0 ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มี Work Order — กด “+ เปิด WO” เพื่อเริ่ม</td></tr>
               ) : paged.map(w => (
