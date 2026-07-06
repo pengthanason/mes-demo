@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -5,6 +6,13 @@ import react from '@vitejs/plugin-react'
 // Dev: vite dev server at 5101 with /api proxy → 5100
 export default defineConfig({
   plugins: [react()],
+  // Unit test (Vitest + Testing Library) — FE-16
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test-setup.ts',
+    css: false,
+  },
   // Relative base makes assets work whether the app is mounted at /ui/ (direct
   // backbone) or /mes-api/ui/ (via external nginx reverse proxy).
   base: './',
