@@ -485,6 +485,7 @@ type ExportMeta = {
   title?: string; customer?: string; model?: string; pn?: string;
   issuedBy?: string; checkedBy?: string; approvedBy?: string;
   revNo?: string; revDate?: string; revDesc?: string;
+  filename?: string;   // ชื่อไฟล์ (ใช้เป็น title → default ตอน Save as PDF)
   form?: boolean;   // true = เจนเป็นฟอร์ม PROCESS FLOW CHART (FM 05) · false = เอกสารทั่วไป (เช่น Gantt)
 };
 
@@ -494,7 +495,7 @@ function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
   if (!svg) { showToast('ยังไม่มีแผนภาพให้พิมพ์ — กด Gen ก่อน', 'error'); return; }
   const {
     title = 'Manufacturing Workflow', customer = '', model = '', pn = '',
-    issuedBy = '', checkedBy = '', approvedBy = '', revNo = '00', revDate = '', revDesc = 'ออกเอกสารใหม่', form = false,
+    issuedBy = '', checkedBy = '', approvedBy = '', revNo = '', revDate = '', revDesc = '', filename = '', form = false,
   } = meta;
 
   const body = form ? `
@@ -530,13 +531,16 @@ function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
     <div class="diagram">${svg}</div>
   `;
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(form ? 'Process Flow Chart' : title)}</title>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(filename || (form ? 'Process Flow Chart' : title))}</title>
     <style>
       @page { size: A4; margin: 10mm; }
       body{font-family:'Segoe UI',Tahoma,sans-serif;color:#1e293b;padding:${form ? '0' : '24px'};text-align:${form ? 'left' : 'center'}}
       h1{font-size:20px;margin-bottom:2px}.sub{color:#64748b;margin-bottom:24px;font-size:13px}
-      .diagram{text-align:center;margin:14px 0}.diagram svg{max-width:100%;height:auto}
-      .hdr,.rev,.legend{border-collapse:collapse}
+      .diagram{text-align:center;margin:12px 0;page-break-inside:avoid;break-inside:avoid}
+      /* ย่อแผนภาพให้พอดี 1 หน้าเสมอ (จำกัดทั้งกว้าง+สูง) + จัดกึ่งกลาง — ไม่ให้ล้น/ตัดกลางองค์ประกอบ */
+      .diagram svg{max-width:100%;max-height:${form ? '176mm' : '250mm'};width:auto;height:auto;display:block;margin:0 auto}
+      .hdr,.rev,.legend{border-collapse:collapse;page-break-inside:avoid;break-inside:avoid}
+      .hdr tr,.rev tr,.legend tr{page-break-inside:avoid;break-inside:avoid}
       .hdr{width:100%}.hdr td{border:1px solid #333;padding:4px 8px;font-size:12px;vertical-align:top}
       .hdr .logo{text-align:center;width:20%}.hdr .brand{font-weight:800;color:#0a7d3f;font-size:15px}.hdr .brand-sub{font-size:8px;color:#666}
       .hdr .title{text-align:center;font-style:italic;font-weight:800;font-size:18px}
@@ -551,6 +555,62 @@ function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
   const w = window.open('', '_blank');
   if (!w) { showToast('เบราว์เซอร์บล็อก popup — อนุญาตก่อนพิมพ์', 'error'); return; }
   w.document.write(html); w.document.close();
+}
+
+// ── ป็อปอัพก่อน Export PDF — flow: กรอกข้อมูลเอกสาร+ชื่อไฟล์ · gantt: ชื่อไฟล์อย่างเดียว ──
+type ExportForm = { filename: string; customer: string; model: string; pn: string; issuedBy: string; checkedBy: string; approvedBy: string; revNo: string; revDesc: string };
+function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'flow' | 'gantt'; initial: ExportForm; onCancel: () => void; onConfirm: (f: ExportForm) => void }) {
+  const [f, setF] = useState<ExportForm>({ ...initial, filename: `${initial.filename}.pdf` });
+  const set = (k: keyof ExportForm, v: string) => setF(p => ({ ...p, [k]: v }));
+  const nameRef = useRef<HTMLInputElement>(null);
+  // เปิดมา → คลุม(ไฮไลต์)เฉพาะส่วนชื่อ ไม่รวม ".pdf" (เหมือนหน้า Dashboard)
+  useEffect(() => {
+    const el = nameRef.current; if (!el) return;
+    el.focus();
+    const dot = el.value.lastIndexOf('.');
+    el.setSelectionRange(0, dot > 0 ? dot : el.value.length);
+  }, []);
+  const confirm = () => {
+    let name = f.filename.trim(); if (!name) return;
+    if (!name.toLowerCase().endsWith('.pdf')) name = `${name.replace(/\.+$/, '')}.pdf`;   // กันลืมนามสกุล → เติม .pdf ให้
+    onConfirm({ ...f, filename: name });
+  };
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 760px)' }}>
+        <h2 className="panel__title" style={{ marginBottom: 4 }}>🖨️ Export {mode === 'flow' ? 'Process Flow Chart (PDF)' : 'Gantt (PDF)'}</h2>
+        <p className="panel__subtitle" style={{ marginTop: 0 }}>{mode === 'flow' ? 'ตั้งชื่อไฟล์ + กรอกข้อมูลเอกสาร (เว้นว่างได้) แล้วกด Export' : 'ตั้งชื่อไฟล์แล้วกด Export'}</p>
+        <div className="stack" style={{ marginTop: '0.9rem', gap: '0.75rem' }}>
+          <label className="field"><span>ชื่อไฟล์ (.pdf)</span>
+            <input ref={nameRef} value={f.filename} onChange={e => set('filename', e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } else if (e.key === 'Escape') onCancel(); }} />
+          </label>
+          {mode === 'flow' && (
+            <>
+              <div className="filters-grid">
+                <label className="field"><span>Customer</span><input value={f.customer} onChange={e => set('customer', e.target.value)} /></label>
+                <label className="field"><span>Model</span><input value={f.model} onChange={e => set('model', e.target.value)} /></label>
+                <label className="field"><span>P/N</span><input value={f.pn} onChange={e => set('pn', e.target.value)} /></label>
+              </div>
+              <div className="filters-grid">
+                <label className="field"><span>Issued by</span><input value={f.issuedBy} onChange={e => set('issuedBy', e.target.value)} /></label>
+                <label className="field"><span>Checked by</span><input value={f.checkedBy} onChange={e => set('checkedBy', e.target.value)} /></label>
+                <label className="field"><span>Approved by</span><input value={f.approvedBy} onChange={e => set('approvedBy', e.target.value)} /></label>
+              </div>
+              <div className="filters-grid">
+                <label className="field"><span>Revision</span><input value={f.revNo} onChange={e => set('revNo', e.target.value)} /></label>
+                <label className="field" style={{ gridColumn: 'span 2' }}><span>Description</span><input value={f.revDesc} onChange={e => set('revDesc', e.target.value)} /></label>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="modal-actions" style={{ marginTop: '1.1rem' }}>
+          <button type="button" className="btn secondary" onClick={onCancel}>ยกเลิก</button>
+          <button type="button" className="btn" onClick={confirm}>🖨️ Export</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
@@ -693,8 +753,9 @@ export function WorkflowBuilder() {
   const [issuedBy, setIssuedBy] = useState('');
   const [checkedBy, setCheckedBy] = useState('');
   const [approvedBy, setApprovedBy] = useState('');
-  const [revNo, setRevNo] = useState('00');
-  const [revDesc, setRevDesc] = useState('ออกเอกสารใหม่');
+  const [revNo, setRevNo] = useState('');
+  const [revDesc, setRevDesc] = useState('');
+  const [exportMode, setExportMode] = useState<'flow' | 'gantt' | null>(null);   // ป็อปอัพ Export PDF
   const [customer, setCustomer] = useState('');
   const [model, setModel] = useState('');
   const [qty, setQty] = useState<number | ''>('');
@@ -979,28 +1040,6 @@ export function WorkflowBuilder() {
         </label>
       </div>
 
-      {/* ข้อมูลหัวเอกสาร Process Flow Chart (FM 05) — ใช้ตอน Export PDF */}
-      <details style={{ marginBottom: 15 }}>
-        <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-muted)' }}>📄 ข้อมูลเอกสาร Process Flow Chart (Issued / Checked / Approved / Revision)</summary>
-        <div className="filters-grid" style={{ marginTop: 10 }}>
-          <label className="field"><span>Issued by</span>
-            <input value={issuedBy} onChange={e => setIssuedBy(e.target.value)} placeholder="ผู้จัดทำ" disabled={isViewer} />
-          </label>
-          <label className="field"><span>Checked by</span>
-            <input value={checkedBy} onChange={e => setCheckedBy(e.target.value)} placeholder="ผู้ตรวจ" disabled={isViewer} />
-          </label>
-          <label className="field"><span>Approved by</span>
-            <input value={approvedBy} onChange={e => setApprovedBy(e.target.value)} placeholder="ผู้อนุมัติ" disabled={isViewer} />
-          </label>
-          <label className="field"><span>Revision</span>
-            <input value={revNo} onChange={e => setRevNo(e.target.value)} placeholder="00" disabled={isViewer} />
-          </label>
-          <label className="field"><span>Description</span>
-            <input value={revDesc} onChange={e => setRevDesc(e.target.value)} placeholder="ออกเอกสารใหม่" disabled={isViewer} />
-          </label>
-        </div>
-      </details>
-
       {/* presets bar */}
       <div style={{ marginBottom: 15, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'var(--bg-panel)', padding: 15, borderRadius: 6, border: '1px solid var(--border-color)' }}>
         <strong style={{ fontSize: '0.9rem', color: 'var(--text-muted)', minWidth: 80 }}>⚙️ Preset:</strong>
@@ -1271,7 +1310,7 @@ export function WorkflowBuilder() {
         <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>FlowChart</h3>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(flowSvg, { form: true, title: 'PROCESS FLOW CHART', customer, model, pn, issuedBy, checkedBy, approvedBy, revNo, revDesc, revDate: new Date().toLocaleDateString('th-TH') })}>🖨️ Export PDF (ฟอร์ม FM 05)</button>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => setExportMode('flow')}>🖨️ Export PDF (ฟอร์ม FM 05)</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · P/N: <strong>{pn || '—'}</strong></span>
@@ -1297,7 +1336,7 @@ export function WorkflowBuilder() {
         <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>Gantt · Timeline การผลิต</h3>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(ganttSvg, { title: 'Manufacturing Workflow — Gantt', customer, model, pn })}>🖨️ Export PDF</button>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => setExportMode('gantt')}>🖨️ Export PDF</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · Qty: <strong>{qtyN.toLocaleString()}</strong> ชิ้น</span>
@@ -1365,6 +1404,34 @@ export function WorkflowBuilder() {
           <Paginator page={resPage} totalPages={resTotalPages} onPage={setResPage} total={shownResults.length} />
         )}
       </div>
+
+      {exportMode && (
+        <ExportDialog
+          mode={exportMode}
+          initial={{
+            filename: exportMode === 'flow'
+              ? `Process Flow Chart - ${model || pn || 'workflow'}`
+              : `Gantt - ${model || pn || 'workflow'}`,
+            customer, model, pn, issuedBy, checkedBy, approvedBy, revNo, revDesc,
+          }}
+          onCancel={() => setExportMode(null)}
+          onConfirm={(fm) => {
+            if (exportMode === 'flow') {
+              // จำค่าเอกสารไว้เป็นค่าเริ่มต้นครั้งถัดไป
+              setIssuedBy(fm.issuedBy); setCheckedBy(fm.checkedBy); setApprovedBy(fm.approvedBy); setRevNo(fm.revNo); setRevDesc(fm.revDesc);
+              exportFlowchartPdf(flowSvg, {
+                form: true, title: 'PROCESS FLOW CHART', filename: fm.filename,
+                customer: fm.customer, model: fm.model, pn: fm.pn,
+                issuedBy: fm.issuedBy, checkedBy: fm.checkedBy, approvedBy: fm.approvedBy,
+                revNo: fm.revNo, revDesc: fm.revDesc, revDate: new Date().toLocaleDateString('th-TH'),
+              });
+            } else {
+              exportFlowchartPdf(ganttSvg, { title: 'Manufacturing Workflow — Gantt', filename: fm.filename, customer: fm.customer, model: fm.model, pn: fm.pn });
+            }
+            setExportMode(null);
+          }}
+        />
+      )}
     </div>
   );
 }
