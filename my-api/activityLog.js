@@ -67,12 +67,11 @@ module.exports = function activityLog(req, res, next) {
       const id = pickId(type, row, pathId);
       const action = `${verb}_${type.toUpperCase()}`;
       const detail = `${th} ${label}${name ? `: ${name}` : (id ? ` #${id}` : '')}`;
-      console.log(`[activity] ${method} ${p} -> ${action} ${name || id || ''} (${res.statusCode})`);
       db.query(
         `INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES ($1,$2,$3,$4,$5)`,
         [actorFromReq(req), action, type, id, detail]
-      ).catch((e) => console.error('[activity] insert failed:', e.message));
-    } catch (e) { console.error('[activity] handler error:', e && e.message); }
+      ).catch(() => {});
+    } catch { /* noop */ }
   });
   next();
 };

@@ -24,6 +24,7 @@ import { IncomingKittingPage } from './pages/IncomingKittingPage.tsx';
 import { WorkOrdersPage } from './pages/WorkOrdersPage.tsx';
 import { QcPage } from './pages/QcPage.tsx';
 import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
+import { DriftViewerPage } from './pages/DriftViewerPage.tsx';
 import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -36,6 +37,7 @@ const MAIN_ITEMS = [
     { tab: 'workflow', label: 'Workflow' },
   ] },
   { to: '/incoming',         label: 'Incoming & Kitting' },
+  { to: '/drift',            label: 'Stock vs Odoo' },
   { to: '/work-orders',      label: 'Work Orders' },
   { to: '/jig-test',         label: 'Jig Test' },
   { to: '/traceability',     label: 'Traceability', perm: 'jig_test' },
@@ -758,6 +760,7 @@ export default function App() {
               <Route path="/notifications"     element={<PermGuard perm="notifications"><NotificationsPage /></PermGuard>} />
               <Route path="/jig-test/:projectCode" element={<PermGuard perm="jig_test"><JigProjectPage /></PermGuard>} />
               <Route path="/traceability"      element={<PermGuard perm="jig_test"><TraceabilityPage /></PermGuard>} />
+              <Route path="/drift"             element={<AuthGuard><DriftViewerPage /></AuthGuard>} />
               <Route path="/admin/panel"       element={<PermGuard perm="admin"><AdminPanelPage /></PermGuard>} />
               <Route path="/equipment-borrow" element={<PermGuard perm="equipment"><EquipmentBorrowPage /></PermGuard>} />
               <Route path="*"                  element={<Navigate to="/dashboard" replace />} />

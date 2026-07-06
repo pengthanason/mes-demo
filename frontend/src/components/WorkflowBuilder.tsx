@@ -481,19 +481,73 @@ function buildGanttSvg(steps: Step[], qty: number): string {
 }
 
 /* ── flowchart (SVG) → พิมพ์ (Save as PDF) ── */
-function exportFlowchartPdf(customer: string, model: string, svg: string) {
-  const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  if (!svg) { showToast('ยังไม่มี FlowChart ให้พิมพ์ — กด Gen FlowChart ก่อน', 'error'); return; }
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Workflow</title>
-    <style>
-      body{font-family:'Segoe UI',Tahoma,sans-serif;padding:32px;color:#1e293b;text-align:center}
-      h1{font-size:20px;margin-bottom:2px}.sub{color:#64748b;margin-bottom:24px;font-size:13px}
-      .diagram svg{max-width:100%;height:auto}
-    </style></head>
-    <body><h1>Manufacturing Workflow</h1>
-    <div class="sub">Customer: ${esc(customer || '-')} &nbsp;|&nbsp; Model: ${esc(model || '-')}</div>
+type ExportMeta = {
+  title?: string; customer?: string; model?: string; pn?: string;
+  issuedBy?: string; checkedBy?: string; approvedBy?: string;
+  revNo?: string; revDate?: string; revDesc?: string;
+  form?: boolean;   // true = เจนเป็นฟอร์ม PROCESS FLOW CHART (FM 05) · false = เอกสารทั่วไป (เช่น Gantt)
+};
+
+// เจน/พิมพ์แผนภาพเป็น PDF — โหมด form = ฟอร์ม FM 05 (SYNTECH Process Flow Chart) ตามเอกสารจริง
+function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
+  const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  if (!svg) { showToast('ยังไม่มีแผนภาพให้พิมพ์ — กด Gen ก่อน', 'error'); return; }
+  const {
+    title = 'Manufacturing Workflow', customer = '', model = '', pn = '',
+    issuedBy = '', checkedBy = '', approvedBy = '', revNo = '00', revDate = '', revDesc = 'ออกเอกสารใหม่', form = false,
+  } = meta;
+
+  const body = form ? `
+    <table class="hdr">
+      <tr>
+        <td class="logo" rowspan="2"><div class="brand">SYNTECH</div><div class="brand-sub">Empowering Professionals</div></td>
+        <td class="title" rowspan="2">PROCESS FLOW CHART</td>
+        <td class="pg" colspan="3">Page 1 of 1</td>
+      </tr>
+      <tr>
+        <td class="sig">Issued :<div>${esc(issuedBy)}</div></td>
+        <td class="sig">Checked :<div>${esc(checkedBy)}</div></td>
+        <td class="sig">Approved :<div>${esc(approvedBy)}</div></td>
+      </tr>
+      <tr><td class="info" colspan="5">Customer : <b>${esc(customer || '-')}</b> &nbsp;&nbsp;|&nbsp;&nbsp; Model : <b>${esc(model || '-')}</b> &nbsp;&nbsp;|&nbsp;&nbsp; P/N : <b>${esc(pn || '-')}</b></td></tr>
+    </table>
+    <table class="rev">
+      <tr><th style="width:8%">Item</th><th style="width:16%">Date</th><th style="width:16%">Revision</th><th>Description</th></tr>
+      <tr><td style="text-align:center">1</td><td>${esc(revDate)}</td><td style="text-align:center">${esc(revNo)}</td><td>${esc(revDesc)}</td></tr>
+    </table>
     <div class="diagram">${svg}</div>
-    <script>window.onload=()=>window.print()</script></body></html>`;
+    <table class="legend">
+      <tr><td class="lh" colspan="4">Flow chart symbol</td></tr>
+      <tr><td class="sym">▷</td><td>Transport</td><td class="sym">◇</td><td>Quality check</td></tr>
+      <tr><td class="sym">▽</td><td>Keeping</td><td class="sym">—</td><td>Flow of process</td></tr>
+      <tr><td class="sym">⬡</td><td>Process with quality check</td><td class="sym">◯</td><td>Process</td></tr>
+      <tr><td class="sym">⬡</td><td>Quality check with quantity check</td><td class="sym">▢</td><td>Quantity check</td></tr>
+    </table>
+    <div class="foot">FM 05 Rev.02 Ref. EN-P-02</div>
+  ` : `
+    <h1>${esc(title)}</h1>
+    <div class="sub">Customer: ${esc(customer || '-')} &nbsp;|&nbsp; Model: ${esc(model || '-')}${pn ? ` &nbsp;|&nbsp; P/N: ${esc(pn)}` : ''}</div>
+    <div class="diagram">${svg}</div>
+  `;
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(form ? 'Process Flow Chart' : title)}</title>
+    <style>
+      @page { size: A4; margin: 10mm; }
+      body{font-family:'Segoe UI',Tahoma,sans-serif;color:#1e293b;padding:${form ? '0' : '24px'};text-align:${form ? 'left' : 'center'}}
+      h1{font-size:20px;margin-bottom:2px}.sub{color:#64748b;margin-bottom:24px;font-size:13px}
+      .diagram{text-align:center;margin:14px 0}.diagram svg{max-width:100%;height:auto}
+      .hdr,.rev,.legend{border-collapse:collapse}
+      .hdr{width:100%}.hdr td{border:1px solid #333;padding:4px 8px;font-size:12px;vertical-align:top}
+      .hdr .logo{text-align:center;width:20%}.hdr .brand{font-weight:800;color:#0a7d3f;font-size:15px}.hdr .brand-sub{font-size:8px;color:#666}
+      .hdr .title{text-align:center;font-style:italic;font-weight:800;font-size:18px}
+      .hdr .pg{text-align:right;font-size:11px}
+      .hdr .sig{font-size:11px;height:32px;width:20%}.hdr .sig div{margin-top:6px;font-weight:600}
+      .hdr .info{font-size:12px}
+      .rev{width:100%;margin-top:-1px}.rev th,.rev td{border:1px solid #333;padding:4px 8px;font-size:11px;text-align:left}.rev th{background:#f1f5f9}
+      .legend{margin-top:10px}.legend td{border:1px solid #333;padding:3px 8px;font-size:11px}.legend .lh{font-weight:700;background:#f1f5f9}.legend .sym{text-align:center;width:30px;font-size:14px}
+      .foot{text-align:right;font-size:10px;color:#666;margin-top:12px}
+    </style></head>
+    <body>${body}<script>window.onload=()=>window.print()</script></body></html>`;
   const w = window.open('', '_blank');
   if (!w) { showToast('เบราว์เซอร์บล็อก popup — อนุญาตก่อนพิมพ์', 'error'); return; }
   w.document.write(html); w.document.close();
@@ -634,7 +688,13 @@ function MachineCell({ step, isViewer, setStep, machineGroups, onAddMachine, onD
 
 export function WorkflowBuilder() {
   const isViewer = useIsViewer();
-  const [serial, setSerial] = useState('');
+  const [pn, setPn] = useState('');   // P/N (Part Number) — ส่งเข้า field serial ของ API เดิม
+  // ข้อมูลหัวเอกสาร Process Flow Chart (FM 05) — ใช้ตอน Export PDF
+  const [issuedBy, setIssuedBy] = useState('');
+  const [checkedBy, setCheckedBy] = useState('');
+  const [approvedBy, setApprovedBy] = useState('');
+  const [revNo, setRevNo] = useState('00');
+  const [revDesc, setRevDesc] = useState('ออกเอกสารใหม่');
   const [customer, setCustomer] = useState('');
   const [model, setModel] = useState('');
   const [qty, setQty] = useState<number | ''>('');
@@ -874,16 +934,16 @@ export function WorkflowBuilder() {
 
   /* บันทึกผลรันจริง */
   function record() {
-    if (!serial.trim()) { showToast('กรุณากรอก Serial Number', 'error'); return; }
+    if (!pn.trim()) { showToast('กรุณากรอก P/N', 'error'); return; }
     if (steps.some(s => s.seconds === '' || Number(s.seconds) <= 0)) {
       showToast('กรุณากรอกเวลาให้ครบทุกกระบวนการ', 'error'); return;
     }
     const perStep = steps.map(s => ({ process: s.process, result: (s.kind === 'checkpoint' && runFail.has(s.id)) ? 'FAIL' : 'PASS' }));
     const seqStr = steps.map(s => `${s.process}${s.timeScope === 'per_unit' ? '×N' : ''}${s.kind === 'checkpoint' && runFail.has(s.id) ? '❌' : ''}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
     recordResult.mutate(
-      { serial: serial.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: overallRun, total_sec: totalSec, line: tab, steps: perStep },
+      { serial: pn.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: overallRun, total_sec: totalSec, line: tab, steps: perStep },
       {
-        onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${overallRun}) สำเร็จ`, 'success'); setSerial(''); setRunFail(new Set()); },
+        onSuccess: () => { showToast(`บันทึกผล ${pn.trim()} (${overallRun}) สำเร็จ`, 'success'); setPn(''); setRunFail(new Set()); },
         onError: (e: any) => showToast(e.message, 'error'),
       }
     );
@@ -906,10 +966,10 @@ export function WorkflowBuilder() {
         </div>
       </div>
 
-      {/* Serial + Customer + Model */}
+      {/* P/N + Customer + Model */}
       <div className="filters-grid" style={{ marginBottom: 15 }}>
-        <label className="field"><span>Serial Number</span>
-          <input value={serial} onChange={e => setSerial(e.target.value)} placeholder="กรอก SN..." disabled={isViewer} />
+        <label className="field"><span>P/N (Part Number)</span>
+          <input value={pn} onChange={e => setPn(e.target.value)} placeholder="กรอก P/N..." disabled={isViewer} />
         </label>
         <label className="field"><span>Customer</span>
           <input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="ชื่อลูกค้า" disabled={isViewer} />
@@ -918,6 +978,28 @@ export function WorkflowBuilder() {
           <input value={model} onChange={e => setModel(e.target.value)} placeholder="ชื่อรุ่น" disabled={isViewer} />
         </label>
       </div>
+
+      {/* ข้อมูลหัวเอกสาร Process Flow Chart (FM 05) — ใช้ตอน Export PDF */}
+      <details style={{ marginBottom: 15 }}>
+        <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-muted)' }}>📄 ข้อมูลเอกสาร Process Flow Chart (Issued / Checked / Approved / Revision)</summary>
+        <div className="filters-grid" style={{ marginTop: 10 }}>
+          <label className="field"><span>Issued by</span>
+            <input value={issuedBy} onChange={e => setIssuedBy(e.target.value)} placeholder="ผู้จัดทำ" disabled={isViewer} />
+          </label>
+          <label className="field"><span>Checked by</span>
+            <input value={checkedBy} onChange={e => setCheckedBy(e.target.value)} placeholder="ผู้ตรวจ" disabled={isViewer} />
+          </label>
+          <label className="field"><span>Approved by</span>
+            <input value={approvedBy} onChange={e => setApprovedBy(e.target.value)} placeholder="ผู้อนุมัติ" disabled={isViewer} />
+          </label>
+          <label className="field"><span>Revision</span>
+            <input value={revNo} onChange={e => setRevNo(e.target.value)} placeholder="00" disabled={isViewer} />
+          </label>
+          <label className="field"><span>Description</span>
+            <input value={revDesc} onChange={e => setRevDesc(e.target.value)} placeholder="ออกเอกสารใหม่" disabled={isViewer} />
+          </label>
+        </div>
+      </details>
 
       {/* presets bar */}
       <div style={{ marginBottom: 15, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'var(--bg-panel)', padding: 15, borderRadius: 6, border: '1px solid var(--border-color)' }}>
@@ -1136,7 +1218,7 @@ export function WorkflowBuilder() {
       {/* บันทึกผลเดินสายผลิต */}
       {!isViewer && (
         <div style={{ padding: 15, background: 'var(--bg-panel)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
-          <div style={{ fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10 }}>📝 บันทึกผลเดินสายผลิต (Serial จริง)</div>
+          <div style={{ fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10 }}>📝 บันทึกผลเดินสายผลิต (P/N จริง)</div>
           {checkpoints.length === 0 ? (
             <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: 10 }}>ยังไม่มีขั้น SMT — ผลรวมจะเป็น PASS โดยอัตโนมัติ</div>
           ) : (
@@ -1164,7 +1246,7 @@ export function WorkflowBuilder() {
                 </span>
               )}
             </div>
-            <button type="button" className="btn" onClick={record} disabled={!serial.trim() || recordResult.isPending}
+            <button type="button" className="btn" onClick={record} disabled={!pn.trim() || recordResult.isPending}
               style={{ background: '#27ae60', borderColor: '#27ae60', color: '#fff', fontWeight: 600, minHeight: 42, padding: '0 24px' }}>
               {recordResult.isPending ? 'กำลังบันทึก...' : '💾 บันทึกผล'}
             </button>
@@ -1189,10 +1271,10 @@ export function WorkflowBuilder() {
         <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>FlowChart</h3>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(customer, model, flowSvg)}>🖨️ Export PDF</button>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(flowSvg, { form: true, title: 'PROCESS FLOW CHART', customer, model, pn, issuedBy, checkedBy, approvedBy, revNo, revDesc, revDate: new Date().toLocaleDateString('th-TH') })}>🖨️ Export PDF (ฟอร์ม FM 05)</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong></span>
+            <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · P/N: <strong>{pn || '—'}</strong></span>
             <span style={{ width: 1, height: 14, background: '#e2e8f0' }} />
             {([['รับของ', '#0891b2'], ['ตั้งเครื่อง', '#7c3aed'], ['SMT/ตรวจ', '#d97706'], ['แพ็ก', '#16a34a'], ['คลัง', '#64748b']] as const).map(([l, c]) => (
               <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -1215,7 +1297,7 @@ export function WorkflowBuilder() {
         <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>Gantt · Timeline การผลิต</h3>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(customer, model, ganttSvg)}>🖨️ Export PDF</button>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => exportFlowchartPdf(ganttSvg, { title: 'Manufacturing Workflow — Gantt', customer, model, pn })}>🖨️ Export PDF</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · Qty: <strong>{qtyN.toLocaleString()}</strong> ชิ้น</span>
@@ -1256,12 +1338,12 @@ export function WorkflowBuilder() {
           <table className="table" style={{ minWidth: 760 }}>
             <thead>
               <tr>
-                <th>วันที่/เวลา</th><th>Serial</th><th>Customer</th><th>Model</th><th>ลำดับกระบวนการ</th><th>Cycle</th><th>ผล</th>{!isViewer && <th></th>}
+                <th>วันที่/เวลา</th><th>P/N</th><th>Customer</th><th>Model</th><th>ลำดับกระบวนการ</th><th>Cycle</th><th>ผล</th>{!isViewer && <th></th>}
               </tr>
             </thead>
             <tbody>
               {shownResults.length === 0 ? (
-                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>{results.length === 0 ? 'ยังไม่มีผลที่บันทึก — กรอก Serial + เวลา แล้วกด “บันทึกผล”' : 'ไม่มีผลในสายที่เลือก — กด “รวมทั้งหมด” เพื่อดูทั้งหมด'}</td></tr>
+                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>{results.length === 0 ? 'ยังไม่มีผลที่บันทึก — กรอก P/N + เวลา แล้วกด “บันทึกผล”' : 'ไม่มีผลในสายที่เลือก — กด “รวมทั้งหมด” เพื่อดูทั้งหมด'}</td></tr>
               ) : pagedResults.map(r => (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: '#64748b' }}>{fmtDateTime(r.created_at)}</td>
