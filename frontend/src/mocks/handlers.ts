@@ -929,7 +929,7 @@ export const handlers = [
   }),
 
   // ── Auth (demo) ──────────────────────────────────────────────────────────
-  http.post('/api/auth/login', async ({ request }) => {
+  http.post('/api/mes/auth/login', async ({ request }) => {
     const b = await request.json() as any;
     const DEMO: Record<string, { role: string; name: string }> = {
       admin:   { role: 'ADMIN',  name: 'ผู้ดูแลระบบ' },

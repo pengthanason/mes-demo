@@ -85,10 +85,10 @@ export function mockLogin(username: string, password: string): boolean {
   return false;
 }
 
-// ตรวจ login กับ backend จริง (app_users + bcrypt) — แทนที่ mock เดิม
+// ตรวจ login กับ backend จริง (MES backbone /api/mes/auth/login) — FE-CONNECT #31
 export async function apiLogin(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch('/api/mes/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: username.trim(), password }),
