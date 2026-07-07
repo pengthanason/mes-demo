@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   useWorkflows, useWorkflowCreate, useWorkflowDelete,
-  useWorkflowResults, useWorkflowResultCreate, useWorkflowResultDelete,
+  useWorkflowResults, useWorkflowResultDelete,
   type Workflow,
 } from '../lib/workflowApi';
 import { useIsViewer } from '../lib/useMockStore';
@@ -56,6 +56,39 @@ const MACHINE_DEFAULT = ['SMT Line', 'FCT Tester', 'Setup Station'];
 // สถานีมาตรฐาน (built-in) ทุกกลุ่ม — ใช้เช็คว่า process ไหนเป็นของจริง (ไม่ต้องเก็บเป็น custom)
 const BUILTIN_PROCS = new Set([...SMT_DEFAULT, ...EXTERNAL_PROC, ...MAIN_OPTS, ...SETUP_OPTS].map(x => x.trim().toLowerCase()));
 const isBuiltinProc = (p: string) => BUILTIN_PROCS.has((p || '').trim().toLowerCase());
+
+// ── กระบวนการมาตรฐานตามฟอร์ม PROCESS FLOW CHART (FM 05) — ครอบคลุมทุกขั้นในเอกสาร RSU / JUMBO ──
+// qc = ขั้นตรวจ (จุดตัดสิน ผ่าน/ไม่ผ่าน = ◇) · once = ทำครั้งเดียวต่อล็อต · role = หมวด (สี/เวลา)
+type FormProc = { n: string; qc?: boolean; once?: boolean; role: Role };
+const FORM_PROCS: FormProc[] = [
+  { n: 'Warehouse Receives Material',       once: true, role: 'incoming' },   // คลังรับวัตถุดิบ + นับจำนวน
+  { n: 'QA Inspects Material',              qc: true, once: true, role: 'incoming' },
+  { n: 'Warehouse Stores Material',         once: true, role: 'store' },       // เลือกที่จัดเก็บวัตถุดิบ
+  { n: 'Issue Material to Production',       once: true, role: 'incoming' },    // เบิกเข้าสายผลิต
+  { n: 'Production Receives Material',       once: true, role: 'incoming' },
+  { n: 'QC Inspects Material (Production)',  qc: true, once: true, role: 'incoming' },
+  { n: 'Production Stores Material',         once: true, role: 'store' },
+  { n: 'Screen Printing',                   role: 'smt' },                     // พิมพ์สกรีน/ครีมตะกั่ว
+  { n: 'SMT Pick & Place',                  role: 'smt' },
+  { n: 'Reflow Soldering',                  role: 'smt' },                     // หลอมตะกั่ว
+  { n: 'Inspect After Reflow',              qc: true, role: 'smt' },
+  { n: 'THT Soldering',                     role: 'smt' },                     // บัดกรีอุปกรณ์มีขา
+  { n: 'Inspect & Clean',                   qc: true, role: 'smt' },
+  { n: 'Label & Sort Boards',               role: 'smt' },                     // ติดฉลากบอร์ด + แยกวงจร
+  { n: 'Program Memory',                    role: 'smt' },                     // ลงโปรแกรมหน่วยความจำ
+  { n: 'Program ART-Pi Board',              role: 'smt' },
+  { n: 'Assembly',                          role: 'packing' },                 // ประกอบชิ้นงาน
+  { n: 'Label Units',                       role: 'packing' },
+  { n: 'Function Test',                     qc: true, role: 'packing' },       // ตรวจ + ทดสอบการทำงาน
+  { n: 'Packing',                           role: 'packing' },                 // บรรจุลงกล่อง
+  { n: 'Label Boxes',                       role: 'packing' },
+  { n: 'Final Inspection',                  qc: true, role: 'packing' },       // ตรวจก่อนส่งมอบ
+  { n: 'QA Receives Finished Goods',        once: true, role: 'store' },       // รับงานสำเร็จรูป
+  { n: 'QA Inspects Finished Goods',        qc: true, once: true, role: 'store' },
+  { n: 'Warehouse Stores Finished Goods',   once: true, role: 'store' },
+  { n: 'Issue & Ship Finished Goods',       once: true, role: 'store' },       // เบิกสำเร็จรูป + จัดส่งลูกค้า
+];
+const FORM_PROC_MAP: Record<string, FormProc> = Object.fromEntries(FORM_PROCS.map(f => [f.n, f]));
 
 type Step = {
   id: string; process: string; seconds: number | '';
@@ -218,125 +251,201 @@ function toMermaid(steps: Step[]): string {
   return L.join('\n');
 }
 
-/* ── วาด flowchart เป็น SVG เอง — สัญลักษณ์มาตรฐาน: ▭ process · ◇ decision(ผ่าน?) · แสดงทุกทาง fail ──
-   checkpoint: [เทส] → ◇ผ่าน? → (✓ ไปต่อ) / (✗ → Rework → ◇แก้ได้? → ✓ วนกลับเทส / ✗ Scrap) */
+/* ── "AI" จัดหมวดอัตโนมัติ — อ่านชื่อกระบวนการแล้วแยก section เหมือนในฟอร์ม FM 05 ──
+   ขั้นตรวจ/ซ่อม (ไม่มีคีย์เวิร์ดหมวด) จะสืบหมวดจากขั้นก่อนหน้า เพื่อให้อยู่กลุ่มเดียวกัน */
+const CAT_RULES: { label: string; re: RegExp }[] = [
+  { label: 'Receiving / Warehouse',     re: /รับวัตถุดิบ|วัตถุดิบ|คลังสินค้า|เบิกวัตถุดิบ|incoming|material|\bwh\b/i },
+  { label: 'SMT (Surface Mount)',       re: /สกรีน|วางอุปกรณ์|หลอมตะกั่ว|reflow|solder ?paste|pick|แผ่นวงจร|แผงวงจร|\bspi\b|\bsmt\b|screen|print/i },
+  { label: 'Soldering & Programming',   re: /บัดกรี|ลงโปรแกรม|โปรแกรม|art-?pi|หมายเลขบอร์ด|แยกแย|\btht\b|wave|หน่วยความจำ|program|board|flash|memory/i },
+  { label: 'Assembly / Packing',        re: /ประกอบ|บรรจุ|กล่อง|assembl|pack|\bbox\b/i },
+  { label: 'Finished Goods / Shipping', re: /สำเร็จรูป|จัดส่ง|เบิกงาน|\bstore\b|ship|\bfg\b|finished/i },
+];
+function categorize(steps: { process: string }[]): string[] {
+  const out: string[] = [];
+  let last = '';
+  steps.forEach(s => {
+    const hit = CAT_RULES.find(r => r.re.test(s.process || ''));
+    const c = hit ? hit.label : (last || 'Production');   // ไม่มีคีย์เวิร์ด → สืบหมวดจากขั้นก่อน
+    out.push(c);
+    last = c;
+  });
+  return out;
+}
+
+// จัดกลุ่ม process มาตรฐานตามหมวดเดียวกับ flowchart (categorize) — ใช้เป็นหัวข้อในดรอปดาวน์เลือกกระบวนการ
+const FORM_GROUPS: { header: string; items: FormProc[] }[] = (() => {
+  const catList = categorize(FORM_PROCS.map(f => ({ process: f.n })));
+  const order: string[] = [];
+  const map: Record<string, FormProc[]> = {};
+  FORM_PROCS.forEach((f, i) => {
+    const c = catList[i];
+    if (!map[c]) { map[c] = []; order.push(c); }
+    map[c].push(f);
+  });
+  return order.map(c => ({ header: c, items: map[c] }));
+})();
+
+/* ── วาด flowchart ขาว-ดำ สไตล์ฟอร์ม FM 05 (รองรับหลายคอลัมน์) ──
+   • กล่องเลขเล็ก (◻ process · ◇ decision) เรียงลง + คำอธิบายด้านขวา
+   • ขั้นตรวจ = ◇ มีทางแยก "ใช่" (ผ่าน ↓) / "ไม่" (✗ → ซ่อม-ตรวจซ้ำ หรือ ย้อนขั้นก่อน)
+   • ยาวมาก → ไม่ย่อจิ๋ว แต่ขึ้นคอลัมน์ใหม่ทางขวา (ตัดระหว่างช่องเท่านั้น) · ขึ้นคอลัมน์กลางหมวด = ทำหัวข้อหมวดซ้ำบนสุด "(ต่อ)"
+   • หัวข้อคั่น = หมวดที่ AI จัดให้ (categorize) */
 function buildFlowSvg(steps: Step[]): string {
   const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const BX = 120, BW = 250, GAP = 46;
-  const cx = BX + BW / 2, rx = BX + BW;
-  const DHW = 50, DHH = 30;                 // ◇ ผ่าน? (บนสไปน์)
-  const fx = rx + 46;                        // เริ่มกิ่ง fail (ขวา)
-  const RW = 120, RH = 40;                   // กล่อง rework/scrap/hold
-  const SDHW = 48, SDHH = 26;                // ◇ แก้ได้?
-  const sdcx = fx + RW + 40 + SDHW;          // center ◇ แก้ได้?
-  const scx = sdcx + SDHW + 36 + RW / 2;     // center กล่อง scrap (ปลายกิ่ง rework)
+  if (!steps.length) return `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="60" font-family="'Segoe UI',Tahoma,sans-serif"><text x="120" y="34" text-anchor="middle" font-size="13" fill="#64748b">ยังไม่มีขั้นตอน</text></svg>`;
 
-  type FNode = { t: 'pill'; label: string } | { t: 'proc'; s: Step; i: number } | { t: 'dec'; s: Step; i: number; procRow: number };
-  const nodes: FNode[] = [{ t: 'pill', label: '▶ เริ่มสายผลิต' }];
-  steps.forEach((s, i) => {
-    nodes.push({ t: 'proc', s, i });
-    if (s.kind === 'checkpoint') nodes.push({ t: 'dec', s, i, procRow: nodes.length - 1 });
+  const MX = 20, GAP = 22, HEAD_H = 26, LINEH = 15;
+  const BW = 40, BH = 28, DHW = 26, DHH = 20;
+  const cats = categorize(steps);
+
+  // เลขในผัง: แต่ละขั้น = 1 เลข · กล่อง "ไม่ผ่าน" มีกล่องเดียว (สร้างรอบเดียว หลังขั้นตรวจแรก) ทุกขั้นตรวจที่ไม่ผ่านเข้ากล่องนี้
+  const stepNum: number[] = [];
+  let sharedFailNum = 0;
+  { let dn = 0; steps.forEach(s => { stepNum.push(++dn); if (s.kind === 'checkpoint' && !sharedFailNum) sharedFailNum = ++dn; }); }
+
+  type Row =
+    | { t: 'head'; label: string; h: number; top: number; mid: number; bottom: number }
+    | { t: 'step'; s: Step; i: number; dec: boolean; lines: string[]; timeStr: string; h: number; top: number; mid: number; bottom: number };
+
+  // สร้างแถว (ยังไม่ระบุตำแหน่ง) ตามความกว้างคำอธิบายที่กำหนด — ตัดสูงสุด 2 บรรทัด
+  const makeRows = (descMax: number) => {
+    const wrap = (t: string): string[] => {
+      const words = t.trim().split(/\s+/);
+      const lines: string[] = [];
+      let cur = '';
+      for (const w of words) {
+        if (!cur) cur = w;
+        else if ((cur + ' ' + w).length <= descMax) cur += ' ' + w;
+        else { lines.push(cur); cur = w; }
+        while (cur.length > descMax) { lines.push(cur.slice(0, descMax)); cur = cur.slice(descMax); }
+        if (lines.length >= 2) break;
+      }
+      if (cur && lines.length < 2) lines.push(cur);
+      if (lines.length > 2) lines.length = 2;
+      return lines;
+    };
+    const rows: Row[] = [];
+    let prevCat = '';
+    steps.forEach((s, i) => {
+      if (cats[i] !== prevCat) { rows.push({ t: 'head', label: cats[i], h: HEAD_H, top: 0, mid: 0, bottom: 0 }); prevCat = cats[i]; }
+      const lines = wrap(s.process || '');
+      const timeStr = s.seconds !== '' ? fmtTime(Number(s.seconds)) : '';   // เวลา → บรรทัดแยกด้านล่าง (ไม่มีไอคอนนาฬิกา)
+      const dec = s.kind === 'checkpoint';
+      const nLines = lines.length + (timeStr ? 1 : 0);
+      const h = Math.max(dec ? 2 * DHH : BH, nLines * LINEH + 8);
+      rows.push({ t: 'step', s, i, dec, lines, timeStr, h, top: 0, mid: 0, bottom: 0 });
+    });
+    const naturalH = rows.reduce((a, r) => a + r.h + GAP, 0) - GAP;
+    return { rows, naturalH };
+  };
+
+  // เลือกจำนวนคอลัมน์: สั้น → 1 คอลัมน์กว้าง (เหมือนเดิม) · ยาว → หลายคอลัมน์แคบ ให้ aspect ใกล้หน้ากระดาษ (ไม่ย่อจิ๋ว)
+  let descMax = 58, COL_W = 640, NX_LOCAL = 80, COL_GAP = 0, nCols = 1;
+  let built = makeRows(descMax);
+  if (built.naturalH > 1500) {
+    descMax = 30; COL_W = 340; NX_LOCAL = 80; COL_GAP = 28;
+    built = makeRows(descMax);
+    nCols = Math.max(2, Math.min(5, Math.round(Math.sqrt(built.naturalH / COL_W))));
+  }
+  const rows = built.rows;
+
+  // แบ่งแถวเข้าคอลัมน์ (บาลานซ์ตามความสูง · ตัดระหว่างแถวเท่านั้น · ไม่ทิ้งหัวข้อไว้ท้ายคอลัมน์)
+  const cols: Row[][] = [];
+  if (nCols === 1) cols.push(rows);
+  else {
+    const targetH = built.naturalH / nCols;
+    let cur: Row[] = [], curH = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i], rH = r.h + GAP;
+      if (cols.length < nCols - 1 && curH > 0) {
+        const wouldOver = curH + rH > targetH;
+        const headOrphan = r.t === 'head' && (curH + rH + 78 > targetH);   // หัวข้อใกล้ท้ายคอลัมน์ → ยกไปเริ่มคอลัมน์ใหม่
+        if (wouldOver || headOrphan) { cols.push(cur); cur = []; curH = 0; }
+      }
+      cur.push(r); curH += rH;
+    }
+    cols.push(cur);
+  }
+  nCols = cols.length;
+
+  // ขึ้นคอลัมน์ใหม่กลางหมวด → ทำหัวข้อหมวดซ้ำไว้บนสุด (ชื่อหมวดที่ต่อเนื่องมา + "(ต่อ)")
+  for (let ci = 1; ci < cols.length; ci++) {
+    const first = cols[ci][0];
+    if (first && first.t === 'step') {
+      cols[ci].unshift({ t: 'head', label: `${cats[first.i]} (ต่อ)`, h: HEAD_H, top: 0, mid: 0, bottom: 0 });
+    }
+  }
+
+  // จัดตำแหน่งในแต่ละคอลัมน์
+  const topPad = 12;
+  type ColInfo = { ci: number; colX0: number; colNX: number; colDESCX: number; rows: Row[]; lastBottom: number };
+  const colInfo: ColInfo[] = cols.map((crows, ci) => {
+    const colX0 = MX + ci * (COL_W + COL_GAP);
+    const colNX = colX0 + NX_LOCAL;
+    let yy = topPad;
+    crows.forEach(r => { r.top = yy; r.mid = yy + r.h / 2; r.bottom = yy + r.h; yy += r.h + GAP; });
+    return { ci, colX0, colNX, colDESCX: colNX + 40, rows: crows, lastBottom: yy - GAP };
   });
-  nodes.push({ t: 'pill', label: '■ เสร็จ' });
 
-  const hOf = (n: FNode) => n.t === 'pill' ? 36 : n.t === 'dec' ? 2 * DHH : 60;
-  const geom: { top: number; mid: number; bottom: number; h: number }[] = [];
-  let y = 14;
-  nodes.forEach(n => { const h = hOf(n); geom.push({ top: y, mid: y + h / 2, bottom: y + h, h }); y += h + GAP; });
-  const totalH = y - GAP + 14;
-
-  // ความกว้าง — ตาม disposition ที่ใช้จริง
-  let maxRight = rx + 70;
-  steps.forEach(s => {
-    if (s.kind !== 'checkpoint') return;
-    const fa = s.failAction || 'rework';
-    if (fa === 'rework') maxRight = Math.max(maxRight, scx + RW / 2 + 24);
-    else if (fa === 'scrap' || fa === 'hold') maxRight = Math.max(maxRight, fx + RW + 24);
-    else if (fa === 'back') maxRight = Math.max(maxRight, rx + 100);
-  });
-  const Wsvg = maxRight;
+  let maxBottom = 0;
+  colInfo.forEach(col => { maxBottom = Math.max(maxBottom, col.lastBottom); });
+  const totalH = maxBottom + 12;
+  const WSVG = MX + nCols * COL_W + (nCols - 1) * COL_GAP + MX;
 
   const parts: string[] = [];
-  const boxN = (bcx: number, bcy: number, w: number, h: number, label: string, stroke: string, fill: string, tc: string, fs = 10.5) => {
-    parts.push(`<rect x="${bcx - w / 2}" y="${bcy - h / 2}" width="${w}" height="${h}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5" filter="url(#sh)"/>`);
-    parts.push(`<text x="${bcx}" y="${bcy}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="700" fill="${tc}">${esc(label)}</text>`);
-  };
-  const diamondN = (dcx: number, dcy: number, hw: number, hh: number, label: string, stroke: string, fill: string, tc: string, fs = 11) => {
-    parts.push(`<polygon points="${dcx},${dcy - hh} ${dcx + hw},${dcy} ${dcx},${dcy + hh} ${dcx - hw},${dcy}" fill="${fill}" stroke="${stroke}" stroke-width="2" filter="url(#sh)"/>`);
-    parts.push(`<text x="${dcx}" y="${dcy}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="700" fill="${tc}">${esc(label)}</text>`);
-  };
-  const redArrow = (x1: number, y1: number, x2: number, y2: number) => parts.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#dc2626" stroke-width="1.6" marker-end="url(#ahr)"/>`);
-  const lbl = (x: number, ty: number, text: string, color: string, anchor: 'start' | 'middle' | 'end' = 'middle') => parts.push(`<text x="${x}" y="${ty}" text-anchor="${anchor}" dominant-baseline="central" font-size="9.5" font-weight="700" fill="${color}">${esc(text)}</text>`);
+  parts.push(`<defs>`
+    + `<marker id="ah" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#111"/></marker>`
+    + `<marker id="ahb" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#555"/></marker>`
+    + `</defs>`);
 
-  // สไปน์ (เส้นลง + ป้าย)
-  nodes.forEach((n, k) => {
-    if (k >= nodes.length - 1) return;
-    const g = geom[k], g2 = geom[k + 1], my = (g.bottom + g2.top) / 2;
-    parts.push(`<line x1="${cx}" y1="${g.bottom}" x2="${cx}" y2="${g2.top}" stroke="#94a3b8" stroke-width="2" marker-end="url(#ah)"/>`);
-    if (n.t === 'dec') lbl(cx + 12, my, '✓ ผ่าน', '#16a34a', 'start');
-    else if (n.t === 'proc' && n.s.seconds !== '') lbl(cx + 12, my, fmtTime(Number(n.s.seconds)), '#64748b', 'start');
+  colInfo.forEach(col => {
+    const { colX0, colNX, colDESCX, rows: crows } = col;
+
+    // หัวข้อหมวด (แถบเทา เต็มความกว้างคอลัมน์)
+    crows.forEach(r => {
+      if (r.t !== 'head') return;
+      parts.push(`<rect x="${colX0}" y="${r.top}" width="${COL_W}" height="${r.h}" fill="#f1f1f1" stroke="#111" stroke-width="1"/>`);
+      parts.push(`<text x="${colX0 + COL_W / 2}" y="${r.mid}" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="700" fill="#111">▍ ${esc(r.label)}</text>`);
+    });
+
+    // สไปน์ระหว่างแถว + ป้าย "ใช่" ใต้ decision
+    for (let k = 0; k < crows.length - 1; k++) {
+      const a = crows[k], b = crows[k + 1];
+      parts.push(`<line x1="${colNX}" y1="${a.bottom}" x2="${colNX}" y2="${b.top}" stroke="#111" stroke-width="1.3" ${b.t === 'step' ? 'marker-end="url(#ah)"' : ''}/>`);
+      if (a.t === 'step' && a.dec) parts.push(`<text x="${colNX + 7}" y="${(a.bottom + b.top) / 2}" font-size="9.5" fill="#111" dominant-baseline="central">ผ่าน</text>`);
+    }
+
+    // โหนด + คำอธิบาย + ทางแยก "ไม่ผ่าน"
+    crows.forEach(r => {
+      if (r.t !== 'step') return;
+      const num = stepNum[r.i], cy = r.mid;
+      const total = r.lines.length + (r.timeStr ? 1 : 0);
+      const y0 = cy - (total - 1) * LINEH / 2;
+      r.lines.forEach((ln, li) => {
+        parts.push(`<text x="${colDESCX}" y="${y0 + li * LINEH}" font-size="11.5" fill="#111" dominant-baseline="central">${esc(ln)}</text>`);
+      });
+      if (r.timeStr) parts.push(`<text x="${colDESCX}" y="${y0 + r.lines.length * LINEH}" font-size="9.5" fill="#64748b" dominant-baseline="central">${esc(r.timeStr)}</text>`);
+      if (!r.dec) {
+        parts.push(`<rect x="${colNX - BW / 2}" y="${cy - BH / 2}" width="${BW}" height="${BH}" fill="#fff" stroke="#111" stroke-width="1.4"/>`);
+        parts.push(`<text x="${colNX}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="11.5" font-weight="700" fill="#111">${num}</text>`);
+        return;
+      }
+      // ◇ decision (จุดตรวจ)
+      parts.push(`<polygon points="${colNX},${cy - DHH} ${colNX + DHW},${cy} ${colNX},${cy + DHH} ${colNX - DHW},${cy}" fill="#fff" stroke="#111" stroke-width="1.4"/>`);
+      parts.push(`<text x="${colNX}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="700" fill="#111">${num}</text>`);
+      // กล่อง "ไม่ผ่าน" (#N เดียวกันทุกจุดตรวจ) — วาดที่ทุกขั้นตรวจ · แต่ละอันวนกลับตรวจซ้ำของตัวเอง
+      const dLeft = colNX - DHW;
+      const FBW = 30, FBH = 20;
+      const fcx = colX0 + 6 + FBW / 2;
+      parts.push(`<line x1="${dLeft}" y1="${cy}" x2="${fcx + FBW / 2}" y2="${cy}" stroke="#555" stroke-width="1.2" marker-end="url(#ahb)"/>`);
+      parts.push(`<rect x="${fcx - FBW / 2}" y="${cy - FBH / 2}" width="${FBW}" height="${FBH}" fill="#fff" stroke="#111" stroke-width="1.3"/>`);
+      parts.push(`<text x="${fcx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="10.5" font-weight="700" fill="#111">${sharedFailNum}</text>`);
+      parts.push(`<text x="${fcx}" y="${cy + FBH / 2 + 7}" text-anchor="middle" font-size="8" fill="#555">ไม่ผ่าน</text>`);
+      parts.push(`<path d="M ${fcx} ${cy - FBH / 2} V ${cy - DHH - 8} H ${colNX} V ${cy - DHH}" fill="none" stroke="#555" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ahb)"/>`);
+    });
   });
 
-  // โหนด
-  nodes.forEach((n, k) => {
-    const g = geom[k];
-    if (n.t === 'pill') {
-      parts.push(`<rect x="${cx - 98}" y="${g.top}" width="196" height="${g.h}" rx="${g.h / 2}" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#sh)"/>`);
-      parts.push(`<text x="${cx}" y="${g.mid}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="800" fill="#14532d">${esc(n.label)}</text>`);
-      return;
-    }
-    if (n.t === 'proc') {
-      const s = n.s, vis = ROLE_VIS[s.role] ?? ROLE_VIS.smt;
-      const tt = s.seconds !== '' ? `⏱ ${fmtTime(Number(s.seconds))}` : '';
-      const scope = s.timeScope === 'once' ? 'ครั้งเดียว' : `ทุกชิ้น${Number(s.stations) > 1 ? ` · ×${s.stations} เครื่อง` : ''}`;
-      const sub = [tt, scope].filter(Boolean).join('  ·  ');
-      parts.push(`<rect x="${BX}" y="${g.top}" width="${BW}" height="${g.h}" rx="12" fill="${vis.fill}" stroke="${vis.stroke}" stroke-width="2" filter="url(#sh)"/>`);
-      parts.push(`<rect x="${BX}" y="${g.top}" width="6" height="${g.h}" fill="${vis.stroke}"/>`);
-      parts.push(`<text x="${cx}" y="${g.mid - 8}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#1e293b">${esc(`${n.i + 1}. ${s.process}`)}</text>`);
-      if (sub) parts.push(`<text x="${cx}" y="${g.mid + 11}" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#475569">${esc(sub)}</text>`);
-      return;
-    }
-    // ── decision: ◇ ผ่าน? ──
-    const s = n.s, dy = g.mid;
-    diamondN(cx, dy, DHW, DHH, 'ผ่าน?', '#d97706', '#fffbeb', '#92400e');
-    const fa = s.failAction || 'rework';
-    const tIdx = s.backToId ? steps.findIndex(x => x.id === s.backToId) : -1;
-    if (fa === 'back' && tIdx >= 0 && tIdx < n.i) {
-      const tRow = geom[nodes.findIndex(m => m.t === 'proc' && m.i === tIdx)];
-      redArrow(cx + DHW, dy, rx + 34, dy);
-      parts.push(`<path d="M ${rx + 34} ${dy} C ${rx + 76} ${dy}, ${rx + 76} ${tRow.mid}, ${rx} ${tRow.mid}" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ahr)"/>`);
-      lbl(rx + 80, (dy + tRow.mid) / 2, `✗ กลับ #${tIdx + 1}`, '#dc2626', 'start');
-      return;
-    }
-    if (fa === 'scrap' || fa === 'hold') {
-      redArrow(cx + DHW, dy, fx, dy);
-      lbl((cx + DHW + fx) / 2, dy - 8, '✗ ไม่ผ่าน', '#dc2626');
-      if (fa === 'scrap') boxN(fx + RW / 2, dy, RW, RH, '❌ SCRAP (NG)', '#dc2626', '#fee2e2', '#991b1b');
-      else boxN(fx + RW / 2, dy, RW, RH, '⏸️ HOLD / MRB', '#d97706', '#fffbeb', '#92400e');
-      return;
-    }
-    // rework (default) — ◇ผ่าน? ✗ → Rework → ◇แก้ได้? → ✗ Scrap / ✓ วนกลับเทส
-    redArrow(cx + DHW, dy, fx, dy);
-    lbl((cx + DHW + fx) / 2, dy - 8, '✗ ไม่ผ่าน', '#dc2626');
-    boxN(fx + RW / 2, dy, RW, RH, '🛠️ REWORK', '#dc2626', '#fee2e2', '#991b1b');
-    redArrow(fx + RW, dy, sdcx - SDHW, dy);
-    diamondN(sdcx, dy, SDHW, SDHH, 'แก้ได้?', '#d97706', '#fffbeb', '#92400e', 10);
-    redArrow(sdcx + SDHW, dy, scx - RW / 2, dy);
-    lbl((sdcx + SDHW + scx - RW / 2) / 2, dy - 8, '✗', '#dc2626');
-    boxN(scx, dy, RW, RH, '❌ SCRAP (NG)', '#dc2626', '#fee2e2', '#991b1b');
-    // ✓ แก้แล้ว → วนกลับกล่องเทส (เส้นเขียวประ)
-    const tRow = geom[n.procRow];
-    parts.push(`<path d="M ${sdcx} ${dy - SDHH} C ${sdcx} ${tRow.mid - 26}, ${rx + 44} ${tRow.mid}, ${rx} ${tRow.mid}" fill="none" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ahg)"/>`);
-    lbl(sdcx + 8, dy - SDHH - 9, `✓ แก้แล้ว${Number(s.maxRetry) > 0 ? ` (≤${s.maxRetry}×)` : ''}`, '#16a34a', 'start');
-  });
-
-  const defs = `<defs>`
-    + `<marker id="ah" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8"/></marker>`
-    + `<marker id="ahr" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#dc2626"/></marker>`
-    + `<marker id="ahg" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#16a34a"/></marker>`
-    + `<filter id="sh" x="-20%" y="-30%" width="140%" height="160%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1e293b" flood-opacity="0.12"/></filter>`
-    + `</defs>`;
-  return `<svg viewBox="0 0 ${Wsvg} ${totalH}" width="${Wsvg}" height="${totalH}" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif">${defs}${parts.join('')}</svg>`;
+  return `<svg viewBox="0 0 ${WSVG} ${totalH}" width="${WSVG}" height="${totalH}" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif">${parts.join('')}</svg>`;
 }
 
 /* ── Gantt chart (SVG) — สไตล์คลาสสิก · แถว = สถานี(task) · 1 แท่ง/สถานี (ชิ้นแรกเข้า → ชิ้นสุดท้ายออก) ──
@@ -779,7 +888,6 @@ export function WorkflowBuilder() {
     setStepsMap(m => ({ ...m, [activeKey]: typeof u === 'function' ? (u as (p: Step[]) => Step[])(m[activeKey]) : u }));
   const [showFlow, setShowFlow] = useState(false);
   const [showGantt, setShowGantt] = useState(false);
-  const [runFail, setRunFail] = useState<Set<string>>(new Set());
   // กระบวนการ SMT แยก 2 กลุ่ม: default (มาตรฐาน คงที่) + custom (ผู้ใช้เพิ่มเอง ลบได้) — แต่ละกลุ่มเรียง A-Z
   const [customProcs, setCustomProcs] = useState<string[]>(() => {
     let list: string[] = [];
@@ -812,7 +920,7 @@ export function WorkflowBuilder() {
     : [internalGroup, extToDD('ext_inj'), extToDD('ext_blow'), extToDD('ext_ems')];   // mix = รวมทุกหัวข้อ
   const defaultProc = tab === 'external' ? EXT_GROUPS[activeKey as ExtKey].items[0] : (smtMain[0] || 'SMT');   // สถานีเริ่มต้นตอนกด "เพิ่มขั้นตอน"
   // สลับแท็บ/ประเภท → ล้างสถานะผลรัน + ยุบ FlowChart/Gantt (กัน id ข้ามชุดปนกัน)
-  const resetView = () => { setRunFail(new Set()); setShowFlow(false); setShowGantt(false); };
+  const resetView = () => { setShowFlow(false); setShowGantt(false); };
   const subPill = (on: boolean): React.CSSProperties => ({
     padding: '5px 15px', borderRadius: 6, border: `1px solid ${on ? 'var(--brand)' : '#d7dee7'}`, cursor: 'pointer',
     fontSize: '0.8rem', fontWeight: 700, background: on ? 'var(--brand)' : '#fff', color: on ? '#fff' : '#64748b', transition: 'all .12s',
@@ -824,7 +932,6 @@ export function WorkflowBuilder() {
   const create = useWorkflowCreate();
   const del = useWorkflowDelete();
   const { data: saved = [] } = useWorkflows();
-  const recordResult = useWorkflowResultCreate();
   const delResult = useWorkflowResultDelete();
   const { data: results = [] } = useWorkflowResults();
   const [resFilter, setResFilter] = useState<'all' | 'internal' | 'external' | 'mix'>('all');   // ฟิลเตอร์ตารางผล
@@ -861,16 +968,21 @@ export function WorkflowBuilder() {
   const perUnitSteps = steps.filter(s => s.timeScope !== 'once');
   const bottleneckSec = perUnitSteps.reduce((m, s) => Math.max(m, effSec(s) / stationsOf(s)), 0);
   const lotSec = qtyN > 0 ? setupSec + perUnitSec + (qtyN - 1) * bottleneckSec : setupSec + perUnitSec;
-  const totalSec = Math.round(perUnitSec);
   const flowSvg = buildFlowSvg(steps);
   const ganttSvg = buildGanttSvg(steps, qtyN);
-  const checkpoints = steps.filter(s => s.kind === 'checkpoint');
-  const overallRun = checkpoints.some(s => runFail.has(s.id)) ? 'FAIL' : 'PASS';
   const smtCount = steps.filter(s => s.role === 'smt').length;
 
   const setStep = (id: string, patch: Partial<Step>) => setSteps(s => s.map(x => x.id === id ? { ...x, ...patch } : x));
   // เลือกกระบวนการจากดรอปดาวน์ — ปรับ role/เวลา/ชนิด ตามชื่อที่เลือก (สถานีหลัก/setup/SMT)
   const pickProcess = (id: string, v: string) => {
+    // กระบวนการตามฟอร์ม FM 05 → กำหนด role/ชนิด(ตรวจ?)/ครั้งเดียว ตามที่ระบุในตาราง (ไม่เดาจากชื่อ)
+    const fm = FORM_PROC_MAP[v];
+    if (fm) {
+      const cf = ROLE_CFG[fm.role];
+      const ts: TimeScope = fm.once ? 'once' : cf.timeScope;
+      setStep(id, { process: v, role: fm.role, kind: fm.qc ? 'checkpoint' : 'process', timeScope: ts, ...(ts === 'once' ? { machine: '', stations: 1 } : {}) });
+      return;
+    }
     const role = inferRole(v);              // Check material→incoming · PACK→packing · STORE→store · ที่เหลือ→smt
     const setupLike = isSetupName(v);       // SET UP * → ครั้งเดียว ไม่มีจุดตรวจ
     const c = ROLE_CFG[role];
@@ -886,7 +998,6 @@ export function WorkflowBuilder() {
     const next = [...s]; next.splice(i, 0, ns); return next;
   });
   const removeStep = (id: string) => setSteps(s => s.filter(x => x.id !== id));   // ลบได้ทุกขั้น (รวมหัว-ท้าย)
-  const toggleRun = (id: string) => setRunFail(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   // ลากจัดลำดับได้ทุกขั้น (รวมหัว-ท้าย) — ผู้ใช้จัดตำแหน่งเองอิสระ
   function onDrop(targetId: string) {
@@ -957,13 +1068,35 @@ export function WorkflowBuilder() {
       }
     });
     setSteps(loaded.length ? loaded : initialSteps());
-    setRunFail(new Set());
     const extra = ws.map(s => s.process).filter(p => p && inferRole(p) === 'smt' && !isBuiltinProc(p) && !customProcs.includes(p));
     if (extra.length) setCustomProcs(prev => [...new Set([...prev, ...extra])]);
     const machineExtra = ws.map(s => (s as any).machine).filter((m: string) => m && !MACHINE_DEFAULT.includes(m) && !machines.includes(m));
     if (machineExtra.length) setMachines(prev => [...new Set([...prev, ...machineExtra])]);
     setShowFlow(false);
     showToast(`โหลด Preset "${w.name || w.customer}"`, 'info');
+  }
+
+  /* โหลดตัวอย่างฟอร์ม FM 05 (RSU / JUMBO) — เติมครบทั้ง 30 ขั้นตามเอกสาร พร้อมจุดตรวจ/ทางย้อน */
+  function loadFm05Sample() {
+    setCustomer('JUMBO'); setModel('RSU'); setPn('1E6D25234001');
+    const st: Step[] = FORM_PROCS.map(fp => {
+      const cf = ROLE_CFG[fp.role];
+      return {
+        id: uid(), process: fp.n, seconds: '', role: fp.role,
+        kind: fp.qc ? 'checkpoint' : 'process',
+        timeScope: fp.once ? 'once' : cf.timeScope,
+        failAction: 'rework' as FailAction, backToId: '', maxRetry: 0, stations: 1, machine: '',
+      };
+    });
+    // ทางย้อน (ไม่ผ่าน) ของขั้นตรวจที่ "คืน/ย้อนไปขั้นก่อนหน้า" — อ้าง index ตาม FORM_PROCS
+    const backTo = (from: number, to: number) => { if (st[from] && st[to]) { st[from].failAction = 'back'; st[from].backToId = st[to].id; } };
+    backTo(1, 0);    // ตรวจวัตถุดิบเข้าคลัง → คืน/รับใหม่
+    backTo(5, 4);    // ตรวจวัตถุดิบ (ฝ่ายผลิต) → รับใหม่
+    backTo(18, 13);  // ทดสอบการทำงาน → ย้อนตรวจ/ติดฉลากบอร์ด
+    backTo(23, 22);  // ตรวจสำเร็จรูป → รับใหม่
+    // ที่เหลือ (ตรวจหลัง Reflow / หลังบัดกรี / ก่อนส่งมอบ) = rework (ซ่อมแล้วตรวจซ้ำ)
+    setSteps(st); setShowFlow(true);
+    showToast('โหลดตัวอย่างฟอร์ม FM 05 (RSU / JUMBO) แล้ว', 'success');
   }
 
   /* เพิ่ม/ลบ กระบวนการ custom (เฉพาะช่วง SMT) */
@@ -991,23 +1124,6 @@ export function WorkflowBuilder() {
     if (!confirm(`ลบเครื่อง "${name}" ออกจากลิสต์?`)) return;
     setMachines(prev => prev.filter(n => n !== name));
     setSteps(prev => prev.map(s => s.machine === name ? { ...s, machine: '' } : s));
-  }
-
-  /* บันทึกผลรันจริง */
-  function record() {
-    if (!pn.trim()) { showToast('กรุณากรอก P/N', 'error'); return; }
-    if (steps.some(s => s.seconds === '' || Number(s.seconds) <= 0)) {
-      showToast('กรุณากรอกเวลาให้ครบทุกกระบวนการ', 'error'); return;
-    }
-    const perStep = steps.map(s => ({ process: s.process, result: (s.kind === 'checkpoint' && runFail.has(s.id)) ? 'FAIL' : 'PASS' }));
-    const seqStr = steps.map(s => `${s.process}${s.timeScope === 'per_unit' ? '×N' : ''}${s.kind === 'checkpoint' && runFail.has(s.id) ? '❌' : ''}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
-    recordResult.mutate(
-      { serial: pn.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: overallRun, total_sec: totalSec, line: tab, steps: perStep },
-      {
-        onSuccess: () => { showToast(`บันทึกผล ${pn.trim()} (${overallRun}) สำเร็จ`, 'success'); setPn(''); setRunFail(new Set()); },
-        onError: (e: any) => showToast(e.message, 'error'),
-      }
-    );
   }
 
   /* ลบกระบวนการที่เพิ่มเอง (custom) ออกจากลิสต์ — ขั้นที่ใช้อยู่จะย้ายไปตัวแรก (default) */
@@ -1046,6 +1162,11 @@ export function WorkflowBuilder() {
         {!isViewer && (
           <button type="button" className="btn secondary" onClick={savePreset} disabled={create.isPending || steps.length === 0}>
             {create.isPending ? 'กำลังบันทึก...' : '💾 บันทึกเป็น Preset'}
+          </button>
+        )}
+        {!isViewer && (
+          <button type="button" className="btn secondary" onClick={loadFm05Sample} title="เติมครบทั้ง 30 ขั้นตามฟอร์ม PROCESS FLOW CHART (RSU / JUMBO)">
+            📄 ตัวอย่างฟอร์ม FM 05
           </button>
         )}
         <div style={{ width: 280, maxWidth: '100%' }}>
@@ -1145,6 +1266,7 @@ export function WorkflowBuilder() {
                       groups={[
                         { header: 'สถานีหลัก', items: MAIN_OPTS.map(o => ({ value: o, label: o })) },
                         { header: 'Set up', items: SETUP_OPTS.map(o => ({ value: o, label: o })) },
+                        ...FORM_GROUPS.map(g => ({ header: g.header, items: g.items.map(f => ({ value: f.n, label: (f.qc ? '◇ ' : '') + f.n })) })),
                         ...procGroups,
                         { header: 'Custom process', items: smtCustomSorted.map(o => ({ value: o, label: o, deletable: true })) },
                       ]}
@@ -1253,45 +1375,6 @@ export function WorkflowBuilder() {
           <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 5 }}>คิดแบบ<strong>สายพาน</strong>: ชิ้นถัดไปไม่รอชิ้นก่อนจบทั้งสาย เข้าสถานีถัดไปได้เลย จึงทำพร้อมกันได้ (parallel) — หลังสายเต็มแล้ว ผลผลิตออกทุกๆ "คอขวด" · เป็นค่าประมาณการ เวลาจริงขึ้นกับคิว/การพัก</div>
         </div>
       </div>
-
-      {/* บันทึกผลเดินสายผลิต */}
-      {!isViewer && (
-        <div style={{ padding: 15, background: 'var(--bg-panel)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
-          <div style={{ fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10 }}>📝 บันทึกผลเดินสายผลิต (P/N จริง)</div>
-          {checkpoints.length === 0 ? (
-            <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: 10 }}>ยังไม่มีขั้น SMT — ผลรวมจะเป็น PASS โดยอัตโนมัติ</div>
-          ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-              {checkpoints.map(s => {
-                const failed = runFail.has(s.id);
-                const i = steps.findIndex(x => x.id === s.id);
-                return (
-                  <button key={s.id} type="button" onClick={() => toggleRun(s.id)}
-                    title="กดสลับ ผ่าน/ไม่ผ่าน ของขั้นนี้"
-                    style={{ padding: '6px 12px', borderRadius: 6, border: `1px solid ${failed ? '#dc2626' : '#16a34a'}`, background: failed ? '#fee2e2' : '#dcfce7', color: failed ? '#991b1b' : '#166534', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                    {i + 1}. {s.process}: {failed ? '✗ ไม่ผ่าน' : '✓ ผ่าน'}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>ผลรวม (Result):</span>
-              <ResultBadge value={overallRun} />
-              {overallRun === 'FAIL' && (
-                <span style={{ fontSize: '0.82rem', color: '#991b1b', fontWeight: 600 }}>
-                  ✗ ไม่ผ่านที่ {checkpoints.filter(s => runFail.has(s.id)).map(s => `Step ${steps.findIndex(x => x.id === s.id) + 1}`).join(', ')}
-                </span>
-              )}
-            </div>
-            <button type="button" className="btn" onClick={record} disabled={!pn.trim() || recordResult.isPending}
-              style={{ background: '#27ae60', borderColor: '#27ae60', color: '#fff', fontWeight: 600, minHeight: 42, padding: '0 24px' }}>
-              {recordResult.isPending ? 'กำลังบันทึก...' : '💾 บันทึกผล'}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Gen FlowChart / Gantt */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
