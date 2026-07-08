@@ -45,7 +45,7 @@ export function StatusBadge({ status }: { status: string }) {
 /* ── นิยามคอลัมน์ชุดเดียว — เรียงตามตาราง Dashboard (สำคัญขึ้นก่อน) ──
    ใช้ร่วมกันทั้ง Dashboard table / Excel / PDF เพื่อให้ลำดับตรงกันเสมอ
    headerColor = สีหัวคอลัมน์พิเศษ (hex 6 หลัก ไม่มี #) · center = จัดกึ่งกลาง */
-const ckMark = (b: boolean) => b ? '✓' : '';
+const ckMark = (b: boolean) => b ? '☑' : '☐';   // กล่อง checkbox (ติ๊ก / ว่าง) — ใช้ทั้ง Excel + PDF
 export type PpCol = { key: string; header: string; w: number; center?: boolean; headerColor?: string; group?: string; excelOnly?: boolean; value: (p: PpProject) => string };
 
 /* STATUS pipeline (ขั้นตอนการผลิต) — ลำดับ + ป้าย · ใช้ทั้งฟอร์มและ Excel (ไม่โชว์ตาราง Dashboard) */

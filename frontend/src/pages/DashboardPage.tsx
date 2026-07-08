@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { usePpProjects, usePpDelete, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject, type PpFilters } from '../lib/ppApi';
+import { usePpProjects, usePpDelete, usePpUpdate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject, type PpFilters } from '../lib/ppApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
@@ -20,14 +20,26 @@ const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
 });
 
 const CHECK_KEYS = new Set(['chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'done']);
-const ckEl = (b: boolean) => b ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span> : <span style={{ color: '#cbd5e1' }}>·</span>;
 // เซลล์ว่าง — ขีด "—" จัดกึ่งกลางเสมอทุกคอลัมน์ (สีจาง) ให้เท่ากันหมด
 const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' };
+// ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
+const DONE_KEYS = new Set(['pd_finish', 'qa_finish']);
+const GREEN_CELL: React.CSSProperties = { background: '#dcfce7', color: '#166534', fontWeight: 600 };
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ Excel (ลำดับ/หัว = แหล่งเดียวกับ Excel)
-function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void) {
+function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string) => void) {
   if (c.key === 'status') return <td key={c.key}><StatusBadge status={p.status} /></td>;
-  if (CHECK_KEYS.has(c.key)) return <td key={c.key} style={{ textAlign: 'center' }}>{ckEl(!!(p as any)[c.key])}</td>;
+  if (CHECK_KEYS.has(c.key)) {
+    const on = !!(p as any)[c.key];
+    // ช่องสี่เหลี่ยม checkbox จริง — ว่าง=☐ / ติ๊ก=☑ · กดติ๊กได้ (non-viewer) แล้วเซฟทันที
+    return (
+      <td key={c.key} style={{ textAlign: 'center', ...(c.key === 'done' && on ? GREEN_CELL : {}) }}>
+        <input type="checkbox" checked={on} disabled={!onToggle} onChange={() => onToggle?.(c.key)}
+          title={onToggle ? 'กดเพื่อติ๊ก/ยกเลิก' : undefined}
+          style={{ width: 15, height: 15, cursor: onToggle ? 'pointer' : 'default', accentColor: '#16a34a' }} />
+      </td>
+    );
+  }
   if (c.key === 'yield') return <td key={c.key} style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>;
   if (c.key === 'total_ng') return <td key={c.key} style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>;
   if (c.key === 'total_ok') return <td key={c.key} style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>;
@@ -43,7 +55,8 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
   );
   const v = c.value(p);
   if (!v) return <td key={c.key} style={DASH_STYLE}>—</td>;
-  return <td key={c.key} style={c.center ? { textAlign: 'center', whiteSpace: 'nowrap' } : { color: c.key === 'remark' || c.key === 'matl_coming' ? 'var(--text-muted)' : undefined }}>{v}</td>;
+  const base: React.CSSProperties = c.center ? { textAlign: 'center', whiteSpace: 'nowrap' } : { color: c.key === 'remark' || c.key === 'matl_coming' ? 'var(--text-muted)' : undefined };
+  return <td key={c.key} style={DONE_KEYS.has(c.key) ? { ...base, ...GREEN_CELL } : base}>{v}</td>;
 }
 
 /* ── Popup รายละเอียดสินค้า — คลิก Product P/N ในตาราง → รูป (placeholder) + ข้อมูลทั้งหมดของรายการ ── */
@@ -240,6 +253,9 @@ export function DashboardPage() {
   const { data: rows = [], isLoading } = usePpProjects(filters);        // ตาราง — ตามตัวกรอง
   const { data: allRows = [] } = usePpProjects({});                     // KPI การ์ด + กราฟ — ภาพรวมทั้งหมด (ไม่ขึ้นกับตัวกรอง)
   const del = usePpDelete();
+  const ppUpdate = usePpUpdate();
+  const toggleCheck = (p: PpProject, key: string) =>
+    ppUpdate.mutate({ id: p.id, [key]: !(p as any)[key] }, { onError: (e: any) => showToast(e?.message || 'ติ๊กไม่สำเร็จ', 'error') });
   const queryClient = useQueryClient();
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   // รีเฟรชข้อมูลทั้ง dashboard ทุก 10 วินาที + อัปเดตเวลา
@@ -418,7 +434,7 @@ export function DashboardPage() {
                 return (
                   <tr key={p.id} style={p.status === 'LATE' ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626' } : undefined}>
                     <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
-                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p)))}
+                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key) => toggleCheck(p, key)))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>

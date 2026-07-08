@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useDriftReport, type DriftRow } from '../lib/driftApi';
+import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 
-// ระดับความรุนแรงของส่วนต่าง: ตรงกัน / ต่างเล็กน้อย / ต่างมาก
+// ระดับความรุนแรง — คิดเป็น "สัดส่วน %" ของ Odoo (ยุติธรรมกว่าค่าสัมบูรณ์ เพราะ 20 ชิ้นของ 60 = เยอะ แต่ของ 5000 = จิ๋ว)
 type Sev = 'ok' | 'warn' | 'crit';
-const sevOf = (diff: number): Sev => { const a = Math.abs(diff); return a === 0 ? 'ok' : a < 20 ? 'warn' : 'crit'; };
+const CRIT_PCT = 10;   // ต่าง ≥10% = แดง (crit) · >0 & <10% = เหลือง (warn) · 0 = เขียว (ok)
+const driftPct = (r: { diff: number; odoo_qty: number }) => r.odoo_qty ? Math.abs(r.diff) / r.odoo_qty * 100 : (r.diff !== 0 ? 100 : 0);
+const sevOf = (r: { diff: number; odoo_qty: number }): Sev => { const p = driftPct(r); return p === 0 ? 'ok' : p < CRIT_PCT ? 'warn' : 'crit'; };
 const SEV: Record<Sev, { color: string; bg: string; border: string }> = {
   ok:   { color: '#16a34a', bg: 'transparent', border: 'transparent' },
   warn: { color: '#b45309', bg: '#fffbeb', border: '#f59e0b' },
@@ -11,14 +14,130 @@ const SEV: Record<Sev, { color: string; bg: string; border: string }> = {
 };
 const fmtDiff = (d: number) => (d > 0 ? `+${d.toLocaleString()}` : d.toLocaleString());
 
-type Sort = 'diff-desc' | 'diff-asc' | 'code';
+/* ── Export Excel (.xlsx) — เทมเพลต SYNTECH: โลโก้ + หัวเรื่อง + หัวตารางสีเขียว + ลงสีเซลล์ diff ตามความรุนแรง + แถวสรุป ── */
+async function exportDriftXlsx(rows: DriftRow[], filename: string) {
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Stock vs Odoo', { views: [{ state: 'frozen', ySplit: 3, showGridLines: false }] });
+  const COLS = [
+    { h: 'Item Code', w: 18 }, { h: 'Item Name', w: 32 }, { h: 'Location', w: 13 },
+    { h: 'ของเรา (Our)', w: 13 }, { h: 'Odoo', w: 13 }, { h: 'ส่วนต่าง (Diff)', w: 15 },
+  ];
+  const N = COLS.length;
+  ws.columns = COLS.map(c => ({ width: c.w }));
+
+  // แถว 1 — โลโก้ + หัวเรื่อง
+  ws.getRow(1).height = 42;
+  const logoId = wb.addImage({ base64: SYNTECH_LOGO_PNG_BASE64, extension: 'png' });
+  ws.addImage(logoId, { tl: { col: 0.15, row: 0.15 }, ext: { width: 200, height: 46 } });
+  ws.mergeCells(1, 3, 1, N);
+  ws.getCell(1, 3).value = 'Stock Drift — เทียบสต็อก เรา vs Odoo';
+
+  // แถว 2 — คำบรรยาย/วันที่
+  ws.mergeCells(2, 1, 2, N);
+  ws.getCell(2, 1).value = `รายงานส่วนต่างสต็อก · ${new Date().toLocaleDateString('th-TH')} · ${rows.length} รายการ · แรเงาตามสัดส่วน %: ต่าง≥10%=แดง · <10%=เหลือง`;
+  ws.getRow(2).height = 16;
+
+  // แถว 3 — หัวตาราง
+  COLS.forEach((c, i) => { ws.getCell(3, i + 1).value = c.h; });
+  ws.getRow(3).height = 20;
+
+  // ข้อมูล (row 4+) + แถวสรุป
+  rows.forEach(r => ws.addRow([r.item_code, r.item_name, r.location, r.our_qty, r.odoo_qty, r.diff]));
+  const dataLast = 3 + rows.length;
+  const sumRow = dataLast + 1;
+  ws.mergeCells(sumRow, 1, sumRow, N - 1);
+  ws.getCell(sumRow, 1).value = 'ผลรวมส่วนต่าง (|diff|)';
+  ws.getCell(sumRow, N).value = rows.reduce((s, r) => s + Math.abs(r.diff), 0);
+
+  const thin = { style: 'thin' as const, color: { argb: 'FFB0B8C4' } };
+  const border = { top: thin, left: thin, bottom: thin, right: thin };
+  for (let rr = 1; rr <= sumRow; rr++) {
+    const row = ws.getRow(rr);
+    if (rr >= 4 && rr <= dataLast) row.height = 15;
+    for (let c = 1; c <= N; c++) {
+      const cell = row.getCell(c);
+      if (!(rr === 1 && c <= 2)) cell.border = border;
+      if (rr === 1) {
+        cell.font = { bold: true, size: 16, color: { argb: 'FF2E7D32' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        if (c <= 2) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+      } else if (rr === 2) {
+        cell.font = { size: 9, italic: true, color: { argb: 'FF64748B' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      } else if (rr === 3) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAD3' } };
+        cell.font = { bold: true, size: 10, color: { argb: 'FF1B4332' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      } else if (rr === sumRow) {
+        cell.font = { bold: true, size: 10, color: { argb: 'FF0369A1' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        if (c === N) cell.numFmt = '#,##0';
+      } else {
+        const r = rows[rr - 4];
+        const pct = r.odoo_qty ? Math.abs(r.diff) / r.odoo_qty * 100 : (r.diff !== 0 ? 100 : 0);   // สัดส่วน % ของ Odoo
+        cell.font = { size: 10, color: { argb: 'FF1E293B' } };
+        cell.alignment = { vertical: 'middle', horizontal: c >= 4 ? 'right' : 'left' };
+        if (c >= 4) cell.numFmt = c === N ? '+#,##0;-#,##0;0' : '#,##0';
+        if (c === N) {   // เซลล์ diff — ลงสีตามความรุนแรง (สัดส่วน %)
+          if (pct >= 10) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; cell.font = { size: 10, bold: true, color: { argb: 'FFB91C1C' } }; }
+          else if (pct > 0) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; cell.font = { size: 10, bold: true, color: { argb: 'FFB45309' } }; }
+          else { cell.font = { size: 10, bold: true, color: { argb: 'FF16A34A' } }; }
+        }
+      }
+    }
+  }
+  ws.getCell(1, 3).font = { bold: true, size: 16, color: { argb: 'FF2E7D32' } };   // re-apply หลัง merge
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+/* ── ป็อปอัพตั้งชื่อไฟล์ก่อนดาวน์โหลด (คลุมไฮไลต์เฉพาะชื่อ ไม่รวม .xlsx) ── */
+function FileNamePromptModal({ defaultBase, onCancel, onConfirm }: { defaultBase: string; onCancel: () => void; onConfirm: (name: string) => void }) {
+  const [name, setName] = useState(`${defaultBase}.xlsx`);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    el.focus(); const dot = name.lastIndexOf('.'); el.setSelectionRange(0, dot > 0 ? dot : name.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const confirm = () => { let n = name.trim(); if (!n) return; if (!/\.xlsx$/i.test(n)) n += '.xlsx'; onConfirm(n); };
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={onCancel}>
+      <div className="panel" style={{ width: 'min(100%, 440px)' }} onClick={e => e.stopPropagation()}>
+        <h3 className="panel__title panel__title--sm" style={{ marginTop: 0 }}>⬇️ บันทึกเป็น Excel</h3>
+        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>ตั้งชื่อไฟล์ แล้วกด “ตกลง” เพื่อดาวน์โหลด</p>
+        <input ref={ref} value={name} onChange={e => setName(e.target.value)} aria-label="ชื่อไฟล์" placeholder="ชื่อไฟล์.xlsx"
+          onKeyDown={e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') onCancel(); }}
+          style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.95rem' }} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: '1.2rem' }}>
+          <button type="button" className="btn secondary" onClick={onCancel}>ยกเลิก</button>
+          <button type="button" className="btn" onClick={confirm}>ตกลง</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type SortKey = 'code' | 'location' | 'our' | 'odoo' | 'diff';   // คอลัมน์ที่กดหัวตารางเพื่อเรียง
 
 export function DriftViewerPage() {
   const { data: rows = [], isLoading, isError, refetch } = useDriftReport();
   const [q, setQ] = useState('');
   const [loc, setLoc] = useState('');
   const [onlyDiff, setOnlyDiff] = useState(true);
-  const [sort, setSort] = useState<Sort>('diff-desc');
+  const [sortKey, setSortKey] = useState<SortKey>('diff');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');   // เรียงจากกดหัวตาราง
+  const [saveAs, setSaveAs] = useState(false);   // ป็อปอัพตั้งชื่อไฟล์ Excel
+  const toggleSort = (k: SortKey) => {
+    if (k === sortKey) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));   // คอลัมน์เดิม → สลับทิศ
+    else { setSortKey(k); setSortDir(k === 'code' || k === 'location' ? 'asc' : 'desc'); }
+  };
 
   const locations = useMemo(() => [...new Set(rows.map(r => r.location))].sort(), [rows]);
 
@@ -26,7 +145,7 @@ export function DriftViewerPage() {
   const summary = useMemo(() => {
     const drift = rows.filter(r => r.diff !== 0);
     const totalAbs = rows.reduce((s, r) => s + Math.abs(r.diff), 0);
-    const crit = rows.filter(r => sevOf(r.diff) === 'crit').length;
+    const crit = rows.filter(r => sevOf(r) === 'crit').length;
     return { total: rows.length, driftCount: drift.length, totalAbs, crit };
   }, [rows]);
 
@@ -38,31 +157,23 @@ export function DriftViewerPage() {
       if (needle && !`${r.item_code} ${r.item_name}`.toLowerCase().includes(needle)) return false;
       return true;
     });
-    list = [...list].sort((a, b) =>
-      sort === 'code' ? a.item_code.localeCompare(b.item_code)
-      : sort === 'diff-asc' ? Math.abs(a.diff) - Math.abs(b.diff)
-      : Math.abs(b.diff) - Math.abs(a.diff),
-    );
+    list = [...list].sort((a, b) => {
+      let v = 0;
+      if (sortKey === 'code') v = a.item_code.localeCompare(b.item_code);
+      else if (sortKey === 'location') v = a.location.localeCompare(b.location) || a.item_code.localeCompare(b.item_code);
+      else if (sortKey === 'our') v = a.our_qty - b.our_qty;
+      else if (sortKey === 'odoo') v = a.odoo_qty - b.odoo_qty;
+      else v = a.diff - b.diff;   // 'diff' = เรียงตามค่าจริง (ติดลบ→บวก) · asc = ติดลบมาก่อน · desc = บวกมากมาก่อน
+      return sortDir === 'asc' ? v : -v;
+    });
     return list;
-  }, [rows, q, loc, onlyDiff, sort]);
-
-  const exportCsv = () => {
-    const head = ['item_code', 'item_name', 'location', 'our_qty', 'odoo_qty', 'diff'];
-    const body = shown.map((r: DriftRow) => [r.item_code, `"${r.item_name}"`, r.location, r.our_qty, r.odoo_qty, r.diff]);
-    const csv = [head, ...body].map(row => row.join(',')).join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'stock-drift-vs-odoo.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
+  }, [rows, q, loc, onlyDiff, sortKey, sortDir]);
 
   return (
     <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">Stock Drift — เทียบสต็อก เรา vs Odoo</h1>
-        <p className="panel__subtitle">ดูว่าวันนี้ของชิ้นไหนจำนวนไม่ตรงกับ Odoo — ต่างมาก = แดง, ต่างเล็กน้อย = เหลือง</p>
+        <p className="panel__subtitle">ดูว่าวันนี้ของชิ้นไหนจำนวนไม่ตรงกับ Odoo — คิดตามสัดส่วน %: ต่าง ≥10% = แดง, &lt;10% = เหลือง</p>
 
         {/* แถบสรุป */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: '1.1rem' }}>
@@ -76,20 +187,15 @@ export function DriftViewerPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: '1.25rem' }}>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 ค้นหา item (รหัส/ชื่อ)"
             style={{ flex: '1 1 200px', minWidth: 0, padding: '0.5rem 0.7rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.9rem' }} />
-          <select value={loc} onChange={e => setLoc(e.target.value)} style={{ padding: '0.5rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+          <select value={loc} onChange={e => setLoc(e.target.value)} style={{ padding: '0.5rem 2rem 0.5rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color)', minWidth: 130 }}>
             <option value="">ทุกคลัง</option>
             {locations.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-          <select value={sort} onChange={e => setSort(e.target.value as Sort)} style={{ padding: '0.5rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color)' }}>
-            <option value="diff-desc">ต่างมาก → น้อย</option>
-            <option value="diff-asc">ต่างน้อย → มาก</option>
-            <option value="code">เรียงตามรหัส</option>
           </select>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: '#475569', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             <input type="checkbox" checked={onlyDiff} onChange={e => setOnlyDiff(e.target.checked)} style={{ width: 16, height: 16 }} />
             เฉพาะที่ต่าง
           </label>
-          <button type="button" className="btn secondary" style={{ fontSize: '0.82rem', marginLeft: 'auto' }} disabled={shown.length === 0} onClick={exportCsv}>⬇️ Export CSV</button>
+          <button type="button" className="btn" style={{ fontSize: '0.82rem', marginLeft: 'auto' }} disabled={shown.length === 0} onClick={() => setSaveAs(true)}>⬇️ Export to Excel</button>
         </div>
 
         {/* ตาราง / states */}
@@ -97,10 +203,11 @@ export function DriftViewerPage() {
           <table className="table" style={{ minWidth: 640, width: '100%' }}>
             <thead>
               <tr>
-                <th>Item</th><th>คลัง</th>
-                <th style={{ textAlign: 'right' }}>ของเรา</th>
-                <th style={{ textAlign: 'right' }}>Odoo</th>
-                <th style={{ textAlign: 'right' }}>ส่วนต่าง</th>
+                <SortTh k="code" label="Item" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh k="location" label="คลัง" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh k="our" label="ของเรา" right sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh k="odoo" label="Odoo" right sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh k="diff" label="ส่วนต่าง" right sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
@@ -118,7 +225,7 @@ export function DriftViewerPage() {
                   ✓ {onlyDiff && rows.length > 0 ? 'ไม่มีรายการที่ต่างจาก Odoo ตามตัวกรอง' : 'ไม่มีข้อมูล'}
                 </td></tr>
               ) : shown.map(r => {
-                const s = SEV[sevOf(r.diff)];
+                const s = SEV[sevOf(r)];
                 return (
                   <tr key={r.item_code} style={{ boxShadow: s.border !== 'transparent' ? `inset 3px 0 0 ${s.border}` : undefined, background: s.bg }}>
                     <td>
@@ -137,6 +244,14 @@ export function DriftViewerPage() {
         </div>
         {!isLoading && !isError && <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-muted)' }}>แสดง {shown.length} รายการ</div>}
       </div>
+
+      {saveAs && (
+        <FileNamePromptModal
+          defaultBase={`stock-drift-vs-odoo-${new Date().toISOString().slice(0, 10)}`}
+          onCancel={() => setSaveAs(false)}
+          onConfirm={(name) => { setSaveAs(false); exportDriftXlsx(shown, name); }}
+        />
+      )}
     </section>
   );
 }
@@ -147,5 +262,18 @@ function SummaryCard({ label, value, accent }: { label: string; value: number | 
       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{label}</div>
       <div style={{ fontSize: '1.4rem', fontWeight: 800, color: accent || '#1e293b', marginTop: 2 }}>{value}</div>
     </div>
+  );
+}
+
+// หัวตารางกดเรียงได้ — active โชว์ ▲/▼ · ที่เหลือโชว์ ↕ (บอกว่ากดได้)
+function SortTh({ k, label, right, sortKey, sortDir, onSort }: {
+  k: SortKey; label: string; right?: boolean; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void;
+}) {
+  const active = sortKey === k;
+  return (
+    <th onClick={() => onSort(k)} title="กดเพื่อเรียง" style={{ textAlign: right ? 'right' : 'left', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+      {label}
+      <span style={{ marginLeft: 4, color: active ? 'var(--brand)' : '#cbd5e1', fontSize: '0.75rem' }}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+    </th>
   );
 }

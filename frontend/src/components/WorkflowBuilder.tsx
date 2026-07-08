@@ -6,7 +6,6 @@ import {
 } from '../lib/workflowApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
-import { ResultBadge } from './ResultBadge';
 import { Paginator } from './Paginator';
 
 type StepKind = 'process' | 'checkpoint';
@@ -136,6 +135,8 @@ const fmtTime = (sec: number) => {
   if (s || !p.length) p.push(`${s} วิ`);
   return p.join(' ');
 };
+
+const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
 
 /* ── โหลด preset ── */
 function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
@@ -808,8 +809,6 @@ function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'flow' | '
   );
 }
 
-const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
-
 
 // ── Dropdown กลาง — ใช้ทุกช่อง (setup/SMT/เครื่อง) ให้หน้าตาเหมือนกันหมด ──
 // groups = แยกเป็นหัวข้อได้ (เช่น Set up / Custom process) · item.deletable = มี ✕ ลบในตัว · onAdd = ปุ่ม "+ เพิ่ม"
@@ -1110,7 +1109,7 @@ export function WorkflowBuilder() {
     setDraggedId(null); setDragOverId(null); setGrabId(null);
   }
 
-  /* บันทึกผลเดินสายผลิต (P/N จริง) — เก็บลงตารางผล · ผ่าน/ไม่ผ่านดูจาก flowchart จึงบันทึกเป็น PASS */
+  /* บันทึกผลเดินสายผลิต (P/N จริง) — เก็บลงตารางผล */
   function record() {
     if (!pn.trim()) { showToast('กรุณากรอก P/N', 'error'); return; }
     if (!steps.length || steps.some(s => s.seconds === '' || Number(s.seconds) <= 0)) { showToast('กรุณากรอกเวลาให้ครบทุกกระบวนการ', 'error'); return; }
@@ -1546,7 +1545,7 @@ export function WorkflowBuilder() {
         </div>
       )}
 
-      {/* ตารางผล — รวมทุกสาย มี filter เลือกดูตามสายได้ (ไม่มีคอลัมน์สาย) */}
+      {/* ตารางผล — รวมทุกสาย มี filter เลือกดูตามสายได้ (ไม่มีคอลัมน์ ผล PASS/FAIL) */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
           <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>📋 ผลการบันทึก {shownResults.length > 0 && `(${shownResults.length})`}</h3>
@@ -1574,15 +1573,15 @@ export function WorkflowBuilder() {
           })}
         </div>
         <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-          <table className="table" style={{ minWidth: 760 }}>
+          <table className="table" style={{ minWidth: 720 }}>
             <thead>
               <tr>
-                <th>วันที่/เวลา</th><th>P/N</th><th>Customer</th><th>Model</th><th>ลำดับกระบวนการ</th><th>Cycle</th><th>ผล</th>{!isViewer && <th></th>}
+                <th>วันที่/เวลา</th><th>P/N</th><th>Customer</th><th>Model</th><th>ลำดับกระบวนการ</th><th>Cycle</th>{!isViewer && <th></th>}
               </tr>
             </thead>
             <tbody>
               {shownResults.length === 0 ? (
-                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>{results.length === 0 ? 'ยังไม่มีผลที่บันทึก — กรอก P/N + เวลา แล้วกด “บันทึกผล”' : 'ไม่มีผลในสายที่เลือก — กด “รวมทั้งหมด” เพื่อดูทั้งหมด'}</td></tr>
+                <tr><td colSpan={isViewer ? 6 : 7} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>{results.length === 0 ? 'ยังไม่มีผลที่บันทึก — กรอก P/N + เวลา แล้วกด “บันทึกผล”' : 'ไม่มีผลในสายที่เลือก — กด “รวมทั้งหมด” เพื่อดูทั้งหมด'}</td></tr>
               ) : pagedResults.map(r => (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: '#64748b' }}>{fmtDateTime(r.created_at)}</td>
@@ -1591,7 +1590,6 @@ export function WorkflowBuilder() {
                   <td>{r.model || '—'}</td>
                   <td style={{ fontSize: '0.8rem', color: '#475569', minWidth: 260, maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>{r.sequence || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtTime(r.total_sec)}</td>
-                  <td><ResultBadge value={r.result} /></td>
                   {!isViewer && (
                     <td><button className="btn danger" style={{ padding: '4px 10px', fontSize: '0.78rem' }} onClick={() => { if (confirm(`ลบผล ${r.serial}?`)) delResult.mutate(r.id); }}>ลบ</button></td>
                   )}
