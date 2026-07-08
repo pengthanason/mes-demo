@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { useInventoryLots, useReceiveLot, useReviewLot, useDeleteLot, type LotStatus } from '../lib/inventoryApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { confirmDialog } from '../lib/confirm';
 import { Paginator } from '../components/Paginator';
+import { TableState } from '../components/DataStates';
 
 const STATUS_STYLE: Record<LotStatus, { bg: string; text: string; border: string; label: string }> = {
   PENDING:  { bg: '#fef9c3', text: '#854d0e', border: '#fde047', label: '🕒 รอตรวจรับ' },
@@ -82,13 +84,13 @@ export function IncomingPage() {
     );
   }
 
-  function handleReview(id: number, status: 'APPROVED' | 'REJECTED') {
+  async function handleReview(id: number, status: 'APPROVED' | 'REJECTED') {
     const lot = lots.find(l => l.id === id);
     const desc = lot ? `${lot.partNo} · ล็อต ${lot.lotNo} · ${lot.qtyReceived.toLocaleString()} ชิ้น` : `ล็อต #${id}`;
     const msg = status === 'APPROVED'
       ? `อนุมัติล็อตนี้?\n\n${desc}\n\nของจะพร้อมเบิกไปผลิต`
       : `ตีกลับล็อตนี้?\n\n${desc}\n\nของจะใช้ผลิตไม่ได้`;
-    if (!confirm(msg)) return;
+    if (!(await confirmDialog(msg, { danger: status === 'REJECTED', confirmText: status === 'APPROVED' ? 'อนุมัติ' : 'ตีกลับ' }))) return;
     reviewMut.mutate(
       { id, status },
       {
@@ -98,10 +100,10 @@ export function IncomingPage() {
     );
   }
 
-  function handleDelete(id: number) {
+  async function handleDelete(id: number) {
     const lot = lots.find(l => l.id === id);
     const desc = lot ? `${lot.partNo} · ล็อต ${lot.lotNo}` : `ล็อต #${id}`;
-    if (!confirm(`ลบล็อตนี้ทิ้ง?\n\n${desc}\n\nลบแล้วกู้คืนไม่ได้`)) return;
+    if (!(await confirmDialog(`ลบล็อตนี้ทิ้ง?\n\n${desc}\n\nลบแล้วกู้คืนไม่ได้`, { title: 'ลบล็อต' }))) return;
     deleteMut.mutate(id, {
       onSuccess: () => showToast('ลบล็อตแล้ว', 'info'),
       onError: (err: any) => showToast(err.message, 'error'),
@@ -197,9 +199,9 @@ export function IncomingPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <TableState colSpan={isViewer ? 7 : 8} state="loading" />
               ) : paged.length === 0 ? (
-                <tr><td colSpan={isViewer ? 7 : 8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{statusFilter ? 'ไม่พบล็อตตามตัวกรอง — เลือก “ทั้งหมด” เพื่อดูทุกล็อต' : 'ยังไม่มีล็อตวัตถุดิบ — กด “+ รับของเข้า” เพื่อเริ่มรับของ'}</td></tr>
+                <TableState colSpan={isViewer ? 7 : 8} state="empty" emptyText={statusFilter ? 'ไม่พบล็อตตามตัวกรอง — เลือก “ทั้งหมด” เพื่อดูทุกล็อต' : 'ยังไม่มีล็อตวัตถุดิบ — กด “+ รับของเข้า” เพื่อเริ่มรับของ'} />
               ) : paged.map(lot => (
                 <tr key={lot.id}>
                   <td style={{ fontWeight: 600 }}><code>{lot.partNo}</code></td>
@@ -224,6 +226,7 @@ export function IncomingPage() {
                         )}
                         <button
                           type="button"
+                          aria-label="ลบล็อต"
                           style={{ width: 28, height: 28, padding: 0, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}
                           disabled={deleteMut.isPending}
                           onClick={() => handleDelete(lot.id)}

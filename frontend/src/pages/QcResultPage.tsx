@@ -9,6 +9,7 @@ import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
 import { WoInput } from '../components/WoInput';
 import { useWoLots, useScanSummary } from '../lib/lookups';
+import { TableState } from '../components/DataStates';
 
 const OVERALL_STYLE: Record<QcOverall, { bg: string; text: string; border: string }> = {
   PASS:    { bg: '#dcfce7', text: '#166534', border: '#86efac' },
@@ -264,16 +265,16 @@ export function QcResultPage() {
                 <th style={{ textAlign: 'center' }}>Pass</th>
                 <th style={{ textAlign: 'center' }}>Fail</th>
                 <th style={{ textAlign: 'center' }}>Overall</th>
-                <th>ของเสีย / หมายเหตุ</th>
+                <th style={{ textAlign: 'center' }}>ของเสีย / หมายเหตุ</th>
                 <th style={{ textAlign: 'center' }}>QA Verify</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <TableState colSpan={10} state="loading" />
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{woFilter.trim() ? 'ไม่พบรายการตามตัวกรอง — ล้างช่องค้นหา WO เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล QC Result — กด “+ บันทึก QC Result” เพื่อเริ่ม'}</td></tr>
+                <TableState colSpan={10} state="empty" emptyText={woFilter.trim() ? 'ไม่พบรายการตามตัวกรอง — ล้างช่องค้นหา WO เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล QC Result — กด “+ บันทึก QC Result” เพื่อเริ่ม'} />
               ) : pagedList.map(r => (
                 <tr key={r.id}>
                   <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(r.createdAt).toLocaleDateString('th-TH')}</td>
@@ -283,7 +284,7 @@ export function QcResultPage() {
                   <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>{r.qtyPass}</td>
                   <td style={{ textAlign: 'center', color: r.qtyFail > 0 ? '#dc2626' : 'var(--text-muted)', fontWeight: r.qtyFail > 0 ? 600 : 400 }}>{r.qtyFail}</td>
                   <td style={{ textAlign: 'center' }}><OverallBadge overall={r.overall} /></td>
-                  <td style={{ fontSize: '0.8rem', maxWidth: 260, whiteSpace: 'normal' }}>
+                  <td style={{ fontSize: '0.8rem', maxWidth: 260, whiteSpace: 'normal', textAlign: 'center' }}>
                     {r.defectDesc && <div style={{ color: '#dc2626' }}>{r.defectDesc}</div>}
                     {r.remark && <div style={{ color: 'var(--text-muted)' }}>📝 {r.remark}</div>}
                     {!r.defectDesc && !r.remark && <span style={{ color: 'var(--text-muted)' }}>—</span>}

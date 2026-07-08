@@ -356,7 +356,7 @@ const jigRetests: any[] = [
 let _ppId = 50;
 const ppBase = {
   wk: 0, date_record: null, customer: '', syn_requestor: '', work_order: '', wo_name: '', matl_coming: '',
-  chk_man: false, chk_mac: false, chk_med: false, chk_mat: false,
+  chk_man: false, chk_mac: false, chk_med: false, chk_mat: false, chk_env: false,
   pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, pd_start_date: null, pd_finish_date: null,
   qa_test_rate: '', qa_finish_date: null, store_received: null, expected_date: null, revised_date: null,
   done: false, pd_pic: '', pic_responsible: '', team_member: 0, ok_per_day: 0, total_ng: 0, total_ok: 0, remark: '',

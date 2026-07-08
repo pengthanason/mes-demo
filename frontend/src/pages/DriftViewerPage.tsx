@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useDriftReport, type DriftRow } from '../lib/driftApi';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
+import { TableState } from '../components/DataStates';
 
 // ระดับความรุนแรง — คิดเป็น "สัดส่วน %" ของ Odoo (ยุติธรรมกว่าค่าสัมบูรณ์ เพราะ 20 ชิ้นของ 60 = เยอะ แต่ของ 5000 = จิ๋ว)
 type Sev = 'ok' | 'warn' | 'crit';
@@ -185,9 +186,9 @@ export function DriftViewerPage() {
 
         {/* ตัวกรอง */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: '1.25rem' }}>
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 ค้นหา item (รหัส/ชื่อ)"
+          <input value={q} onChange={e => setQ(e.target.value)} aria-label="ค้นหา item (รหัส/ชื่อ)" placeholder="🔍 ค้นหา item (รหัส/ชื่อ)"
             style={{ flex: '1 1 200px', minWidth: 0, padding: '0.5rem 0.7rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.9rem' }} />
-          <select value={loc} onChange={e => setLoc(e.target.value)} style={{ padding: '0.5rem 2rem 0.5rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color)', minWidth: 130 }}>
+          <select value={loc} onChange={e => setLoc(e.target.value)} aria-label="กรองตามคลัง" style={{ padding: '0.5rem 2rem 0.5rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color)', minWidth: 130 }}>
             <option value="">ทุกคลัง</option>
             {locations.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
@@ -212,14 +213,9 @@ export function DriftViewerPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <TableState colSpan={5} state="loading" />
               ) : isError ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>
-                  <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 10, alignItems: 'center', color: '#dc2626' }}>
-                    <span>⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</span>
-                    <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => refetch()}>ลองใหม่</button>
-                  </div>
-                </td></tr>
+                <TableState colSpan={5} state="error" onRetry={() => refetch()} />
               ) : shown.length === 0 ? (
                 <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2.5rem', color: '#16a34a' }}>
                   ✓ {onlyDiff && rows.length > 0 ? 'ไม่มีรายการที่ต่างจาก Odoo ตามตัวกรอง' : 'ไม่มีข้อมูล'}

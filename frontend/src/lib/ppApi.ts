@@ -21,7 +21,7 @@ export interface PpProject {
   work_order: string;
   wo_name: string;                 // WO → Name
   matl_coming: string;
-  chk_man: boolean; chk_mac: boolean; chk_med: boolean; chk_mat: boolean;
+  chk_man: boolean; chk_mac: boolean; chk_med: boolean; chk_mat: boolean; chk_env: boolean;   // 4M1E (E = Environment)
   pd_pcba: boolean; pd_bbas: boolean; pd_test: boolean; pd_rma: boolean; pd_prep: boolean;
   pd_start_date: string | null;
   pd_finish_date: string | null;

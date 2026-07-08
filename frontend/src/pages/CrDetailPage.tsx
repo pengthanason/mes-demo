@@ -149,6 +149,7 @@ export function CrDetailPage() {
                         value={notes[g.key]}
                         onChange={e => setNotes(prev => ({ ...prev, [g.key]: e.target.value }))}
                         placeholder="หมายเหตุการอนุมัติ (ไม่บังคับ)..."
+                        aria-label="หมายเหตุการอนุมัติ"
                         style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color, #cbd5e1)', borderRadius: 6, fontSize: '0.9rem' }}
                       />
                       <button

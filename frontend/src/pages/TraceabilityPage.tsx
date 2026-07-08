@@ -4,6 +4,7 @@ import {
   useSerialTrace, useSerialList, useBoxList, useBoxDetail, useDailyReport,
   type TraceStep, type DailyReport,
 } from '../lib/traceApi';
+import { TableState, BlockState } from '../components/DataStates';
 
 // ── helpers ──
 const fmt = (s: string) => { try { return new Date(s).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
@@ -58,7 +59,7 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
   return (
     <div className="stack" style={{ marginTop: '1.25rem' }}>
       <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input list="trace-serials" value={q} onChange={e => setQ(e.target.value)} placeholder="กรอก / สแกน Serial Number เช่น SN-A100-0001"
+        <input list="trace-serials" value={q} onChange={e => setQ(e.target.value)} placeholder="กรอก / สแกน Serial Number เช่น SN-A100-0001" aria-label="ค้นหา Serial Number"
           style={{ flex: 1, minWidth: 220, padding: '0.6rem 0.8rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.95rem' }} autoFocus />
         <datalist id="trace-serials">{serials.map(s => <option key={s} value={s} />)}</datalist>
         <button type="submit" className="btn" disabled={!q.trim()} style={{ fontWeight: 600 }}>🔍 ค้นหา</button>
@@ -152,14 +153,14 @@ function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: stri
   return (
     <div className="stack" style={{ marginTop: '1.25rem' }}>
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+        <BlockState state="loading" />
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           <table className="table" style={{ minWidth: 520, width: '100%' }}>
             <thead><tr><th>กล่อง</th><th>Product</th><th>WO</th><th>แพ็กเมื่อ</th><th style={{ textAlign: 'center' }}>จำนวน</th></tr></thead>
             <tbody>
               {boxes.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีกล่อง</td></tr>
+                <TableState colSpan={5} state="empty" emptyText="ยังไม่มีกล่อง" />
               ) : boxes.map(b => (
                 <tr key={b.box_id} style={{ cursor: 'pointer' }} onClick={() => setBox(b.box_id)} title="ดูรายการ serial ในกล่อง">
                   <td style={{ fontWeight: 600, color: 'var(--brand)' }}>📦 {b.box_id}</td>
@@ -199,14 +200,14 @@ function ReportTab() {
         <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} disabled={report.length === 0} onClick={exportCsv}>⬇️ Export CSV</button>
       </div>
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+        <BlockState state="loading" />
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           <table className="table" style={{ minWidth: 480, width: '100%' }}>
             <thead><tr><th>วันที่</th><th style={{ textAlign: 'center' }}>ผลิต</th><th style={{ textAlign: 'center' }}>Pass</th><th style={{ textAlign: 'center' }}>Fail</th><th style={{ textAlign: 'center' }}>% ผ่าน</th></tr></thead>
             <tbody>
               {report.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ไม่มีข้อมูล</td></tr>
+                <TableState colSpan={5} state="empty" emptyText="ไม่มีข้อมูล" />
               ) : report.map(r => (
                 <tr key={r.date}>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.date)}</td>

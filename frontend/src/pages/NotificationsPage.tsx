@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkRead, useMarkAllRead } from '../lib/notificationsApi';
 import { Paginator } from '../components/Paginator';
+import { BlockState } from '../components/DataStates';
 import { timeAgo } from '../lib/format';
 
 const TYPE_ICON: Record<string, string> = {
@@ -39,12 +40,10 @@ export function NotificationsPage() {
           </button>
         </div>
 
-        {isLoading && <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem' }}>กำลังโหลด...</div>}
+        {isLoading && <BlockState state="loading" />}
 
         {!isLoading && list.length === 0 && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem' }}>
-            ยังไม่มีการแจ้งเตือน
-          </div>
+          <BlockState state="empty" emptyText="ยังไม่มีการแจ้งเตือน" />
         )}
 
         <div className="stack" style={{ gap: 0, marginTop: list.length ? '0.5rem' : 0 }}>

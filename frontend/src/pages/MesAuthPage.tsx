@@ -87,13 +87,17 @@ export function MesAuthPage() {
             </form>
 
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem', marginTop: '0.5rem' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Demo Accounts</div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Demo Accounts <span style={{ fontWeight: 400, color: '#94a3b8' }}>— กดเพื่อกรอกให้อัตโนมัติ</span></div>
               {DEMO_ACCOUNTS.map(acc => (
-                <div key={acc.username} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem', fontSize: '0.82rem' }}>
+                <button key={acc.username} type="button" onClick={() => { setUsername(acc.username); setPassword(acc.password); setError(''); }}
+                  title="กดเพื่อกรอก username/password ให้อัตโนมัติ"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', fontSize: '0.82rem', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderRadius: 6, padding: '0.25rem', cursor: 'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#eef2f7'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
                   <span style={{ background: ROLE_COLOR[acc.role], color: '#fff', padding: '0.1rem 0.45rem', borderRadius: 999, fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{acc.role}</span>
                   <code style={{ color: '#334155' }}>{acc.username} / {acc.password}</code>
                   <span style={{ color: '#94a3b8' }}>— {acc.desc}</span>
-                </div>
+                </button>
               ))}
             </div>
           </div>

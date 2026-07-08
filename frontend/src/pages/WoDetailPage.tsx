@@ -9,6 +9,7 @@ import { useWoBoard, useWoPatch } from '../lib/woApi';
 import { useQcResults } from '../lib/qcResultApi';
 import { useKittingIssues } from '../lib/inventoryApi';
 import { ResultBadge } from '../components/ResultBadge';
+import { BlockState } from '../components/DataStates';
 import { showToast } from '../lib/toast';
 
 const ADVANCE_LABEL: Partial<Record<WoStep, string>> = {
@@ -147,7 +148,7 @@ export function WoDetailPage() {
       <div className="panel">
         <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติ QC / QA {qcResults.length > 0 && `(${qcResults.length})`}</h2>
         {qcResults.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', padding: '0.5rem 0' }}>ยังไม่มีผล QC สำหรับ WO นี้ — บันทึกได้ที่หน้า QC → QC Result</div>
+          <BlockState state="empty" emptyText="ยังไม่มีผล QC สำหรับ WO นี้ — บันทึกได้ที่หน้า QC → QC Result" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <table className="table" style={{ minWidth: 820, width: '100%' }}>
@@ -189,7 +190,7 @@ export function WoDetailPage() {
       <div className="panel">
         <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติการเบิกของ (Kitting) {kitting.length > 0 && `(${kitting.length})`}</h2>
         {kitting.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', padding: '0.5rem 0' }}>ยังไม่มีการเบิกของให้ WO นี้ — เบิกได้ที่หน้า Incoming & Kitting</div>
+          <BlockState state="empty" emptyText="ยังไม่มีการเบิกของให้ WO นี้ — เบิกได้ที่หน้า Incoming & Kitting" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <table className="table" style={{ minWidth: 560, width: '100%' }}>
@@ -213,7 +214,7 @@ export function WoDetailPage() {
       <div className="panel">
         <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติการสแกนผลิต {scans.length > 0 && `(${scans.length})`}</h2>
         {scans.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', padding: '0.5rem 0' }}>ยังไม่มีการสแกนผลิตของ WO นี้</div>
+          <BlockState state="empty" emptyText="ยังไม่มีการสแกนผลิตของ WO นี้" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <table className="table" style={{ minWidth: 620, width: '100%' }}>

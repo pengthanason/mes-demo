@@ -4,9 +4,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePpProjects, usePpDelete, usePpUpdate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject, type PpFilters } from '../lib/ppApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { confirmDialog } from '../lib/confirm';
 import { Paginator } from '../components/Paginator';
 import { FactoryOverview } from '../components/FactoryOverview';
 import { FlowGuide } from '../components/FlowGuide';
+import { TableState } from '../components/DataStates';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
   STATUS_STYLE, StatusBadge, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal,
@@ -19,7 +21,7 @@ const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
   ...(h.headerColor ? { background: `#${h.headerColor}`, color: (h.headerColor === '00B050' || h.headerColor === '4472C4') ? '#fff' : undefined } : {}),
 });
 
-const CHECK_KEYS = new Set(['chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'done']);
+const CHECK_KEYS = new Set(['chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'chk_env', 'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'done']);
 // เซลล์ว่าง — ขีด "—" จัดกึ่งกลางเสมอทุกคอลัมน์ (สีจาง) ให้เท่ากันหมด
 const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' };
 // ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
@@ -98,7 +100,7 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', wordBreak: 'break-word' }}>{p.product_pn || '—'}</div>
             <div style={{ fontSize: '0.9rem', color: '#64748b', marginTop: 2 }}>{[p.model, p.customer].filter(Boolean).join(' · ') || '—'}</div>
           </div>
-          <button type="button" className="btn secondary" style={{ padding: '4px 12px', flexShrink: 0 }} onClick={onClose}>✕</button>
+          <button type="button" aria-label="ปิด" className="btn secondary" style={{ padding: '4px 12px', flexShrink: 0 }} onClick={onClose}>✕</button>
         </div>
         <div style={{ marginTop: 10 }}><StatusBadge status={p.status} /></div>
         {/* รูปสินค้า (placeholder — ของจริงจะแนบภายหลัง) */}
@@ -321,8 +323,8 @@ export function DashboardPage() {
     return { totalOk, totalNg, byStatus, byCustomer };
   }, [rows]);
 
-  function handleDelete(p: PpProject) {
-    if (!confirm(`ลบโปรเจกต์ "${p.product_pn || p.model}"?\nลบแล้วกู้ไม่ได้`)) return;
+  async function handleDelete(p: PpProject) {
+    if (!(await confirmDialog(`ลบโปรเจกต์ "${p.product_pn || p.model}"?\nลบแล้วกู้ไม่ได้`, { title: 'ลบโปรเจกต์' }))) return;
     del.mutate(p.id, { onSuccess: () => { showToast('ลบแล้ว', 'info'); setPage(1); }, onError: (e: any) => showToast(e.message, 'error') });
   }
 
@@ -425,9 +427,9 @@ export function DashboardPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={colCount} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <TableState colSpan={colCount} state="loading" />
               ) : paged.length === 0 ? (
-                <tr><td colSpan={colCount} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'}</td></tr>
+                <TableState colSpan={colCount} state="empty" emptyText={hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'} />
               ) : paged.map((p, idx) => {
                 const y = ppYield(p);
                 const no = (page - 1) * PAGE + idx + 1;   // ลำดับต่อเนื่องข้ามหน้า

@@ -2,6 +2,7 @@ import { useReworkList, useReworkStatus, type ReworkStatus } from '../lib/qcResu
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { ResultBadge } from '../components/ResultBadge';
+import { TableState } from '../components/DataStates';
 
 const STATUS_STYLE: Record<ReworkStatus, { label: string; bg: string; text: string; border: string }> = {
   OPEN:        { label: 'เปิด',       bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
@@ -44,9 +45,9 @@ export function ReworkPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={isViewer ? 8 : 9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+              <TableState colSpan={isViewer ? 8 : 9} state="loading" />
             ) : tickets.length === 0 ? (
-              <tr><td colSpan={isViewer ? 8 : 9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มี Rework — เปิดได้จากแท็บ QC Result (แถวที่ผล FAIL/PARTIAL)</td></tr>
+              <TableState colSpan={isViewer ? 8 : 9} state="empty" emptyText="ยังไม่มี Rework — เปิดได้จากแท็บ QC Result (แถวที่ผล FAIL/PARTIAL)" />
             ) : tickets.map(t => {
               const s = STATUS_STYLE[t.status];
               const next = NEXT[t.status];

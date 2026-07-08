@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useJigProject, useJigRecords, useJigTimeseries, useJigRetests, useJigRetestCreate, useJigRecordCreate, JigTimeseries, JigRecord } from '../lib/jigApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { BlockState } from '../components/DataStates';
 
 /* ──────── SVG Line Chart ──────── */
 function LineChart({ data }: { data: JigTimeseries[] }) {
@@ -268,7 +269,7 @@ export function JigProjectPage() {
   if (projError || !project) return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <p style={{ color: 'var(--danger)' }}>ไม่พบโปรเจกต์ "{projectCode}"</p>
-      <button className="btn secondary" style={{ marginTop: '1rem' }} onClick={() => navigate('/jig-test')}>← กลับ</button>
+      <button type="button" className="btn secondary" style={{ marginTop: '1rem' }} onClick={() => navigate('/jig-test')}>← กลับ</button>
     </div>
   );
 
@@ -278,7 +279,7 @@ export function JigProjectPage() {
     <section className="stack-lg">
       {/* Header */}
       <div className="panel">
-        <button className="btn secondary" style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }} onClick={() => navigate('/jig-test')}>
+        <button type="button" className="btn secondary" style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }} onClick={() => navigate('/jig-test')}>
           ← กลับ Jig Test
         </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -332,13 +333,15 @@ export function JigProjectPage() {
               className="form-input"
               style={{ fontSize: '0.78rem', padding: '4px 8px', height: 30 }}
               title="กรองตามวันที่ทดสอบ"
+              aria-label="กรองตามวันที่ทดสอบ"
             />
             {dateFilter && (
-              <button className="btn secondary" title="ล้างการกรองตามวันที่" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setDateFilter('')}>ล้างวันที่</button>
+              <button type="button" className="btn secondary" title="ล้างการกรองตามวันที่" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setDateFilter('')}>ล้างวันที่</button>
             )}
             {(['', 'PASS', 'FAIL'] as const).map(f => (
               <button
                 key={f}
+                type="button"
                 className={`btn ${resultFilter === f ? 'primary' : 'secondary'}`}
                 style={{ fontSize: '0.78rem', padding: '4px 12px' }}
                 onClick={() => setResultFilter(f)}
@@ -349,9 +352,9 @@ export function JigProjectPage() {
           </div>
         </div>
         {loadingRecords ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+          <BlockState state="loading" />
         ) : shownRecords.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>ไม่พบข้อมูล{dateFilter ? ` ในวันที่ ${dateFilter}` : ''}</div>
+          <BlockState state="empty" emptyText={`ไม่พบข้อมูล${dateFilter ? ` ในวันที่ ${dateFilter}` : ''}`} />
         ) : (
           <RecordsTable records={shownRecords} onSelect={setSelected} />
         )}

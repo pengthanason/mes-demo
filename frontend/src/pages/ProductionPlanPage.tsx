@@ -30,7 +30,7 @@ export function ProductionPlanPage() {
         <p className="panel__subtitle">Add Project · Workflow — ดูภาพรวม/ตารางได้ที่หน้า Dashboard</p>
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
           {TABS.map(t => (
-            <button key={t.key} className={`mes-module-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
+            <button key={t.key} type="button" className={`mes-module-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
           ))}
         </div>
         {tab === 'add' && <AddProjectTab />}

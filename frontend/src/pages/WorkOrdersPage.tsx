@@ -4,6 +4,7 @@ import { useWoBoard, useWoCreate } from '../lib/woApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { TableState } from '../components/DataStates';
 
 const STEP_STYLE: Record<string, { label: string; bg: string; text: string; border: string }> = {
   DRAFT:        { label: 'ร่าง',          bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' },
@@ -23,7 +24,7 @@ function StepBadge({ step }: { step: string }) {
 export function WorkOrdersPage() {
   const navigate = useNavigate();
   const isViewer = useIsViewer();
-  const { data: wos = [], isLoading, isError, error, refetch } = useWoBoard();
+  const { data: wos = [], isLoading, isError, refetch } = useWoBoard();
   const create = useWoCreate();
   const [showForm, setShowForm] = useState(false);
   const [page, setPage] = useState(1);
@@ -110,16 +111,11 @@ export function WorkOrdersPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <TableState colSpan={8} state="loading" />
               ) : isError ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
-                  <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 10, alignItems: 'center', color: '#dc2626' }}>
-                    <span>⚠️ {(error as Error)?.message || 'โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่'}</span>
-                    <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => refetch()}>ลองใหม่</button>
-                  </div>
-                </td></tr>
+                <TableState colSpan={8} state="error" onRetry={() => refetch()} />
               ) : paged.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มี Work Order — กด “+ เปิด WO” เพื่อเริ่ม</td></tr>
+                <TableState colSpan={8} state="empty" emptyText="ยังไม่มี Work Order — กด “+ เปิด WO” เพื่อเริ่ม" />
               ) : paged.map(w => (
                 <tr key={w.woId} style={{ cursor: 'pointer' }} onClick={() => navigate(`/wo/${w.woId}`)}
                   title="กดเพื่อดูรายละเอียด / FAI / ปิดงาน">

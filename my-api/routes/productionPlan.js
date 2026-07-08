@@ -2,7 +2,7 @@ const router = require('express').Router();
 const db     = require('../db');
 
 const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn_requestor,
-  work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat,
+  work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat, chk_env,
   pd_pcba, pd_bbas, pd_test, pd_rma, pd_prep, pd_start_date, pd_finish_date,
   qa_test_rate, qa_finish_date, store_received, expected_date, revised_date, done,
   pd_pic, pic_responsible, team_member, ok_per_day, total_ng, total_ok, remark,
@@ -12,7 +12,7 @@ const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn
 // field ที่ยอมให้เขียน (กันยิงมั่ว)
 const WRITABLE = [
   'status', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'syn_requestor',
-  'work_order', 'wo_name', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat',
+  'work_order', 'wo_name', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'chk_env',
   'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date',
   'qa_test_rate', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'done',
   'pd_pic', 'pic_responsible', 'team_member', 'ok_per_day', 'total_ng', 'total_ok', 'remark',

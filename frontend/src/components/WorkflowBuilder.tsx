@@ -6,6 +6,7 @@ import {
 } from '../lib/workflowApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { confirmDialog } from '../lib/confirm';
 import { Paginator } from './Paginator';
 
 type StepKind = 'process' | 'checkpoint';
@@ -178,7 +179,7 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
                   <div style={{ fontSize: '0.72rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.steps.map(s => s.process).join(' → ')}</div>
                 </div>
                 {canDelete && (
-                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (confirm('ลบ preset นี้?')) onDelete(w.id); }}
+                  <button onClick={async (e) => { e.preventDefault(); e.stopPropagation(); if (await confirmDialog('ลบ preset นี้?')) onDelete(w.id); }}
                     style={{ background: 'transparent', border: 'none', color: '#e74c3c', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}
                     title="ลบ" onMouseOver={e => e.currentTarget.style.background = '#fee2e2'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>✕</button>
                 )}
@@ -1230,15 +1231,15 @@ export function WorkflowBuilder() {
     else { setMachines(prev => [...prev, t]); showToast(`เพิ่มเครื่อง "${t}" แล้ว`, 'success'); }
     setStep(stepId, { machine: t });
   }
-  function deleteMachine(name: string) {
-    if (!confirm(`ลบเครื่อง "${name}" ออกจากลิสต์?`)) return;
+  async function deleteMachine(name: string) {
+    if (!(await confirmDialog(`ลบเครื่อง "${name}" ออกจากลิสต์?`))) return;
     setMachines(prev => prev.filter(n => n !== name));
     setSteps(prev => prev.map(s => s.machine === name ? { ...s, machine: '' } : s));
   }
 
   /* ลบกระบวนการที่เพิ่มเอง (custom) ออกจากลิสต์ — ขั้นที่ใช้อยู่จะย้ายไปตัวแรก (default) */
-  function deleteCustomProc(name: string) {
-    if (!confirm(`ลบกระบวนการ "${name}" ออกจากลิสต์?`)) return;
+  async function deleteCustomProc(name: string) {
+    if (!(await confirmDialog(`ลบกระบวนการ "${name}" ออกจากลิสต์?`))) return;
     setCustomProcs(prev => prev.filter(n => n !== name));
     setSteps(prev => prev.map(s => (s.role === 'smt' && s.process === name) ? { ...s, process: smtMain[0] || 'SMT' } : s));
   }
@@ -1591,7 +1592,7 @@ export function WorkflowBuilder() {
                   <td style={{ fontSize: '0.8rem', color: '#475569', minWidth: 260, maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>{r.sequence || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtTime(r.total_sec)}</td>
                   {!isViewer && (
-                    <td><button className="btn danger" style={{ padding: '4px 10px', fontSize: '0.78rem' }} onClick={() => { if (confirm(`ลบผล ${r.serial}?`)) delResult.mutate(r.id); }}>ลบ</button></td>
+                    <td><button className="btn danger" style={{ padding: '4px 10px', fontSize: '0.78rem' }} onClick={async () => { if (await confirmDialog(`ลบผล ${r.serial}?`)) delResult.mutate(r.id); }}>ลบ</button></td>
                   )}
                 </tr>
               ))}

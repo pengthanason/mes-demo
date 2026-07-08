@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useJigProjects, useJigProjectCreate, useJigProjectDelete, JigProject } from '../lib/jigApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { confirmDialog } from '../lib/confirm';
 import { TRACE_URL } from '../lib/jigTrace';   // KNEX_GW — URL Traceability ภายนอก (จาก env, ไม่ hardcode)
+import { BlockState } from '../components/DataStates';
 
 function PassRateBar({ rate }: { rate: number }) {
   const color = rate >= 95 ? '#22c55e' : rate >= 80 ? '#f59e0b' : '#ef4444';
@@ -42,7 +44,7 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
             {p.isActive ? 'ACTIVE' : 'INACTIVE'}
           </span>
           {onDelete && (
-            <button type="button" title="ลบโปรเจกต์"
+            <button type="button" title="ลบโปรเจกต์" aria-label="ลบโปรเจกต์"
               onClick={e => { e.stopPropagation(); onDelete(); }}
               style={{ width: 26, height: 26, padding: 0, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, lineHeight: 1, flexShrink: 0 }}
               onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
@@ -171,8 +173,8 @@ export function JigTestPage() {
   const isViewer = useIsViewer();
   const del = useJigProjectDelete();
 
-  const handleDelete = (p: JigProject) => {
-    if (!confirm(`ลบโปรเจกต์ "${p.name}" (${p.projectCode})?\nผลทดสอบทั้งหมดของโปรเจกต์นี้จะถูกลบด้วย — กู้คืนไม่ได้`)) return;
+  const handleDelete = async (p: JigProject) => {
+    if (!(await confirmDialog(`ลบโปรเจกต์ "${p.name}" (${p.projectCode})?\nผลทดสอบทั้งหมดของโปรเจกต์นี้จะถูกลบด้วย — กู้คืนไม่ได้`, { title: 'ลบโปรเจกต์ Jig' }))) return;
     del.mutate(p.projectCode, {
       onSuccess: () => showToast('ลบโปรเจกต์แล้ว', 'info'),
       onError: (e: any) => showToast(e.message, 'error'),
@@ -193,8 +195,8 @@ export function JigTestPage() {
       </div>
       {showCreate && <CreateJigProjectModal onClose={() => setShowCreate(false)} />}
 
-      {isLoading && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
-      {error && <div style={{ padding: '1rem', color: 'var(--danger)', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>เกิดข้อผิดพลาด</div>}
+      {isLoading && <BlockState state="loading" />}
+      {error && <BlockState state="error" />}
 
       {!isLoading && (
         <div style={{ marginTop: '1.75rem' }}>
@@ -224,7 +226,7 @@ export function JigTestPage() {
       )}
 
       {!isLoading && projects.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>ยังไม่มีโปรเจกต์ Jig — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม</div>
+        <BlockState state="empty" emptyText="ยังไม่มีโปรเจกต์ Jig — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม" />
       )}
     </div>
   );

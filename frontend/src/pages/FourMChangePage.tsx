@@ -4,6 +4,7 @@ import { useCrList, useCrCreate, type MType, type CrState } from '../lib/crApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { TableState } from '../components/DataStates';
 import { WoInput } from '../components/WoInput';
 
 export const CR_STATE_STYLE: Record<CrState, { bg: string; text: string; border: string; label: string }> = {
@@ -158,9 +159,9 @@ export function FourMChangePage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <TableState colSpan={6} state="loading" />
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{(stateFilter || typeFilter) ? 'ไม่พบรายการตามตัวกรอง — ล้างตัวกรองเพื่อดูทั้งหมด' : 'ยังไม่มี Change Request — กด “+ เปิด CR ใหม่” มุมขวาบนเพื่อเริ่ม'}</td></tr>
+                <TableState colSpan={6} state="empty" emptyText={(stateFilter || typeFilter) ? 'ไม่พบรายการตามตัวกรอง — ล้างตัวกรองเพื่อดูทั้งหมด' : 'ยังไม่มี Change Request — กด “+ เปิด CR ใหม่” มุมขวาบนเพื่อเริ่ม'} />
               ) : (
                 filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(cr => (
                   <tr key={cr.id}>

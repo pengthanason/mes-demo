@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useMockAuth } from '../lib/useMockStore';
+import { confirmDialog } from '../lib/confirm';
 import {
   useAdminUsers, useAdminUserCreate, useAdminUserUpdate, useAdminUserDelete,
   useAuditLogs, AppRole, AppUser,
@@ -67,7 +68,7 @@ function PasswordField({ label, value, onChange, placeholder, required }: { labe
       <span>{label}</span>
       <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
         <input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder ?? '*******'} required={required} style={{ flex: 1, minWidth: 0 }} autoComplete="new-password" />
-        <button type="button" title={show ? 'ซ่อนรหัส' : 'ดูรหัส'} onClick={() => setShow(s => !s)}
+        <button type="button" aria-label={show ? 'ซ่อนรหัส' : 'ดูรหัส'} title={show ? 'ซ่อนรหัส' : 'ดูรหัส'} onClick={() => setShow(s => !s)}
           style={{ padding: '0 12px', borderRadius: 6, border: '1px solid var(--border-color)', background: '#fff', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}>
           {show ? (
             // ตาเปิด (กำลังแสดงรหัส)
@@ -98,11 +99,11 @@ function UserRow({ u, onEdit, onToggle, onDelete }: { u: AppUser; onEdit: (u: Ap
       </td>
       <td style={{ padding: '0.6rem 0.75rem' }}>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onEdit(u)}>แก้ไข</button>
-          <button className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onToggle(u)}>
+          <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onEdit(u)}>แก้ไข</button>
+          <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onToggle(u)}>
             {u.isActive ? 'Disable' : 'Enable'}
           </button>
-          <button className="btn danger" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onDelete(u)}>ลบ</button>
+          <button type="button" className="btn danger" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onDelete(u)}>ลบ</button>
         </div>
       </td>
     </tr>
@@ -226,19 +227,19 @@ function UsersTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<AppUser | null>(null);
 
-  function handleToggle(u: AppUser) {
-    if (!confirm(`${u.isActive ? 'Disable' : 'Enable'} ผู้ใช้ ${u.username}?`)) return;
+  async function handleToggle(u: AppUser) {
+    if (!(await confirmDialog(`${u.isActive ? 'ปิดการใช้งาน' : 'เปิดการใช้งาน'} ผู้ใช้ ${u.username}?`, { danger: u.isActive, confirmText: u.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน' }))) return;
     updateUser.mutate({ id: u.id, isActive: !u.isActive });
   }
-  function handleDelete(u: AppUser) {
-    if (!confirm(`ลบผู้ใช้ "${u.username}" ออกจากระบบ?`)) return;
+  async function handleDelete(u: AppUser) {
+    if (!(await confirmDialog(`ลบผู้ใช้ "${u.username}" ออกจากระบบ?`, { title: 'ลบผู้ใช้' }))) return;
     deleteUser.mutate(u.id);
   }
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-        <button className="btn" onClick={() => setShowCreate(true)}>+ เพิ่มผู้ใช้</button>
+        <button type="button" className="btn" onClick={() => setShowCreate(true)}>+ เพิ่มผู้ใช้</button>
       </div>
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
@@ -398,7 +399,7 @@ export function AdminPanelPage() {
 
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
           {TABS.map(t => (
-            <button key={t.key} className={`mes-module-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
+            <button type="button" key={t.key} className={`mes-module-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
           ))}
         </div>
 

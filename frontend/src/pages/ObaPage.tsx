@@ -5,6 +5,7 @@ import { Paginator } from '../components/Paginator';
 import { WoInput } from '../components/WoInput';
 import { useWoLots } from '../lib/lookups';
 import { ResultBadge } from '../components/ResultBadge';
+import { BlockState } from '../components/DataStates';
 
 export function ObaPage() {
   const { data } = useObaRecords();
@@ -102,7 +103,7 @@ export function ObaPage() {
           ประวัติผล OBA {records.length > 0 && `(${records.length} รายการ)`}
         </h3>
         {records.length === 0 ? (
-          <div className="empty">ยังไม่มีประวัติ — บันทึก OBA เพื่อเพิ่มข้อมูล</div>
+          <BlockState state="empty" emptyText="ยังไม่มีประวัติ — บันทึก OBA เพื่อเพิ่มข้อมูล" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
             <table className="table table-readonly" style={{ minWidth: '550px', width: '100%' }}>

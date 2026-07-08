@@ -4,6 +4,7 @@ import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
 import { WoInput } from '../components/WoInput';
+import { TableState, BlockState } from '../components/DataStates';
 
 export function KittingPage() {
   const isViewer = useIsViewer();
@@ -54,9 +55,9 @@ export function KittingPage() {
           <div className="panel" style={{ padding: '1rem', margin: 0 }}>
             <div className="panel__title panel__title--sm" style={{ marginBottom: '0.75rem' }}>Stock พร้อมเบิก</div>
             {stockLoading ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>กำลังโหลด...</p>
+              <BlockState state="loading" />
             ) : stock.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>ไม่มีของพร้อมเบิก (ต้องให้ QA อนุมัติล็อตก่อน)</p>
+              <BlockState state="empty" emptyText="ไม่มีของพร้อมเบิก (ต้องให้ QA อนุมัติล็อตก่อน)" />
             ) : (
               <div className="stack" style={{ gap: '0.4rem' }}>
                 {stock.map(s => (
@@ -133,7 +134,7 @@ export function KittingPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>ยังไม่มีการเบิก — เลือกของจาก Stock ด้านบน กรอก WO แล้วกด “เบิกของเข้าไลน์”</td></tr>
+                <TableState colSpan={5} state="empty" emptyText="ยังไม่มีการเบิก — เลือกของจาก Stock ด้านบน กรอก WO แล้วกด “เบิกของเข้าไลน์”" />
               ) : paged.map(i => (
                 <tr key={i.id}>
                   <td style={{ fontWeight: 600 }}>{i.woId}</td>

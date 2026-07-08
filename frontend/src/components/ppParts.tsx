@@ -80,10 +80,11 @@ export const XLSX_COLUMNS: PpCol[] = [
   { key: 'total_ok',     header: 'Total OK',      w: 9,  center: true, value: p => (p.total_ok != null ? String(p.total_ok) : '') },
   { key: 'yield',        header: 'Yield',         w: 8,  center: true, value: p => { const y = ppYield(p); return y == null ? '' : `${y.toFixed(2)}%`; } },
   { key: 'done',         header: 'DONE',          w: 7,  center: true, headerColor: '00B050', value: p => ckMark(p.done) },
-  { key: 'chk_man',      header: 'Man',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_man) },
-  { key: 'chk_mac',      header: 'Mac',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_mac) },
-  { key: 'chk_med',      header: 'Med',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_med) },
-  { key: 'chk_mat',      header: 'Mat',           w: 5,  center: true, group: '4M Check', value: p => ckMark(p.chk_mat) },
+  { key: 'chk_man',      header: 'Man',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_man) },
+  { key: 'chk_mac',      header: 'Mac',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_mac) },
+  { key: 'chk_med',      header: 'Med',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_med) },
+  { key: 'chk_mat',      header: 'Mat',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_mat) },
+  { key: 'chk_env',      header: 'Env',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_env) },
   { key: 'pd_pcba',      header: 'PCBA',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_pcba) },
   { key: 'pd_bbas',      header: 'BBAS',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_bbas) },
   { key: 'pd_test',      header: 'TEST',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_test) },
@@ -352,7 +353,7 @@ export function ChartCard({ title, children }: { title: string; children: React.
 /* ── Add/Edit Project Form (modal) — ปิดได้เฉพาะปุ่มยกเลิก ── */
 const EMPTY: Partial<PpProject> = {
   status: 'ON_PROCESS', product_pn: '', model: '', customer: '', qty: 0, syn_requestor: '', work_order: '', wo_name: '',
-  matl_coming: '', chk_man: false, chk_mac: false, chk_med: false, chk_mat: false,
+  matl_coming: '', chk_man: false, chk_mac: false, chk_med: false, chk_mat: false, chk_env: false,
   pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, qa_test_rate: '', pd_pic: '', pic_responsible: '', team_member: 0,
   ok_per_day: 0, total_ng: 0, total_ok: 0, remark: '',
   st_pr_po: false, st_wait_mat: false, st_incoming: false, st_create_bo: false,
@@ -435,9 +436,9 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             ))}
           </div>
 
-          <Section title="4M Check & Waiting" />
+          <Section title="4M1E Check & Waiting" />
           <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-            {([['chk_man', 'Man'], ['chk_mac', 'Machine'], ['chk_med', 'Method'], ['chk_mat', 'Material']] as const).map(([k, l]) => (
+            {([['chk_man', 'Man'], ['chk_mac', 'Machine'], ['chk_med', 'Method'], ['chk_mat', 'Material'], ['chk_env', 'Environment']] as const).map(([k, l]) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
                 <input type="checkbox" checked={!!f[k]} onChange={chk(k)} style={{ width: 18, height: 18 }} /> {l}
               </label>
