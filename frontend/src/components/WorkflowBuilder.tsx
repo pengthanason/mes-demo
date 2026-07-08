@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   useWorkflows, useWorkflowCreate, useWorkflowDelete,
-  useWorkflowResults, useWorkflowResultDelete,
+  useWorkflowResults, useWorkflowResultCreate, useWorkflowResultDelete,
   type Workflow,
 } from '../lib/workflowApi';
 import { useIsViewer } from '../lib/useMockStore';
@@ -59,34 +59,34 @@ const isBuiltinProc = (p: string) => BUILTIN_PROCS.has((p || '').trim().toLowerC
 
 // ── กระบวนการมาตรฐานตามฟอร์ม PROCESS FLOW CHART (FM 05) — ครอบคลุมทุกขั้นในเอกสาร RSU / JUMBO ──
 // qc = ขั้นตรวจ (จุดตัดสิน ผ่าน/ไม่ผ่าน = ◇) · once = ทำครั้งเดียวต่อล็อต · role = หมวด (สี/เวลา)
-type FormProc = { n: string; qc?: boolean; once?: boolean; role: Role };
+type FormProc = { n: string; qc?: boolean; once?: boolean; role: Role; sec?: number };   // sec = เวลาตัวอย่าง (วินาที) ใช้ตอนโหลดตัวอย่างฟอร์ม
 const FORM_PROCS: FormProc[] = [
-  { n: 'Warehouse Receives Material',       once: true, role: 'incoming' },   // คลังรับวัตถุดิบ + นับจำนวน
-  { n: 'QA Inspects Material',              qc: true, once: true, role: 'incoming' },
-  { n: 'Warehouse Stores Material',         once: true, role: 'store' },       // เลือกที่จัดเก็บวัตถุดิบ
-  { n: 'Issue Material to Production',       once: true, role: 'incoming' },    // เบิกเข้าสายผลิต
-  { n: 'Production Receives Material',       once: true, role: 'incoming' },
-  { n: 'QC Inspects Material (Production)',  qc: true, once: true, role: 'incoming' },
-  { n: 'Production Stores Material',         once: true, role: 'store' },
-  { n: 'Screen Printing',                   role: 'smt' },                     // พิมพ์สกรีน/ครีมตะกั่ว
-  { n: 'SMT Pick & Place',                  role: 'smt' },
-  { n: 'Reflow Soldering',                  role: 'smt' },                     // หลอมตะกั่ว
-  { n: 'Inspect After Reflow',              qc: true, role: 'smt' },
-  { n: 'THT Soldering',                     role: 'smt' },                     // บัดกรีอุปกรณ์มีขา
-  { n: 'Inspect & Clean',                   qc: true, role: 'smt' },
-  { n: 'Label & Sort Boards',               role: 'smt' },                     // ติดฉลากบอร์ด + แยกวงจร
-  { n: 'Program Memory',                    role: 'smt' },                     // ลงโปรแกรมหน่วยความจำ
-  { n: 'Program ART-Pi Board',              role: 'smt' },
-  { n: 'Assembly',                          role: 'packing' },                 // ประกอบชิ้นงาน
-  { n: 'Label Units',                       role: 'packing' },
-  { n: 'Function Test',                     qc: true, role: 'packing' },       // ตรวจ + ทดสอบการทำงาน
-  { n: 'Packing',                           role: 'packing' },                 // บรรจุลงกล่อง
-  { n: 'Label Boxes',                       role: 'packing' },
-  { n: 'Final Inspection',                  qc: true, role: 'packing' },       // ตรวจก่อนส่งมอบ
-  { n: 'QA Receives Finished Goods',        once: true, role: 'store' },       // รับงานสำเร็จรูป
-  { n: 'QA Inspects Finished Goods',        qc: true, once: true, role: 'store' },
-  { n: 'Warehouse Stores Finished Goods',   once: true, role: 'store' },
-  { n: 'Issue & Ship Finished Goods',       once: true, role: 'store' },       // เบิกสำเร็จรูป + จัดส่งลูกค้า
+  { n: 'Warehouse Receives Material',       once: true, role: 'incoming', sec: 300 },   // คลังรับวัตถุดิบ + นับจำนวน
+  { n: 'QA Inspects Material',              qc: true, once: true, role: 'incoming', sec: 600 },
+  { n: 'Warehouse Stores Material',         once: true, role: 'store', sec: 180 },       // เลือกที่จัดเก็บวัตถุดิบ
+  { n: 'Issue Material to Production',       once: true, role: 'incoming', sec: 120 },    // เบิกเข้าสายผลิต
+  { n: 'Production Receives Material',       once: true, role: 'incoming', sec: 120 },
+  { n: 'QC Inspects Material (Production)',  qc: true, once: true, role: 'incoming', sec: 300 },
+  { n: 'Production Stores Material',         once: true, role: 'store', sec: 120 },
+  { n: 'Screen Printing',                   role: 'smt', sec: 15 },            // พิมพ์สกรีน/ครีมตะกั่ว
+  { n: 'SMT Pick & Place',                  role: 'smt', sec: 30 },
+  { n: 'Reflow Soldering',                  role: 'smt', sec: 45 },            // หลอมตะกั่ว
+  { n: 'Inspect After Reflow',              qc: true, role: 'smt', sec: 20 },
+  { n: 'THT Soldering',                     role: 'smt', sec: 40 },            // บัดกรีอุปกรณ์มีขา
+  { n: 'Inspect & Clean',                   qc: true, role: 'smt', sec: 25 },
+  { n: 'Label & Sort Boards',               role: 'smt', sec: 15 },            // ติดฉลากบอร์ด + แยกวงจร
+  { n: 'Program Memory',                    role: 'smt', sec: 30 },            // ลงโปรแกรมหน่วยความจำ
+  { n: 'Program ART-Pi Board',              role: 'smt', sec: 35 },
+  { n: 'Assembly',                          role: 'packing', sec: 60 },        // ประกอบชิ้นงาน
+  { n: 'Label Units',                       role: 'packing', sec: 10 },
+  { n: 'Function Test',                     qc: true, role: 'packing', sec: 40 },   // ตรวจ + ทดสอบการทำงาน
+  { n: 'Packing',                           role: 'packing', sec: 20 },        // บรรจุลงกล่อง
+  { n: 'Label Boxes',                       role: 'packing', sec: 10 },
+  { n: 'Final Inspection',                  qc: true, role: 'packing', sec: 30 },   // ตรวจก่อนส่งมอบ
+  { n: 'QA Receives Finished Goods',        once: true, role: 'store', sec: 240 },   // รับงานสำเร็จรูป
+  { n: 'QA Inspects Finished Goods',        qc: true, once: true, role: 'store', sec: 300 },
+  { n: 'Warehouse Stores Finished Goods',   once: true, role: 'store', sec: 180 },
+  { n: 'Issue & Ship Finished Goods',       once: true, role: 'store', sec: 300 },   // เบิกสำเร็จรูป + จัดส่งลูกค้า
 ];
 const FORM_PROC_MAP: Record<string, FormProc> = Object.fromEntries(FORM_PROCS.map(f => [f.n, f]));
 
@@ -94,7 +94,7 @@ type Step = {
   id: string; process: string; seconds: number | '';
   role: Role;
   kind: StepKind; timeScope: TimeScope;   // มาจาก role (เก็บไว้ให้ flowchart/คำนวณใช้)
-  failAction: FailAction; backToId: string; maxRetry: number;
+  failAction: FailAction; backToId: string; maxRetry: number; holdMin: number;   // holdMin = เวลาพัก (นาที) เมื่อ fail=hold
   stations: number;                        // จำนวนเครื่องขนาน (ต่อ process)
   machine: string;                         // ชื่อเครื่อง/สถานี (เลือกจากดรอปดาวในแถว)
 };
@@ -106,7 +106,7 @@ const makeStep = (role: Role, process: string): Step => {
   return {
     id: uid(), process, seconds: '', role,
     kind: c.kind, timeScope: c.timeScope,
-    failAction: 'rework', backToId: '', maxRetry: 0,
+    failAction: 'rework', backToId: '', maxRetry: 0, holdMin: 0,
     stations: 1, machine: '',
   };
 };
@@ -298,10 +298,11 @@ function buildFlowSvg(steps: Step[]): string {
   const BW = 40, BH = 28, DHW = 26, DHH = 20;
   const cats = categorize(steps);
 
-  // เลขในผัง: แต่ละขั้น = 1 เลข · กล่อง "ไม่ผ่าน" มีกล่องเดียว (สร้างรอบเดียว หลังขั้นตรวจแรก) ทุกขั้นตรวจที่ไม่ผ่านเข้ากล่องนี้
+  // เลขในผัง: แต่ละขั้น = 1 เลข · ขั้นตรวจมีกล่อง "ไม่ผ่าน" ต่อท้ายอีก 1 เลข (พฤติกรรมตาม failAction)
   const stepNum: number[] = [];
-  let sharedFailNum = 0;
-  { let dn = 0; steps.forEach(s => { stepNum.push(++dn); if (s.kind === 'checkpoint' && !sharedFailNum) sharedFailNum = ++dn; }); }
+  const failNum: number[] = [];
+  { let dn = 0; steps.forEach(s => { stepNum.push(++dn); failNum.push(s.kind === 'checkpoint' ? ++dn : 0); }); }
+  const firstPerUnit = steps.findIndex(s => s.timeScope !== 'once');   // ต้นสายผลิต (scrap = ทิ้งชิ้นนี้ เริ่มชิ้นใหม่) · -1 = งานทำครั้งเดียว
 
   type Row =
     | { t: 'head'; label: string; h: number; top: number; mid: number; bottom: number }
@@ -375,6 +376,12 @@ function buildFlowSvg(steps: Step[]): string {
       cols[ci].unshift({ t: 'head', label: `${cats[first.i]} (ต่อ)`, h: HEAD_H, top: 0, mid: 0, bottom: 0 });
     }
   }
+  // ท้ายคอลัมน์ (ที่ไม่ใช่อันสุดท้าย) → แถบบอกว่าไหลต่อไปหมวดไหนในคอลัมน์ถัดไป (กันงงว่าขั้นสุดท้ายไปไหน)
+  for (let ci = 0; ci < cols.length - 1; ci++) {
+    const nf = cols[ci + 1][0];
+    const label = nf && nf.t === 'head' ? nf.label.replace(' (ต่อ)', '') : '';
+    if (label) cols[ci].push({ t: 'head', label: `${label} ▶`, h: HEAD_H, top: 0, mid: 0, bottom: 0 });
+  }
 
   // จัดตำแหน่งในแต่ละคอลัมน์
   const topPad = 12;
@@ -386,6 +393,8 @@ function buildFlowSvg(steps: Step[]): string {
     crows.forEach(r => { r.top = yy; r.mid = yy + r.h / 2; r.bottom = yy + r.h; yy += r.h + GAP; });
     return { ci, colX0, colNX, colDESCX: colNX + 40, rows: crows, lastBottom: yy - GAP };
   });
+  const stepPos: Record<number, { ci: number; mid: number; colNX: number }> = {};   // ตำแหน่งแต่ละขั้น (สำหรับลากเส้นย้อน)
+  colInfo.forEach(col => col.rows.forEach(r => { if (r.t === 'step') stepPos[r.i] = { ci: col.ci, mid: r.mid, colNX: col.colNX }; }));
 
   let maxBottom = 0;
   colInfo.forEach(col => { maxBottom = Math.max(maxBottom, col.lastBottom); });
@@ -398,8 +407,9 @@ function buildFlowSvg(steps: Step[]): string {
     + `<marker id="ahb" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#555"/></marker>`
     + `</defs>`);
 
+  let crossN = 0;   // นับเส้นย้อนข้ามคอลัมน์ (แยกเลนขอบบน/ซ้ายสุด กันทับ)
   colInfo.forEach(col => {
-    const { colX0, colNX, colDESCX, rows: crows } = col;
+    const { colX0, colNX, colDESCX, rows: crows, ci } = col;
 
     // หัวข้อหมวด (แถบเทา เต็มความกว้างคอลัมน์)
     crows.forEach(r => {
@@ -416,6 +426,7 @@ function buildFlowSvg(steps: Step[]): string {
     }
 
     // โหนด + คำอธิบาย + ทางแยก "ไม่ผ่าน"
+    let backN = 0;   // นับเส้นย้อนกลับในคอลัมน์นี้ (แต่ละเส้นได้เลนเฉพาะ ไม่ทับกัน)
     crows.forEach(r => {
       if (r.t !== 'step') return;
       const num = stepNum[r.i], cy = r.mid;
@@ -433,15 +444,44 @@ function buildFlowSvg(steps: Step[]): string {
       // ◇ decision (จุดตรวจ)
       parts.push(`<polygon points="${colNX},${cy - DHH} ${colNX + DHW},${cy} ${colNX},${cy + DHH} ${colNX - DHW},${cy}" fill="#fff" stroke="#111" stroke-width="1.4"/>`);
       parts.push(`<text x="${colNX}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="700" fill="#111">${num}</text>`);
-      // กล่อง "ไม่ผ่าน" (#N เดียวกันทุกจุดตรวจ) — วาดที่ทุกขั้นตรวจ · แต่ละอันวนกลับตรวจซ้ำของตัวเอง
+      // กล่อง "ไม่ผ่าน" — พฤติกรรมต่างกันตาม failAction ของจุดตรวจนี้
+      const s = r.s;
+      const fa = s.failAction || 'rework';
+      const tIdx = s.backToId ? steps.findIndex(x => x.id === s.backToId) : -1;
       const dLeft = colNX - DHW;
-      const FBW = 30, FBH = 20;
-      const fcx = colX0 + 6 + FBW / 2;
+      const FBW = 34, FBH = 20;
+      const fcx = colX0 + 4 + FBW / 2;
       parts.push(`<line x1="${dLeft}" y1="${cy}" x2="${fcx + FBW / 2}" y2="${cy}" stroke="#555" stroke-width="1.2" marker-end="url(#ahb)"/>`);
       parts.push(`<rect x="${fcx - FBW / 2}" y="${cy - FBH / 2}" width="${FBW}" height="${FBH}" fill="#fff" stroke="#111" stroke-width="1.3"/>`);
-      parts.push(`<text x="${fcx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="10.5" font-weight="700" fill="#111">${sharedFailNum}</text>`);
-      parts.push(`<text x="${fcx}" y="${cy + FBH / 2 + 7}" text-anchor="middle" font-size="8" fill="#555">ไม่ผ่าน</text>`);
-      parts.push(`<path d="M ${fcx} ${cy - FBH / 2} V ${cy - DHH - 8} H ${colNX} V ${cy - DHH}" fill="none" stroke="#555" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ahb)"/>`);
+      parts.push(`<text x="${fcx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="10.5" font-weight="700" fill="#111">${failNum[r.i]}</text>`);
+      const cap = (t: string) => parts.push(`<text x="${fcx}" y="${cy + FBH / 2 + 7}" text-anchor="middle" font-size="8" fill="#555">${esc(t)}</text>`);
+      const loopBack = () => parts.push(`<path d="M ${fcx} ${cy - FBH / 2} V ${cy - DHH - 8} H ${colNX} V ${cy - DHH}" fill="none" stroke="#555" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ahb)"/>`);
+      // ลากเส้นประกลับไปขั้นเป้าหมาย — แต่ละเส้นได้ "เลน" เฉพาะ (ไม่ซ้ำ) เดินในช่องว่างซ้ายคอลัมน์/ซ้ายสุดของหน้า จึงไม่ทับกัน
+      const gotoStep = (ti: number) => {
+        const tp = ti >= 0 ? stepPos[ti] : null;
+        if (!tp) return;
+        const startX = fcx - FBW / 2, tx = tp.colNX - BW / 2;
+        const laneX = Math.max(1, colX0 - 5 - backN * 5); backN++;
+        if (tp.ci === ci) {
+          // คอลัมน์เดียวกัน → เลนในช่องว่างซ้ายคอลัมน์ (ซ้ายของแถบหัวข้อ ไม่ทับเนื้อหา)
+          parts.push(`<path d="M ${startX} ${cy} H ${laneX} V ${tp.mid} H ${tx}" fill="none" stroke="#555" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ahb)"/>`);
+        } else {
+          // ไกลข้ามคอลัมน์ → อ้อมขึ้นขอบบน ไปเลนซ้ายสุด แล้วลงหาเป้าหมาย (แต่ละเส้นคนละเลน)
+          const topY = 4 + (crossN % 4) * 3, farX = 3 + (crossN % 4) * 4; crossN++;
+          parts.push(`<path d="M ${startX} ${cy} H ${laneX} V ${topY} H ${farX} V ${tp.mid} H ${tx}" fill="none" stroke="#555" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ahb)"/>`);
+        }
+      };
+      if (fa === 'scrap') {
+        cap(firstPerUnit >= 0 ? `ทิ้ง → เริ่ม #${stepNum[firstPerUnit]}` : 'Scrap (ตัดจบ)');
+        if (firstPerUnit >= 0) gotoStep(firstPerUnit);   // ทิ้งชิ้นนี้ → ลากไปต้นสายผลิต
+      } else if (fa === 'back') {
+        cap(tIdx >= 0 ? `ย้อนกลับ #${stepNum[tIdx]}` : 'ย้อนกลับ');
+        gotoStep(tIdx);
+      } else if (fa === 'hold') {
+        cap(Number(s.holdMin) > 0 ? `พัก ${s.holdMin} นาที` : 'Hold'); loopBack();   // พักแล้ววนทำเดิมต่อ (วนใกล้ๆ)
+      } else {
+        cap('รีเวิค'); loopBack();                                                     // รีเวิคแล้วตรวจซ้ำ (วนใกล้ๆ)
+      }
     });
   });
 
@@ -596,7 +636,42 @@ type ExportMeta = {
   revNo?: string; revDate?: string; revDesc?: string;
   filename?: string;   // ชื่อไฟล์ (ใช้เป็น title → default ตอน Save as PDF)
   form?: boolean;   // true = เจนเป็นฟอร์ม PROCESS FLOW CHART (FM 05) · false = เอกสารทั่วไป (เช่น Gantt)
+  timeHtml?: string;   // ถ้ามี → เพิ่มหน้า 2 = ตารางรายละเอียดเวลา
 };
+
+/* ── หน้า 2 ของ PDF: ตารางรายละเอียดเวลา (แต่ละขั้นใช้เท่าไหร่ + สรุป setup/ต่อชิ้น/คอขวด/รวมทั้งล็อต) ── */
+function buildTimeDetailHtml(steps: Step[], qty: number): string {
+  const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const stationsOf = (s: Step) => Math.max(1, Number(s.stations) || 1);
+  const effSec = (s: Step) => Number(s.seconds) || 0;
+  const setupSec = steps.reduce((a, s) => a + (s.timeScope === 'once' ? effSec(s) : 0), 0);
+  const perUnitSteps = steps.filter(s => s.timeScope !== 'once');
+  const perUnitSec = perUnitSteps.reduce((a, s) => a + effSec(s), 0);
+  const bottleneckSec = perUnitSteps.reduce((m, s) => Math.max(m, effSec(s) / stationsOf(s)), 0);
+  const qtyN = Math.max(0, Math.floor(qty) || 0);
+  const lotSec = qtyN > 0 ? setupSec + perUnitSec + (qtyN - 1) * bottleneckSec : setupSec + perUnitSec;
+  const rows = steps.map((s, i) => {
+    const once = s.timeScope === 'once';
+    const mode = once ? 'ครั้งเดียว/ล็อต' : `ทุกชิ้น${stationsOf(s) > 1 ? ` ×${stationsOf(s)} เครื่อง` : ''}`;
+    return `<tr><td class="c">${i + 1}</td><td>${esc(s.process)}${s.kind === 'checkpoint' ? ' <span class="chk">(จุดตรวจ)</span>' : ''}</td><td>${esc(mode)}</td><td class="r">${s.seconds !== '' ? esc(fmtTime(effSec(s))) : '-'}</td></tr>`;
+  }).join('');
+  return `
+    <h2 class="t2title">รายละเอียดเวลา (Time Breakdown)</h2>
+    <table class="tt">
+      <tr><th class="c" style="width:7%">#</th><th>กระบวนการ</th><th style="width:28%">โหมด</th><th class="r" style="width:20%">เวลา/ครั้ง</th></tr>
+      ${rows || '<tr><td colspan="4" class="c">— ไม่มีขั้นตอน —</td></tr>'}
+    </table>
+    <table class="tt sum">
+      <tr><th>สรุปเวลา</th><th class="r" style="width:28%">เวลา</th></tr>
+      <tr><td>เวลาครั้งเดียว/ล็อต (setup + รับของ + คลัง)</td><td class="r">${esc(fmtTime(Math.round(setupSec)))}</td></tr>
+      <tr><td>เวลาต่อ 1 ชิ้นผ่านครบสาย (latency)</td><td class="r">${esc(fmtTime(Math.round(perUnitSec)))}</td></tr>
+      <tr><td>คอขวด (สถานีต่อชิ้นช้าสุด ÷ เครื่องขนาน)</td><td class="r">${esc(fmtTime(Math.round(bottleneckSec)))}</td></tr>
+      <tr><td>จำนวนที่ผลิต (Qty)</td><td class="r">${qtyN > 0 ? qtyN.toLocaleString() : '-'}</td></tr>
+      <tr class="grand"><td>รวมทั้งล็อต (แบบสายพาน)${qtyN > 0 ? ` @ ${qtyN.toLocaleString()} ชิ้น` : ''}</td><td class="r">${esc(fmtTime(Math.round(lotSec)))}</td></tr>
+    </table>
+    <div class="t2note">สูตร: setup + latency (ชิ้นแรกผ่านครบสาย) + (Qty−1) × คอขวด — คิดแบบสายพาน (ชิ้นถัดไปไม่รอชิ้นก่อนจบทั้งสาย) · เป็นค่าประมาณการ</div>
+  `;
+}
 
 // เจน/พิมพ์แผนภาพเป็น PDF — โหมด form = ฟอร์ม FM 05 (SYNTECH Process Flow Chart) ตามเอกสารจริง
 function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
@@ -604,15 +679,16 @@ function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
   if (!svg) { showToast('ยังไม่มีแผนภาพให้พิมพ์ — กด Gen ก่อน', 'error'); return; }
   const {
     title = 'Manufacturing Workflow', customer = '', model = '', pn = '',
-    issuedBy = '', checkedBy = '', approvedBy = '', revNo = '', revDate = '', revDesc = '', filename = '', form = false,
+    issuedBy = '', checkedBy = '', approvedBy = '', revNo = '', revDate = '', revDesc = '', filename = '', form = false, timeHtml = '',
   } = meta;
+  const pages = timeHtml ? 2 : 1;
 
   const body = form ? `
     <table class="hdr">
       <tr>
         <td class="logo" rowspan="2"><div class="brand">SYNTECH</div><div class="brand-sub">Empowering Professionals</div></td>
         <td class="title" rowspan="2">PROCESS FLOW CHART</td>
-        <td class="pg" colspan="3">Page 1 of 1</td>
+        <td class="pg" colspan="3">Page 1 of ${pages}</td>
       </tr>
       <tr>
         <td class="sig">Issued :<div>${esc(issuedBy)}</div></td>
@@ -659,8 +735,18 @@ function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
       .rev{width:100%;margin-top:-1px}.rev th,.rev td{border:1px solid #333;padding:4px 8px;font-size:11px;text-align:left}.rev th{background:#f1f5f9}
       .legend{margin-top:10px}.legend td{border:1px solid #333;padding:3px 8px;font-size:11px}.legend .lh{font-weight:700;background:#f1f5f9}.legend .sym{text-align:center;width:30px;font-size:14px}
       .foot{text-align:right;font-size:10px;color:#666;margin-top:12px}
+      .page2{page-break-before:always;text-align:left;padding:${form ? '0' : '24px'}}
+      .t2title{font-size:16px;margin:0 0 10px}
+      .tt{width:100%;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto}
+      .tt th,.tt td{border:1px solid #333;padding:4px 8px;font-size:11px;text-align:left;vertical-align:top}
+      .tt th{background:#f1f5f9;font-weight:700}
+      .tt .c{text-align:center}.tt .r{text-align:right;white-space:nowrap}.tt .chk{color:#b45309}
+      .tt tr{page-break-inside:avoid}
+      .tt.sum td,.tt.sum th{font-size:12px}
+      .tt.sum .grand td{font-weight:800;background:#eef6ff}
+      .t2note{font-size:10px;color:#666}
     </style></head>
-    <body>${body}<script>window.onload=()=>window.print()</script></body></html>`;
+    <body>${body}${timeHtml ? `<div class="page2">${timeHtml}</div>` : ''}<script>window.onload=()=>window.print()</script></body></html>`;
   const w = window.open('', '_blank');
   if (!w) { showToast('เบราว์เซอร์บล็อก popup — อนุญาตก่อนพิมพ์', 'error'); return; }
   w.document.write(html); w.document.close();
@@ -820,19 +906,28 @@ type CellProps = { step: Step; isViewer: boolean; setStep: (id: string, patch: P
 function TimeCells({ step, isViewer, setStep }: CellProps) {
   const sec = step.seconds === '' ? 0 : Number(step.seconds);
   const hh = Math.floor(sec / 3600), mm = Math.floor((sec % 3600) / 60), ss = sec % 60;
-  const setPart = (part: 'h' | 'm' | 's', raw: string) => {
-    const v = raw === '' ? 0 : Math.max(0, Math.floor(Number(raw)) || 0);
-    const next = { h: hh, m: mm, s: ss, [part]: v };
-    const total = next.h * 3600 + next.m * 60 + next.s;
-    setStep(step.id, { seconds: total === 0 ? '' : total });
+  // พิมพ์เก็บเป็น string ก่อน → คำนวณ (carry นาที/ชม.) ตอน "ออกจากช่อง" (blur/Enter) ไม่ใช่ normalize ทุกคีย์
+  // เช่น พิมพ์ 611 ในช่องวินาที จะได้ครบ 611 แล้วค่อยกลายเป็น 10 นาที 11 วิ (ไม่ใช่ 1 นาที 11 วิ)
+  const [h, setH] = useState(hh ? String(hh) : '');
+  const [m, setM] = useState(mm ? String(mm) : '');
+  const [s, setS] = useState(ss ? String(ss) : '');
+  useEffect(() => {   // ค่าจริงเปลี่ยนจากภายนอก (โหลด preset / normalize หลังคำนวณ) → sync ช่องกรอก
+    setH(hh ? String(hh) : ''); setM(mm ? String(mm) : ''); setS(ss ? String(ss) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sec]);
+  const commit = () => {
+    const n = (v: string) => Math.max(0, Math.floor(Number(v)) || 0);
+    const total = n(h) * 3600 + n(m) * 60 + n(s);
+    setStep(step.id, { seconds: total <= 0 ? '' : total });
   };
+  const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); };
   return (
-    <div style={{ display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'center' }} title="ชั่วโมง : นาที : วินาที">
-      <input type="number" min="0" placeholder="ชั่วโมง" disabled={isViewer} value={hh || ''} onChange={e => setPart('h', e.target.value)} style={TBOX} />
+    <div style={{ display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'center' }} title="ชั่วโมง : นาที : วินาที — พิมพ์ให้เสร็จแล้วระบบจะคำนวณ/ทดหน่วยให้เอง">
+      <input type="number" min="0" placeholder="ชั่วโมง" disabled={isViewer} value={h} onChange={e => setH(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
       <span style={{ color: '#94a3b8', fontWeight: 700 }}>:</span>
-      <input type="number" min="0" max="59" placeholder="นาที" disabled={isViewer} value={mm || ''} onChange={e => setPart('m', e.target.value)} style={TBOX} />
+      <input type="number" min="0" placeholder="นาที" disabled={isViewer} value={m} onChange={e => setM(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
       <span style={{ color: '#94a3b8', fontWeight: 700 }}>:</span>
-      <input type="number" min="0" max="59" placeholder="วินาที" disabled={isViewer} value={ss || ''} onChange={e => setPart('s', e.target.value)} style={TBOX} />
+      <input type="number" min="0" placeholder="วินาที" disabled={isViewer} value={s} onChange={e => setS(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
     </div>
   );
 }
@@ -932,6 +1027,7 @@ export function WorkflowBuilder() {
   const create = useWorkflowCreate();
   const del = useWorkflowDelete();
   const { data: saved = [] } = useWorkflows();
+  const recordResult = useWorkflowResultCreate();
   const delResult = useWorkflowResultDelete();
   const { data: results = [] } = useWorkflowResults();
   const [resFilter, setResFilter] = useState<'all' | 'internal' | 'external' | 'mix'>('all');   // ฟิลเตอร์ตารางผล
@@ -1014,6 +1110,21 @@ export function WorkflowBuilder() {
     setDraggedId(null); setDragOverId(null); setGrabId(null);
   }
 
+  /* บันทึกผลเดินสายผลิต (P/N จริง) — เก็บลงตารางผล · ผ่าน/ไม่ผ่านดูจาก flowchart จึงบันทึกเป็น PASS */
+  function record() {
+    if (!pn.trim()) { showToast('กรุณากรอก P/N', 'error'); return; }
+    if (!steps.length || steps.some(s => s.seconds === '' || Number(s.seconds) <= 0)) { showToast('กรุณากรอกเวลาให้ครบทุกกระบวนการ', 'error'); return; }
+    const perStep = steps.map(s => ({ process: s.process, result: 'PASS' }));
+    const seqStr = steps.map(s => `${s.process}${s.timeScope === 'per_unit' ? '×N' : ''}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
+    recordResult.mutate(
+      { serial: pn.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: 'PASS', total_sec: Math.round(perUnitSec), line: tab, steps: perStep },
+      {
+        onSuccess: () => { showToast(`บันทึกผล ${pn.trim()} สำเร็จ`, 'success'); setPn(''); },
+        onError: (e: any) => showToast(e.message, 'error'),
+      },
+    );
+  }
+
   /* บันทึก Preset */
   function savePreset() {
     if (!steps.length) return;
@@ -1056,7 +1167,7 @@ export function WorkflowBuilder() {
         kind: setupLike ? 'process' : c.kind,
         timeScope: setupLike ? 'once' : c.timeScope,
         failAction: (['rework', 'back', 'scrap', 'hold'].includes(s.failAction as string) ? s.failAction : 'rework') as FailAction,
-        backToId: '', maxRetry: Math.max(0, Number(s.maxRetry) || 0),
+        backToId: '', maxRetry: Math.max(0, Number(s.maxRetry) || 0), holdMin: Math.max(0, Number((s as any).holdMin) || 0),
         stations: Number(s.stations) > 0 ? Number(s.stations) : 1,
         machine: (s as any).machine || '',
       };
@@ -1082,10 +1193,10 @@ export function WorkflowBuilder() {
     const st: Step[] = FORM_PROCS.map(fp => {
       const cf = ROLE_CFG[fp.role];
       return {
-        id: uid(), process: fp.n, seconds: '', role: fp.role,
+        id: uid(), process: fp.n, seconds: (fp.sec ?? '') as number | '', role: fp.role,
         kind: fp.qc ? 'checkpoint' : 'process',
         timeScope: fp.once ? 'once' : cf.timeScope,
-        failAction: 'rework' as FailAction, backToId: '', maxRetry: 0, stations: 1, machine: '',
+        failAction: 'rework' as FailAction, backToId: '', maxRetry: 0, holdMin: 0, stations: 1, machine: '',
       };
     });
     // ทางย้อน (ไม่ผ่าน) ของขั้นตรวจที่ "คืน/ย้อนไปขั้นก่อนหน้า" — อ้าง index ตาม FORM_PROCS
@@ -1320,6 +1431,13 @@ export function WorkflowBuilder() {
                           style={{ width: 42, padding: '3px 4px', borderRadius: 4, border: '1px solid #cbd5e1', textAlign: 'center', fontSize: '0.78rem' }} /> ครั้ง
                       </label>
                     )}
+                    {step.failAction === 'hold' && (
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#64748b' }} title="พักกี่นาทีก่อนวนกลับมาทำใหม่">
+                        พัก <input type="number" min="0" value={step.holdMin || 0} disabled={isViewer}
+                          onChange={e => setStep(step.id, { holdMin: Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
+                          style={{ width: 48, padding: '3px 4px', borderRadius: 4, border: '1px solid #cbd5e1', textAlign: 'center', fontSize: '0.78rem' }} /> นาที
+                      </label>
+                    )}
                   </div>
                 )}
               </div>
@@ -1393,19 +1511,10 @@ export function WorkflowBuilder() {
         <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>FlowChart</h3>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => setExportMode('flow')}>🖨️ Export PDF (ฟอร์ม FM 05)</button>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => setExportMode('flow')}>🖨️ Export to PDF</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · P/N: <strong>{pn || '—'}</strong></span>
-            <span style={{ width: 1, height: 14, background: '#e2e8f0' }} />
-            {([['รับของ', '#0891b2'], ['ตั้งเครื่อง', '#7c3aed'], ['SMT/ตรวจ', '#d97706'], ['แพ็ก', '#16a34a'], ['คลัง', '#64748b']] as const).map(([l, c]) => (
-              <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 11, height: 11, borderRadius: 3, background: c, display: 'inline-block' }} />{l}
-              </span>
-            ))}
-            <span style={{ width: 1, height: 14, background: '#e2e8f0' }} />
-            <span style={{ color: '#16a34a', fontWeight: 600 }}>→ ✓ ผ่าน</span>
-            <span style={{ color: '#dc2626', fontWeight: 600 }}>→ ✗ ไม่ผ่าน (rework / scrap / hold / ย้อนกลับ)</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', overflowX: 'auto', padding: '8px 0' }} dangerouslySetInnerHTML={{ __html: flowSvg }} />
           <details style={{ marginTop: 24 }}>
@@ -1419,7 +1528,7 @@ export function WorkflowBuilder() {
         <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>Gantt · Timeline การผลิต</h3>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => setExportMode('gantt')}>🖨️ Export PDF</button>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => setExportMode('gantt')}>🖨️ Export to PDF</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · Qty: <strong>{qtyN.toLocaleString()}</strong> ชิ้น</span>
@@ -1439,7 +1548,15 @@ export function WorkflowBuilder() {
 
       {/* ตารางผล — รวมทุกสาย มี filter เลือกดูตามสายได้ (ไม่มีคอลัมน์สาย) */}
       <div>
-        <h3 className="panel__title panel__title--sm" style={{ marginBottom: 10 }}>📋 ผลการบันทึก {shownResults.length > 0 && `(${shownResults.length})`}</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>📋 ผลการบันทึก {shownResults.length > 0 && `(${shownResults.length})`}</h3>
+          {!isViewer && (
+            <button type="button" className="btn" onClick={record} disabled={recordResult.isPending || steps.length === 0}
+              title="บันทึกเวิร์กโฟลว์ปัจจุบัน (P/N ที่กรอกด้านบน) ลงตารางผล" style={{ background: '#27ae60', borderColor: '#27ae60', color: '#fff', fontWeight: 600, fontSize: '0.82rem' }}>
+              {recordResult.isPending ? 'กำลังบันทึก...' : '💾 บันทึกผล (P/N ปัจจุบัน)'}
+            </button>
+          )}
+        </div>
         {/* filter: รวม / Internal / External / Mix */}
         <div style={{ display: 'flex', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 12, width: 'fit-content' }}>
           {([['all', 'รวมทั้งหมด'], ['internal', '🏭 Internal'], ['external', '🚚 External'], ['mix', '🔀 Mix']] as const).map(([k, label]) => {
@@ -1507,9 +1624,10 @@ export function WorkflowBuilder() {
                 customer: fm.customer, model: fm.model, pn: fm.pn,
                 issuedBy: fm.issuedBy, checkedBy: fm.checkedBy, approvedBy: fm.approvedBy,
                 revNo: fm.revNo, revDesc: fm.revDesc, revDate: new Date().toLocaleDateString('th-TH'),
+                timeHtml: buildTimeDetailHtml(steps, qtyN),   // หน้า 2 = รายละเอียดเวลา
               });
             } else {
-              exportFlowchartPdf(ganttSvg, { title: 'Manufacturing Workflow — Gantt', filename: fm.filename, customer: fm.customer, model: fm.model, pn: fm.pn });
+              exportFlowchartPdf(ganttSvg, { title: 'Manufacturing Workflow — Gantt', filename: fm.filename, customer: fm.customer, model: fm.model, pn: fm.pn, timeHtml: buildTimeDetailHtml(steps, qtyN) });
             }
             setExportMode(null);
           }}
