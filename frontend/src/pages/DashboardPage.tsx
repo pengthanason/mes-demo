@@ -153,7 +153,7 @@ function printPdf(rows: PpProject[], filename?: string) {
     }).join('');
     return `<tr>${tds}</tr>`;
   }).join('');
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(docTitle)}</title>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1120"><title>${esc(docTitle)}</title>
     <style>
       @page { size: A4 landscape; margin: 7mm; }
       body{font-family:'Segoe UI',Tahoma,sans-serif;color:#1e293b;margin:0}

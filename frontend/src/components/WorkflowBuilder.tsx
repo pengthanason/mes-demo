@@ -778,7 +778,7 @@ function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
     <div class="diagram">${svg}</div>
   `;
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(filename || (form ? 'Process Flow Chart' : title))}</title>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=800"><title>${esc(filename || (form ? 'Process Flow Chart' : title))}</title>
     <style>
       @page { size: A4; margin: 10mm; }
       body{font-family:'Segoe UI',Tahoma,sans-serif;color:#1e293b;padding:${form ? '0' : '24px'};text-align:${form ? 'left' : 'center'}}
