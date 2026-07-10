@@ -697,3 +697,13 @@ tr:hover td { background: #f8fafc; }
   /* ปุ่มไอคอนเล็ก (ลบ/✕) หรือแถวกดที่เป็น raw button → tap ได้ ≥40px เฉพาะบนมือถือ (desktop คงเดิม) */
   .tap-sm { min-width: 40px; min-height: 40px; }
 }
+
+/* ─── Skeleton loader (shimmer) — ใช้ตอนโหลด แทนข้อความ "กำลังโหลด..." ─── */
+@keyframes mesShimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e8ecf1 25%, #f4f7fa 37%, #e8ecf1 63%);
+  background-size: 400% 100%;
+  animation: mesShimmer 1.4s ease infinite;
+}
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
