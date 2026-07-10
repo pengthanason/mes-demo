@@ -28,7 +28,7 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
     <div
       className="panel"
       onClick={onClick}
-      style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 0 280px' }}
+      style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 1 280px', minWidth: 0 }}
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}
     >
@@ -44,7 +44,7 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
             {p.isActive ? 'ACTIVE' : 'INACTIVE'}
           </span>
           {onDelete && (
-            <button type="button" title="ลบโปรเจกต์" aria-label="ลบโปรเจกต์"
+            <button type="button" title="ลบโปรเจกต์" aria-label="ลบโปรเจกต์" className="tap-sm"
               onClick={e => { e.stopPropagation(); onDelete(); }}
               style={{ width: 26, height: 26, padding: 0, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, lineHeight: 1, flexShrink: 0 }}
               onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
@@ -86,7 +86,7 @@ function TraceKnexCard() {
       className="panel"
       onClick={() => window.open(TRACE_URL, '_blank', 'noopener,noreferrer')}
       title="เปิดระบบ Traceability (แท็บใหม่)"
-      style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 0 280px' }}
+      style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 1 280px', minWidth: 0 }}
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}
     >

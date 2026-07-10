@@ -268,8 +268,8 @@ export function ScmCasesPage() {
       <section className="panel">
         <div className="panel__row">
           <h2 className="panel__title panel__title--sm">Case Management Inbox</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select aria-label="Filter cases by status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setCasePage(1); }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <select aria-label="Filter cases by status" style={{ flex: '1 1 130px' }} value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setCasePage(1); }}>
               <option value="OPEN">OPEN</option>
               <option value="CLOSED">CLOSED</option>
               <option value="">ALL</option>

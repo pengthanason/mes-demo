@@ -681,3 +681,19 @@ tr:hover td { background: #f8fafc; }
 @media (max-width: 420px) {
   .grid-2col, .grid-3col { grid-template-columns: 1fr; }
 }
+
+/* ─── Mobile phones (≤480px) — FE-18: tap target ใหญ่ขึ้น, ตารางแน่นขึ้น, หัวเล็กลง ─── */
+@media (max-width: 480px) {
+  /* ปุ่มแตะง่ายด้วยนิ้ว (tap target ~42px) */
+  .btn { min-height: 42px; }
+  /* ตารางแน่นสุด เห็นคอลัมน์เยอะขึ้นก่อนต้องเลื่อนแนวนอน */
+  .table th, .table td { padding: 0.45rem 0.5rem; font-size: 0.8rem; }
+  .table.compact th, .table.compact td { padding: 0.4rem 0.45rem; }
+  /* หัวข้อกันล้นออกนอกจอ */
+  h1.panel__title { font-size: 1.15rem; }
+  .panel__title { font-size: 1.05rem; }
+  /* กลุ่มปุ่ม/ฟิลเตอร์ในหัว panel เผื่อ wrap ให้กดง่าย */
+  .panel__row { gap: 0.6rem; }
+  /* ปุ่มไอคอนเล็ก (ลบ/✕) หรือแถวกดที่เป็น raw button → tap ได้ ≥40px เฉพาะบนมือถือ (desktop คงเดิม) */
+  .tap-sm { min-width: 40px; min-height: 40px; }
+}

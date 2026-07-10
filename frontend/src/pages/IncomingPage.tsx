@@ -227,6 +227,7 @@ export function IncomingPage() {
                         <button
                           type="button"
                           aria-label="ลบล็อต"
+                          className="tap-sm"
                           style={{ width: 28, height: 28, padding: 0, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}
                           disabled={deleteMut.isPending}
                           onClick={() => handleDelete(lot.id)}

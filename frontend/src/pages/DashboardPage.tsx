@@ -38,7 +38,7 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
       <td key={c.key} style={{ textAlign: 'center', ...(c.key === 'done' && on ? GREEN_CELL : {}) }}>
         <input type="checkbox" checked={on} disabled={!onToggle} onChange={() => onToggle?.(c.key)}
           title={onToggle ? 'กดเพื่อติ๊ก/ยกเลิก' : undefined}
-          style={{ width: 15, height: 15, cursor: onToggle ? 'pointer' : 'default', accentColor: '#16a34a' }} />
+          style={{ width: 18, height: 18, cursor: onToggle ? 'pointer' : 'default', accentColor: '#16a34a' }} />
       </td>
     );
   }

@@ -72,7 +72,7 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
             <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {serials.slice(0, 8).map(s => (
                 <button key={s} type="button" onClick={() => { setQ(s); setSn(s); }}
-                  style={{ padding: '3px 10px', borderRadius: 999, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontSize: '0.78rem', color: '#334155' }}>{s}</button>
+                  style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: '#334155' }}>{s}</button>
               ))}
             </div>
           )}
@@ -97,7 +97,7 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
             <span style={{ fontSize: '0.88rem', color: '#334155' }}>WO: <strong>{trace.wo}</strong></span>
             {trace.box && (
               <button type="button" onClick={() => goBox(trace.box)}
-                style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 8, border: '1px solid #93c5fd', background: '#fff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
+                style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: '1px solid #93c5fd', background: '#fff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
                 📦 {trace.box} →
               </button>
             )}

@@ -218,6 +218,8 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
   const sliderRef = useRef(null);
   const itemRefs  = useRef({});
   const [openKey, setOpenKey] = useState(null);   // เมนูแม่ที่กำลัง hover → กาง accordion เมนูย่อย
+  // เช็ก "มี hover จริง" (เมาส์) แทนความกว้างจอ — มือถือนอนจอ(landscape) จอกว้างแต่ไม่มี hover ต้องแตะกาง dropdown ไม่ใช่ navigate
+  const canHover = useMediaQuery('(hover: hover) and (pointer: fine)');
   const searchTab = new URLSearchParams(location.search).get('tab');
   // refs อัปเดตทุก render → ให้ loop rAF (deps แค่ expanded) อ่านค่าล่าสุดได้ ไม่ค้าง stale
   const locRef = useRef(location); locRef.current = location;
@@ -277,9 +279,10 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
         position: 'fixed',
         left: 0, top: 0, bottom: 0,
         width: expanded ? SIDEBAR_W : ICON_W,
+        transform: !isDesktop && !expanded ? 'translateX(-100%)' : 'none',   // มือถือยุบ = เลื่อนออกนอกจอ (drawer) ไม่บังเนื้อหา
         background: SIDEBAR_BG,
         borderRight: '1px solid var(--frame-line)',
-        transition: 'width 0.2s ease',
+        transition: 'width 0.2s ease, transform 0.2s ease',
         overflow: 'hidden',
         zIndex: 200,
         boxShadow: expanded ? '4px 0 24px rgba(0,0,0,0.25)' : 'none',
@@ -348,9 +351,14 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
               const open = hasSub && (openKey === item.to || parentActive);   // กางเมื่อ hover เมนูแม่ หรือกำลังอยู่หน้านั้น
               const effTab = searchTab || (item.sub ? item.sub[0].tab : null);
               return (
-                <div key={item.to} onMouseEnter={() => setOpenKey(item.to)}>
+                <div key={item.to} onMouseEnter={() => { if (canHover) setOpenKey(item.to); }}>
                   <SidebarItem to={item.to} label={item.label} external={item.external} expanded={expanded}
-                    onClick={() => setExpanded(isDesktop)} innerRef={setItemRef(item.to)}
+                    onClick={(e) => {
+                      // ไม่มี hover (แตะ = มือถือ/แท็บเล็ต ทุกทิศจอ): หัวข้อที่มีเมนูย่อย → แตะกาง/ยุบ dropdown (ไม่เข้าหน้า) · มีเมาส์: กดเข้าหน้าได้ (กางด้วย hover)
+                      if (hasSub && !canHover) { e.preventDefault(); setOpenKey(k => (k === item.to ? null : item.to)); }
+                      else setExpanded(canHover);
+                    }}
+                    innerRef={setItemRef(item.to)}
                     hasSub={hasSub} subOpen={open} />
                   {hasSub && (
                     // เมนูย่อย: animate ความสูงด้วย grid-rows 0fr↔1fr → ค่อยๆ เปิด/ปิด ลื่นๆ
@@ -360,7 +368,7 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
                           <SubLink key={s.tab} to={`${item.to}?tab=${s.tab}`} label={s.label}
                             active={parentActive && effTab === s.tab}
                             innerRef={setItemRef(`${item.to}?tab=${s.tab}`)}
-                            onClick={() => setExpanded(isDesktop)} />
+                            onClick={() => setExpanded(canHover)} />
                         ))}
                       </div>
                     </div>
@@ -407,7 +415,7 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
             {expanded ? 'Logout' : ''}
           </button>
         ) : (
-          <SidebarItem to="/mes-auth" label="Login" expanded={expanded} onClick={() => setExpanded(isDesktop)} />
+          <SidebarItem to="/mes-auth" label="Login" expanded={expanded} onClick={() => setExpanded(canHover)} />
         )}
       </div>
     </div>
@@ -510,7 +518,7 @@ function NotificationBell() {
             {count > 0 && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ef4444' }}>{count} ใหม่</span>}
           </div>
 
-          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+          <div style={{ maxHeight: 'min(360px, calc(100vh - 140px))', overflowY: 'auto' }}>
             {recent.length === 0 ? (
               <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>ไม่มีการแจ้งเตือน</div>
             ) : recent.map(n => (
@@ -614,7 +622,7 @@ function ToastContainer() {
               boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
               display: 'flex', alignItems: 'center', gap: '0.5rem',
               animation: 'toastIn 0.25s ease',
-              minWidth: 240, maxWidth: 360,
+              minWidth: 0, maxWidth: 'min(360px, calc(100vw - 2rem))',
             }}>
               <span>{TOAST_ICONS[t.type] || TOAST_ICONS.success}</span>
               <span>{t.msg}</span>
@@ -705,12 +713,21 @@ function Shell({ children }) {
   // เปิด sidebar = เนื้อหาขยับขวา "นิดเดียว" (SHIFT_ON_OPEN) ไม่ดันเต็มความกว้าง sidebar · sidebar กางทับส่วนที่เหลือแบบ drawer
   // เนื้อหายังอยู่กึ่งกลาง (margin auto) · ปรับเลข SHIFT_ON_OPEN เพื่อเพิ่ม/ลดระยะขยับ (0 = ไม่ขยับเลย)
   const SHIFT_ON_OPEN =  150;
-  const contentLeft = isDesktop && expanded ? ICON_W + SHIFT_ON_OPEN : ICON_W;
+  const contentLeft = isDesktop ? (expanded ? ICON_W + SHIFT_ON_OPEN : ICON_W) : 0;   // มือถือ: content เต็มจอ (sidebar เป็น drawer ลอย ไม่กิน 58px)
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* มือถือ: กางแถบแล้วมีฉากมืดด้านหลัง — แตะเพื่อปิด */}
       {!isDesktop && expanded && (
         <div onClick={() => setExpanded(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 150 }} />
+      )}
+      {/* มือถือยุบ: ปุ่มแฮมเบอร์เกอร์ลอยเปิด drawer (แทนแถบ 58px ที่กินจอตลอด) — วางในโซนซ้ายของ header ที่ว่างอยู่ */}
+      {!isDesktop && !expanded && (
+        <button type="button" aria-label="เปิดเมนู" onClick={() => setExpanded(true)}
+          style={{ position: 'fixed', top: 10, left: 10, zIndex: 120, width: 40, height: 40, display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <span style={{ width: 22, height: 2.5, background: '#fff', borderRadius: 2 }} />
+          <span style={{ width: 22, height: 2.5, background: '#fff', borderRadius: 2 }} />
+          <span style={{ width: 22, height: 2.5, background: '#fff', borderRadius: 2 }} />
+        </button>
       )}
       <Sidebar expanded={expanded} setExpanded={setExpanded} isDesktop={isDesktop} />
 

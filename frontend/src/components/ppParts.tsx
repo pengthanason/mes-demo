@@ -332,7 +332,7 @@ export function BarRow({ label, value, max, color }: { label: string; value: num
   const num = useCountUp(value, 800); // เลขท้ายแท่งวิ่งตามไปด้วย
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem' }}>
-      <div style={{ width: 130, textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={label}>{label}</div>
+      <div style={{ flex: '0 1 130px', minWidth: 64, textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={label}>{label}</div>
       <div style={{ flex: 1, background: 'var(--border-color)', borderRadius: 99, height: 18, overflow: 'hidden' }}>
         <div style={{ width: `${mounted ? target : 0}%`, height: '100%', background: color, borderRadius: 99, minWidth: value > 0 && mounted ? 6 : 0, transition: 'width 0.8s cubic-bezier(0.22,1,0.36,1)' }} />
       </div>

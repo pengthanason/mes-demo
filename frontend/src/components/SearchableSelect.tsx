@@ -24,7 +24,7 @@ export function SearchableSelect({
   const [q, setQ] = useState('');
   const boxRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; width: number; maxH: number } | null>(null);
 
   const current = options.find(o => o.value === value);
   const showSearch = options.length > searchThreshold;
@@ -33,13 +33,20 @@ export function SearchableSelect({
     ? options.filter(o => `${o.label} ${o.value}`.toLowerCase().includes(needle))
     : options;
 
+  // คำนวณตำแหน่ง panel: ถ้าที่ว่างด้านล่างไม่พอ → เปิดขึ้นบน + จำกัดความสูงตามที่ว่างจริง (กันตกขอบจอ/นอนจอ)
+  const computePos = () => {
+    const r = boxRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const below = window.innerHeight - r.bottom - 8;
+    const above = r.top - 8;
+    const up = below < 220 && above > below;
+    const maxH = Math.max(160, Math.min(390, up ? above : below));
+    setPos(up ? { bottom: window.innerHeight - r.top + 2, left: r.left, width: r.width, maxH }
+              : { top: r.bottom + 2, left: r.left, width: r.width, maxH });
+  };
   const toggle = () => {
     if (disabled) return;
-    if (!open) {
-      const r = boxRef.current?.getBoundingClientRect();
-      if (r) setPos({ top: r.bottom + 2, left: r.left, width: r.width });
-      setQ('');
-    }
+    if (!open) { computePos(); setQ(''); }
     setOpen(o => !o);
   };
   useEffect(() => {
@@ -48,7 +55,7 @@ export function SearchableSelect({
   // เปิดอยู่แล้วเลื่อนจอ/รีไซส์ → คำนวณตำแหน่ง panel ใหม่ให้ติดกับช่องเสมอ (ไม่ลอยตามจอ)
   useEffect(() => {
     if (!open) return;
-    const reposition = () => { const r = boxRef.current?.getBoundingClientRect(); if (r) setPos({ top: r.bottom + 2, left: r.left, width: r.width }); };
+    const reposition = () => computePos();
     reposition();
     window.addEventListener('scroll', reposition, true);
     window.addEventListener('resize', reposition);
@@ -79,9 +86,9 @@ export function SearchableSelect({
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setOpen(false)} />
           <div style={{
-            position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#fff',
+            position: 'fixed', ...(pos.top != null ? { top: pos.top } : { bottom: pos.bottom }), left: pos.left, width: pos.width, background: '#fff',
             border: '1px solid var(--border-color)', borderRadius: 6, boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
-            zIndex: 1000, maxHeight: 390, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            zIndex: 1000, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', overflow: 'hidden',
           }}>
             {showSearch && (
               <div style={{ padding: 6, borderBottom: '1px solid var(--border-color)' }}>

@@ -89,7 +89,7 @@ export function MesAuthPage() {
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem', marginTop: '0.5rem' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Demo Accounts <span style={{ fontWeight: 400, color: '#94a3b8' }}>— กดเพื่อกรอกให้อัตโนมัติ</span></div>
               {DEMO_ACCOUNTS.map(acc => (
-                <button key={acc.username} type="button" onClick={() => { setUsername(acc.username); setPassword(acc.password); setError(''); }}
+                <button key={acc.username} type="button" className="tap-sm" onClick={() => { setUsername(acc.username); setPassword(acc.password); setError(''); }}
                   title="กดเพื่อกรอก username/password ให้อัตโนมัติ"
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', fontSize: '0.82rem', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderRadius: 6, padding: '0.25rem', cursor: 'pointer' }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#eef2f7'; }}

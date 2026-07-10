@@ -494,7 +494,11 @@ function buildFlowSvg(steps: Step[]): string {
    หัวตารางเวลา 2 ชั้น (ช่วงใหญ่ = น้ำเงิน / ช่องย่อย = เทา) + เส้น grid
    ตารางเวลา flow-shop: ชิ้น p ออกสถานี i เมื่อ C[p][i] = max(ออกจากสถานีก่อนหน้า, เครื่องว่าง) + เวลา
    ยุบเป็นแท่งเดียว: start_i = เวลาที่ชิ้นแรกเข้าสถานี i, end_i = เวลาที่ชิ้นสุดท้ายออกสถานี i */
-function buildGanttSvg(steps: Step[], qty: number): string {
+// เคอร์เซอร์ = pointer (มือชี้ธรรมดา) ทั้งตอน hover และตอนลาก — ไม่มีมือกำ (grabbing)
+const CURSOR_GRAB = 'pointer';
+const CURSOR_GRABBING = 'pointer';
+
+function buildGanttSvg(steps: Step[], qty: number, zoom: number = 1, fitW: number = 1000): { label: string; chart: string; full: string } {
   const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const sec = (s: Step) => Number(s.seconds) || 0;
   const mach = (s: Step) => Math.max(1, Number(s.stations) || 1);
@@ -544,54 +548,82 @@ function buildGanttSvg(steps: Step[], qty: number): string {
     steps.forEach((s, idx) => { if (s.timeScope === 'once' && idx > lastPer) { rows[idx].start = tcum; rows[idx].end = tcum + rows[idx].t; tcum += rows[idx].t; } });
   }
 
+  // แท่ง = ช่วงจริงบนสายพาน: ชิ้นแรกเข้า → ชิ้นสุดท้ายออก · สถานีล่างจบทีหลังสถานีบนเสมอ (ลำดับถูกต้อง)
   const axisMax = rows.reduce((mx, r) => Math.max(mx, r.end), 0);
 
+  // ── section อัตโนมัติ (categorize) — เป็นหัวข้อคั่น กางหมดตลอด ไม่ต้องกด/ไม่ต้องจัดเอง ──
+  const cats = categorize(steps);
+  type Disp = { kind: 'group'; cat: string; count: number } | { kind: 'task'; label: string; t: number; m: number; start: number; end: number; once: boolean };
+  const disp: Disp[] = [];
+  const groupLabels: string[] = [];
+  { let gi = 0;
+    while (gi < rows.length) {
+      const cat = cats[gi]; let gj = gi;
+      while (gj < rows.length && cats[gj] === cat) gj++;
+      const mem = rows.slice(gi, gj);
+      disp.push({ kind: 'group', cat, count: mem.length });
+      groupLabels.push(`${cat} (${mem.length})`);
+      mem.forEach(m => disp.push({ kind: 'task', label: m.label, t: m.t, m: m.m, start: m.start, end: m.end, once: m.once }));
+      gi = gj;
+    }
+  }
+
   // ── layout ──
-  const LX = 176, TITLE_H = 34, H1 = 26, H2 = 24, ROW_H = 46, BAR_H = 22, PADR = 26;
-  const plotTop = TITLE_H + H1 + H2;
-  const R = rows.length;
+  // task-name column: กว้างพอดีหัวข้อ/ชื่อกลุ่มที่ยาวสุด + เผื่อสามเหลี่ยม/ย่อหน้า
+  const NAME_FS = 14.5, NAME_CHAR_PX = NAME_FS * 0.62, NAME_PAD_L = 14, NAME_PAD_R = 14;
+  const longestNamePx = [...rows.map(r => r.label), ...groupLabels].reduce((mx, l) => Math.max(mx, l.length * NAME_CHAR_PX), 0);
+  const LX = Math.round(Math.min(340, Math.max(210, longestNamePx + NAME_PAD_L + NAME_PAD_R + 24)) * 0.85);   // ×0.85 = ลดช่องชื่อ ~15%
+  const maxNameChars = Math.max(6, Math.floor((LX - NAME_PAD_L - NAME_PAD_R - 24) / NAME_CHAR_PX));
+  const fitName = (s: string) => (s.length <= maxNameChars ? s : s.slice(0, maxNameChars - 1).trimEnd() + '…');
+  const TITLE_H = 34, H2 = 24, ROW_H = 46, BAR_H = 22, PADR = 4;
+  const plotTop = TITLE_H + H2;
+  const R = disp.length;
   const plotBot = plotTop + R * ROW_H;
 
   if (!R || axisMax <= 0) {
     const Wsvg = LX + 720 + PADR;
-    return `<svg viewBox="0 0 ${Wsvg} 120" width="${Wsvg}" height="120" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif"><text x="${Wsvg / 2}" y="60" text-anchor="middle" font-size="13" fill="#94a3b8">ยังไม่มีขั้นตอนที่มีเวลา — เพิ่มขั้นตอน + ใส่เวลาเพื่อดู Gantt</text></svg>`;
+    const emptySvg = `<svg viewBox="0 0 ${Wsvg} 120" width="${Wsvg}" height="120" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif"><text x="${Wsvg / 2}" y="60" text-anchor="middle" font-size="13" fill="#94a3b8">ยังไม่มีขั้นตอนที่มีเวลา — เพิ่มขั้นตอน + ใส่เวลาเพื่อดู Gantt</text></svg>`;
+    return { label: '', chart: emptySvg, full: emptySvg };
   }
 
   // ── เลือกหน่วยเวลาช่องย่อยแบบกลมๆ ให้ได้ ~6 ช่อง ──
   const NICE = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 300, 600, 900, 1200, 1800, 2700, 3600, 7200, 10800, 14400, 21600, 43200, 86400, 172800, 432000, 864000];
+  // ยิ่งซูม ยิ่งมีช่องเวลาถี่ขึ้น → step เล็กลง (เช่น 2ชม.→30น.→5น.) อ่านเวลาละเอียดขึ้น · ~12 ช่องที่ 100% (ถี่)
+  const targetCols = Math.min(96, Math.max(6, Math.round(12 * zoom)));
   let step = NICE[NICE.length - 1];
-  for (const s of NICE) { if (axisMax / s <= 6) { step = s; break; } }
+  for (const s of NICE) { if (axisMax / s <= targetCols) { step = s; break; } }
+  // กัน qty มหาศาล: จำกัดจำนวนช่องไม่ให้ SVG ระเบิด
+  if (axisMax / step > 120) step = Math.ceil(axisMax / 120);
   const minorCount = Math.max(1, Math.ceil(axisMax / step));
   const gridMax = minorCount * step;
-  const GROUP = 3;                                   // จับช่องย่อย 3 ช่อง = 1 ช่วงใหญ่ (เหมือน Q = 3 เดือน)
 
-  const colW = Math.min(160, Math.max(78, Math.round(760 / minorCount)));
-  const W = colW * minorCount;
+  // ที่ zoom 1 ให้เต็มความกว้างพาเนลพอดี (ขนาดจริง ไม่ scale) · ซูมเข้า = W โตขึ้น (คอลัมน์เยอะ/ถี่ขึ้น) เลื่อนได้
+  const baseW = Math.max(320, (fitW || 1000) - LX - PADR - 2);
+  const W = Math.round(baseW * zoom);
   const Wsvg = LX + W + PADR;
   const svgH = plotBot + 18;
   const x = (t: number) => LX + (t / gridMax) * W;
+  // เวลานาฬิกา สมมติเริ่มกะ 08:00 (ไม่มี datetime จริงในข้อมูล) — เกิน 24 ชม. ต่อท้าย (+Nว)
+  const clockAt = (sec: number) => {
+    const total = 8 * 3600 + Math.round(sec);
+    const day = Math.floor(total / 86400), rem = total % 86400;
+    const hh = Math.floor(rem / 3600), mm = Math.floor((rem % 3600) / 60);
+    const s = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    return day > 0 ? `${s} (+${day}ว)` : s;
+  };
 
-  const C_BLUE = '#1e86c7', C_GREY = '#eceff1', C_GRID = '#d6dee6', C_GRIDH = '#e7ecf2', C_ONCE = '#818cf8';
+  // ขาว-ดำ-เทา (ทางการ ใส่รายงานได้ เข้าชุดกับ flowchart) — ไม่ใช้สีสด
+  const C_HDR = '#e2e8f0', C_HDRTX = '#1f2937', C_GREY = '#f1f5f9', C_GRID = '#aeb9c7', C_BAR = '#475569', C_ONCE = '#e2e8f0', C_ONCE_BD = '#94a3b8';
   const parts: string[] = [];
 
   // title + total
-  parts.push(`<text x="0" y="22" font-size="15" font-weight="800" fill="#0f3f5f">📊 Gantt · Timeline การผลิต — ${esc(N.toLocaleString())} ชิ้น</text>`);
-  parts.push(`<text x="${Wsvg}" y="22" text-anchor="end" font-size="11" fill="#64748b">รวม ≈ ${esc(fmtTime(Math.round(axisMax)))}</text>`);
 
-  // header: Task Name cell (คร่อม 2 แถว)
-  parts.push(`<rect x="0" y="${TITLE_H}" width="${LX}" height="${H1 + H2}" fill="${C_BLUE}"/>`);
-  parts.push(`<text x="16" y="${TITLE_H + (H1 + H2) / 2}" dominant-baseline="central" font-size="15" font-weight="700" fill="#fff">Task Name</text>`);
+  // header: Task Name cell
+  parts.push(`<rect x="0" y="${TITLE_H}" width="${LX}" height="${H2}" fill="${C_HDR}"/>`);
+  parts.push(`<text x="16" y="${TITLE_H + H2 / 2}" dominant-baseline="central" font-size="14" font-weight="700" fill="${C_HDRTX}">Task Name</text>`);
 
-  // header ชั้นบน (ช่วงใหญ่ · น้ำเงิน)
-  for (let g = 0; g * GROUP < minorCount; g++) {
-    const c0 = g * GROUP, c1 = Math.min(minorCount, (g + 1) * GROUP);
-    const gx1 = x(c0 * step), gx2 = x(c1 * step);
-    parts.push(`<rect x="${gx1}" y="${TITLE_H}" width="${gx2 - gx1}" height="${H1}" fill="${C_BLUE}"/>`);
-    if (g > 0) parts.push(`<line x1="${gx1}" y1="${TITLE_H}" x2="${gx1}" y2="${TITLE_H + H1}" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1"/>`);
-    parts.push(`<text x="${gx1 + 8}" y="${TITLE_H + H1 / 2}" dominant-baseline="central" font-size="12.5" font-weight="700" fill="#fff">${esc(`${fmtTime(c0 * step)} – ${fmtTime(c1 * step)}`)}</text>`);
-  }
-  // header ชั้นล่าง (ช่องย่อย · เทา)
-  const y2 = TITLE_H + H1;
+  // header เวลา (ช่องย่อย · เทา) — เอาแถบช่วงใหญ่ด้านบนออกแล้ว
+  const y2 = TITLE_H;
   parts.push(`<rect x="${LX}" y="${y2}" width="${W}" height="${H2}" fill="${C_GREY}"/>`);
   for (let k = 0; k < minorCount; k++) {
     const cx1 = x(k * step), cx2 = x((k + 1) * step);
@@ -599,36 +631,64 @@ function buildGanttSvg(steps: Step[], qty: number): string {
     parts.push(`<text x="${(cx1 + cx2) / 2}" y="${y2 + H2 / 2}" text-anchor="middle" dominant-baseline="central" font-size="11.5" fill="#37474f">${esc(fmtTime((k + 1) * step))}</text>`);
   }
 
-  // grid แนวตั้ง (ตามช่องย่อย) ทะลุถึงล่าง
+  // วาด 3 ชั้น: (A) พื้นหัวกลุ่ม → (B) เส้น grid → (C) แท่ง+ข้อความ · เส้นต่อเนื่องทุกแถวถึงข้อสุดท้าย และอยู่ "หลัง" แท่งข้อมูล (แท่งทับเส้น)
+  // (A) พื้นหลังแถว: zebra (แถวคี่) + หัวกลุ่ม — วาดก่อน grid (เส้นจะลากทับพื้นทีหลัง ต่อเนื่องทุกแถว)
+  disp.forEach((d, i) => {
+    const ry = plotTop + i * ROW_H;
+    if (d.kind === 'group') {
+      parts.push(`<rect x="0" y="${ry}" width="${LX + W}" height="${ROW_H}" fill="#eef2f7"/>`);
+      parts.push(`<line x1="0" y1="${ry}" x2="${LX + W}" y2="${ry}" stroke="#94a3b8" stroke-width="1.5"/>`);
+    } else if (i % 2 === 1) {
+      parts.push(`<rect x="0" y="${ry}" width="${LX + W}" height="${ROW_H}" fill="#f6f8fa"/>`);
+    }
+  });
+
+  // (B) เส้น grid — เส้นบาง + เส้นย่อยกลางช่อง (ครึ่งเวลา = ถี่ขึ้น) · ทับพื้น/zebra แต่ก่อนแท่ง → ต่อเนื่องทุกแถวถึงข้อสุดท้าย อยู่หลังแท่ง
   for (let k = 0; k <= minorCount; k++) {
     const gx = x(k * step);
-    parts.push(`<line x1="${gx}" y1="${plotTop}" x2="${gx}" y2="${plotBot}" stroke="${C_GRID}" stroke-width="1"/>`);
+    parts.push(`<line x1="${gx}" y1="${plotTop}" x2="${gx}" y2="${plotBot}" stroke="${C_GRID}" stroke-width="0.6"/>`);
+    if (k < minorCount) {
+      const gm = x((k + 0.5) * step);   // เส้นย่อยครึ่งช่อง — บาง+จางกว่า
+      parts.push(`<line x1="${gm}" y1="${plotTop}" x2="${gm}" y2="${plotBot}" stroke="#dbe1e9" stroke-width="0.4"/>`);
+    }
   }
-  // grid แนวนอน (ตามแถว) ทะลุทั้งกว้าง
-  for (let r = 0; r <= R; r++) {
-    const gy = plotTop + r * ROW_H;
-    parts.push(`<line x1="0" y1="${gy}" x2="${LX + W}" y2="${gy}" stroke="${C_GRIDH}" stroke-width="1"/>`);
+  for (let i = 0; i <= R; i++) {
+    if (i < R && disp[i].kind === 'group') continue;
+    const gy = plotTop + i * ROW_H;
+    parts.push(`<line x1="0" y1="${gy}" x2="${LX + W}" y2="${gy}" stroke="${C_GRID}" stroke-width="0.6"/>`);
   }
 
-  // แถว: ชื่อ task + แท่ง
-  rows.forEach((r, i) => {
+  // (C) เนื้อหาแถว (ชื่อ/หัวกลุ่ม/แท่ง/ข้อความ) — ทับ grid ทั้งหมด (แท่งอยู่หน้า เส้นอยู่หลัง)
+  disp.forEach((d, i) => {
     const ry = plotTop + i * ROW_H, mid = ry + ROW_H / 2;
-    parts.push(`<text x="14" y="${mid - 6}" dominant-baseline="central" font-size="14.5" fill="#263238">${esc(r.label)}</text>`);
-    parts.push(`<text x="14" y="${mid + 11}" dominant-baseline="central" font-size="9.5" fill="#90a0ac">${esc(r.once ? `ครั้งเดียว · ${fmtTime(r.t)}` : `×${r.m} เครื่อง · ${fmtTime(r.t)}/ชิ้น`)}</text>`);
-    const bx = x(r.start), bw = Math.max(3, x(r.end) - x(r.start)), by = mid - BAR_H / 2;
-    const fill = r.once ? C_ONCE : 'url(#gg)';
-    parts.push(`<rect x="${bx.toFixed(1)}" y="${by}" width="${bw.toFixed(1)}" height="${BAR_H}" rx="4" fill="${fill}"/>`);
-    const durTxt = fmtTime(Math.round(r.end - r.start));
-    if (bx + bw + 46 < LX + W) parts.push(`<text x="${(bx + bw + 7).toFixed(1)}" y="${mid}" dominant-baseline="central" font-size="10" fill="#64748b">${esc(durTxt)}</text>`);
-    else parts.push(`<text x="${(bx + bw - 7).toFixed(1)}" y="${mid}" text-anchor="end" dominant-baseline="central" font-size="10" font-weight="600" fill="#fff">${esc(durTxt)}</text>`);
+    if (d.kind === 'group') {
+      parts.push(`<text x="12" y="${mid}" dominant-baseline="central" font-size="13" font-weight="700" fill="#1f2937">${esc(fitName(`${d.cat} (${d.count})`))}</text>`);
+    } else {
+      const shownName = fitName(d.label);
+      parts.push(`<text x="30" y="${mid - 6}" dominant-baseline="central" font-size="${NAME_FS}" fill="#1f2937">${shownName !== d.label ? `<title>${esc(d.label)}</title>` : ''}${esc(shownName)}</text>`);
+      parts.push(`<text x="30" y="${mid + 11}" dominant-baseline="central" font-size="9.5" fill="#90a0ac">${esc(d.once ? `ครั้งเดียว · ${fmtTime(d.t)}` : `×${d.m} เครื่อง · ${fmtTime(d.t)}/ชิ้น`)}</text>`);
+      const bx = x(d.start), bw = Math.max(7, x(d.end) - x(d.start)), by = mid - BAR_H / 2;
+      // ชี้ที่ "ตัวกล่อง" (บาร์) เท่านั้น → tooltip (custom ขึ้นทันที): เริ่มกี่โมง / ชิ้นละกี่นาที / เสร็จกี่โมง
+      const tip = `${d.label}\nเริ่ม ${clockAt(d.start)}\nชิ้นละ ${fmtTime(d.t)}${d.once ? ' (ครั้งเดียว)' : ` · ×${d.m} เครื่อง`}\nเสร็จ ${clockAt(d.end)}`;
+      parts.push(`<rect x="${bx.toFixed(1)}" y="${by}" width="${bw.toFixed(1)}" height="${BAR_H}" rx="3" fill="${d.once ? C_ONCE : (i % 2 ? '#64748b' : C_BAR)}" stroke="${d.once ? C_ONCE_BD : '#334155'}" stroke-width="1" data-tip="${esc(tip).replace(/"/g, '&quot;')}"/>`);
+      const durTxt = fmtTime(Math.round(d.end - d.start));
+      if (bx + bw + 46 < LX + W) parts.push(`<text x="${(bx + bw + 7).toFixed(1)}" y="${mid}" dominant-baseline="central" font-size="10" pointer-events="none" fill="#475569">${esc(durTxt)}</text>`);
+      else parts.push(`<text x="${(bx + bw - 7).toFixed(1)}" y="${mid}" text-anchor="end" dominant-baseline="central" font-size="10" font-weight="600" pointer-events="none" fill="${d.once ? '#1f2937' : '#fff'}">${esc(durTxt)}</text>`);
+    }
   });
 
   // เส้นแบ่ง task/timeline + กรอบนอก
   parts.push(`<line x1="${LX}" y1="${TITLE_H}" x2="${LX}" y2="${plotBot}" stroke="#b4c1cf" stroke-width="1.5"/>`);
   parts.push(`<rect x="0" y="${TITLE_H}" width="${LX + W}" height="${plotBot - TITLE_H}" fill="none" stroke="#b4c1cf" stroke-width="1.5"/>`);
 
-  const defs = `<defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4fc3e9"/><stop offset="1" stop-color="#1e86c7"/></linearGradient></defs>`;
-  return `<svg viewBox="0 0 ${Wsvg} ${svgH}" width="${Wsvg}" height="${svgH}" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif">${defs}${parts.join('')}</svg>`;
+  const body = parts.join('');
+  const A = `xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif" style="display:block"`;
+  // แยก 2 ชิ้น body เดียวกัน ต่าง viewBox: label (ตรึงคอลัมน์ชื่อ 0..LX) + chart (เลื่อนไทม์ไลน์ LX..) → แถวตรงกันเป๊ะ · full = รวม (export PDF)
+  return {
+    label: `<svg viewBox="0 0 ${LX} ${svgH}" width="${LX}" height="${svgH}" ${A}>${body}</svg>`,
+    chart: `<svg viewBox="${LX} 0 ${W + PADR} ${svgH}" width="${W + PADR}" height="${svgH}" ${A}>${body}</svg>`,
+    full: `<svg viewBox="0 0 ${Wsvg} ${svgH}" width="${Wsvg}" height="${svgH}" ${A}>${body}</svg>`,
+  };
 }
 
 /* ── flowchart (SVG) → พิมพ์ (Save as PDF) ── */
@@ -825,10 +885,21 @@ function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ เพิ่�
   const [q, setQ] = useState('');
   const boxRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; width: number; maxH: number } | null>(null);
+  // ที่ว่างล่างไม่พอ → เปิดขึ้นบน + จำกัดความสูงตามที่ว่างจริง (กันตกขอบจอ/นอนจอ)
+  const computePos = () => {
+    const r = boxRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const below = window.innerHeight - r.bottom - 8;
+    const above = r.top - 8;
+    const up = below < 260 && above > below;
+    const maxH = Math.max(200, Math.min(442, up ? above : below));
+    setPos(up ? { bottom: window.innerHeight - r.top + 2, left: r.left, width: r.width, maxH }
+              : { top: r.bottom + 2, left: r.left, width: r.width, maxH });
+  };
   const toggle = () => {
     if (disabled) return;
-    if (!open) { const r = boxRef.current?.getBoundingClientRect(); if (r) setPos({ top: r.bottom + 2, left: r.left, width: r.width }); setQ(''); }
+    if (!open) { computePos(); setQ(''); }
     setOpen(o => !o);
   };
   const current = groups.flatMap(g => g.items).find(i => i.value === value);
@@ -842,7 +913,7 @@ function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ เพิ่�
   // เปิดอยู่แล้วเลื่อนจอ/รีไซส์ → คำนวณตำแหน่ง panel ใหม่ให้ติดกับช่องเสมอ (ไม่ลอยตามจอ)
   useEffect(() => {
     if (!open) return;
-    const reposition = () => { const r = boxRef.current?.getBoundingClientRect(); if (r) setPos({ top: r.bottom + 2, left: r.left, width: r.width }); };
+    const reposition = () => computePos();
     reposition();
     window.addEventListener('scroll', reposition, true);
     window.addEventListener('resize', reposition);
@@ -857,7 +928,7 @@ function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ เพิ่�
       {open && pos && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,0.15)', zIndex: 1000, maxHeight: 442, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ position: 'fixed', ...(pos.top != null ? { top: pos.top } : { bottom: pos.bottom }), left: pos.left, width: pos.width, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,0.15)', zIndex: 1000, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {showSearch && (
               <div style={{ padding: 6, borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
                 <input ref={searchRef} value={q} onChange={e => setQ(e.target.value)} onClick={e => e.stopPropagation()}
@@ -983,6 +1054,24 @@ export function WorkflowBuilder() {
     setStepsMap(m => ({ ...m, [activeKey]: typeof u === 'function' ? (u as (p: Step[]) => Step[])(m[activeKey]) : u }));
   const [showFlow, setShowFlow] = useState(false);
   const [showGantt, setShowGantt] = useState(false);
+  const [ganttZoom, setGanttZoom] = useState(1);   // ซูมแกนเวลา Gantt (1 = พอดี)
+  const [ganttFitW, setGanttFitW] = useState(1000);   // ความกว้างพาเนลจริง — ให้ Gantt เต็มพอดีที่ 100% โดยไม่ scale
+  const ganttWrapRef = useRef<HTMLDivElement>(null);
+  const ganttScrollRef = useRef<HTMLDivElement>(null);
+  const ganttPanRef = useRef<{ x: number; left: number } | null>(null);   // ลากมือจับ pan chart แนวนอน
+  const stepGhostRef = useRef<HTMLDivElement | null>(null);   // ghost ตอนลากสลับลำดับ (pointer-drag เอง)
+  const stepOverRef = useRef<string | null>(null);
+  const gtipRef = useRef<HTMLDivElement>(null);   // tooltip โปรเซสใน Gantt (custom — ขึ้นทันที ไม่ดีเลย์)
+  useEffect(() => {
+    if (!showGantt) return;
+    const el = ganttWrapRef.current;
+    if (!el) return;
+    const update = () => setGanttFitW(el.clientWidth || 1000);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showGantt]);
   // กระบวนการ SMT แยก 2 กลุ่ม: default (มาตรฐาน คงที่) + custom (ผู้ใช้เพิ่มเอง ลบได้) — แต่ละกลุ่มเรียง A-Z
   const [customProcs, setCustomProcs] = useState<string[]>(() => {
     let list: string[] = [];
@@ -1015,7 +1104,7 @@ export function WorkflowBuilder() {
     : [internalGroup, extToDD('ext_inj'), extToDD('ext_blow'), extToDD('ext_ems')];   // mix = รวมทุกหัวข้อ
   const defaultProc = tab === 'external' ? EXT_GROUPS[activeKey as ExtKey].items[0] : (smtMain[0] || 'SMT');   // สถานีเริ่มต้นตอนกด "เพิ่มขั้นตอน"
   // สลับแท็บ/ประเภท → ล้างสถานะผลรัน + ยุบ FlowChart/Gantt (กัน id ข้ามชุดปนกัน)
-  const resetView = () => { setShowFlow(false); setShowGantt(false); };
+  const resetView = () => { setShowFlow(false); setShowGantt(false); setGanttZoom(1); };
   const subPill = (on: boolean): React.CSSProperties => ({
     padding: '5px 15px', borderRadius: 6, border: `1px solid ${on ? 'var(--brand)' : '#d7dee7'}`, cursor: 'pointer',
     fontSize: '0.8rem', fontWeight: 700, background: on ? 'var(--brand)' : '#fff', color: on ? '#fff' : '#64748b', transition: 'all .12s',
@@ -1023,6 +1112,30 @@ export function WorkflowBuilder() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [grabId, setGrabId] = useState<string | null>(null);
+  // ลากสลับลำดับแบบ pointer เอง (ไม่ใช้ HTML5 DnD ที่คุมเคอร์เซอร์/ghost ไม่ได้ → บัค) · ผูก listener เฉพาะตอนกำลังลาก
+  useEffect(() => {
+    if (draggedId == null) return;
+    const onMove = (e: PointerEvent) => {
+      const g = stepGhostRef.current;
+      if (g) { g.style.left = `${e.clientX + 12}px`; g.style.top = `${e.clientY + 8}px`; }
+      const row = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('[data-step-id]');
+      const id = row ? row.getAttribute('data-step-id') : null;
+      stepOverRef.current = id;
+      setDragOverId(id);
+    };
+    const onUp = () => {
+      const target = stepOverRef.current;
+      stepGhostRef.current?.remove(); stepGhostRef.current = null;
+      document.body.style.cursor = ''; document.body.style.userSelect = '';
+      if (target) onDrop(target);
+      setDraggedId(null); setDragOverId(null); setGrabId(null);
+    };
+    // Pointer Events = ครอบทั้งเมาส์และทัช (มือถือ) → ลากสลับลำดับได้ทุกอุปกรณ์
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp); };
+  }, [draggedId]);
 
   const create = useWorkflowCreate();
   const del = useWorkflowDelete();
@@ -1065,7 +1178,8 @@ export function WorkflowBuilder() {
   const bottleneckSec = perUnitSteps.reduce((m, s) => Math.max(m, effSec(s) / stationsOf(s)), 0);
   const lotSec = qtyN > 0 ? setupSec + perUnitSec + (qtyN - 1) * bottleneckSec : setupSec + perUnitSec;
   const flowSvg = buildFlowSvg(steps);
-  const ganttSvg = buildGanttSvg(steps, qtyN);
+  const ganttSvgs = buildGanttSvg(steps, qtyN, ganttZoom, ganttFitW);
+  const ganttNarrow = ganttFitW > 0 && ganttFitW < 600;   // จอแคบ (มือถือ) → เลื่อนทั้งอันในสกอลล์เดียว (frozen label กินจนไม่เหลือที่ให้ chart)
   const smtCount = steps.filter(s => s.role === 'smt').length;
 
   const setStep = (id: string, patch: Partial<Step>) => setSteps(s => s.map(x => x.id === id ? { ...x, ...patch } : x));
@@ -1297,7 +1411,7 @@ export function WorkflowBuilder() {
         </div>
 
         {/* แท็บ Internal / External / Mix — แต่ละแท็บมี routing แยกกัน · External แยกบริษัทอีก 2 ชั้น */}
-        <div style={{ display: 'flex', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 12, width: 'fit-content' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 12, width: 'fit-content' }}>
           {([['internal', '🏭 Internal'], ['external', '🚚 External'], ['mix', '🔀 Mix']] as const).map(([k, label]) => {
             const cnt = k === 'internal' ? stepsMap.internal.length : k === 'mix' ? stepsMap.mix.length : (stepsMap.ext_inj.length + stepsMap.ext_blow.length + stepsMap.ext_ems.length);
             return (
@@ -1352,23 +1466,30 @@ export function WorkflowBuilder() {
               const isOnce = step.timeScope === 'once';
               return (
               <div key={step.id}
-                draggable={!isViewer && grabId === step.id}
-                onDragStart={e => { setDraggedId(step.id); e.dataTransfer.effectAllowed = 'move'; }}
-                onDragOver={e => { e.preventDefault(); if (step.id !== dragOverId) setDragOverId(step.id); }}
-                onDragLeave={() => setDragOverId(null)}
-                onDrop={e => { e.preventDefault(); onDrop(step.id); }}
-                onDragEnd={() => { setDraggedId(null); setDragOverId(null); setGrabId(null); }}
+                data-step-id={step.id}
                 style={{
                   borderBottom: '1px solid #f1f5f9',
                   borderLeft: `4px solid ${cfg.color}`,
-                  opacity: draggedId === step.id ? 0.5 : 1,
+                  opacity: draggedId === step.id ? 0.4 : 1,
                   background: dragOverId === step.id && draggedId !== step.id ? '#e0f2fe' : '#fff',
                 }}
               >
                 <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 21, alignItems: 'center', padding: '8px 12px' }}>
                   {/* ลาก (ทุกขั้น) */}
-                  <div style={{ cursor: !isViewer ? 'grab' : 'default', color: '#cbd5e1', fontSize: '1.1rem', textAlign: 'center' }}
-                    onMouseEnter={() => !isViewer && setGrabId(step.id)} onMouseLeave={() => setGrabId(null)} title={!isViewer ? 'ลากเพื่อจัดลำดับ' : undefined}>{!isViewer ? '☰' : ''}</div>
+                  <div style={{ cursor: !isViewer ? CURSOR_GRAB : 'default', color: grabId === step.id ? '#334155' : '#94a3b8', fontSize: '1.15rem', textAlign: 'center', userSelect: 'none', touchAction: 'none' }}
+                    onMouseEnter={() => !isViewer && setGrabId(step.id)} onMouseLeave={() => { if (!draggedId) setGrabId(null); }}
+                    onPointerDown={e => {
+                      if (isViewer) return;
+                      e.preventDefault();
+                      setDraggedId(step.id); stepOverRef.current = null;
+                      const ghost = document.createElement('div');
+                      ghost.textContent = `☰  ${index + 1}. ${step.process}`;
+                      ghost.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;padding:6px 12px;background:#334155;color:#fff;border-radius:6px;font-weight:600;font-size:13px;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.28);opacity:.96';
+                      ghost.style.left = `${e.clientX + 12}px`; ghost.style.top = `${e.clientY + 8}px`;
+                      document.body.appendChild(ghost); stepGhostRef.current = ghost;
+                      document.body.style.cursor = CURSOR_GRABBING; document.body.style.userSelect = 'none';
+                    }}
+                    title={!isViewer ? 'ลากค้างเพื่อจัดลำดับ' : undefined}>{!isViewer ? '☰' : ''}</div>
                   {/* # */}
                   <div style={{ textAlign: 'center', fontWeight: 700, color: cfg.color }}>{index + 1}</div>
                   {/* กระบวนการ — ดรอปดาวน์เดียวกันทุกขั้น (เลือกสถานีหลัก/setup/SMT/custom ได้) */}
@@ -1402,8 +1523,8 @@ export function WorkflowBuilder() {
                   {/* ลบ (SMT เท่านั้น) */}
                   <div style={{ textAlign: 'center' }}>
                     {!isViewer && (
-                      <button type="button" onClick={() => removeStep(step.id)} title="ลบขั้นตอนนี้"
-                        style={{ border: 'none', background: 'transparent', color: '#e11d48', cursor: 'pointer', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>✕</button>
+                      <button type="button" onClick={() => removeStep(step.id)} title="ลบขั้นตอนนี้" className="tap-sm"
+                        style={{ border: 'none', background: 'transparent', color: '#e11d48', cursor: 'pointer', fontSize: 16, fontWeight: 700, lineHeight: 1, padding: '2px 6px' }}>✕</button>
                     )}
                   </div>
                 </div>
@@ -1516,7 +1637,7 @@ export function WorkflowBuilder() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · P/N: <strong>{pn || '—'}</strong></span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', overflowX: 'auto', padding: '8px 0' }} dangerouslySetInnerHTML={{ __html: flowSvg }} />
+          <div style={{ display: 'flex', justifyContent: 'safe center', overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 0' }} dangerouslySetInnerHTML={{ __html: flowSvg }} />
           <details style={{ marginTop: 24 }}>
             <summary style={{ cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Mermaid</summary>
             <pre style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8, padding: 12, fontSize: '0.8rem', overflowX: 'auto', marginTop: 8 }}>{toMermaid(steps)}</pre>
@@ -1530,21 +1651,44 @@ export function WorkflowBuilder() {
             <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>Gantt · Timeline การผลิต</h3>
             <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => setExportMode('gantt')}>🖨️ Export to PDF</button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <div style={{ marginBottom: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · Qty: <strong>{qtyN.toLocaleString()}</strong> ชิ้น</span>
-            <span style={{ width: 1, height: 14, background: '#e2e8f0' }} />
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 16, height: 11, borderRadius: 3, background: '#818cf8', display: 'inline-block' }} /> Set up (ครั้งเดียว)
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 16, height: 11, borderRadius: 3, background: 'linear-gradient(90deg,#4fc3e9,#1e86c7)', display: 'inline-block' }} /> สถานีผลิต
-            </span>
-            <span style={{ width: 1, height: 14, background: '#e2e8f0' }} />
-            <span>แต่ละแถว = 1 สถานี · แท่ง = ตั้งแต่ชิ้นแรกเข้า → ชิ้นสุดท้ายออก (แท่งเหลื่อมกัน = ทำพร้อมกัน)</span>
           </div>
-          <div style={{ overflowX: 'auto', padding: '8px 0' }} dangerouslySetInnerHTML={{ __html: ganttSvg }} />
+          <div ref={ganttWrapRef} style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 4, right: 8, zIndex: 3, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 6, padding: '1px 4px' }}>
+              <button type="button" className="btn" style={{ fontSize: '1rem', fontWeight: 800, padding: '0 9px', lineHeight: 1.5, background: '#fee2e2', borderColor: '#ef4444', color: '#b91c1c' }} title="ซูมออก (ลด)" onClick={() => setGanttZoom(z => Math.max(1, +(z / 1.5).toFixed(2)))}>−</button>
+              <span style={{ fontSize: '0.78rem', minWidth: 38, textAlign: 'center', fontWeight: 700, color: '#334155' }}>{Math.round(ganttZoom * 100)}%</span>
+              <button type="button" className="btn" style={{ fontSize: '1rem', fontWeight: 800, padding: '0 9px', lineHeight: 1.5, background: '#dbeafe', borderColor: '#3b82f6', color: '#1d4ed8' }} title="ซูมเข้า (เพิ่ม)" onClick={() => setGanttZoom(z => Math.min(20, +(z * 1.5).toFixed(2)))}>+</button>
+              <span style={{ marginLeft: 30, fontSize: '0.75rem', color: '#64748b' }}>รวม ≈ <strong style={{ color: '#334155' }}>{qtyN > 0 ? fmtTime(Math.round(lotSec)) : '—'}</strong></span>
+            </div>
+            {/* มือถือ/จอแคบ: เลื่อนทั้งอัน (label+timeline) ในสกอลล์เดียว — ไม่ freeze label เพื่อให้ chart ได้พื้นที่พอดู */}
+            {ganttNarrow ? (
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 0' }}
+                dangerouslySetInnerHTML={{ __html: ganttSvgs.full }} />
+            ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-start', padding: '8px 0' }}>
+              <div style={{ flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: ganttSvgs.label }} />
+              <div ref={ganttScrollRef} style={{ overflowX: 'auto', flex: 1, minWidth: 0, cursor: CURSOR_GRAB, userSelect: 'none' }}
+                onMouseDown={e => { const el = ganttScrollRef.current; if (el) { ganttPanRef.current = { x: e.clientX, left: el.scrollLeft }; el.style.cursor = CURSOR_GRABBING; } if (gtipRef.current) gtipRef.current.style.display = 'none'; }}
+                onMouseMove={e => {
+                  const el = ganttScrollRef.current;
+                  if (el && ganttPanRef.current) { el.scrollLeft = ganttPanRef.current.left - (e.clientX - ganttPanRef.current.x); return; }
+                  const tipEl = gtipRef.current; if (!tipEl) return;
+                  const hit = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('[data-tip]');
+                  const t = hit?.getAttribute('data-tip');
+                  if (t) { tipEl.textContent = t; tipEl.style.left = `${e.clientX + 14}px`; tipEl.style.top = `${e.clientY + 14}px`; tipEl.style.display = 'block'; }
+                  else tipEl.style.display = 'none';
+                }}
+                onMouseUp={() => { const el = ganttScrollRef.current; ganttPanRef.current = null; if (el) el.style.cursor = CURSOR_GRAB; }}
+                onMouseLeave={() => { const el = ganttScrollRef.current; ganttPanRef.current = null; if (el) el.style.cursor = CURSOR_GRAB; if (gtipRef.current) gtipRef.current.style.display = 'none'; }}
+                dangerouslySetInnerHTML={{ __html: ganttSvgs.chart }} />
+            </div>
+            )}
+            <div ref={gtipRef} style={{ position: 'fixed', display: 'none', zIndex: 50, background: '#1e293b', color: '#fff', padding: '7px 10px', borderRadius: 6, fontSize: '0.78rem', lineHeight: 1.5, whiteSpace: 'pre-line', pointerEvents: 'none', boxShadow: '0 6px 20px rgba(0,0,0,.28)', maxWidth: 320 }} />
+          </div>
         </div>
       )}
+
 
       {/* ตารางผล — รวมทุกสาย มี filter เลือกดูตามสายได้ (ไม่มีคอลัมน์ ผล PASS/FAIL) */}
       <div>
@@ -1558,7 +1702,7 @@ export function WorkflowBuilder() {
           )}
         </div>
         {/* filter: รวม / Internal / External / Mix */}
-        <div style={{ display: 'flex', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 12, width: 'fit-content' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 12, width: 'fit-content' }}>
           {([['all', 'รวมทั้งหมด'], ['internal', '🏭 Internal'], ['external', '🚚 External'], ['mix', '🔀 Mix']] as const).map(([k, label]) => {
             const cnt = k === 'all' ? results.length : results.filter(r => r.line === k).length;
             return (
@@ -1626,7 +1770,8 @@ export function WorkflowBuilder() {
                 timeHtml: buildTimeDetailHtml(steps, qtyN),   // หน้า 2 = รายละเอียดเวลา
               });
             } else {
-              exportFlowchartPdf(ganttSvg, { title: 'Manufacturing Workflow — Gantt', filename: fm.filename, customer: fm.customer, model: fm.model, pn: fm.pn, timeHtml: buildTimeDetailHtml(steps, qtyN) });
+              // PDF = กางครบทุกสถานี (ไม่ส่ง collapsed → ทุกกลุ่มกาง) · จัดกลุ่มตามที่ผู้ใช้ตั้ง
+              exportFlowchartPdf(buildGanttSvg(steps, qtyN).full, { title: 'Manufacturing Workflow — Gantt', filename: fm.filename, customer: fm.customer, model: fm.model, pn: fm.pn, timeHtml: buildTimeDetailHtml(steps, qtyN) });
             }
             setExportMode(null);
           }}

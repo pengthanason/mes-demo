@@ -36,7 +36,7 @@ function PermChecklist({ role, value, onChange }: { role: AppRole; value: string
           {isAdmin ? 'ADMIN เข้าถึงได้ทุกหน้าเสมอ' : usingDefault ? `ยังไม่กำหนดเอง — ใช้ค่าเริ่มต้นของ ${role}` : 'กำหนดสิทธิ์เอง (override)'}
         </span>
         {!isAdmin && !usingDefault && (
-          <button type="button" onClick={() => onChange([])} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>รีเซ็ตเป็นค่า role</button>
+          <button type="button" onClick={() => onChange([])} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '0.75rem', padding: '4px 6px' }}>รีเซ็ตเป็นค่า role</button>
         )}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6 }}>
