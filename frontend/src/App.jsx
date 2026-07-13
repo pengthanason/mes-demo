@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } f
 import { useMockAuth } from './lib/useMockStore.ts';
 import { mockLogout, getAuth } from './lib/mockStore.ts';
 import { showToast } from './lib/toast.ts';
+import { SYNTECH_LOGO_PNG_BASE64 } from './assets/syntechLogo.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
 import { PERMISSIONS, effectivePerms, hasPerm } from './lib/permissions.ts';
 import { MesAuthPage } from './pages/MesAuthPage.tsx';
@@ -676,42 +677,48 @@ function ConfirmContainer() {
 }
 
 // ─── Top info bar (นาฬิกา + สถานะ) — แทนแถบเมนู (เมนูย้ายไปอยู่ sidebar) ───
-// ค้นหาด่วน (ข้ามระบบ) — พิมพ์/สแกน serial → Traceability · ขึ้นต้น "WO" หรือเลขล้วน → หน้า WO
-function QuickSearch() {
-  const navigate = useNavigate();
-  const { isLoggedIn } = useMockAuth();
-  const [q, setQ] = useState('');
-  if (!isLoggedIn) return null;
-  const submit = (e) => {
-    e.preventDefault();
-    const v = q.trim();
-    if (!v) return;
-    if (/^wo/i.test(v) || /^\d+$/.test(v)) navigate(`/wo/${encodeURIComponent(v)}`);
-    else navigate(`/traceability?tab=search&sn=${encodeURIComponent(v)}`);
-    setQ('');
-  };
-  return (
-    <form onSubmit={submit} style={{ marginRight: 'auto', display: 'flex', alignItems: 'center' }}>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 ค้นหา serial / WO…" aria-label="ค้นหา serial หรือ Work Order"
-        style={{ width: 'min(260px, 42vw)', padding: '0.4rem 0.75rem', borderRadius: 999, border: '1px solid rgba(255,255,255,0.3)', background: '#fff', color: '#1e293b', fontSize: '0.82rem', outline: 'none' }} />
-    </form>
-  );
+// ชื่อหน้าแสดงบน header (map จาก route) — longest-prefix match
+const PAGE_TITLES = {
+  '/dashboard': 'Dashboard', '/work-orders': 'Work Orders', '/wo': 'Work Order',
+  '/scm-cases': 'SCM Cases', '/jig-test': 'Jig Test', '/production-plan': 'Production Plan',
+  '/oba': 'OBA', '/incoming': 'Incoming & Kitting', '/4m-change': '4M Change',
+  '/qc-board': 'QC', '/qc': 'QC Result', '/qa-verify': 'QA Verify', '/fai': 'FAI',
+  '/notifications': 'Notifications', '/traceability': 'Traceability', '/drift': 'Drift Viewer',
+  '/admin/panel': 'Admin', '/equipment-borrow': 'Equipment Borrow', '/mes-auth': 'Login',
+};
+const _titleKeys = Object.keys(PAGE_TITLES).sort((a, b) => b.length - a.length);
+function titleForPath(p) {
+  const k = _titleKeys.find(key => p === key || p.startsWith(key + '/'));
+  return k ? PAGE_TITLES[k] : 'MES';
 }
 
-function TopBar() {
+function TopBar({ isDesktop, setExpanded }) {
   const [now, setNow] = useState(new Date());
   const online = useOnline();
+  const location = useLocation();
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
   const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' });
   const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const pageTitle = titleForPath(location.pathname);
   return (
     <>
-      <QuickSearch />
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', minWidth: 0, color: 'var(--frame-text)' }}>
-        <span className="topbar-extra" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{dateStr}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginRight: 'auto', minWidth: 0 }}>
+        {!isDesktop && (
+          <button type="button" aria-label="เปิดเมนู" onClick={() => setExpanded(true)}
+            style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
+            <span style={{ width: 20, height: 2.5, background: '#fff', borderRadius: 2 }} />
+            <span style={{ width: 20, height: 2.5, background: '#fff', borderRadius: 2 }} />
+            <span style={{ width: 20, height: 2.5, background: '#fff', borderRadius: 2 }} />
+          </button>
+        )}
+        <img src={`data:image/png;base64,${SYNTECH_LOGO_PNG_BASE64}`} alt="SYNTECH" style={{ height: 26, width: 'auto', flexShrink: 0 }} />
+        <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pageTitle}</span>
+      </div>
+      <div className="topbar-extra" style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', minWidth: 0, color: 'var(--frame-text)' }}>
+        <span style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{dateStr}</span>
         <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>{timeStr}</span>
         {/* สถานะจริง — อิงการเชื่อมต่อเครือข่ายของเบราว์เซอร์ (navigator.onLine) · ชี้เมาส์เพื่อดูคำอธิบาย */}
         <span
@@ -743,15 +750,6 @@ function Shell({ children }) {
       {/* มือถือ: กางแถบแล้วมีฉากมืดด้านหลัง — แตะเพื่อปิด */}
       {!isDesktop && expanded && (
         <div onClick={() => setExpanded(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 150 }} />
-      )}
-      {/* มือถือยุบ: ปุ่มแฮมเบอร์เกอร์ลอยเปิด drawer (แทนแถบ 58px ที่กินจอตลอด) — วางในโซนซ้ายของ header ที่ว่างอยู่ */}
-      {!isDesktop && !expanded && (
-        <button type="button" aria-label="เปิดเมนู" onClick={() => setExpanded(true)}
-          style={{ position: 'fixed', top: 10, left: 10, zIndex: 120, width: 40, height: 40, display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
-          <span style={{ width: 22, height: 2.5, background: '#fff', borderRadius: 2 }} />
-          <span style={{ width: 22, height: 2.5, background: '#fff', borderRadius: 2 }} />
-          <span style={{ width: 22, height: 2.5, background: '#fff', borderRadius: 2 }} />
-        </button>
       )}
       <Sidebar expanded={expanded} setExpanded={setExpanded} isDesktop={isDesktop} />
 
@@ -807,7 +805,7 @@ function Shell({ children }) {
           position: 'sticky', top: 0, zIndex: 100,
           height: 'var(--topbar-h)',
         }}>
-          <TopBar />
+          <TopBar isDesktop={isDesktop} setExpanded={setExpanded} />
         </header>
 
         <main className="app-main" style={{ maxWidth: 1380, margin: '0 auto', flex: 1, width: '100%', boxSizing: 'border-box' }}>

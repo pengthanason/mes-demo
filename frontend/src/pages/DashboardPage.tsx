@@ -7,7 +7,6 @@ import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
 import { Paginator } from '../components/Paginator';
 import { FactoryOverview } from '../components/FactoryOverview';
-import { FlowGuide } from '../components/FlowGuide';
 import { TableState } from '../components/DataStates';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
@@ -266,7 +265,6 @@ export function DashboardPage() {
     return () => clearInterval(t);
   }, [queryClient]);
   const [edit, setEdit] = useState<PpProject | null>(null);
-  const [adding, setAdding] = useState(false);
   const [detail, setDetail] = useState<PpProject | null>(null);   // ป๊อปอัพรายละเอียดสินค้า (คลิก Product P/N)
   const [saveAs, setSaveAs] = useState<'xlsx' | 'pdf' | null>(null);   // เปิดป๊อปอัพตั้งชื่อไฟล์ก่อนโหลด
   const [page, setPage] = useState(1);
@@ -354,10 +352,6 @@ export function DashboardPage() {
             <h1 className="panel__title">📋 Production Plan</h1>
             <p className="panel__subtitle">ภาพรวมและตรวจสอบงานผลิต — ข้อมูลจาก Add Project</p>
           </div>
-          {!isViewer && (
-            <button type="button" className="btn" title="เพิ่มโปรเจกต์ใหม่เข้าตาราง Production Plan" onClick={() => setAdding(true)}
-              style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>+ เพิ่มโปรเจกต์</button>
-          )}
         </div>
 
         {/* KPI — กดเพื่อกรองสถานะ (เลื่อนหน้าจอลงมาให้เห็นกราฟ+ตารางที่กรอง) */}
@@ -409,7 +403,6 @@ export function DashboardPage() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => { setFilters({}); setPage(1); }}>ล้าง filter</button>}
             <button type="button" className="btn secondary" title="ดาวน์โหลดเป็นไฟล์ Excel ตามฟอร์ม FM03 (โลโก้+สี)" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => setSaveAs('xlsx')}>⬇️ Export to Excel</button>
-            <button type="button" className="btn secondary" title="พิมพ์/บันทึกเป็น PDF ตามฟอร์ม" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => setSaveAs('pdf')}>🖨️ Export to PDF</button>
           </div>
         </div>
 
@@ -457,10 +450,6 @@ export function DashboardPage() {
       {/* สรุปข้ามโมดูล — ใต้ Production Plan */}
       <FactoryOverview />
 
-      {/* คู่มือขั้นตอน — ล่างสุด */}
-      <FlowGuide />
-
-      {adding && <ProjectFormModal initial={null} onClose={() => setAdding(false)} />}
       {edit && <ProjectFormModal initial={edit} onClose={() => setEdit(null)} />}
       {detail && <ProductDetailModal p={detail} onClose={() => setDetail(null)} />}
       {saveAs && (

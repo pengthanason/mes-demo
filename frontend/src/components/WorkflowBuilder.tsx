@@ -26,7 +26,7 @@ const ROLE_CFG: Record<Role, { kind: StepKind; timeScope: TimeScope; color: stri
 // กระบวนการที่เลือกได้ในช่วง SMT (REWORK เป็นปลายทาง fail อัตโนมัติ — ไม่อยู่ในลิสต์)
 // สถานีของแท็บ Internal (สายผลิตในโรงงาน) — SET UP แยกไปกลุ่มของตัวเอง (SETUP_OPTS)
 const SMT_DEFAULT = ['BBAS', 'WAV', 'TEST', 'SOLDERING', 'SMT', 'FQC', 'IPQC', 'INSERT', 'ICT TEST', 'FCT TEST', 'REWORK'];
-// สถานีสาย SMT/PCBA — ใส่ไว้ในกลุ่ม "Custom process" ให้ตั้งต้น (เลือก/ลบเองได้)
+// สถานีสาย SMT/PCBA (built-in) — เป็นหมวด "SMT / PCBA" ของตัวเองในดรอปดาวน์ (แยกจาก Custom process)
 const DEFAULT_CUSTOM = [
   'SOLDER PASTE PRINT', 'SPI (Solder Paste Inspection)', 'SMT PICK & PLACE', 'REFLOW OVEN',
   'AOI (Optical Inspection)', 'THT INSERTION', 'WAVE SOLDERING',
@@ -54,7 +54,7 @@ const MAIN_OPTS = [INCOMING_LABEL, 'PACKING', 'STORE'];
 // เครื่อง/สถานีเริ่มต้น (ดรอปดาวในแต่ละ process — ผู้ใช้เพิ่ม/ลบเองได้ เก็บใน localStorage)
 const MACHINE_DEFAULT = ['SMT Line', 'FCT Tester', 'Setup Station'];
 // สถานีมาตรฐาน (built-in) ทุกกลุ่ม — ใช้เช็คว่า process ไหนเป็นของจริง (ไม่ต้องเก็บเป็น custom)
-const BUILTIN_PROCS = new Set([...SMT_DEFAULT, ...EXTERNAL_PROC, ...MAIN_OPTS, ...SETUP_OPTS].map(x => x.trim().toLowerCase()));
+const BUILTIN_PROCS = new Set([...SMT_DEFAULT, ...DEFAULT_CUSTOM, ...EXTERNAL_PROC, ...MAIN_OPTS, ...SETUP_OPTS].map(x => x.trim().toLowerCase()));
 const isBuiltinProc = (p: string) => BUILTIN_PROCS.has((p || '').trim().toLowerCase());
 
 // ── กระบวนการมาตรฐานตามฟอร์ม PROCESS FLOW CHART (FM 05) — ครอบคลุมทุกขั้นในเอกสาร RSU / JUMBO ──
@@ -178,7 +178,7 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
                   <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{w.name || `${w.customer || '—'} · ${w.model || '—'}`}</div>
                   <div style={{ fontSize: '0.72rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.steps.map(s => s.process).join(' → ')}</div>
                 </div>
-                {canDelete && (
+                {canDelete && w.id > 0 && (
                   <button onClick={async (e) => { e.preventDefault(); e.stopPropagation(); if (await confirmDialog('ลบ preset นี้?')) onDelete(w.id); }}
                     style={{ background: 'transparent', border: 'none', color: '#e74c3c', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}
                     title="ลบ" onMouseOver={e => e.currentTarget.style.background = '#fee2e2'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>✕</button>
@@ -286,6 +286,16 @@ const FORM_GROUPS: { header: string; items: FormProc[] }[] = (() => {
   });
   return order.map(c => ({ header: c, items: map[c] }));
 })();
+
+// ── Preset เริ่มต้น: ฟอร์ม FM 05 (PROCESS FLOW CHART · RSU / JUMBO) — โผล่บนสุดในดรอปดาวน์ Preset เสมอ (ลบไม่ได้) ──
+const FM05_PRESET_ID = -1;
+const FM05_PRESET: Workflow = {
+  id: FM05_PRESET_ID,
+  name: '📄 FM 05 · PROCESS FLOW CHART (RSU / JUMBO)',
+  customer: 'JUMBO', model: 'RSU',
+  steps: FORM_PROCS.map(f => ({ process: f.n, seconds: f.sec ?? null })),
+  created_at: '',
+};
 
 /* ── วาด flowchart ขาว-ดำ สไตล์ฟอร์ม FM 05 (รองรับหลายคอลัมน์) ──
    • กล่องเลขเล็ก (◻ process · ◇ decision) เรียงลง + คำอธิบายด้านขวา
@@ -1081,14 +1091,7 @@ export function WorkflowBuilder() {
       const old = JSON.parse(localStorage.getItem('mes_smt_processes_v2') || '[]');
       if (Array.isArray(old)) old.forEach((p: string) => { if (p && !SMT_DEFAULT.includes(p) && !list.includes(p)) list.push(p); });
     } catch { /* noop */ }
-    // ใส่สถานีสาย SMT/PCBA เข้ากลุ่ม Custom ให้ตั้งต้นครั้งแรก (หลังจากนั้นผู้ใช้ลบได้ ไม่กลับมา)
-    try {
-      if (!localStorage.getItem('mes_custom_seeded_v1')) {
-        DEFAULT_CUSTOM.forEach(p => { if (!list.includes(p)) list.push(p); });
-        localStorage.setItem('mes_custom_seeded_v1', '1');
-      }
-    } catch { /* noop */ }
-    return list.filter(p => !isBuiltinProc(p));   // ตัดตัวที่เป็น station มาตรฐาน (built-in) ออก ไม่ให้ค้างเป็น custom
+    return list.filter(p => !isBuiltinProc(p));   // ตัดตัวที่เป็น station มาตรฐาน (built-in) ออก ไม่ให้ค้างเป็น custom (รวม SMT/PCBA ที่เคย seed ไว้ตอนก่อน)
   });
   useEffect(() => { localStorage.setItem('mes_custom_processes', JSON.stringify(customProcs)); }, [customProcs]);
   // ล้าง key เก่าทิ้งหลังกู้ครั้งเดียว — กันไม่ให้ custom ที่ลบไปแล้ว ถูกดึงกลับมาตอนรีโหลด
@@ -1097,11 +1100,12 @@ export function WorkflowBuilder() {
   const smtCustomSorted = [...customProcs].filter(p => !isBuiltinProc(p)).sort((a, b) => a.localeCompare(b));   // custom เรียง A-Z (ล่าง) — ไม่โชว์ตัวที่เป็น built-in แล้ว
   // สถานีที่เลือกได้ในดรอปดาว "Process" ตามแท็บ/ประเภท — แยกหัวข้อกลุ่มให้อ่านเข้าใจง่าย
   const internalGroup: DDGroup = { header: '🏭 In-House Line', items: smtMain.map(o => ({ value: o, label: o })) };
+  const pcbaGroup: DDGroup = { header: '🔧 SMT / PCBA', items: [...DEFAULT_CUSTOM].sort((a, b) => a.localeCompare(b)).map(o => ({ value: o, label: o })) };
   const extToDD = (k: ExtKey): DDGroup => ({ header: EXT_GROUPS[k].header, items: EXT_GROUPS[k].items.map(o => ({ value: o, label: o })) });
   const procGroups: DDGroup[] =
-    tab === 'internal' ? [internalGroup]
-    : tab === 'external' ? [extToDD(activeKey as ExtKey)]   // โชว์เฉพาะสถานีของประเภทที่เลือกอยู่
-    : [internalGroup, extToDD('ext_inj'), extToDD('ext_blow'), extToDD('ext_ems')];   // mix = รวมทุกหัวข้อ
+    tab === 'internal' ? [internalGroup, pcbaGroup]
+    : tab === 'external' ? [extToDD(activeKey as ExtKey)]   // โชว์เฉพาะสถานีของประเภทที่เลือกอยู่ (สาย outsource — ไม่มี SMT/PCBA ในบ้าน)
+    : [internalGroup, pcbaGroup, extToDD('ext_inj'), extToDD('ext_blow'), extToDD('ext_ems')];   // mix = รวมทุกหัวข้อ
   const defaultProc = tab === 'external' ? EXT_GROUPS[activeKey as ExtKey].items[0] : (smtMain[0] || 'SMT');   // สถานีเริ่มต้นตอนกด "เพิ่มขั้นตอน"
   // สลับแท็บ/ประเภท → ล้างสถานะผลรัน + ยุบ FlowChart/Gantt (กัน id ข้ามชุดปนกัน)
   const resetView = () => { setShowFlow(false); setShowGantt(false); setGanttZoom(1); };
@@ -1389,13 +1393,8 @@ export function WorkflowBuilder() {
             {create.isPending ? 'กำลังบันทึก...' : '💾 บันทึกเป็น Preset'}
           </button>
         )}
-        {!isViewer && (
-          <button type="button" className="btn secondary" onClick={loadFm05Sample} title="เติมครบทั้ง 30 ขั้นตามฟอร์ม PROCESS FLOW CHART (RSU / JUMBO)">
-            📄 ตัวอย่างฟอร์ม FM 05
-          </button>
-        )}
         <div style={{ width: 280, maxWidth: '100%' }}>
-          <PresetSelect workflows={saved} onLoad={loadPreset} onDelete={(id) => del.mutate(id)} canDelete={!isViewer} />
+          <PresetSelect workflows={[FM05_PRESET, ...saved]} onLoad={(w) => w.id === FM05_PRESET_ID ? loadFm05Sample() : loadPreset(w)} onDelete={(id) => del.mutate(id)} canDelete={!isViewer} />
         </div>
       </div>
 

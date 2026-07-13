@@ -379,7 +379,7 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
     mut.mutate(payload, {
       onSuccess: () => {
         showToast(editing ? 'แก้ไขสำเร็จ' : 'เพิ่มโปรเจกต์สำเร็จ', 'success');
-        if (!editing) setF(EMPTY);   // inline create → เคลียร์ฟอร์มให้กรอกต่อ
+        if (!editing) { setF(EMPTY); window.scrollTo({ top: 0, behavior: 'smooth' }); }   // create → เคลียร์ฟอร์ม + เลื่อนขึ้นบนสุด
         onSaved?.();
       },
       onError: (e: any) => setErr(e.message),
@@ -455,7 +455,12 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
 
           <Section title="QA / Store / กำหนดส่ง" />
           <div className="grid-3col">
-            <label className="field"><span>Sampling rate%</span><input value={f.qa_test_rate ?? ''} onChange={txt('qa_test_rate')} placeholder="เช่น 1.00%" /></label>
+            <label className="field"><span>Sampling rate</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="number" step="0.01" min="0" value={f.qa_test_rate ?? ''} onChange={txt('qa_test_rate')} placeholder="1.00" style={{ flex: 1, minWidth: 0 }} />
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>%</span>
+              </div>
+            </label>
             <label className="field"><span>QA Finish date</span><input type="date" value={f.qa_finish_date ?? ''} onChange={txt('qa_finish_date')} /></label>
             <label className="field"><span>Store Received</span><input type="date" value={f.store_received ?? ''} onChange={txt('store_received')} /></label>
             <label className="field"><span>Revised date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
@@ -476,7 +481,7 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             <label className="field"><span>OK/Day</span><input type="number" value={f.ok_per_day ?? 0} onChange={num('ok_per_day')} /></label>
             <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? 0} onChange={num('total_ng')} /></label>
             <label className="field"><span>Total OK</span><input type="number" value={f.total_ok ?? 0} onChange={num('total_ok')} /></label>
-            <label className="field"><span>Yield (คำนวณเอง)</span><input value={ppYield({ total_ok: f.total_ok ?? 0, total_ng: f.total_ng ?? 0 })?.toFixed(2) ?? '—'} readOnly style={{ background: '#f1f5f9' }} /></label>
+            <label className="field"><span>Yield (OK ÷ (OK+NG) × 100)</span><input value={ppYield({ total_ok: f.total_ok ?? 0, total_ng: f.total_ng ?? 0 })?.toFixed(2) ?? '—'} readOnly style={{ background: '#f1f5f9' }} /></label>
           </div>
 
           <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={2} /></label>

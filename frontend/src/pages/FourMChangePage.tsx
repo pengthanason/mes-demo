@@ -99,7 +99,7 @@ export function FourMChangePage() {
               </label>
               <label className="field">
                 <span>WO ที่เกี่ยวข้อง</span>
-                <WoInput value={woRef} onChange={setWoRef} placeholder="เลือก/พิมพ์ WO..." />
+                <WoInput value={woRef} onChange={setWoRef} placeholder="เลือก WO..." asSelect />
               </label>
               <label className="field">
                 <span>รายละเอียดการเปลี่ยนแปลง (what + why) *</span>

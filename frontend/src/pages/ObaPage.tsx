@@ -62,7 +62,7 @@ export function ObaPage() {
         <form className="stack" onSubmit={handleSubmit}>
           <label className="field">
             <span>Work Order</span>
-            <WoInput value={woId} onChange={setWoId} placeholder="WO-..." required />
+            <WoInput value={woId} onChange={setWoId} placeholder="WO-..." required asSelect />
           </label>
           <label className="field">
             <span>Lot No.</span>
