@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useMockAuth } from './lib/useMockStore.ts';
-import { mockLogout } from './lib/mockStore.ts';
+import { mockLogout, getAuth } from './lib/mockStore.ts';
+import { showToast } from './lib/toast.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
 import { PERMISSIONS, effectivePerms, hasPerm } from './lib/permissions.ts';
 import { MesAuthPage } from './pages/MesAuthPage.tsx';
@@ -599,7 +600,7 @@ function ToastContainer() {
       const { msg, type } = e.detail;
       const id = ++_toastId;
       setToasts(prev => [...prev, { id, msg, type }]);
-      const tid = setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+      const tid = setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), type === 'error' ? 8000 : 3500);
       timers.current.push(tid);
     };
     window.addEventListener('app:toast', handler);
@@ -613,7 +614,7 @@ function ToastContainer() {
     <>
       <style>{`@keyframes toastIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }`}</style>
       {toasts.length > 0 && (
-        <div style={{ position: 'fixed', top: '4.5rem', right: '1rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.5rem', pointerEvents: 'none' }}>
+        <div role="status" aria-live="polite" aria-atomic="true" style={{ position: 'fixed', top: '4.5rem', right: '1rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.5rem', pointerEvents: 'none' }}>
           {toasts.map(t => (
             <div key={t.id} style={{
               background: TOAST_COLORS[t.type] || TOAST_COLORS.success,
@@ -675,6 +676,28 @@ function ConfirmContainer() {
 }
 
 // ─── Top info bar (นาฬิกา + สถานะ) — แทนแถบเมนู (เมนูย้ายไปอยู่ sidebar) ───
+// ค้นหาด่วน (ข้ามระบบ) — พิมพ์/สแกน serial → Traceability · ขึ้นต้น "WO" หรือเลขล้วน → หน้า WO
+function QuickSearch() {
+  const navigate = useNavigate();
+  const { isLoggedIn } = useMockAuth();
+  const [q, setQ] = useState('');
+  if (!isLoggedIn) return null;
+  const submit = (e) => {
+    e.preventDefault();
+    const v = q.trim();
+    if (!v) return;
+    if (/^wo/i.test(v) || /^\d+$/.test(v)) navigate(`/wo/${encodeURIComponent(v)}`);
+    else navigate(`/traceability?tab=search&sn=${encodeURIComponent(v)}`);
+    setQ('');
+  };
+  return (
+    <form onSubmit={submit} style={{ marginRight: 'auto', display: 'flex', alignItems: 'center' }}>
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 ค้นหา serial / WO…" aria-label="ค้นหา serial หรือ Work Order"
+        style={{ width: 'min(260px, 42vw)', padding: '0.4rem 0.75rem', borderRadius: 999, border: '1px solid rgba(255,255,255,0.3)', background: '#fff', color: '#1e293b', fontSize: '0.82rem', outline: 'none' }} />
+    </form>
+  );
+}
+
 function TopBar() {
   const [now, setNow] = useState(new Date());
   const online = useOnline();
@@ -686,6 +709,7 @@ function TopBar() {
   const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   return (
     <>
+      <QuickSearch />
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', minWidth: 0, color: 'var(--frame-text)' }}>
         <span className="topbar-extra" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{dateStr}</span>
         <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#fff', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>{timeStr}</span>
@@ -798,6 +822,50 @@ function Shell({ children }) {
   );
 }
 
+// ─── Offline banner — เตือนเมื่อเน็ตหลุด (ข้อมูลอาจไม่อัปเดต) ───
+function OfflineBanner() {
+  const [offline, setOffline] = useState(typeof navigator !== 'undefined' && !navigator.onLine);
+  useEffect(() => {
+    const on = () => setOffline(false);
+    const off = () => setOffline(true);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+  if (!offline) return null;
+  return (
+    <div role="alert" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10000, background: '#b91c1c', color: '#fff', textAlign: 'center', padding: '6px 12px', fontSize: '0.85rem', fontWeight: 600 }}>
+      ⚠️ ออฟไลน์ — เชื่อมต่ออินเทอร์เน็ตไม่ได้ · ข้อมูลอาจไม่อัปเดต
+    </div>
+  );
+}
+
+// ─── 404 — ไม่พบหน้า (แทนการเด้งเงียบ) ───
+function NotFound() {
+  return (
+    <div className="panel" style={{ textAlign: 'center', padding: '3rem 1.5rem', maxWidth: 480, margin: '2rem auto' }}>
+      <div style={{ fontSize: '3rem', marginBottom: 8, lineHeight: 1 }}>🔍</div>
+      <h1 className="panel__title" style={{ marginBottom: 6 }}>ไม่พบหน้านี้</h1>
+      <p className="panel__subtitle">ลิงก์อาจผิด หรือหน้านี้ถูกย้าย/ลบไปแล้ว</p>
+      <Link to="/dashboard" className="btn" style={{ marginTop: 12, display: 'inline-flex' }}>← กลับ Dashboard</Link>
+    </div>
+  );
+}
+
+// ─── Session watcher — 401 (token หมดอายุ) → เคลียร์ auth + แจ้ง + AuthGuard เด้ง login ───
+function SessionWatcher() {
+  useEffect(() => {
+    const handler = () => {
+      if (!getAuth().isLoggedIn) return;   // ยังไม่ล็อกอิน → ไม่ทำอะไร (กัน toast บนหน้า login + กันเด้งซ้ำจาก request หลายตัว)
+      mockLogout();
+      showToast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', 'error');
+    };
+    window.addEventListener('app:unauthorized', handler);
+    return () => window.removeEventListener('app:unauthorized', handler);
+  }, []);
+  return null;
+}
+
 // ─── App ───────────────────────────────────────────────────────────
 const queryClient = new QueryClient();
 
@@ -806,6 +874,8 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <HashRouter>
         <ToastContainer />
+        <OfflineBanner />
+        <SessionWatcher />
         <ConfirmContainer />
         <Shell>
           <ErrorBoundary>
@@ -840,7 +910,7 @@ export default function App() {
               <Route path="/drift"             element={<AuthGuard><DriftViewerPage /></AuthGuard>} />
               <Route path="/admin/panel"       element={<PermGuard perm="admin"><AdminPanelPage /></PermGuard>} />
               <Route path="/equipment-borrow" element={<PermGuard perm="equipment"><EquipmentBorrowPage /></PermGuard>} />
-              <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
+              <Route path="*"                  element={<NotFound />} />
             </Routes>
           </ErrorBoundary>
         </Shell>

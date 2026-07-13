@@ -14,7 +14,7 @@ export function NotificationsPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
-  const { data, isLoading } = useNotifications(false);
+  const { data, isLoading, isError, refetch } = useNotifications(false);
   const markRead = useMarkRead();
   const markAll  = useMarkAllRead();
   // ทั้งหมด เรียงตามเวลา ใหม่สุดอยู่บน
@@ -42,7 +42,9 @@ export function NotificationsPage() {
 
         {isLoading && <BlockState state="loading" />}
 
-        {!isLoading && list.length === 0 && (
+        {!isLoading && isError && <BlockState state="error" onRetry={() => refetch()} />}
+
+        {!isLoading && !isError && list.length === 0 && (
           <BlockState state="empty" emptyText="ยังไม่มีการแจ้งเตือน" />
         )}
 
@@ -51,6 +53,8 @@ export function NotificationsPage() {
             <div
               key={n.id}
               onClick={() => handleClick(n)}
+              role={n.link ? 'button' : undefined} tabIndex={n.link ? 0 : undefined}
+              onKeyDown={n.link ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(n); } }) : undefined}
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: '0.875rem',
                 padding: '0.875rem 1rem',

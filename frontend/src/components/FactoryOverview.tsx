@@ -20,7 +20,10 @@ const pct = (r: number | null) => r == null ? '—' : `${r.toFixed(1)}%`;
 function ClickCard({ to, icon, label, value, accent, external }: { to: string; icon: string; label: string; value: number | string; accent: string; external?: string }) {
   const nav = useNavigate();
   return (
-    <div onClick={() => external ? window.open(external, '_blank', 'noopener,noreferrer') : nav(to)} style={{ cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', borderRadius: 12 }} title={external ? 'เปิดระบบ Traceability (แท็บใหม่)' : 'กดเพื่อดูรายละเอียด'}
+    <div onClick={() => external ? window.open(external, '_blank', 'noopener,noreferrer') : nav(to)}
+      role="button" tabIndex={0} aria-label={label}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); external ? window.open(external, '_blank', 'noopener,noreferrer') : nav(to); } }}
+      style={{ cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', borderRadius: 12 }} title={external ? 'เปิดระบบ Traceability (แท็บใหม่)' : 'กดเพื่อดูรายละเอียด'}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.10)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
       <StatCard icon={icon} label={label} value={value} accent={accent} />

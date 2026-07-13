@@ -61,7 +61,7 @@ export function ReworkPage() {
                   <td>{t.assignedTo || '—'}</td>
                   <td style={{ textAlign: 'center', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{t.dueDate ? new Date(t.dueDate).toLocaleDateString('th-TH') : '—'}</td>
                   <td style={{ textAlign: 'center', width: 110 }}>
-                    <span style={{ display: 'inline-block', minWidth: 78, textAlign: 'center', background: s.bg, color: s.text, border: `1px solid ${s.border}`, padding: '2px 10px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap' }}>{s.label}</span>
+                    <span className="status-badge" style={{ minWidth: 78, textAlign: 'center', background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>{s.label}</span>
                   </td>
                   {!isViewer && (
                     <td style={{ textAlign: 'center', width: 170 }}>

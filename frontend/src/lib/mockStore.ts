@@ -1,4 +1,5 @@
 import { setAuthTokens, clearAuthTokens } from './api';
+import { IS_DEMO } from './config';
 
 export type WoStep = 'DRAFT' | 'OPEN' | 'READY' | 'RUNNING' | 'WAIT_FAI_QA' | 'WAIT_FAI_MGR' | 'CLOSED';
 export type UserRole = 'admin' | 'member' | 'viewer';
@@ -99,7 +100,7 @@ function demoLogin(username: string, password: string): boolean {
 // ตรวจ login กับ backend จริง (my-api /api/auth/login — app_users + bcrypt) · เดโม: fallback local ถ้า MSW/SW ไม่ทำงาน
 export async function apiLogin(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
   const uname = username.trim();
-  const isDemo = import.meta.env.VITE_DEMO_MODE === 'true';
+  const isDemo = IS_DEMO;
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',

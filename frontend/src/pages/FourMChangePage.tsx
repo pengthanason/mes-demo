@@ -21,10 +21,7 @@ const M_TYPE_ICON: Record<MType, string> = {
 export function CrStateBadge({ state }: { state: CrState }) {
   const s = CR_STATE_STYLE[state];
   return (
-    <span style={{
-      background: s.bg, color: s.text, border: `1px solid ${s.border}`,
-      padding: '2px 10px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap',
-    }}>
+    <span className="status-badge" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
       {s.label}
     </span>
   );

@@ -13,7 +13,7 @@ const fmtDate = (s: string) => { try { return new Date(s).toLocaleDateString('th
 function StatusPill({ status }: { status: 'PASS' | 'FAIL' }) {
   const ok = status === 'PASS';
   return (
-    <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b', border: `1px solid ${ok ? '#86efac' : '#fca5a5'}` }}>
+    <span className="status-badge" style={{ background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b', border: `1px solid ${ok ? '#86efac' : '#fca5a5'}` }}>
       {ok ? '✓ PASS' : '✗ FAIL'}
     </span>
   );
@@ -111,7 +111,7 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
 
 // ── Tab 2: กล่อง (Boxes) ──
 function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: string) => void; goSerial: (s: string) => void }) {
-  const { data: boxes = [], isLoading } = useBoxList();
+  const { data: boxes = [], isLoading, isError: boxesError, refetch: refetchBoxes } = useBoxList();
   const { data: box, isLoading: boxLoading, isError } = useBoxDetail(boxId || null);
 
   if (boxId) {
@@ -134,7 +134,10 @@ function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: stri
                 <thead><tr><th>Serial</th><th>Product</th><th>ขั้นล่าสุด</th><th style={{ textAlign: 'center' }}>ผล</th></tr></thead>
                 <tbody>
                   {box.items.map(it => (
-                    <tr key={it.serial} style={{ cursor: 'pointer' }} onClick={() => goSerial(it.serial)} title="ดู timeline ของ serial นี้">
+                    <tr key={it.serial} style={{ cursor: 'pointer' }} onClick={() => goSerial(it.serial)}
+                      tabIndex={0} role="button" aria-label={`ดู timeline ของ ${it.serial}`}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goSerial(it.serial); } }}
+                      title="ดู timeline ของ serial นี้">
                       <td style={{ fontWeight: 600, color: 'var(--brand)' }}>{it.serial}</td>
                       <td>{it.product}</td>
                       <td>{it.last_step}</td>
@@ -154,6 +157,8 @@ function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: stri
     <div className="stack" style={{ marginTop: '1.25rem' }}>
       {isLoading ? (
         <BlockState state="loading" />
+      ) : boxesError ? (
+        <BlockState state="error" onRetry={() => refetchBoxes()} />
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           <table className="table" style={{ minWidth: 520, width: '100%' }}>
@@ -162,7 +167,10 @@ function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: stri
               {boxes.length === 0 ? (
                 <TableState colSpan={5} state="empty" emptyText="ยังไม่มีกล่อง" />
               ) : boxes.map(b => (
-                <tr key={b.box_id} style={{ cursor: 'pointer' }} onClick={() => setBox(b.box_id)} title="ดูรายการ serial ในกล่อง">
+                <tr key={b.box_id} style={{ cursor: 'pointer' }} onClick={() => setBox(b.box_id)}
+                  tabIndex={0} role="button" aria-label={`เปิดกล่อง ${b.box_id}`}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setBox(b.box_id); } }}
+                  title="ดูรายการ serial ในกล่อง">
                   <td style={{ fontWeight: 600, color: 'var(--brand)' }}>📦 {b.box_id}</td>
                   <td>{b.product}</td>
                   <td>{b.wo}</td>
@@ -180,7 +188,7 @@ function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: stri
 
 // ── Tab 3: รายงานรายวัน + export CSV ──
 function ReportTab() {
-  const { data: report = [], isLoading } = useDailyReport();
+  const { data: report = [], isLoading, isError, refetch } = useDailyReport();
 
   const exportCsv = () => {
     const head = ['date', 'total', 'pass', 'fail', 'pass_rate'];
@@ -201,6 +209,8 @@ function ReportTab() {
       </div>
       {isLoading ? (
         <BlockState state="loading" />
+      ) : isError ? (
+        <BlockState state="error" onRetry={() => refetch()} />
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           <table className="table" style={{ minWidth: 480, width: '100%' }}>

@@ -20,7 +20,7 @@ const OVERALL_STYLE: Record<QcOverall, { bg: string; text: string; border: strin
 function OverallBadge({ overall }: { overall: QcOverall }) {
   const s = OVERALL_STYLE[overall];
   return (
-    <span style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, padding: '2px 10px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+    <span className="status-badge" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
       {overall}
     </span>
   );

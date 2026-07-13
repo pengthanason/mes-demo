@@ -707,3 +707,26 @@ tr:hover td { background: #f8fafc; }
   animation: mesShimmer 1.4s ease infinite;
 }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* ─── Status badge — layout ร่วม (สีส่งผ่าน inline: background/color/border) ลด inline ซ้ำ ─── */
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+/* ─── a11y: focus ring ชัดบน element ที่กดได้ (คีย์บอร์ด Tab) ─── */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

@@ -57,7 +57,8 @@ export function getRefreshToken(): string | null {
   return getStoredToken(REFRESH_TOKEN_KEYS);
 }
 
-const API_ORIGIN: string = (import.meta as any).env?.VITE_API_BASE_URL ?? '';
+import { API_BASE_URL } from './config';
+const API_ORIGIN: string = API_BASE_URL;
 
 function buildUrl(path: string, params?: RequestConfig['params']): string {
   const apiPath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? '' : '/'}${path}`;
@@ -112,6 +113,10 @@ async function request<T>(
     data = text;
   }
   if (!res.ok) {
+    // 401 = token หมดอายุ/ไม่ถูกต้อง → แจ้ง app จัดการ session (ยกเว้น request login เอง)
+    if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/auth/login')) {
+      window.dispatchEvent(new CustomEvent('app:unauthorized'));
+    }
     // Return null data instead of throwing — pages with fallback data show empty state
     return { data: null as T, status: res.status, headers: res.headers };
   }

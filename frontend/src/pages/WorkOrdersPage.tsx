@@ -18,7 +18,7 @@ const STEP_STYLE: Record<string, { label: string; bg: string; text: string; bord
 
 function StepBadge({ step }: { step: string }) {
   const s = STEP_STYLE[step] ?? STEP_STYLE.DRAFT;
-  return <span style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, padding: '2px 10px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap' }}>{s.label}</span>;
+  return <span className="status-badge" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>{s.label}</span>;
 }
 
 export function WorkOrdersPage() {
@@ -38,17 +38,23 @@ export function WorkOrdersPage() {
   const [qty, setQty] = useState('');
   const [expectedDate, setExpectedDate] = useState('');
   const [err, setErr] = useState('');
+  const [fErr, setFErr] = useState<{ productCode?: string; qty?: string }>({});
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
+    const next: { productCode?: string; qty?: string } = {};
+    if (!productCode.trim()) next.productCode = 'กรุณากรอก Product Code';
     const n = Number(qty);
-    if (!productCode.trim() || !n || n <= 0) return setErr('กรุณากรอก Product Code และจำนวน');
+    if (!qty.trim()) next.qty = 'กรุณากรอกจำนวน';
+    else if (!Number.isFinite(n) || n <= 0 || n > 1_000_000) next.qty = 'จำนวนต้องเป็นตัวเลข 1–1,000,000';
+    setFErr(next);
+    if (Object.keys(next).length) return;
     create.mutate(
       { productCode: productCode.trim(), customer: customer.trim() || '—', qty: n, station: '', currentStep: 'DRAFT', expectedDate: expectedDate || undefined },
       { onSuccess: () => {
           showToast('สร้าง Work Order แล้ว (สถานะ: ร่าง)', 'success');
-          setProductCode(''); setCustomer(''); setQty(''); setExpectedDate(''); setShowForm(false);
+          setProductCode(''); setCustomer(''); setQty(''); setExpectedDate(''); setFErr({}); setShowForm(false);
         },
         onError: (e: any) => setErr(e.message) }
     );
@@ -63,7 +69,7 @@ export function WorkOrdersPage() {
             <p className="panel__subtitle">เปิด/ปล่อยงานผลิต (WO Release) และติดตามสถานะ — กดที่ WO เพื่อดูรายละเอียด · FAI · ปิดงาน</p>
           </div>
           {!isViewer && (
-            <button type="button" className="btn" title="เปิด Work Order ใหม่" onClick={() => { setShowForm(v => !v); setErr(''); }}
+            <button type="button" className="btn" title="เปิด Work Order ใหม่" onClick={() => { setShowForm(v => !v); setErr(''); setFErr({}); }}
               style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>
               {showForm ? '✕ ยกเลิก' : '+ เปิด WO'}
             </button>
@@ -76,7 +82,8 @@ export function WorkOrdersPage() {
             <form onSubmit={submit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem', gap: '0.85rem' }}>
               <div className="grid-2col">
                 <label className="field"><span>Product Code *</span>
-                  <input value={productCode} onChange={e => setProductCode(e.target.value)} placeholder="เช่น PCB-A100" autoFocus required />
+                  <input value={productCode} onChange={e => { setProductCode(e.target.value); if (fErr.productCode) setFErr(p => ({ ...p, productCode: undefined })); }} placeholder="เช่น PCB-A100" autoFocus aria-required="true" aria-invalid={!!fErr.productCode} style={fErr.productCode ? { borderColor: '#dc2626' } : undefined} />
+                  {fErr.productCode && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.productCode}</span>}
                 </label>
                 <label className="field"><span>Customer</span>
                   <input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="เช่น Toyota TH" />
@@ -84,7 +91,8 @@ export function WorkOrdersPage() {
               </div>
               <div className="grid-2col">
                 <label className="field"><span>จำนวน (Qty) *</span>
-                  <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} placeholder="เช่น 200" required />
+                  <input type="number" value={qty} onChange={e => { setQty(e.target.value); if (fErr.qty) setFErr(p => ({ ...p, qty: undefined })); }} placeholder="เช่น 200" aria-required="true" aria-invalid={!!fErr.qty} style={fErr.qty ? { borderColor: '#dc2626' } : undefined} />
+                  {fErr.qty && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.qty}</span>}
                 </label>
                 <label className="field"><span>Expected date</span>
                   <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
@@ -118,6 +126,8 @@ export function WorkOrdersPage() {
                 <TableState colSpan={8} state="empty" emptyText="ยังไม่มี Work Order — กด “+ เปิด WO” เพื่อเริ่ม" />
               ) : paged.map(w => (
                 <tr key={w.woId} style={{ cursor: 'pointer' }} onClick={() => navigate(`/wo/${w.woId}`)}
+                  tabIndex={0} role="button" aria-label={`ดูรายละเอียด WO ${w.woId}`}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/wo/${w.woId}`); } }}
                   title="กดเพื่อดูรายละเอียด / FAI / ปิดงาน">
                   <td style={{ fontWeight: 600, color: 'var(--brand)' }}>{w.woId}</td>
                   <td>{w.productCode}</td>

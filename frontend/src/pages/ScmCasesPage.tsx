@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { fmtDateTime, fmtNum, normalizeText, parseNumber } from '../lib/format';
 import { Paginator } from '../components/Paginator';
 import { TableState } from '../components/DataStates';
+import { apiErrorMessage, toThaiMessage } from '../lib/errorMessage';
 
 type Notice = {
   kind: 'ok' | 'warn' | 'err';
@@ -39,17 +40,12 @@ type SplitResult = {
 };
 
 function toErrorMessage(error: unknown): string {
-  const apiError = (error as { response?: { data?: { error?: string; message?: string } } })?.response?.data;
-  if (apiError?.error) return apiError.error;
-  if (apiError?.message) return apiError.message;
-  if (error instanceof Error) return error.message;
-  return 'request failed';
+  return toThaiMessage(error);
 }
 
 // api (lib/api.ts) ไม่ throw เอง — คืน { data, status } เสมอ ต้องเช็ค status เองกัน "success ปลอม"
 function ensureOk(res: { status: number; data: any }): void {
-  if (res.status === 0) throw new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
-  if (res.status >= 400) throw new Error(res.data?.error || res.data?.message || `ทำรายการไม่สำเร็จ (${res.status})`);
+  if (res.status === 0 || res.status >= 400) throw new Error(apiErrorMessage(res.status, res.data));
 }
 
 export function ScmCasesPage() {
@@ -81,6 +77,7 @@ export function ScmCasesPage() {
     reason: '',
   });
   const [splitResult, setSplitResult] = useState<SplitResult | null>(null);
+  const [splitUidErr, setSplitUidErr] = useState('');
 
   const casesQuery = useQuery({
     queryKey: ['scm-cases', statusFilter],
@@ -187,6 +184,8 @@ export function ScmCasesPage() {
   function submitSplitLot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice(null);
+    if (!splitForm.original_uid.trim()) { setSplitUidErr('กรุณากรอก Original UID'); return; }
+    setSplitUidErr('');
     splitLot.mutate();
   }
 
@@ -361,9 +360,12 @@ export function ScmCasesPage() {
               <span>Original UID</span>
               <input
                 value={splitForm.original_uid}
-                onChange={(event) => setSplitForm((prev) => ({ ...prev, original_uid: event.target.value }))}
+                onChange={(event) => { setSplitForm((prev) => ({ ...prev, original_uid: event.target.value })); if (splitUidErr) setSplitUidErr(''); }}
                 placeholder="UID-010126-0001"
+                aria-required="true" aria-invalid={!!splitUidErr}
+                style={splitUidErr ? { borderColor: '#dc2626' } : undefined}
               />
+              {splitUidErr && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{splitUidErr}</span>}
             </label>
             <label className="field">
               <span>OK Qty</span>

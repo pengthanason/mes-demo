@@ -54,6 +54,7 @@ export function useDailyReport() {
     queryKey: ['trace-report'],
     queryFn: async (): Promise<DailyReport[]> => {
       const res = await api.get('/jumbo/report/daily');
+      if (res.status >= 400 || res.status === 0) throw new Error(res.status === 0 ? 'เชื่อมต่อไม่ได้' : 'โหลดรายงานไม่สำเร็จ');
       return (res.data as any)?.data ?? [];
     },
   });
@@ -68,6 +69,7 @@ export function useBoxList() {
     queryKey: ['trace-boxes'],
     queryFn: async (): Promise<BoxSummary[]> => {
       const res = await api.get('/jumbo/packing/boxes');
+      if (res.status >= 400 || res.status === 0) throw new Error(res.status === 0 ? 'เชื่อมต่อไม่ได้' : 'โหลดรายการกล่องไม่สำเร็จ');
       return (res.data as any)?.data ?? [];
     },
   });

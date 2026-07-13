@@ -28,6 +28,8 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
     <div
       className="panel"
       onClick={onClick}
+      role="button" tabIndex={0} aria-label={`เปิดโปรเจกต์ ${p.name}`}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
       style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 1 280px', minWidth: 0 }}
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}
@@ -85,6 +87,8 @@ function TraceKnexCard() {
     <div
       className="panel"
       onClick={() => window.open(TRACE_URL, '_blank', 'noopener,noreferrer')}
+      role="button" tabIndex={0} aria-label="เปิดระบบ Traceability (แท็บใหม่)"
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open(TRACE_URL, '_blank', 'noopener,noreferrer'); } }}
       title="เปิดระบบ Traceability (แท็บใหม่)"
       style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 1 280px', minWidth: 0 }}
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)')}

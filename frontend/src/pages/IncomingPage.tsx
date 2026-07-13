@@ -15,7 +15,7 @@ const STATUS_STYLE: Record<LotStatus, { bg: string; text: string; border: string
 function StatusBadge({ status }: { status: LotStatus }) {
   const s = STATUS_STYLE[status];
   return (
-    <span style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, padding: '2px 10px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+    <span className="status-badge" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
       {s.label}
     </span>
   );
