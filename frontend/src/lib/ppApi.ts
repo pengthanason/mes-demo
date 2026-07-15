@@ -2,15 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api';
 
 // สถานะงาน (ตาม Excel จริง)
-export const PP_STATUS = ['DONE', 'ON_PROCESS', 'LATE', 'MATL_COMING'] as const;
+export const PP_STATUS = ['DONE', 'ON_PROCESS', 'DELAY', 'CANCEL'] as const;
 export type PpStatus = typeof PP_STATUS[number];
 export const PP_STATUS_LABEL: Record<string, string> = {
-  DONE: 'Done', ON_PROCESS: 'On process', LATE: 'Late', MATL_COMING: "Mat'l coming",
+  DONE: 'Done', ON_PROCESS: 'On process', DELAY: 'Delay', CANCEL: 'Cancel',
 };
 
 export interface PpProject {
   id: number;
   status: string;
+  status_color: string;            // สีของช่อง Status — คลิกในตารางเปลี่ยนได้เอง (ไม่กระทบชื่อสถานะ) · ว่าง = ใช้สีตาม status
   wk: number | null;
   date_record: string | null;
   product_pn: string;
@@ -40,7 +41,10 @@ export interface PpProject {
   ok_per_day: number;              // (เลิกใช้)
   total_ng: number;
   total_ok: number;                // แสดงเป็น "Total FG"
-  special_request: string;         // ขอพิเศษเพิ่มเติม (Special request)
+  special_request: string;         // (เลิกใช้ตาม FM03)
+  // Process — สถานะต่อ step (ค่า = '' | PP_STATUS) โชว์เป็นช่องสีในตาราง
+  pc_prpo: string; pc_wait: string; pc_incoming: string; pc_smt: string;
+  pc_thr: string; pc_test: string; pc_bbas: string; pc_packing: string;
   remark: string;
   // STATUS pipeline (ขั้นตอนการผลิต) — ติ๊กหลายช่อง · โชว์ฟอร์ม+Excel ไม่โชว์ตาราง Dashboard
   st_pr_po: boolean; st_wait_mat: boolean; st_incoming: boolean; st_create_bo: boolean;
@@ -50,7 +54,7 @@ export interface PpProject {
 }
 
 export type PpFilters = {
-  status?: string; customer?: string; product_pn?: string; model?: string;
+  status?: string; customer?: string; product_pn?: string; work_order?: string; model?: string;
   date_from?: string; date_to?: string;
 };
 

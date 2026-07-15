@@ -10,30 +10,37 @@ import { FactoryOverview } from '../components/FactoryOverview';
 import { TableState } from '../components/DataStates';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
-  STATUS_STYLE, StatusBadge, exportXlsx, StatCard, BarRow, ChartCard, Donut, ProjectFormModal,
-  XLSX_COLUMNS, DASH_COLUMNS, PP_PIPELINE, buildHeaderRows, type PpCol, type HeaderCell,
+  STATUS_STYLE, StatusBadge, statusView, exportXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal,
+  XLSX_COLUMNS, DASH_COLUMNS, PROCESS_STEPS, PROCESS_KEYS, buildHeaderRows, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 
 // หัวคอลัมน์: สีพิเศษ (Expected/Actual shipping/Owner) + จัดกึ่งกลาง · WO No. ไม่ให้ตกบรรทัด
 const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
   textAlign: 'center',
-  ...(h.label === 'WO No.' ? { whiteSpace: 'nowrap', minWidth: 96 } : {}),
+  ...(h.label === 'CAP / DAY' ? { whiteSpace: 'nowrap', minWidth: 90 } : {}),
   ...(h.headerColor ? { background: `#${h.headerColor}`, color: (h.headerColor === '00B050' || h.headerColor === '4472C4') ? '#fff' : undefined } : {}),
 });
 
-const CHECK_KEYS = new Set(['pd_pcba', 'pd_bbas', 'pd_test', 'pd_modified', 'pd_rma']);
-// เซลล์ว่าง — ขีด "—" จัดกึ่งกลางเสมอทุกคอลัมน์ (สีจาง) ให้เท่ากันหมด
+// เซลล์ว่าง — ขีด "—" จัดกึ่งกลาง (สีจาง)
 const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' };
 // ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
 const DONE_KEYS = new Set(['pd_finish', 'qa_finish']);
 const GREEN_CELL: React.CSSProperties = { background: '#dcfce7', color: '#166534', fontWeight: 600 };
+// วนสถานะตอนคลิกช่อง Process: ยังไม่ถึง → On process → Done → Delay → Cancel → (วนกลับ)
+const PROC_CYCLE = ['', 'ON_PROCESS', 'DONE', 'DELAY', 'CANCEL'];
 
-// เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ Excel (ลำดับ/หัว = แหล่งเดียวกับ Excel)
+// เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ (ลำดับ/หัว = แหล่งเดียวกับ Excel)
 function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string) => void) {
+  // Status (คอลัมน์แรก) — ชื่อสถานะสีล้วน (ไม่มีกรอบ) · คลิกในตารางเพื่อวนสี/สถานะ
+  if (c.key === 'status') { const sv = statusView(p); const s = STATUS_STYLE[sv.colorKey] ?? STATUS_STYLE.ON_PROCESS; return (
+    <td key={c.key} onClick={onToggle ? () => onToggle('status') : undefined} title={onToggle ? 'คลิกเพื่อเปลี่ยนสีของสถานะ (ชื่อสถานะคงเดิม)' : undefined}
+      style={{ textAlign: 'center', cursor: onToggle ? 'pointer' : undefined, background: s.bg, color: s.text, fontWeight: 700, whiteSpace: 'nowrap', userSelect: 'none' }}>
+      {sv.label}
+    </td>
+  ); }
   if (c.key === 'qa_status') return <td key={c.key} style={{ textAlign: 'center' }}>{p.qa_status ? <StatusBadge status={p.qa_status} /> : <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
-  if (c.key === 'remark') return <td key={c.key} style={{ minWidth: 280, color: 'var(--text-muted)', whiteSpace: 'pre-wrap', textAlign: 'center' }}>{p.remark || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
   if (c.key === 'date_record') {
-    const [d, ww] = c.value(p).split('\n');   // value = "DD/MM/YYYY\nWWxx" — วันที่บรรทัดบน / WW บรรทัดล่าง
+    const [d, ww] = c.value(p).split('\n');   // value = "DD/MM/YYYY\n(WWxx)" — วันที่บรรทัดบน / (WW) บรรทัดล่าง
     if (!d) return <td key={c.key} style={DASH_STYLE}>—</td>;
     return (
       <td key={c.key} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -42,32 +49,31 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
       </td>
     );
   }
-  if (c.key === 'model') return <td key={c.key} style={{ minWidth: 200, textAlign: 'center' }}>{p.model || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
-  if (CHECK_KEYS.has(c.key)) {
-    const on = !!(p as any)[c.key];
-    // ช่องสี่เหลี่ยม checkbox จริง — ว่าง=☐ / ติ๊ก=☑ · กดติ๊กได้ (non-viewer) แล้วเซฟทันที
+  // Process — ช่องสีล้วนตามสถานะ · คลิกวนสี (ว่าง=ขาวโล่ง → On process → Done → Delay → Cancel → ว่าง)
+  if (PROCESS_KEYS.has(c.key)) {
+    const v = (p as any)[c.key] as string;
+    const stl = v ? STATUS_STYLE[v] : null;
     return (
-      <td key={c.key} style={{ textAlign: 'center', ...(c.key === 'done' && on ? GREEN_CELL : {}) }}>
-        <input type="checkbox" checked={on} disabled={!onToggle} onChange={() => onToggle?.(c.key)}
-          title={onToggle ? 'กดเพื่อติ๊ก/ยกเลิก' : undefined}
-          style={{ width: 18, height: 18, cursor: onToggle ? 'pointer' : 'default', accentColor: '#16a34a' }} />
+      <td key={c.key} onClick={onToggle ? () => onToggle(c.key) : undefined}
+        title={`${c.header}${v ? ' — ' + (PP_STATUS_LABEL[v] ?? v) : ' — ว่าง'}${onToggle ? ' · คลิกเพื่อเปลี่ยนสี' : ''}`}
+        style={{ textAlign: 'center', minWidth: 40, background: stl ? stl.bg : undefined, cursor: onToggle ? 'pointer' : undefined, userSelect: 'none' }}>
+        {' '}
       </td>
     );
   }
+  if (c.key === 'remark') return <td key={c.key} style={{ minWidth: 280, color: 'var(--text-muted)', whiteSpace: 'pre-wrap', textAlign: 'center' }}>{p.remark || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
+  if (c.key === 'model') return <td key={c.key} style={{ minWidth: 200, textAlign: 'center' }}>{p.model || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
   if (c.key === 'yield') return <td key={c.key} style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>;
   if (c.key === 'total_ng') return <td key={c.key} style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>;
   if (c.key === 'total_ok') return <td key={c.key} style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>;
   if (c.key === 'product_pn') return (
-    <td key={c.key} style={{ minWidth: 168, textAlign: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-        {p.product_pn
-          ? <button type="button" onClick={onOpen} title="ดูรายละเอียดสินค้า"
-              style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }}>
-              {p.product_pn}
-            </button>
-          : <span style={{ color: '#cbd5e1' }}>—</span>}
-        <StatusBadge status={p.status} />
-      </div>
+    <td key={c.key} style={{ minWidth: 150, textAlign: 'center' }}>
+      {p.product_pn
+        ? <button type="button" onClick={onOpen} title="ดูรายละเอียดสินค้า"
+            style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }}>
+            {p.product_pn}
+          </button>
+        : <span style={{ color: '#cbd5e1' }}>—</span>}
     </td>
   );
   const v = c.value(p);
@@ -84,14 +90,14 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
   const groups: { title: string; items: [string, React.ReactNode][] }[] = [
     { title: '📋 ข้อมูลงาน', items: [
       ['Customer', val(p.customer)], ['Qty', p.qty ? p.qty.toLocaleString() : '—'], ['Week (WK)', val(p.wk)], ['วันที่บันทึก', fmtD(p.date_record)],
-      ['WO No.', val(p.work_order)], ['Owner', val(p.syn_requestor)],
+      ['WO', val(p.work_order)], ['Owner', val(p.syn_requestor)],
     ] },
     { title: '👤 ผู้รับผิดชอบ', items: [
-      ['PD PIC', val(p.pd_pic)], ['PIC Responsible', val(p.pic_responsible)], ['Team Member', p.team_member || '—'], ['Target / วัน', p.target_per_day || '—'],
+      ['PD PIC', val(p.pd_pic)], ['PIC Responsible', val(p.pic_responsible)], ['CAP / วัน', p.target_per_day || '—'],
     ] },
     { title: '📅 กำหนดการ', items: [
       ['PD Start', fmtD(p.pd_start_date)], ['PD Finish', fmtD(p.pd_finish_date)], ['Expected', fmtD(p.expected_date)], ['Actual shipping', fmtD(p.revised_date)],
-      ['Store Received', fmtD(p.store_received)], ['QA Finish', fmtD(p.qa_finish_date)], ['QA Test Rate', val(p.qa_test_rate)],
+      ['CAP / วัน', p.target_per_day || '—'], ['Store Received', fmtD(p.store_received)], ['QA Finish', fmtD(p.qa_finish_date)], ['QA Test Rate', val(p.qa_test_rate)],
       ['QA Status', p.qa_status ? <StatusBadge status={p.qa_status} /> : '—'],
     ] },
     { title: '📊 ผลผลิต', items: [
@@ -101,13 +107,6 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
       ['Yield', y == null ? '—' : <span style={{ fontWeight: 700, color: y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y.toFixed(2)}%</span>],
     ] },
   ];
-  const chips = (arr: [string, string][]) => (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-      {arr.map(([k, l]) => { const on = !!(p as any)[k]; return (
-        <span key={k} style={{ padding: '3px 11px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 600, border: `1px solid ${on ? '#93c5fd' : '#e5e9f0'}`, background: on ? '#dbeafe' : '#f8fafc', color: on ? '#1e40af' : '#cbd5e1' }}>{on ? '✓ ' : ''}{l}</span>
-      ); })}
-    </div>
-  );
   const sectionTitle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 700, color: '#475569', margin: '16px 0 8px' };
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -119,7 +118,7 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
           </div>
           <button type="button" aria-label="ปิด" className="btn secondary" style={{ padding: '4px 12px', flexShrink: 0 }} onClick={onClose}>✕</button>
         </div>
-        <div style={{ marginTop: 10 }}><StatusBadge status={p.status} /></div>
+        <div style={{ marginTop: 10 }}><StatusBadge status={statusView(p).colorKey} label={statusView(p).label} /></div>
         {/* รูปสินค้า (placeholder — ของจริงจะแนบภายหลัง) */}
         <div style={{ marginTop: 14, height: 180, borderRadius: 10, border: '2px dashed #cbd5e1', background: 'linear-gradient(135deg,#f8fafc,#eef2f7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#94a3b8' }}>
           <span style={{ fontSize: 40, lineHeight: 1 }}>🖼️</span>
@@ -139,8 +138,12 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
             </div>
           </div>
         ))}
-        <div style={sectionTitle}>🏷️ Type</div>{chips([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST'], ['pd_modified', 'Modified'], ['pd_rma', 'RMA']])}
-        <div style={sectionTitle}>🔧 STATUS (ขั้นตอนการผลิต)</div>{chips(PP_PIPELINE.map(s => [s.key as string, s.label]))}
+        <div style={sectionTitle}>🔧 Process (สถานะแต่ละขั้น)</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {PROCESS_STEPS.map(s => { const v = (p as any)[s.key] as string; const stl = v ? STATUS_STYLE[v] : null; return (
+            <span key={s.key as string} style={{ padding: '3px 11px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 600, border: `1px solid ${stl ? stl.border : '#e5e9f0'}`, background: stl ? stl.bg : '#f8fafc', color: stl ? stl.text : '#94a3b8' }}>{s.label}{v ? `: ${PP_STATUS_LABEL[v] ?? v}` : ''}</span>
+          ); })}
+        </div>
         {p.special_request && (<><div style={sectionTitle}>⭐ Special request</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.special_request}</div></>)}
         {p.remark && (<><div style={sectionTitle}>📝 หมายเหตุ</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.remark}</div></>)}
         <div style={{ marginTop: 18, paddingTop: 10, borderTop: '1px solid #eef2f7', fontSize: '0.72rem', color: '#94a3b8', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -161,12 +164,15 @@ function printPdf(rows: PpProject[], filename?: string) {
   const hr1 = groupRow.map(h => `<th colspan="${h.colSpan}" rowspan="${h.rowSpan}"${hStyle(h.headerColor)}>${esc(h.label)}</th>`).join('');
   const hr2 = subRow.map(h => `<th${hStyle(h.headerColor)}>${esc(h.label)}</th>`).join('');
   const trs = rows.map(p => {
-    const st = STATUS_STYLE[p.qa_status] ?? STATUS_STYLE.ON_PROCESS;
+    const rowSt = STATUS_STYLE[statusView(p).colorKey] ?? STATUS_STYLE.ON_PROCESS;
+    const qaSt = STATUS_STYLE[p.qa_status] ?? STATUS_STYLE.ON_PROCESS;
     const tds = XLSX_COLUMNS.map(c => {
       const val = esc(c.value(p));
-      if (c.key === 'qa_status') return p.qa_status ? `<td style="background:${st.bg};color:${st.text};font-weight:700;text-align:center">${val}</td>` : `<td class="c">—</td>`;
-      if ((c.key === 'pd_finish' || c.key === 'qa_finish') && val) return `<td style="background:#dcfce7;color:#166534;font-weight:600;text-align:center">${val}</td>`;
+      if (c.key === 'status') return `<td style="background:${rowSt.bg};color:${rowSt.text};font-weight:700;text-align:center">${val}</td>`;
       if (c.key === 'date_record') return `<td class="c">${val.replace(/\n/g, '<br>')}</td>`;
+      if (c.key === 'qa_status') return p.qa_status ? `<td style="background:${qaSt.bg};color:${qaSt.text};font-weight:700;text-align:center">${val}</td>` : `<td class="c">—</td>`;
+      if (PROCESS_KEYS.has(c.key)) { const pv = (p as any)[c.key] as string; const s = pv ? STATUS_STYLE[pv] : null; return `<td class="c"${s ? ` style="background:${s.bg}"` : ''}>&nbsp;</td>`; }
+      if ((c.key === 'pd_finish' || c.key === 'qa_finish') && val) return `<td style="background:#dcfce7;color:#166534;font-weight:600;text-align:center">${val}</td>`;
       return `<td${c.center ? ' class="c"' : ''}>${val}</td>`;
     }).join('');
     return `<tr>${tds}</tr>`;
@@ -187,7 +193,7 @@ function printPdf(rows: PpProject[], filename?: string) {
     <body>
     <div class="hd">
       <img src="data:image/png;base64,${SYNTECH_LOGO_PNG_BASE64}" alt="SYNTECH"/>
-      <div class="t">Production Plan</div>
+      <div class="t">Production Plan Internal</div>
       <div class="code">FM03 Rev.01 Ref.EN-P-01<br/>${new Date().toLocaleDateString('th-TH')}</div>
     </div>
     <table>
@@ -274,8 +280,22 @@ export function DashboardPage() {
   const { data: allRows = [] } = usePpProjects({});                     // KPI การ์ด + กราฟ — ภาพรวมทั้งหมด (ไม่ขึ้นกับตัวกรอง)
   const del = usePpDelete();
   const ppUpdate = usePpUpdate();
-  const toggleCheck = (p: PpProject, key: string) =>
-    ppUpdate.mutate({ id: p.id, [key]: !(p as any)[key] }, { onError: (e: any) => showToast(e?.message || 'ติ๊กไม่สำเร็จ', 'error') });
+  // คลิกช่อง Status/Process ในตาราง → เปลี่ยนสี + บันทึกลง backend (my-api) · optimistic ให้เปลี่ยนทันที
+  const toggleCheck = (p: PpProject, key: string) => {
+    const change: any = {};
+    if (key === 'status') {        // Status — เปลี่ยน "สี" เท่านั้น (ชื่อสถานะคงเดิม) วน Done→On process→Delay→Cancel
+      const cur = p.status_color || p.status || 'DONE';
+      change.status_color = PP_STATUS[(PP_STATUS.indexOf(cur as any) + 1) % PP_STATUS.length];
+    } else if (PROCESS_KEYS.has(key)) {   // Process — วนสี (ว่าง→On process→Done→Delay→Cancel→ว่าง)
+      const cur = (p as any)[key] || '';
+      change[key] = PROC_CYCLE[(PROC_CYCLE.indexOf(cur) + 1) % PROC_CYCLE.length];
+    } else {
+      change[key] = !(p as any)[key];
+    }
+    const merged = { ...p, ...change };
+    queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
+    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+  };
   const queryClient = useQueryClient();
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   // รีเฟรชข้อมูลทั้ง dashboard ทุก 10 วินาที + อัปเดตเวลา
@@ -325,7 +345,7 @@ export function DashboardPage() {
     const by = (s: string) => allRows.filter(r => r.status === s).length;
     const ys = allRows.map(ppYield).filter((v): v is number => v != null);
     const avgYield = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : null;
-    return { total: allRows.length, done: by('DONE'), onProc: by('ON_PROCESS'), late: by('LATE'), matl: by('MATL_COMING'), avgYield };
+    return { total: allRows.length, done: by('DONE'), onProc: by('ON_PROCESS'), delay: by('DELAY'), cancel: by('CANCEL'), avgYield };
   }, [allRows]);
 
   // กราฟ — คิดจาก rows (ตามตัวกรองที่เลือก) เพื่อให้กราฟตรงกับสิ่งที่กรองในตาราง
@@ -378,8 +398,8 @@ export function DashboardPage() {
           <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#2e7d4f" onClick={() => selectStatus('')} active={!filters.status} />
           <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => selectStatus('DONE')} active={filters.status === 'DONE'} />
           <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => selectStatus('ON_PROCESS')} active={filters.status === 'ON_PROCESS'} />
-          <KpiCard icon="⏰" label="Late" value={agg.late} accent="#dc2626" onClick={() => selectStatus('LATE')} active={filters.status === 'LATE'} />
-          <KpiCard icon="📥" label="Mat'l coming" value={agg.matl} accent="#d97706" onClick={() => selectStatus('MATL_COMING')} active={filters.status === 'MATL_COMING'} />
+          <KpiCard icon="⏰" label="Delay" value={agg.delay} accent="#ea580c" onClick={() => selectStatus('DELAY')} active={filters.status === 'DELAY'} />
+          <KpiCard icon="🚫" label="Cancel" value={agg.cancel} accent="#64748b" onClick={() => selectStatus('CANCEL')} active={filters.status === 'CANCEL'} />
           <StatCard icon="🎯" label="Yield Good เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
         </div>
       </div>
@@ -411,13 +431,13 @@ export function DashboardPage() {
             <input list="dash-customers" value={filters.customer ?? ''} onChange={e => setF('customer', e.target.value)} placeholder="ทั้งหมด" />
             <datalist id="dash-customers">{customers.map(c => <option key={c} value={c} />)}</datalist>
           </label>
-          <label className="field"><span>Product P/N</span><input value={filters.product_pn ?? ''} onChange={e => setF('product_pn', e.target.value)} placeholder="ค้นหา..." /></label>
+          <label className="field"><span>WO</span><input value={filters.work_order ?? ''} onChange={e => setF('work_order', e.target.value)} placeholder="ค้นหา WO..." /></label>
           <label className="field"><span>Model</span><input value={filters.model ?? ''} onChange={e => setF('model', e.target.value)} placeholder="ค้นหา..." /></label>
           <label className="field"><span>ตั้งแต่วันที่</span><input type="date" value={filters.date_from ?? ''} onChange={e => setF('date_from', e.target.value)} /></label>
           <label className="field"><span>ถึงวันที่</span><input type="date" value={filters.date_to ?? ''} onChange={e => setF('date_to', e.target.value)} /></label>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', margin: '12px 0 0.75rem' }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{rows.length} โปรเจกต์</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => { setFilters({}); setPage(1); }}>ล้าง filter</button>}
@@ -426,7 +446,7 @@ export function DashboardPage() {
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-          <table className="table table-readonly table--grid table--dense" style={{ minWidth: 1408, width: '100%' }}>
+          <table className="table table--grid table--dense" style={{ minWidth: 1408, width: '100%' }}>
             <thead>
               <tr>
                 <th rowSpan={2} style={{ textAlign: 'center' }}>#</th>
@@ -446,7 +466,7 @@ export function DashboardPage() {
                 const y = ppYield(p);
                 const no = (page - 1) * PAGE + idx + 1;   // ลำดับต่อเนื่องข้ามหน้า
                 return (
-                  <tr key={p.id} style={p.status === 'LATE' ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626' } : undefined}>
+                  <tr key={p.id} style={p.status === 'DELAY' ? { background: '#fff7ed', boxShadow: 'inset 3px 0 0 #ea580c' } : undefined}>
                     <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
                     {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key) => toggleCheck(p, key)))}
                     {!isViewer && (
@@ -464,6 +484,26 @@ export function DashboardPage() {
           </table>
         </div>
         <Paginator page={page} totalPages={totalPages} onPage={setPage} total={rows.length} />
+      </div>
+
+      {/* Gantt — ไทม์ไลน์การผลิตรายวัน (ใต้ตาราง Production Plan · ตามตัวกรองปัจจุบัน) */}
+      <div className="panel">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: '1rem' }}>
+          <div>
+            <h1 className="panel__title">📊 Gantt — แผนการผลิต</h1>
+            <p className="panel__subtitle">ไทม์ไลน์รายวัน · แท่ง = PD Start → PD Done (ถ้ายังไม่เสร็จใช้ Expected date)</p>
+          </div>
+          {/* คำอธิบายสี (legend) — สีแท่งตามสถานะงาน */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {PP_STATUS.map(s => (
+              <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <span style={{ width: 12, height: 12, borderRadius: 3, background: STATUS_STYLE[s].bg, border: `1px solid ${STATUS_STYLE[s].border}` }} />
+                {PP_STATUS_LABEL[s]}
+              </span>
+            ))}
+          </div>
+        </div>
+        <GanttChart rows={sortedRows} />
       </div>
 
       {/* สรุปข้ามโมดูล — ใต้ Production Plan */}

@@ -524,6 +524,16 @@ async function migrate() {
     for (const c of ['st_pr_po', 'st_wait_mat', 'st_incoming', 'st_create_bo', 'st_test', 'st_rework', 'st_smt', 'st_thr', 'st_bbas']) {
       await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS ${c} BOOLEAN NOT NULL DEFAULT false`);
     }
+    // ── PP เพิ่มฟิลด์ใหม่ (FM03 rev): Produce, CAP/DAY, Special request, QA status, สีสถานะ, Modified, Process 8 step ──
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS produce         INTEGER     NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS target_per_day  INTEGER     NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS special_request TEXT        NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS qa_status       VARCHAR(30) NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS status_color    VARCHAR(30) NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pd_modified     BOOLEAN     NOT NULL DEFAULT false`);
+    for (const c of ['pc_prpo', 'pc_wait', 'pc_incoming', 'pc_smt', 'pc_thr', 'pc_test', 'pc_bbas', 'pc_packing']) {
+      await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS ${c} VARCHAR(30) NOT NULL DEFAULT ''`);   // สถานะต่อ step ('' | PP_STATUS)
+    }
 
     // ── Workflow (ลำดับกระบวนการผลิต — Manufacturing Sequence) ──
     await client.query(`

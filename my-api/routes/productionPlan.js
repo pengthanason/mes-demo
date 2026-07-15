@@ -1,21 +1,23 @@
 const router = require('express').Router();
 const db     = require('../db');
 
-const COLS = `id, status, wk, date_record, product_pn, model, customer, qty, syn_requestor,
+const COLS = `id, status, status_color, wk, date_record, product_pn, model, customer, qty, produce, syn_requestor,
   work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat, chk_env,
-  pd_pcba, pd_bbas, pd_test, pd_rma, pd_prep, pd_start_date, pd_finish_date,
-  qa_test_rate, qa_finish_date, store_received, expected_date, revised_date, done,
-  pd_pic, pic_responsible, team_member, ok_per_day, total_ng, total_ok, remark,
+  pd_pcba, pd_bbas, pd_test, pd_modified, pd_rma, pd_prep, pd_start_date, pd_finish_date, target_per_day,
+  qa_test_rate, qa_finish_date, qa_status, store_received, expected_date, revised_date, done,
+  pd_pic, pic_responsible, team_member, ok_per_day, total_ng, total_ok, special_request, remark,
+  pc_prpo, pc_wait, pc_incoming, pc_smt, pc_thr, pc_test, pc_bbas, pc_packing,
   st_pr_po, st_wait_mat, st_incoming, st_create_bo, st_test, st_rework, st_smt, st_thr, st_bbas,
   created_at, updated_at`;
 
 // field ที่ยอมให้เขียน (กันยิงมั่ว)
 const WRITABLE = [
-  'status', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'syn_requestor',
+  'status', 'status_color', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'produce', 'syn_requestor',
   'work_order', 'wo_name', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'chk_env',
-  'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date',
-  'qa_test_rate', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'done',
-  'pd_pic', 'pic_responsible', 'team_member', 'ok_per_day', 'total_ng', 'total_ok', 'remark',
+  'pd_pcba', 'pd_bbas', 'pd_test', 'pd_modified', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date', 'target_per_day',
+  'qa_test_rate', 'qa_finish_date', 'qa_status', 'store_received', 'expected_date', 'revised_date', 'done',
+  'pd_pic', 'pic_responsible', 'team_member', 'ok_per_day', 'total_ng', 'total_ok', 'special_request', 'remark',
+  'pc_prpo', 'pc_wait', 'pc_incoming', 'pc_smt', 'pc_thr', 'pc_test', 'pc_bbas', 'pc_packing',
   'st_pr_po', 'st_wait_mat', 'st_incoming', 'st_create_bo', 'st_test', 'st_rework', 'st_smt', 'st_thr', 'st_bbas',
 ];
 const DATE_FIELDS = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date'];
@@ -34,12 +36,13 @@ function clean(body) {
 // GET /api/pp/projects?status=&customer=&product_pn=&model=&date_from=&date_to=
 router.get('/projects', async (req, res) => {
   try {
-    const { status, customer, product_pn, model, date_from, date_to } = req.query;
+    const { status, customer, product_pn, work_order, model, date_from, date_to } = req.query;
     const conds = [];
     const vals  = [];
     if (status)     { vals.push(status);            conds.push(`status = $${vals.length}`); }
     if (customer)   { vals.push(`%${customer}%`);   conds.push(`customer ILIKE $${vals.length}`); }
     if (product_pn) { vals.push(`%${product_pn}%`); conds.push(`product_pn ILIKE $${vals.length}`); }
+    if (work_order) { vals.push(`%${work_order}%`); conds.push(`work_order ILIKE $${vals.length}`); }
     if (model)      { vals.push(`%${model}%`);      conds.push(`model ILIKE $${vals.length}`); }
     if (date_from)  { vals.push(date_from);         conds.push(`date_record >= $${vals.length}`); }
     if (date_to)    { vals.push(date_to);           conds.push(`date_record <= $${vals.length}`); }
