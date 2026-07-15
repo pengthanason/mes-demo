@@ -17,26 +17,30 @@ export interface PpProject {
   model: string;
   customer: string;
   qty: number;
-  syn_requestor: string;
-  work_order: string;
-  wo_name: string;                 // WO → Name
-  matl_coming: string;
-  chk_man: boolean; chk_mac: boolean; chk_med: boolean; chk_mat: boolean; chk_env: boolean;   // 4M1E (E = Environment)
-  pd_pcba: boolean; pd_bbas: boolean; pd_test: boolean; pd_rma: boolean; pd_prep: boolean;
+  produce: number;                 // จำนวนที่ผลิตไปแล้ว (Produce) — Balance = qty − produce
+  syn_requestor: string;           // แสดงเป็น "Owner"
+  work_order: string;              // WO No. (คอลัมน์เดียว ไม่มี Name แล้ว)
+  wo_name: string;                 // (เลิกใช้ — คงไว้กัน data เก่าพัง)
+  matl_coming: string;             // (เลิกใช้ในตาราง/ฟอร์ม)
+  chk_man: boolean; chk_mac: boolean; chk_med: boolean; chk_mat: boolean; chk_env: boolean;   // 4M1E (เลิกใช้)
+  pd_pcba: boolean; pd_bbas: boolean; pd_test: boolean; pd_modified: boolean; pd_rma: boolean; pd_prep: boolean;   // Type
   pd_start_date: string | null;
   pd_finish_date: string | null;
+  target_per_day: number;          // เป้าหมายต่อวัน (Target/day) — ใน PD PLAN
   qa_test_rate: string;
   qa_finish_date: string | null;
+  qa_status: string;               // สถานะฝั่ง QA — แยกจาก status งาน แต่ตัวเลือกเดียวกัน (PP_STATUS)
   store_received: string | null;
   expected_date: string | null;
-  revised_date: string | null;
-  done: boolean;
+  revised_date: string | null;     // แสดงเป็น "Actual shipping date"
+  done: boolean;                   // (เลิกใช้)
   pd_pic: string;
   pic_responsible: string;         // PIC → Responsible
   team_member: number;
-  ok_per_day: number;
+  ok_per_day: number;              // (เลิกใช้)
   total_ng: number;
-  total_ok: number;
+  total_ok: number;                // แสดงเป็น "Total FG"
+  special_request: string;         // ขอพิเศษเพิ่มเติม (Special request)
   remark: string;
   // STATUS pipeline (ขั้นตอนการผลิต) — ติ๊กหลายช่อง · โชว์ฟอร์ม+Excel ไม่โชว์ตาราง Dashboard
   st_pr_po: boolean; st_wait_mat: boolean; st_incoming: boolean; st_create_bo: boolean;

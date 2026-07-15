@@ -65,43 +65,42 @@ export const PP_PIPELINE: { key: keyof PpProject; label: string }[] = [
    ใช้ร่วมกัน: Dashboard table (กรอง excelOnly ออก) · Excel/PDF (ครบทุกคอลัมน์)
    excelOnly = โชว์เฉพาะ Excel/PDF (เช่น STATUS pipeline) ไม่โชว์ในตาราง Dashboard */
 export const XLSX_COLUMNS: PpCol[] = [
-  { key: 'status',       header: 'Status',        w: 12, center: true, value: p => PP_STATUS_LABEL[p.status] ?? p.status },
-  { key: 'wk',           header: 'WW',            w: 6,  center: true, value: p => (p.wk != null ? String(p.wk) : '') },
-  { key: 'date_record',  header: 'DATE Record',   w: 12, center: true, value: p => xlsxDate(p.date_record) },
-  { key: 'product_pn',   header: 'Product P/N',   w: 17, value: p => p.product_pn || '' },
-  { key: 'model',        header: 'MODEL',         w: 26, value: p => p.model || '' },
-  { key: 'qty',          header: 'QTY',           w: 7,  center: true, value: p => (p.qty != null ? String(p.qty) : '') },
-  { key: 'syn_requestor',header: 'SYN Requestor', w: 14, center: true, headerColor: '4472C4', value: p => p.syn_requestor || '' },
-  { key: 'work_order',   header: 'No.',           w: 14, center: true, group: 'WO', value: p => p.work_order || '' },
-  { key: 'wo_name',      header: 'Name',          w: 16,              group: 'WO', value: p => p.wo_name || '' },
+  // DATE Record = วันที่ + (WW) รวมช่องเดียว
+  { key: 'date_record',  header: 'DATE Record',   w: 14, center: true, value: p => { const d = xlsxDate(p.date_record); return d ? (p.wk != null ? `${d}\n(WW${p.wk})` : d) : ''; } },
+  { key: 'model',        header: 'MODEL',         w: 34, value: p => p.model || '' },
+  { key: 'product_pn',   header: 'Product P/N',   w: 22, value: p => p.product_pn || '' },
   { key: 'customer',     header: 'Customer',      w: 14, value: p => p.customer || '' },
-  { key: 'ok_per_day',   header: 'OK/DAY',        w: 8,  center: true, value: p => (p.ok_per_day ? String(p.ok_per_day) : '') },
+  { key: 'syn_requestor',header: 'Owner',         w: 12, center: true, headerColor: '4472C4', value: p => p.syn_requestor || '' },
+  { key: 'work_order',   header: 'WO No.',        w: 20, center: true, value: p => p.work_order || '' },
+  { key: 'qty',          header: 'QTY',           w: 7,  center: true, value: p => (p.qty != null ? String(p.qty) : '') },
+  { key: 'produce',      header: 'Produce',       w: 8,  center: true, value: p => (p.produce ? String(p.produce) : '') },
+  { key: 'balanced',     header: 'Balance',       w: 8,  center: true, value: p => String((p.qty || 0) - (p.produce || 0)) },
+  { key: 'total_ok',     header: 'Total FG',      w: 9,  center: true, value: p => (p.total_ok != null ? String(p.total_ok) : '') },
   { key: 'total_ng',     header: 'Total NG',      w: 9,  center: true, value: p => (p.total_ng != null ? String(p.total_ng) : '') },
-  { key: 'total_ok',     header: 'Total OK',      w: 9,  center: true, value: p => (p.total_ok != null ? String(p.total_ok) : '') },
   { key: 'yield',        header: 'Yield',         w: 8,  center: true, value: p => { const y = ppYield(p); return y == null ? '' : `${y.toFixed(2)}%`; } },
-  { key: 'done',         header: 'DONE',          w: 7,  center: true, headerColor: '00B050', value: p => ckMark(p.done) },
-  { key: 'chk_man',      header: 'Man',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_man) },
-  { key: 'chk_mac',      header: 'Mac',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_mac) },
-  { key: 'chk_med',      header: 'Med',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_med) },
-  { key: 'chk_mat',      header: 'Mat',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_mat) },
-  { key: 'chk_env',      header: 'Env',           w: 5,  center: true, group: '4M1E Check', value: p => ckMark(p.chk_env) },
+  // PD PLAN — PD Start / PD Done / Expected / Actual shipping / Target per day (ท้ายสุด)
+  { key: 'pd_start',     header: 'PD Start',       w: 12, center: true, group: 'PD PLAN', value: p => xlsxDate(p.pd_start_date) },
+  { key: 'pd_finish',    header: 'PD Done',        w: 12, center: true, group: 'PD PLAN', value: p => xlsxDate(p.pd_finish_date) },
+  { key: 'expected',     header: 'Expected date',  w: 12, center: true, headerColor: 'FFC000', group: 'PD PLAN', value: p => xlsxDate(p.expected_date) },
+  { key: 'revised',      header: 'Actual shipping', w: 13, center: true, headerColor: 'FFFF00', group: 'PD PLAN', value: p => xlsxDate(p.revised_date) },
+  { key: 'target_per_day', header: 'Target/day',   w: 9,  center: true, group: 'PD PLAN', value: p => (p.target_per_day ? String(p.target_per_day) : '') },
+  // Type — PCBA / BBAS / TEST / Modified / RMA
   { key: 'pd_pcba',      header: 'PCBA',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_pcba) },
   { key: 'pd_bbas',      header: 'BBAS',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_bbas) },
   { key: 'pd_test',      header: 'TEST',          w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_test) },
-  { key: 'pd_start',     header: 'PD Start',      w: 12, center: true, group: 'PD PLAN', value: p => xlsxDate(p.pd_start_date) },
-  { key: 'pd_finish',    header: 'PD Done',       w: 12, center: true, group: 'PD PLAN', value: p => xlsxDate(p.pd_finish_date) },
-  { key: 'expected',     header: 'Expected date', w: 12, center: true, headerColor: 'FFC000', group: 'PD PLAN', value: p => xlsxDate(p.expected_date) },
-  { key: 'revised',      header: 'Revised',       w: 12, center: true, headerColor: 'FFFF00', value: p => xlsxDate(p.revised_date) },
+  { key: 'pd_modified',  header: 'Modified',      w: 8,  center: true, group: 'Type', value: p => ckMark(p.pd_modified) },
+  { key: 'pd_rma',       header: 'RMA',           w: 6,  center: true, group: 'Type', value: p => ckMark(p.pd_rma) },
+  // QA — Sampling% / QA Finish / Status (สถานะเดียวกับรายการ)
   { key: 'qa_test_rate', header: 'Sampling%',     w: 10, center: true, group: 'QA', value: p => p.qa_test_rate || '' },
   { key: 'qa_finish',    header: 'QA Finish',     w: 12, center: true, group: 'QA', value: p => xlsxDate(p.qa_finish_date) },
-  { key: 'store',        header: 'Received date', w: 12, center: true, group: 'Store', value: p => xlsxDate(p.store_received) },
-  { key: 'matl_coming',  header: "Mat'l coming",  w: 18, group: 'SC', value: p => p.matl_coming || '' },
+  { key: 'qa_status',    header: 'Status',        w: 12, center: true, group: 'QA', value: p => p.qa_status ? (PP_STATUS_LABEL[p.qa_status] ?? p.qa_status) : '' },
+  { key: 'store',        header: 'Store',         w: 12, center: true, value: p => xlsxDate(p.store_received) },
   { key: 'pd_pic',       header: 'Name',          w: 12, group: 'PIC', value: p => p.pd_pic || '' },
   { key: 'pic_responsible', header: 'Responsible', w: 13, group: 'PIC', value: p => p.pic_responsible || '' },
-  { key: 'team_member',  header: 'Team',          w: 7,  center: true, value: p => (p.team_member ? String(p.team_member) : '') },
+  { key: 'special_request', header: 'Special request', w: 22, value: p => p.special_request || '' },
   // STATUS pipeline — Excel/PDF เท่านั้น (ไม่โชว์ตาราง Dashboard)
   ...PP_PIPELINE.map((s): PpCol => ({ key: s.key as string, header: s.label, w: 8, center: true, group: 'STATUS', excelOnly: true, value: p => ckMark(!!p[s.key]) })),
-  { key: 'remark',       header: 'Remark',        w: 30, value: p => p.remark || '' },
+  { key: 'remark',       header: 'Remark',        w: 44, value: p => p.remark || '' },
 ];
 
 /* คอลัมน์สำหรับตาราง Dashboard บนจอ — ตัด excelOnly (STATUS pipeline) ออก */
@@ -134,8 +133,8 @@ export function buildHeaderRows(cols: PpCol[]): { groupRow: HeaderCell[]; subRow
 export async function exportXlsx(rows: PpProject[], filename?: string) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
-  // ล็อกหัวตาราง 3 แถวบน + คอลัมน์ด้านหน้า 11 คอลัมน์ (Status…Revised) ให้ค้างตอนเลื่อน
-  const ws = wb.addWorksheet('Production Plan', { views: [{ state: 'frozen', xSplit: 11, ySplit: 3, showGridLines: false }] });
+  // ล็อกหัวตาราง 3 แถวบน + คอลัมน์ด้านหน้า 3 คอลัมน์ (DATE/MODEL/Product P/N) ให้ค้างตอนเลื่อน
+  const ws = wb.addWorksheet('Production Plan', { views: [{ state: 'frozen', xSplit: 3, ySplit: 3, showGridLines: false }] });
   const COLS = XLSX_COLUMNS;
   const N = COLS.length;
 
@@ -184,7 +183,7 @@ export async function exportXlsx(rows: PpProject[], filename?: string) {
     const row = ws.getRow(r);
     if (r >= 4) row.height = 16;        // แถว 1 สูง 42 (โลโก้), แถว 2–3 หัวตาราง
     const p = r >= 4 ? rows[r - 4] : null;
-    const st = p ? (STATUS_STYLE[p.status] ?? STATUS_STYLE.ON_PROCESS) : null;
+    const st = p && p.qa_status ? (STATUS_STYLE[p.qa_status] ?? STATUS_STYLE.ON_PROCESS) : null;   // ลงสีช่อง QA·Status ตามสถานะ QA (แยกจากงาน)
     for (let c = 1; c <= N; c++) {
       const cell = row.getCell(c);
       const def = COLS[c - 1];
@@ -203,15 +202,18 @@ export async function exportXlsx(rows: PpProject[], filename?: string) {
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
       } else {
         cell.font = { size: 9, color: { argb: 'FF1E293B' } };
-        cell.alignment = { vertical: 'middle', horizontal: def.center ? 'center' : 'left', wrapText: def.key === 'remark' };
-        // Status — ลงสีตามสถานะ
-        if (def.key === 'status' && st) {
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: def.key === 'remark' || def.key === 'date_record' };
+        // QA · Status — ลงสีตามสถานะของรายการ
+        if (def.key === 'qa_status' && st) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(st.bg) } };
           cell.font = { size: 9, bold: true, color: { argb: argb(st.text) } };
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
         }
-        // DONE — ติ๊กถูกสีเขียว
-        if (def.key === 'done' && p?.done) cell.font = { size: 11, bold: true, color: { argb: 'FF16A34A' } };
+        // PD Done / QA Finish — มีวันที่ = เสร็จ → พื้นเขียว
+        if ((def.key === 'pd_finish' || def.key === 'qa_finish') && p && def.value(p)) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+          cell.font = { size: 9, bold: true, color: { argb: 'FF166534' } };
+        }
       }
     }
   }
@@ -352,10 +354,10 @@ export function ChartCard({ title, children }: { title: string; children: React.
 
 /* ── Add/Edit Project Form (modal) — ปิดได้เฉพาะปุ่มยกเลิก ── */
 const EMPTY: Partial<PpProject> = {
-  status: 'ON_PROCESS', product_pn: '', model: '', customer: '', qty: 0, syn_requestor: '', work_order: '', wo_name: '',
-  matl_coming: '', chk_man: false, chk_mac: false, chk_med: false, chk_mat: false, chk_env: false,
-  pd_pcba: false, pd_bbas: false, pd_test: false, pd_rma: false, pd_prep: false, qa_test_rate: '', pd_pic: '', pic_responsible: '', team_member: 0,
-  ok_per_day: 0, total_ng: 0, total_ok: 0, remark: '',
+  status: 'ON_PROCESS', product_pn: '', model: '', customer: '', qty: 0, produce: 0, syn_requestor: '', work_order: '',
+  pd_pcba: false, pd_bbas: false, pd_test: false, pd_modified: false, pd_rma: false, qa_test_rate: '', qa_status: '',
+  target_per_day: 0, pd_pic: '', pic_responsible: '', team_member: 0,
+  total_ng: 0, total_ok: 0, special_request: '', remark: '',
   st_pr_po: false, st_wait_mat: false, st_incoming: false, st_create_bo: false,
   st_test: false, st_rework: false, st_smt: false, st_thr: false, st_bbas: false,
 };
@@ -412,10 +414,11 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." autoFocus /></label>
             <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." /></label>
             <label className="field"><span>QTY</span><input type="number" value={f.qty ?? 0} onChange={num('qty')} /></label>
+            <label className="field"><span>Produce (ผลิตไปแล้ว)</span><input type="number" min="0" value={f.produce ?? 0} onChange={num('produce')} placeholder="0" /></label>
+            <label className="field"><span>Balance (คงเหลือ)</span><input value={(Number(f.qty) || 0) - (Number(f.produce) || 0)} readOnly title="QTY − Produce (คำนวณอัตโนมัติ)" style={{ background: '#f1f5f9' }} /></label>
             <label className="field"><span>Customer</span><input value={f.customer ?? ''} onChange={txt('customer')} /></label>
-            <label className="field"><span>SYN Requestor</span><input value={f.syn_requestor ?? ''} onChange={txt('syn_requestor')} placeholder="ผู้ขอจาก SYN" /></label>
+            <label className="field"><span>Owner</span><input value={f.syn_requestor ?? ''} onChange={txt('syn_requestor')} placeholder="ผู้รับผิดชอบงาน" /></label>
             <label className="field"><span>WO No.</span><input value={f.work_order ?? ''} onChange={txt('work_order')} placeholder="เลขที่ WO" /></label>
-            <label className="field"><span>WO Name</span><input value={f.wo_name ?? ''} onChange={txt('wo_name')} placeholder="ชื่องาน WO" /></label>
           </div>
 
           <Section title="STATUS (ขั้นตอนการผลิต)" />
@@ -429,31 +432,23 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
 
           <Section title="Type" />
           <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-            {([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST']] as const).map(([k, l]) => (
+            {([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST'], ['pd_modified', 'Modified'], ['pd_rma', 'RMA']] as const).map(([k, l]) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
                 <input type="checkbox" checked={!!f[k]} onChange={chk(k)} style={{ width: 18, height: 18 }} /> {l}
               </label>
             ))}
           </div>
-
-          <Section title="4M1E Check & Waiting" />
-          <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-            {([['chk_man', 'Man'], ['chk_mac', 'Machine'], ['chk_med', 'Method'], ['chk_mat', 'Material'], ['chk_env', 'Environment']] as const).map(([k, l]) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
-                <input type="checkbox" checked={!!f[k]} onChange={chk(k)} style={{ width: 18, height: 18 }} /> {l}
-              </label>
-            ))}
-          </div>
-          <label className="field"><span>Waiting (Mat'l coming)</span><input value={f.matl_coming ?? ''} onChange={txt('matl_coming')} placeholder="Components, PCB, Stencil, etc." /></label>
 
           <Section title="PD PLAN" />
           <div className="grid-3col">
             <label className="field"><span>PD Start</span><input type="date" value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} /></label>
             <label className="field"><span>PD Done</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} /></label>
             <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} /></label>
+            <label className="field"><span>Actual shipping date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
+            <label className="field"><span>Target per day</span><input type="number" min="0" value={f.target_per_day ?? 0} onChange={num('target_per_day')} placeholder="เป้าหมาย/วัน" /></label>
           </div>
 
-          <Section title="QA / Store / กำหนดส่ง" />
+          <Section title="QA" />
           <div className="grid-3col">
             <label className="field"><span>Sampling rate</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -461,9 +456,18 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
                 <span style={{ color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>%</span>
               </div>
             </label>
+            <label className="field"><span>QA Status</span>
+              <select value={f.qa_status ?? ''} onChange={txt('qa_status')} title="สถานะฝั่ง QA — แยกจากสถานะงาน">
+                <option value="">— ไม่ระบุ —</option>
+                {PP_STATUS.map(s => <option key={s} value={s}>{PP_STATUS_LABEL[s]}</option>)}
+              </select>
+            </label>
             <label className="field"><span>QA Finish date</span><input type="date" value={f.qa_finish_date ?? ''} onChange={txt('qa_finish_date')} /></label>
+          </div>
+
+          <Section title="Store" />
+          <div className="grid-3col">
             <label className="field"><span>Store Received</span><input type="date" value={f.store_received ?? ''} onChange={txt('store_received')} /></label>
-            <label className="field"><span>Revised date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
           </div>
 
           <Section title="PIC / ทีม" />
@@ -474,17 +478,14 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
           </div>
 
           <Section title="ผลผลิต (PD)" />
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem', fontWeight: 600 }}>
-            <input type="checkbox" checked={!!f.done} onChange={chk('done')} style={{ width: 18, height: 18 }} /> ✅ DONE (งานเสร็จแล้ว)
-          </label>
           <div className="grid-3col">
-            <label className="field"><span>OK/Day</span><input type="number" value={f.ok_per_day ?? 0} onChange={num('ok_per_day')} /></label>
+            <label className="field"><span>Total FG</span><input type="number" value={f.total_ok ?? 0} onChange={num('total_ok')} /></label>
             <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? 0} onChange={num('total_ng')} /></label>
-            <label className="field"><span>Total OK</span><input type="number" value={f.total_ok ?? 0} onChange={num('total_ok')} /></label>
-            <label className="field"><span>Yield (OK ÷ (OK+NG) × 100)</span><input value={ppYield({ total_ok: f.total_ok ?? 0, total_ng: f.total_ng ?? 0 })?.toFixed(2) ?? '—'} readOnly style={{ background: '#f1f5f9' }} /></label>
+            <label className="field"><span>Yield (FG ÷ (FG+NG) × 100)</span><input value={ppYield({ total_ok: f.total_ok ?? 0, total_ng: f.total_ng ?? 0 })?.toFixed(2) ?? '—'} readOnly style={{ background: '#f1f5f9' }} /></label>
           </div>
 
-          <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={2} /></label>
+          <label className="field"><span>Special request (ขอพิเศษเพิ่มเติม)</span><textarea value={f.special_request ?? ''} onChange={txt('special_request')} rows={2} placeholder="เช่น ขอเร่งด่วน, ขอ QA ก่อน ฯลฯ" /></label>
+          <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={4} /></label>
 
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions">

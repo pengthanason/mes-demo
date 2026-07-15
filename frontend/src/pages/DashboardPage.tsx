@@ -14,13 +14,14 @@ import {
   XLSX_COLUMNS, DASH_COLUMNS, PP_PIPELINE, buildHeaderRows, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 
-// หัวคอลัมน์: สีพิเศษ (Expected/Revised/DONE/SYN) + จัดกึ่งกลาง
+// หัวคอลัมน์: สีพิเศษ (Expected/Actual shipping/Owner) + จัดกึ่งกลาง · WO No. ไม่ให้ตกบรรทัด
 const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
   textAlign: 'center',
+  ...(h.label === 'WO No.' ? { whiteSpace: 'nowrap', minWidth: 96 } : {}),
   ...(h.headerColor ? { background: `#${h.headerColor}`, color: (h.headerColor === '00B050' || h.headerColor === '4472C4') ? '#fff' : undefined } : {}),
 });
 
-const CHECK_KEYS = new Set(['chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'chk_env', 'pd_pcba', 'pd_bbas', 'pd_test', 'pd_rma', 'pd_prep', 'done']);
+const CHECK_KEYS = new Set(['pd_pcba', 'pd_bbas', 'pd_test', 'pd_modified', 'pd_rma']);
 // เซลล์ว่าง — ขีด "—" จัดกึ่งกลางเสมอทุกคอลัมน์ (สีจาง) ให้เท่ากันหมด
 const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' };
 // ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
@@ -29,7 +30,19 @@ const GREEN_CELL: React.CSSProperties = { background: '#dcfce7', color: '#166534
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ Excel (ลำดับ/หัว = แหล่งเดียวกับ Excel)
 function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string) => void) {
-  if (c.key === 'status') return <td key={c.key}><StatusBadge status={p.status} /></td>;
+  if (c.key === 'qa_status') return <td key={c.key} style={{ textAlign: 'center' }}>{p.qa_status ? <StatusBadge status={p.qa_status} /> : <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
+  if (c.key === 'remark') return <td key={c.key} style={{ minWidth: 280, color: 'var(--text-muted)', whiteSpace: 'pre-wrap', textAlign: 'center' }}>{p.remark || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
+  if (c.key === 'date_record') {
+    const [d, ww] = c.value(p).split('\n');   // value = "DD/MM/YYYY\nWWxx" — วันที่บรรทัดบน / WW บรรทัดล่าง
+    if (!d) return <td key={c.key} style={DASH_STYLE}>—</td>;
+    return (
+      <td key={c.key} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+        <div>{d}</div>
+        {ww && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{ww}</div>}
+      </td>
+    );
+  }
+  if (c.key === 'model') return <td key={c.key} style={{ minWidth: 200, textAlign: 'center' }}>{p.model || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
   if (CHECK_KEYS.has(c.key)) {
     const on = !!(p as any)[c.key];
     // ช่องสี่เหลี่ยม checkbox จริง — ว่าง=☐ / ติ๊ก=☑ · กดติ๊กได้ (non-viewer) แล้วเซฟทันที
@@ -45,18 +58,21 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
   if (c.key === 'total_ng') return <td key={c.key} style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>;
   if (c.key === 'total_ok') return <td key={c.key} style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>;
   if (c.key === 'product_pn') return (
-    <td key={c.key} style={p.product_pn ? undefined : DASH_STYLE}>
-      {p.product_pn
-        ? <button type="button" onClick={onOpen} title="ดูรายละเอียดสินค้า"
-            style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, textAlign: 'left' }}>
-            {p.product_pn}
-          </button>
-        : '—'}
+    <td key={c.key} style={{ minWidth: 168, textAlign: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+        {p.product_pn
+          ? <button type="button" onClick={onOpen} title="ดูรายละเอียดสินค้า"
+              style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }}>
+              {p.product_pn}
+            </button>
+          : <span style={{ color: '#cbd5e1' }}>—</span>}
+        <StatusBadge status={p.status} />
+      </div>
     </td>
   );
   const v = c.value(p);
   if (!v) return <td key={c.key} style={DASH_STYLE}>—</td>;
-  const base: React.CSSProperties = c.center ? { textAlign: 'center', whiteSpace: 'nowrap' } : { color: c.key === 'remark' || c.key === 'matl_coming' ? 'var(--text-muted)' : undefined };
+  const base: React.CSSProperties = { textAlign: 'center', ...(c.center ? { whiteSpace: 'nowrap' } : {}) };
   return <td key={c.key} style={DONE_KEYS.has(c.key) ? { ...base, ...GREEN_CELL } : base}>{v}</td>;
 }
 
@@ -68,17 +84,19 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
   const groups: { title: string; items: [string, React.ReactNode][] }[] = [
     { title: '📋 ข้อมูลงาน', items: [
       ['Customer', val(p.customer)], ['Qty', p.qty ? p.qty.toLocaleString() : '—'], ['Week (WK)', val(p.wk)], ['วันที่บันทึก', fmtD(p.date_record)],
-      ['Work Order', val(p.work_order)], ['WO Name', val(p.wo_name)], ['SYN Requestor', val(p.syn_requestor)],
+      ['WO No.', val(p.work_order)], ['Owner', val(p.syn_requestor)],
     ] },
     { title: '👤 ผู้รับผิดชอบ', items: [
-      ['PD PIC', val(p.pd_pic)], ['PIC Responsible', val(p.pic_responsible)], ['Team Member', p.team_member || '—'], ['OK / วัน', p.ok_per_day || '—'],
+      ['PD PIC', val(p.pd_pic)], ['PIC Responsible', val(p.pic_responsible)], ['Team Member', p.team_member || '—'], ['Target / วัน', p.target_per_day || '—'],
     ] },
     { title: '📅 กำหนดการ', items: [
-      ['PD Start', fmtD(p.pd_start_date)], ['PD Finish', fmtD(p.pd_finish_date)], ['Expected', fmtD(p.expected_date)], ['Revised', fmtD(p.revised_date)],
-      ['Store Received', fmtD(p.store_received)], ["Mat'l Coming", val(p.matl_coming)], ['QA Finish', fmtD(p.qa_finish_date)], ['QA Test Rate', val(p.qa_test_rate)],
+      ['PD Start', fmtD(p.pd_start_date)], ['PD Finish', fmtD(p.pd_finish_date)], ['Expected', fmtD(p.expected_date)], ['Actual shipping', fmtD(p.revised_date)],
+      ['Store Received', fmtD(p.store_received)], ['QA Finish', fmtD(p.qa_finish_date)], ['QA Test Rate', val(p.qa_test_rate)],
+      ['QA Status', p.qa_status ? <StatusBadge status={p.qa_status} /> : '—'],
     ] },
     { title: '📊 ผลผลิต', items: [
-      ['Total OK', <span style={{ color: '#16a34a', fontWeight: 700 }}>{p.total_ok || 0}</span>],
+      ['Produce', (p.produce || 0).toLocaleString()], ['Balance', ((p.qty || 0) - (p.produce || 0)).toLocaleString()],
+      ['Total FG', <span style={{ color: '#16a34a', fontWeight: 700 }}>{p.total_ok || 0}</span>],
       ['Total NG', <span style={{ color: '#dc2626', fontWeight: 700 }}>{p.total_ng || 0}</span>],
       ['Yield', y == null ? '—' : <span style={{ fontWeight: 700, color: y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y.toFixed(2)}%</span>],
     ] },
@@ -121,9 +139,9 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
             </div>
           </div>
         ))}
-        <div style={sectionTitle}>🏷️ Type</div>{chips([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST'], ['pd_rma', 'RMA'], ['pd_prep', 'PREP']])}
-        <div style={sectionTitle}>🧩 4M Check</div>{chips([['chk_man', 'Man'], ['chk_mac', 'Machine'], ['chk_med', 'Method'], ['chk_mat', 'Material']])}
+        <div style={sectionTitle}>🏷️ Type</div>{chips([['pd_pcba', 'PCBA'], ['pd_bbas', 'BBAS'], ['pd_test', 'TEST'], ['pd_modified', 'Modified'], ['pd_rma', 'RMA']])}
         <div style={sectionTitle}>🔧 STATUS (ขั้นตอนการผลิต)</div>{chips(PP_PIPELINE.map(s => [s.key as string, s.label]))}
+        {p.special_request && (<><div style={sectionTitle}>⭐ Special request</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.special_request}</div></>)}
         {p.remark && (<><div style={sectionTitle}>📝 หมายเหตุ</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.remark}</div></>)}
         <div style={{ marginTop: 18, paddingTop: 10, borderTop: '1px solid #eef2f7', fontSize: '0.72rem', color: '#94a3b8', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
           {p.created_at && <span>สร้าง: {fmtD(p.created_at)}</span>}
@@ -143,11 +161,12 @@ function printPdf(rows: PpProject[], filename?: string) {
   const hr1 = groupRow.map(h => `<th colspan="${h.colSpan}" rowspan="${h.rowSpan}"${hStyle(h.headerColor)}>${esc(h.label)}</th>`).join('');
   const hr2 = subRow.map(h => `<th${hStyle(h.headerColor)}>${esc(h.label)}</th>`).join('');
   const trs = rows.map(p => {
-    const st = STATUS_STYLE[p.status] ?? STATUS_STYLE.ON_PROCESS;
+    const st = STATUS_STYLE[p.qa_status] ?? STATUS_STYLE.ON_PROCESS;
     const tds = XLSX_COLUMNS.map(c => {
       const val = esc(c.value(p));
-      if (c.key === 'status') return `<td style="background:${st.bg};color:${st.text};font-weight:700;text-align:center">${val}</td>`;
-      if (c.key === 'done' && p.done) return `<td class="c" style="color:#16a34a;font-weight:700">${val}</td>`;
+      if (c.key === 'qa_status') return p.qa_status ? `<td style="background:${st.bg};color:${st.text};font-weight:700;text-align:center">${val}</td>` : `<td class="c">—</td>`;
+      if ((c.key === 'pd_finish' || c.key === 'qa_finish') && val) return `<td style="background:#dcfce7;color:#166534;font-weight:600;text-align:center">${val}</td>`;
+      if (c.key === 'date_record') return `<td class="c">${val.replace(/\n/g, '<br>')}</td>`;
       return `<td${c.center ? ' class="c"' : ''}>${val}</td>`;
     }).join('');
     return `<tr>${tds}</tr>`;
@@ -161,7 +180,7 @@ function printPdf(rows: PpProject[], filename?: string) {
       .hd .t{font-size:22px;font-weight:800;color:#2e7d32}
       .hd .code{font-size:9px;color:#64748b}
       table{width:100%;border-collapse:collapse;font-size:7.5px;table-layout:fixed}
-      th,td{border:1px solid #b0b8c4;padding:2px 3px;text-align:left;word-break:break-word;overflow:hidden}
+      th,td{border:1px solid #b0b8c4;padding:2px 3px;text-align:center;word-break:break-word;overflow:hidden}
       th{background:#d9ead3;color:#1b4332;text-align:center;font-size:7.5px}
       td.c{text-align:center}
     </style></head>
@@ -381,7 +400,7 @@ export function DashboardPage() {
 
       {/* ตาราง + filter + export */}
       <div className="panel">
-        <div className="filters-grid">
+        <div className="dash-grid-3">   {/* filter แถวละ 3 เท่าๆ กัน (6 ช่อง = 2 แถวสมส่วน ซ้าย-กลาง-ขวา) */}
           <label className="field"><span>สถานะ</span>
             <select value={filters.status ?? ''} onChange={e => setF('status', e.target.value)}>
               <option value="">ทั้งหมด</option>
