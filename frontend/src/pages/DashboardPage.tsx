@@ -115,7 +115,7 @@ function ColumnFilterField({
         style={{
           cursor: 'pointer', textAlign: 'left', color: active ? 'var(--text-body)' : '#94a3b8',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '2rem', width: '100%', minWidth: 0,
-          boxSizing: 'border-box', outline: 'none', boxShadow: 'none',   // ล็อกขนาดปุ่มให้เท่าเดิมเป๊ะ ไม่ว่าจะ focus/active/เปิด-ปิด dropdown อยู่หรือไม่ (กัน UI ขยับ)
+          boxSizing: 'border-box', outline: 'none', boxShadow: 'none', lineHeight: '1.5rem',   // ล็อก line-height คงที่ กันกล่องสูงไม่เท่าตอนสลับข้อความไทย↔อังกฤษ (placeholder "ทั้งหมด" ↔ ค่าที่เลือก)
           backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
           backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem center', backgroundSize: '10px 6px',
         }}>
@@ -186,11 +186,13 @@ const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' 
 // ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
 const DONE_KEYS = new Set(['pd_finish', 'qa_finish']);
 const GREEN_CELL: React.CSSProperties = { background: '#dcfce7', color: '#166534', fontWeight: 600 };
-// "On process" ของแถว = มี process step ใดก็ได้กำลัง ON_PROCESS (หรือ status = ON_PROCESS)
-const rowOnProcess = (r: PpProject) => r.status === 'ON_PROCESS' || PROCESS_STEPS.some(s => (r as any)[s.key as string] === 'ON_PROCESS');
-// นับ/กรองแบบ "กลุ่มเดียวต่อแถว" (mutually exclusive) — Done/Delay/Cancel ยึด status บนสุดก่อน, ที่เหลือถึงนับเป็น On process
-// กัน KPI นับซ้ำ (เช่นแถว Delay ที่มี step กลางทางเป็น ON_PROCESS ไม่ถูกนับทั้ง Delay และ On process)
-const rowOnProcessOnly = (r: PpProject) => r.status !== 'DONE' && r.status !== 'DELAY' && r.status !== 'CANCEL' && rowOnProcess(r);
+// นับ/กรองแบบ "กลุ่มเดียวต่อแถว" (mutually exclusive): แถวที่ยังไม่ Done/Delay/Cancel = กำลังดำเนินการ (On process)
+// ครอบคลุมทั้ง status = 'ON_PROCESS' และ status ที่เป็นชื่อ process step (เช่น Wait Mat'l / PR/PO / Packing ในข้อมูลจริง)
+// → KPI ไม่นับซ้ำ + filter On process เจอแถวที่ค้างอยู่ที่ step ต่างๆ ครบ
+const PP_TERMINAL = ['DONE', 'DELAY', 'CANCEL'];
+const rowOnProcessOnly = (r: PpProject) => !PP_TERMINAL.includes(r.status);
+// แถว "ดีเลย์" = status = DELAY หรือมี process step ใดก็ได้ที่ DELAY (แม้ภาพรวมยังเป็น On process) → พื้นหลังเหลืองส้มเตือน
+const rowHasDelay = (r: PpProject) => r.status === 'DELAY' || PROCESS_STEPS.some(s => (r as any)[s.key as string] === 'DELAY');
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ (ลำดับ/หัว = แหล่งเดียวกับ Excel)
 function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string, e?: React.MouseEvent<HTMLElement>) => void) {
@@ -788,7 +790,7 @@ export function DashboardPage() {
                 const y = ppYield(p);
                 const no = (page - 1) * PAGE + idx + 1;   // ลำดับต่อเนื่องข้ามหน้า
                 return (
-                  <tr key={p.id} style={p.status === 'DELAY' ? { background: '#fff7ed', boxShadow: 'inset 3px 0 0 #ea580c' } : undefined}>
+                  <tr key={p.id} style={rowHasDelay(p) ? { background: '#fff7ed', boxShadow: 'inset 3px 0 0 #ea580c' } : undefined}>
                     <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
                     {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key, e) => onCellClick(p, key, e)))}
                     {!isViewer && (
