@@ -39,7 +39,7 @@ const colWidthPx = (c: PpCol): number => {
 // ใช้ createPortal ไปที่ document.body + position:fixed กันไม่ให้ dropdown โดนตัดโดย overflow-x:auto ของกล่องตาราง
 function ColumnFilterField({
   label, options, labelFor, selected, onToggle, onClear, colKey, openKey, setOpenKey,
-  expandKey, expandItems, expandSelected, onToggleExpandItem, onToggleExpandAll,
+  expandKey, expandItems, expandSelected, onToggleExpandItem, onToggleExpandAll, expandAllChecked,
 }: {
   label: string; options: string[]; labelFor?: (v: string) => string;
   selected: Set<string>; onToggle: (v: string) => void; onClear: () => void;
@@ -47,6 +47,7 @@ function ColumnFilterField({
   // ตัวเลือกที่ขยายเป็น checkbox ย่อยได้ (ใช้กับ "On process" → เลือก process step) — ไม่ใส่ก็ได้ ไม่บังคับ
   expandKey?: string; expandItems?: { key: string; label: string }[];
   expandSelected?: Set<string>; onToggleExpandItem?: (key: string) => void; onToggleExpandAll?: () => void;
+  expandAllChecked?: boolean;   // "เลือกทั้งหมด" = เลือกตัวหลัก (On process) — สถานะติ๊กมาจากภายนอก
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -99,12 +100,13 @@ function ColumnFilterField({
   };
 
   return (
-    <label className="field">
+    // minWidth:0 → ให้ช่องนี้ยุบได้ต่ำกว่าความยาวข้อความ (กัน grid column โตตามชื่อยาว → ดันทุกช่องขยับ)
+    <label className="field" style={{ minWidth: 0 }}>
       <span>{label}</span>
       <button type="button" ref={btnRef} onClick={() => setOpenKey(isOpen ? null : colKey)} className="form-input"
         style={{
           cursor: 'pointer', textAlign: 'left', color: active ? 'var(--text-body)' : '#94a3b8',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '2rem',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '2rem', width: '100%', minWidth: 0,
           boxSizing: 'border-box', outline: 'none', boxShadow: 'none',   // ล็อกขนาดปุ่มให้เท่าเดิมเป๊ะ ไม่ว่าจะ focus/active/เปิด-ปิด dropdown อยู่หรือไม่ (กัน UI ขยับ)
           backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
           backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem center', backgroundSize: '10px 6px',
@@ -155,7 +157,7 @@ function ColumnFilterField({
           overflowY: 'auto', padding: '4px 0', fontWeight: 400, fontSize: '0.82rem', color: '#1e293b', textAlign: 'left',
         }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', cursor: 'pointer', fontWeight: 600, borderBottom: '1px solid var(--border-color)' }}>
-            <input type="checkbox" checked={expandSelected?.size === expandItems.length} onChange={() => onToggleExpandAll?.()} />
+            <input type="checkbox" checked={expandAllChecked ?? false} onChange={() => onToggleExpandAll?.()} />
             <span>เลือกทั้งหมด</span>
           </label>
           {expandItems.map(it => (
@@ -176,6 +178,8 @@ const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' 
 // ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
 const DONE_KEYS = new Set(['pd_finish', 'qa_finish']);
 const GREEN_CELL: React.CSSProperties = { background: '#dcfce7', color: '#166534', fontWeight: 600 };
+// "On process" ของแถว = status บนสุด = ON_PROCESS หรือมี process step ใดก็ได้กำลัง ON_PROCESS (ใช้ร่วมทั้ง filter/นับการ์ด/กราฟ)
+const rowOnProcess = (r: PpProject) => r.status === 'ON_PROCESS' || PROCESS_STEPS.some(s => (r as any)[s.key as string] === 'ON_PROCESS');
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ (ลำดับ/หัว = แหล่งเดียวกับ Excel)
 function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string, e?: React.MouseEvent<HTMLElement>) => void) {
@@ -606,14 +610,20 @@ export function DashboardPage() {
     setProcStepFilter(prev => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; });
     setPage(1);
   };
+  // "เลือกทั้งหมด" ในเมนู On process = เลือก On process (สถานะ) ตรงๆ + ล้างการเลือก step ย่อย
   const toggleProcStepAll = () => {
-    setProcStepFilter(prev => prev.size === PROCESS_STEPS.length ? new Set() : new Set(PROCESS_STEPS.map(s => s.key as string)));
-    setPage(1);
+    setProcStepFilter(new Set());
+    toggleFilterValue('status', 'ON_PROCESS');   // toggle สถานะ On process (setPage(1) อยู่ในนี้แล้ว)
   };
 
   // กรองฝั่ง client จาก allRows ตาม colFilters (เลือกได้หลายค่า) + ช่วงวันที่ + process step ย่อย
   const rows = useMemo(() => allRows.filter(r => {
-    if (colFilters.status?.size && !colFilters.status.has(r.status)) return false;
+    // สถานะ: "On process" = แถวที่มี step ไหนก็ได้กำลัง ON_PROCESS (หรือ status บนสุด = ON_PROCESS) — ไม่ใช่แค่ status ตรงตัว
+    // สถานะอื่น (Done/Delay/Cancel) เทียบ status ตรงตัวเหมือนเดิม · หลายสถานะ = OR กัน
+    if (colFilters.status?.size) {
+      const matchStatus = [...colFilters.status].some(st => st === 'ON_PROCESS' ? rowOnProcess(r) : r.status === st);
+      if (!matchStatus) return false;
+    }
     if (colFilters.customer?.size && !colFilters.customer.has(r.customer)) return false;
     if (colFilters.work_order?.size && !colFilters.work_order.has(r.work_order)) return false;
     if (colFilters.model?.size && !colFilters.model.has(r.model)) return false;
@@ -629,15 +639,16 @@ export function DashboardPage() {
   const hasFilter = Object.values(colFilters).some(s => s && s.size > 0) || procStepFilter.size > 0 || !!dateFrom || !!dateTo;
   const clearAllFilters = () => { setColFilters({}); setProcStepFilter(new Set()); setDateFrom(''); setDateTo(''); setPage(1); };
 
-  // กดการ์ด → ตั้งตัวกรองสถานะ + ค่อยๆ เลื่อนหน้าจอลงมาให้เห็นกราฟ+ตารางที่ถูกกรอง
+  // กดการ์ด → ตั้งตัวกรองสถานะ + ค่อยๆ เลื่อนหน้าจอลงมาให้เห็นตารางที่ถูกกรอง (กราฟย้ายไปใต้ตารางแล้ว จึงเลื่อนมาที่ตารางแทน)
   const chartsRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
   const isStatusOnly = (v: string) => colFilters.status?.size === 1 && colFilters.status.has(v);
   const selectStatus = (v: string) => {
     setColFilters(prev => ({ ...prev, status: v ? new Set([v]) : new Set() }));
     setPage(1);
     // รอ 1 เฟรมให้ DOM อัปเดตก่อน แล้วค่อย ๆ เลื่อน (custom smooth — กัน behavior:'smooth' วาป/ไม่ทำงาน)
     requestAnimationFrame(() => {
-      const el = chartsRef.current;
+      const el = tableRef.current;
       if (!el) return;
       const headerOffset = 72; // topbar 60px + เผื่อระยะ
       const target = Math.max(0, el.getBoundingClientRect().top + window.scrollY - headerOffset);
@@ -645,17 +656,17 @@ export function DashboardPage() {
     });
   };
 
-  // การ์ด KPI — คิดจาก allRows (ภาพรวมทั้งหมด) เสมอ เพื่อให้ตัวเลขไม่หายตอนกดกรอง
+  // การ์ด KPI — คิดจาก allRows (ภาพรวมทั้งหมด) เสมอ เพื่อให้ตัวเลขไม่หายตอนกดกรอง · On process = step ใดก็ได้ ON_PROCESS
   const agg = useMemo(() => {
-    const by = (s: string) => allRows.filter(r => r.status === s).length;
+    const by = (s: string) => s === 'ON_PROCESS' ? allRows.filter(rowOnProcess).length : allRows.filter(r => r.status === s).length;
     const ys = allRows.map(ppYield).filter((v): v is number => v != null);
     const avgYield = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : null;
     return { total: allRows.length, done: by('DONE'), onProc: by('ON_PROCESS'), delay: by('DELAY'), cancel: by('CANCEL'), avgYield };
   }, [allRows]);
 
-  // กราฟ — คิดจาก rows (ตามตัวกรองที่เลือก) เพื่อให้กราฟตรงกับสิ่งที่กรองในตาราง
+  // กราฟ — คิดจาก rows (ตามตัวกรองที่เลือก) เพื่อให้กราฟตรงกับสิ่งที่กรองในตาราง · On process = step ใดก็ได้ ON_PROCESS
   const chart = useMemo(() => {
-    const by = (s: string) => rows.filter(r => r.status === s).length;
+    const by = (s: string) => s === 'ON_PROCESS' ? rows.filter(rowOnProcess).length : rows.filter(r => r.status === s).length;
     const totalOk = rows.reduce((s, r) => s + (r.total_ok || 0), 0);
     const totalNg = rows.reduce((s, r) => s + (r.total_ng || 0), 0);
     const byStatus = PP_STATUS.map(s => ({ label: PP_STATUS_LABEL[s], value: by(s), color: STATUS_STYLE[s].text }));
@@ -710,14 +721,15 @@ export function DashboardPage() {
       </div>
 
       {/* ตาราง + filter + export */}
-      <div className="panel">
+      <div className="panel" ref={tableRef} style={{ scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
         <div className="dash-grid-3">   {/* filter แถวละ 3 เท่าๆ กัน (6 ช่อง = 2 แถวสมส่วน) — Status/Customer/WO/Model เป็น dropdown เลือกหลายค่า+เสิร์ชได้ */}
           <ColumnFilterField label="สถานะ" options={[...PP_STATUS]} labelFor={v => PP_STATUS_LABEL[v] ?? v}
             selected={colFilters.status ?? new Set()} onToggle={v => toggleFilterValue('status', v)}
             onClear={() => { clearFilterCol('status'); setProcStepFilter(new Set()); }}
             colKey="status" openKey={openFilterCol} setOpenKey={setOpenFilterCol}
             expandKey="ON_PROCESS" expandItems={PROCESS_STEPS.map(s => ({ key: s.key as string, label: s.label }))}
-            expandSelected={procStepFilter} onToggleExpandItem={toggleProcStep} onToggleExpandAll={toggleProcStepAll} />
+            expandSelected={procStepFilter} onToggleExpandItem={toggleProcStep} onToggleExpandAll={toggleProcStepAll}
+            expandAllChecked={colFilters.status?.has('ON_PROCESS') ?? false} />
           <ColumnFilterField label="Customer" options={customers}
             selected={colFilters.customer ?? new Set()} onToggle={v => toggleFilterValue('customer', v)} onClear={() => clearFilterCol('customer')}
             colKey="customer" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
