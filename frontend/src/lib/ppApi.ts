@@ -8,6 +8,9 @@ export const PP_STATUS_LABEL: Record<string, string> = {
   DONE: 'Done', ON_PROCESS: 'On process', DELAY: 'Delay', CANCEL: 'Cancel',
 };
 
+// 1 รายการในประวัติ process: date=วันที่เกิด (YYYY-MM-DD), step=คีย์ process (pc_*), status=สถานะที่เปลี่ยนเป็น ('' | PP_STATUS)
+export interface PpLogEntry { date: string; step: string; status: string; note?: string; }
+
 export interface PpProject {
   id: number;
   status: string;
@@ -45,6 +48,7 @@ export interface PpProject {
   // Process — สถานะต่อ step (ค่า = '' | PP_STATUS) โชว์เป็นช่องสีในตาราง
   pc_prpo: string; pc_wait: string; pc_incoming: string; pc_smt: string;
   pc_thr: string; pc_test: string; pc_bbas: string; pc_packing: string;
+  process_log: PpLogEntry[];       // ประวัติการเปลี่ยน process/สถานะ (วันที่ + step + สถานะ) — ใช้วาด Gantt หลายสี
   remark: string;
   // STATUS pipeline (ขั้นตอนการผลิต) — ติ๊กหลายช่อง · โชว์ฟอร์ม+Excel ไม่โชว์ตาราง Dashboard
   st_pr_po: boolean; st_wait_mat: boolean; st_incoming: boolean; st_create_bo: boolean;

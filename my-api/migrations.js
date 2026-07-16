@@ -534,6 +534,8 @@ async function migrate() {
     for (const c of ['pc_prpo', 'pc_wait', 'pc_incoming', 'pc_smt', 'pc_thr', 'pc_test', 'pc_bbas', 'pc_packing']) {
       await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS ${c} VARCHAR(30) NOT NULL DEFAULT ''`);   // สถานะต่อ step ('' | PP_STATUS)
     }
+    // ประวัติการเปลี่ยน process/สถานะ (event log) — [{ date, step, status }] · ใช้วาด Gantt หลายสีตามช่วงเวลา
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS process_log JSONB NOT NULL DEFAULT '[]'::jsonb`);
 
     // ── Workflow (ลำดับกระบวนการผลิต — Manufacturing Sequence) ──
     await client.query(`

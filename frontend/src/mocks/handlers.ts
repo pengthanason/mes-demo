@@ -360,7 +360,7 @@ const ppBase = {
   pd_pcba: false, pd_bbas: false, pd_test: false, pd_modified: false, pd_rma: false, pd_prep: false, pd_start_date: null, pd_finish_date: null,
   target_per_day: 0, qa_test_rate: '', qa_finish_date: null, qa_status: '', store_received: null, expected_date: null, revised_date: null,
   done: false, pd_pic: '', pic_responsible: '', team_member: 0, ok_per_day: 0, total_ng: 0, total_ok: 0, special_request: '', remark: '',
-  pc_prpo: '', pc_wait: '', pc_incoming: '', pc_smt: '', pc_thr: '', pc_test: '', pc_bbas: '', pc_packing: '',
+  pc_prpo: '', pc_wait: '', pc_incoming: '', pc_smt: '', pc_thr: '', pc_test: '', pc_bbas: '', pc_packing: '', process_log: [],
   st_pr_po: false, st_wait_mat: false, st_incoming: false, st_create_bo: false, st_test: false, st_rework: false, st_smt: false, st_thr: false, st_bbas: false,
 };
 const ppProjects: any[] = [

@@ -10,8 +10,8 @@ import { FactoryOverview } from '../components/FactoryOverview';
 import { TableState } from '../components/DataStates';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
-  STATUS_STYLE, StatusBadge, statusView, exportXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal,
-  XLSX_COLUMNS, DASH_COLUMNS, PROCESS_STEPS, PROCESS_KEYS, buildHeaderRows, type PpCol, type HeaderCell,
+  STATUS_STYLE, StatusBadge, statusView, exportXlsx, exportGanttXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal,
+  XLSX_COLUMNS, DASH_COLUMNS, PROCESS_STEPS, PROCESS_KEYS, PROC_STATUS, PROC_STATUS_LABEL, buildHeaderRows, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 
 // หัวคอลัมน์: สีพิเศษ (Expected/Actual shipping/Owner) + จัดกึ่งกลาง · WO No. ไม่ให้ตกบรรทัด
@@ -26,8 +26,8 @@ const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' 
 // ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
 const DONE_KEYS = new Set(['pd_finish', 'qa_finish']);
 const GREEN_CELL: React.CSSProperties = { background: '#dcfce7', color: '#166534', fontWeight: 600 };
-// วนสถานะตอนคลิกช่อง Process: ยังไม่ถึง → On process → Done → Delay → Cancel → (วนกลับ)
-const PROC_CYCLE = ['', 'ON_PROCESS', 'DONE', 'DELAY', 'CANCEL'];
+// วนสถานะตอนคลิกช่อง Process: ว่าง → รอ (Waiting) → On process → Done → Delay → (วนกลับ)
+const PROC_CYCLE = ['', 'WAIT', 'ON_PROCESS', 'DONE', 'DELAY'];
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ (ลำดับ/หัว = แหล่งเดียวกับ Excel)
 function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string) => void) {
@@ -53,11 +53,21 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
   if (PROCESS_KEYS.has(c.key)) {
     const v = (p as any)[c.key] as string;
     const stl = v ? STATUS_STYLE[v] : null;
+    const idx = PROCESS_STEPS.findIndex(s => s.key === c.key);
+    const filled = PROCESS_STEPS.map((s, i) => ((p as any)[s.key] ? i : -1)).filter(i => i >= 0);   // index ของ step ที่มีข้อมูล
+    const firstIdx = filled.length ? filled[0] : -1;             // process แรกที่มีข้อมูล
+    const lastIdx = filled.length ? filled[filled.length - 1] : -1;   // process สุดท้ายที่มีข้อมูล
+    const showLine = firstIdx >= 0 && idx >= firstIdx && idx <= lastIdx;   // วาดเส้นเฉพาะช่วงแรก→สุดท้ายที่มีข้อมูล
+    const lastNote = (Array.isArray(p.process_log) ? p.process_log : []).filter(e => e.step === c.key).slice(-1)[0]?.note;
     return (
       <td key={c.key} onClick={onToggle ? () => onToggle(c.key) : undefined}
-        title={`${c.header}${v ? ' — ' + (PP_STATUS_LABEL[v] ?? v) : ' — ว่าง'}${onToggle ? ' · คลิกเพื่อเปลี่ยนสี' : ''}`}
-        style={{ textAlign: 'center', minWidth: 40, background: stl ? stl.bg : undefined, cursor: onToggle ? 'pointer' : undefined, userSelect: 'none' }}>
-        {' '}
+        title={lastNote || ''}
+        style={{ padding: 0, minWidth: 44, borderLeft: 'none', borderRight: 'none', cursor: onToggle ? 'pointer' : undefined, userSelect: 'none' }}>
+        <div style={{ position: 'relative', height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {showLine && <div style={{ position: 'absolute', left: idx === firstIdx ? '50%' : 0, right: idx === lastIdx ? '50%' : 0, top: '50%', height: 3, background: '#cbd5e1', transform: 'translateY(-50%)' }} />}
+          {stl && <div style={{ position: 'relative', width: 17, height: 17, borderRadius: '50%', background: stl.bg, border: `2px solid ${stl.border}`, zIndex: 1, boxShadow: '0 0 0 2px #fff' }} />}
+          {lastNote && <span title={lastNote} style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', color: '#dc2626', fontWeight: 900, fontSize: '0.95rem', lineHeight: 1, zIndex: 2, pointerEvents: 'none' }}>*</span>}
+        </div>
       </td>
     );
   }
@@ -273,6 +283,42 @@ function FileNamePromptModal({ title, defaultBase, ext, onConfirm, onCancel }: {
   );
 }
 
+/* ── Popup บันทึก process 1 step (เลือกสถานะ + วันที่) → เก็บลง process_log เพื่อวาด Gantt หลายสี ── */
+function ProcessEventPopup({ p, stepKey, onClose, onSave }: { p: PpProject; stepKey: string; onClose: () => void; onSave: (status: string, date: string, note: string) => void }) {
+  const step = PROCESS_STEPS.find(s => (s.key as string) === stepKey);
+  const [status, setStatus] = useState<string>((p as any)[stepKey] || '');
+  // วันที่ default = ต่อจาก event ล่าสุดใน log → ถ้าไม่มีใช้ PD Start → ถ้าไม่มีใช้วันนี้ (จะได้ไม่กองที่วันนี้หมด)
+  const lastDate = Array.isArray(p.process_log) && p.process_log.length ? p.process_log[p.process_log.length - 1].date : '';
+  const [date, setDate] = useState(lastDate || (p.pd_start_date ? String(p.pd_start_date).slice(0, 10) : '') || new Date().toISOString().slice(0, 10));
+  // remark เริ่มต้น = remark ล่าสุดของ step นี้ (จะได้เห็น/แก้ค่าปัจจุบันได้)
+  const lastEv = (Array.isArray(p.process_log) ? p.process_log : []).filter(e => e.step === stepKey).slice(-1)[0];
+  const [note, setNote] = useState(lastEv?.note || '');
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 380px)' }}>
+        <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>Process: {step?.label ?? stepKey}</h2>
+        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>เลือกสถานะ + วันที่ที่เกิดขึ้น (บันทึกลงประวัติเพื่อวาด Gantt)</p>
+        <label className="field"><span>สถานะ</span>
+          <select value={status} onChange={e => setStatus(e.target.value)}>
+            <option value="">— ว่าง —</option>
+            {PROC_STATUS.map(s => <option key={s} value={s}>{PROC_STATUS_LABEL[s]}</option>)}
+          </select>
+        </label>
+        <label className="field" style={{ marginTop: 10 }}><span>วันที่</span>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+        </label>
+        <label className="field" style={{ marginTop: 10 }}><span>Remark</span>
+          <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} />
+        </label>
+        <div className="modal-actions" style={{ marginTop: '1.2rem' }}>
+          <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
+          <button type="button" className="btn" onClick={() => onSave(status, date, note)}>บันทึก</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const isViewer = useIsViewer();
   const [filters, setFilters] = useState<PpFilters>({});
@@ -281,6 +327,7 @@ export function DashboardPage() {
   const del = usePpDelete();
   const ppUpdate = usePpUpdate();
   // คลิกช่อง Status/Process ในตาราง → เปลี่ยนสี + บันทึกลง backend (my-api) · optimistic ให้เปลี่ยนทันที
+  const [procEdit, setProcEdit] = useState<{ p: PpProject; key: string } | null>(null);   // popup บันทึก process 1 step
   const toggleCheck = (p: PpProject, key: string) => {
     const change: any = {};
     if (key === 'status') {        // Status — เปลี่ยน "สี" เท่านั้น (ชื่อสถานะคงเดิม) วน Done→On process→Delay→Cancel
@@ -295,6 +342,20 @@ export function DashboardPage() {
     const merged = { ...p, ...change };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
     ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+  };
+  // คลิกช่อง Process → เปิด popup เลือกสถานะ+วันที่ · คลิกช่อง Status → วนสี (toggleCheck)
+  const onCellClick = (p: PpProject, key: string) => {
+    if (PROCESS_KEYS.has(key)) setProcEdit({ p, key });
+    else toggleCheck(p, key);
+  };
+  // บันทึก process 1 step: ตั้งค่าสถานะปัจจุบัน + เพิ่ม event (วันที่) ลง process_log → PUT
+  const saveProc = (p: PpProject, key: string, status: string, date: string, note: string) => {
+    const log = Array.isArray(p.process_log) ? [...p.process_log] : [];
+    log.push({ date, step: key, status, ...(note.trim() ? { note: note.trim() } : {}) });
+    const merged = { ...p, [key]: status, process_log: log };
+    queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
+    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'บันทึกไม่สำเร็จ', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    setProcEdit(null);
   };
   const queryClient = useQueryClient();
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
@@ -468,7 +529,7 @@ export function DashboardPage() {
                 return (
                   <tr key={p.id} style={p.status === 'DELAY' ? { background: '#fff7ed', boxShadow: 'inset 3px 0 0 #ea580c' } : undefined}>
                     <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
-                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key) => toggleCheck(p, key)))}
+                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key) => onCellClick(p, key)))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -490,17 +551,17 @@ export function DashboardPage() {
       <div className="panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: '1rem' }}>
           <div>
-            <h1 className="panel__title">📊 Gantt — แผนการผลิต</h1>
-            <p className="panel__subtitle">ไทม์ไลน์รายวัน · แท่ง = PD Start → PD Done (ถ้ายังไม่เสร็จใช้ Expected date)</p>
+            <h1 className="panel__title">📊 Gantt Chart — Production Plan</h1>
           </div>
-          {/* คำอธิบายสี (legend) — สีแท่งตามสถานะงาน */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {/* คำอธิบายสี (legend) + ปุ่ม export */}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             {PP_STATUS.map(s => (
               <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 <span style={{ width: 12, height: 12, borderRadius: 3, background: STATUS_STYLE[s].bg, border: `1px solid ${STATUS_STYLE[s].border}` }} />
                 {PP_STATUS_LABEL[s]}
               </span>
             ))}
+            <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} disabled={sortedRows.length === 0} onClick={() => exportGanttXlsx(sortedRows, `gantt-${new Date().toISOString().slice(0, 10)}.xlsx`)}>⬇️ Export Gantt</button>
           </div>
         </div>
         <GanttChart rows={sortedRows} />
@@ -511,6 +572,7 @@ export function DashboardPage() {
 
       {edit && <ProjectFormModal initial={edit} onClose={() => setEdit(null)} />}
       {detail && <ProductDetailModal p={detail} onClose={() => setDetail(null)} />}
+      {procEdit && <ProcessEventPopup p={procEdit.p} stepKey={procEdit.key} onClose={() => setProcEdit(null)} onSave={(status, date, note) => saveProc(procEdit.p, procEdit.key, status, date, note)} />}
       {saveAs && (
         <FileNamePromptModal
           title={saveAs === 'xlsx' ? '⬇️ บันทึกเป็น Excel' : '🖨️ บันทึกเป็น PDF'}

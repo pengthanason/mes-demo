@@ -29,8 +29,15 @@ export const STATUS_STYLE: Record<string, { bg: string; text: string; border: st
   DONE:        { bg: '#4ade80', text: '#14532d', border: '#16a34a' },   // เขียวสด = Done
   ON_PROCESS:  { bg: '#38bdf8', text: '#0c4a6e', border: '#0284c7' },   // ฟ้าสด = On process / Normal
   DELAY:       { bg: '#fbbf24', text: '#78350f', border: '#d97706' },   // ส้ม/เหลืองอำพัน = Delay / Late
-  CANCEL:      { bg: '#94a3b8', text: '#1e293b', border: '#64748b' },   // เทา = No process / Cancel
+  CANCEL:      { bg: '#94a3b8', text: '#1e293b', border: '#64748b' },   // เทา = Cancel (เฉพาะ Status หลัก)
+  WAIT:        { bg: '#94a3b8', text: '#1e293b', border: '#64748b' },   // เทา = รอ (Waiting) — ใช้ในช่อง Process
   PROCESS:     { bg: '#2dd4bf', text: '#134e4a', border: '#0d9488' },   // ฟ้าอมเขียว (teal) = Status ที่เป็นชื่อ process step
+};
+
+// สถานะของแต่ละ Process step — ต่างจาก Status หลัก: ใช้ "รอ (Waiting)" แทน "Cancel" (ว่าง = ไม่มี/ยังไม่บันทึก)
+export const PROC_STATUS = ['WAIT', 'ON_PROCESS', 'DONE', 'DELAY'] as const;
+export const PROC_STATUS_LABEL: Record<string, string> = {
+  WAIT: 'รอ (Waiting)', ON_PROCESS: 'On process', DONE: 'Done', DELAY: 'Delay',
 };
 
 // Process steps (ตาม FM03) — แต่ละ step เก็บสถานะ ('' | PP_STATUS) → โชว์เป็นช่องสีในตาราง
@@ -402,6 +409,124 @@ export function ChartCard({ title, children }: { title: string; children: React.
 }
 
 /* ── Gantt chart — ไทม์ไลน์รายวัน: แถวซ้าย = งาน · หัวบน = แกนวันที่ · แท่ง = PD Start → PD Done ── */
+/* ── Export Gantt เป็น Excel (ปฏิทินระบายสีตามสถานะ · เหมือนบนจอ) ── */
+export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
+  const toD = (v: string | null | undefined): Date | null => { if (!v) return null; const d = new Date(String(v).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : d; };
+  const dd = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86400000);
+  const tasks = rows.map(p => {
+    const start = toD(p.pd_start_date);
+    let end = toD(p.pd_finish_date) || toD(p.expected_date);
+    if (start && end && end.getTime() < start.getTime()) end = start;
+    const log = (Array.isArray(p.process_log) ? p.process_log : [])
+      .map(e => ({ date: toD(e.date), status: e.status }))
+      .filter((e): e is { date: Date; status: string } => !!e.date)
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    return { p, start, end: end || start, log };
+  }).filter(t => !!t.start || t.log.length > 0);
+  if (!tasks.length) { showToast('ไม่มีข้อมูลสำหรับ Gantt (ต้องมี PD Start หรือประวัติ Process)', 'error'); return; }
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const allDates: Date[] = [];
+  tasks.forEach(t => { if (t.start) allDates.push(t.start); if (t.end) allDates.push(t.end); t.log.forEach(e => allDates.push(e.date)); });
+  if (tasks.some(t => t.log.length > 0)) allDates.push(today);
+  let min = allDates[0], max = allDates[0];
+  for (const d of allDates) { if (d < min) min = d; if (d > max) max = d; }
+  const totalDays = dd(min, max) + 1;
+  const days = Array.from({ length: totalDays }, (_, i) => { const d = new Date(min); d.setDate(d.getDate() + i); return d; });
+  const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
+
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Gantt', { views: [{ state: 'frozen', xSplit: 1, ySplit: 2, showGridLines: false }] });
+  ws.getColumn(1).width = 24;
+  days.forEach((_, i) => { ws.getColumn(i + 2).width = 3; });
+  ws.getRow(1).height = 20; ws.getRow(2).height = 16;
+
+  const thin = { style: 'thin' as const, color: { argb: 'FFB9C0C9' } };
+  const border = { top: thin, left: thin, bottom: thin, right: thin };
+  const PEACH = 'FFF6DCC9', HEAD_BG = 'FFF1F5F9', TEAL = 'FF2B5F74', RED = 'FFDC2626';
+
+  // มุมซ้ายบน — ช่อง DATE / Name แบบเส้นทแยง (ตาม FM03)
+  ws.mergeCells(1, 1, 2, 1);
+  const corner = ws.getCell(1, 1);
+  corner.value = '            DATE\n\nName';
+  corner.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+  corner.font = { bold: true, size: 9, color: { argb: 'FF334155' } };
+  corner.border = { ...border, diagonal: { down: true, style: 'thin', color: { argb: 'FF334155' } } };
+
+  // แถวเดือน (JUN/JUL/AUG) — merge ตามจำนวนวันของแต่ละเดือน (ไม่ใส่ปี)
+  let c = 2;
+  while (c <= days.length + 1) {
+    const d = days[c - 2];
+    let e = c;
+    while (e <= days.length + 1 && days[e - 2].getMonth() === d.getMonth() && days[e - 2].getFullYear() === d.getFullYear()) e++;
+    ws.getCell(1, c).value = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+    if (e - 1 > c) ws.mergeCells(1, c, 1, e - 1);
+    c = e;
+  }
+  // แถววันที่ + ระบายสีวันหยุด (เสาร์/อาทิตย์) ทั้งหัวและตัวตาราง
+  days.forEach((d, i) => { ws.getCell(2, i + 2).value = d.getDate(); });
+  for (let col = 2; col <= days.length + 1; col++) {
+    const wknd = isWeekend(days[col - 2]);
+    for (const r of [1, 2]) {
+      const cell = ws.getCell(r, col);
+      cell.border = border;
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.font = { bold: true, size: 9, color: { argb: 'FF334155' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: wknd ? PEACH : HEAD_BG } };
+    }
+  }
+
+  // แต่ละงาน 1 แถว — แท่ง = เส้น (━) + จุดหัว-ท้าย (●) · หลายสีตามประวัติ log · แดง = เลท
+  tasks.forEach((t, ri) => {
+    const row = ri + 3;
+    ws.getRow(row).height = 20;
+    const nameCell = ws.getCell(row, 1);
+    nameCell.value = t.p.model || t.p.product_pn || '-';
+    nameCell.font = { bold: true, size: 9, color: { argb: 'FF1E293B' } };
+    nameCell.alignment = { vertical: 'middle' };
+    nameCell.border = border;
+
+    const dayColor: Record<number, string> = {};   // สีเส้น/จุดของแต่ละวัน
+    const nodes = new Set<number>();                // วันที่เป็นจุด (●) — หัว/ท้าย/เหตุการณ์
+    if (t.log.length) {
+      t.log.forEach((pt, i) => {
+        const col = pt.status && STATUS_STYLE[pt.status] ? argb(STATUS_STYLE[pt.status].border) : 'FF94A3B8';
+        const nextDate = i + 1 < t.log.length ? t.log[i + 1].date : (today.getTime() > pt.date.getTime() ? today : pt.date);
+        for (let k = dd(min, pt.date); k <= dd(min, nextDate); k++) dayColor[k] = col;
+        nodes.add(dd(min, pt.date));
+      });
+      const lastEv = t.log[t.log.length - 1];
+      nodes.add(dd(min, today.getTime() > lastEv.date.getTime() ? today : lastEv.date));
+    } else if (t.start) {
+      const isLate = t.p.status === 'DELAY' || (!!t.end && t.end.getTime() < today.getTime() && t.p.status !== 'DONE');
+      const col = isLate ? RED : TEAL;
+      const ks = dd(min, t.start), ke = dd(min, t.end || t.start);
+      for (let k = ks; k <= ke; k++) dayColor[k] = col;
+      nodes.add(ks); nodes.add(ke);
+    }
+    days.forEach((d, i) => {
+      const cell = ws.getCell(row, i + 2);
+      cell.border = border;
+      if (isWeekend(d)) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PEACH } };
+      const col = dayColor[i];
+      if (col) {
+        const isNode = nodes.has(i);
+        cell.value = isNode ? '●' : '━';
+        cell.font = { name: 'Calibri', bold: true, size: isNode ? 10 : 12, color: { argb: col } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      }
+    });
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename || `gantt-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
 const gToDate = (v: string | null | undefined): Date | null => {
   if (!v) return null;
   const d = new Date(String(v).slice(0, 10) + 'T00:00:00');
@@ -410,116 +535,152 @@ const gToDate = (v: string | null | undefined): Date | null => {
 const gDayDiff = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86400000);
 
 export function GanttChart({ rows }: { rows: PpProject[] }) {
-  const DAY_W = 34, LEFT_W = 230, ROW_H = 36, HEAD_H = 24;
+  const DAY_W = 44, LEFT_W = 250, ROW_H = 48, HEAD_H = 30, R = 8;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const [fromStr, setFromStr] = useState('');   // ฟิลเตอร์ช่วงวันที่ที่แสดง (ว่าง = อัตโนมัติทั้งหมด)
+  const [toStr, setToStr] = useState('');
+  const leftRef = useRef<HTMLDivElement>(null);   // แผงชื่อ (sync เลื่อนแนวตั้งกับ timeline)
 
-  // แต่ละงาน: start = PD Start, end = PD Done (ถ้าไม่มี → Expected date; ถ้าไม่มีทั้งคู่ → วันเดียว)
-  const tasks = rows
-    .map(p => {
-      const start = gToDate(p.pd_start_date);
-      let end = gToDate(p.pd_finish_date) || gToDate(p.expected_date);
-      if (start && end && end.getTime() < start.getTime()) end = start;   // กันปลายมาก่อนต้น
-      return { p, start, end: end || start };
-    })
-    .filter((t): t is { p: PpProject; start: Date; end: Date } => !!t.start);
+  // แต่ละงาน: start/end จาก PD + ประวัติ log (แต่ละ event มีวันที่ → วาด Gantt หลายสี)
+  const tasks = rows.map(p => {
+    const start = gToDate(p.pd_start_date);
+    let end = gToDate(p.pd_finish_date) || gToDate(p.expected_date);
+    if (start && end && end.getTime() < start.getTime()) end = start;
+    const log = (Array.isArray(p.process_log) ? p.process_log : [])
+      .map(e => ({ date: gToDate(e.date), status: e.status, step: e.step, note: e.note || '' }))
+      .filter((e): e is { date: Date; status: string; step: string; note: string } => !!e.date)
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    return { p, start, end: end || start, log };
+  }).filter(t => !!t.start || t.log.length > 0);
 
   const skipped = rows.length - tasks.length;
 
   if (tasks.length === 0) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-        ไม่มีงานที่ระบุ “PD Start” — เพิ่มวันเริ่มผลิต (PD Start) ในโปรเจกต์เพื่อแสดงบน Gantt
+        ยังไม่มีงานที่ระบุ PD Start หรือประวัติ Process — เพิ่มวันเริ่มผลิต หรือกดที่ช่อง Process ในตารางเพื่อบันทึกความคืบหน้า
       </div>
     );
   }
 
-  // ช่วงวันที่ครอบคลุมทุกงาน (min start → max end)
-  let min = tasks[0].start, max = tasks[0].end;
-  for (const t of tasks) { if (t.start < min) min = t.start; if (t.end > max) max = t.end; }
+  // ช่วงวันที่ครอบคลุมทุกงาน (รวม start/end + วันใน log + วันนี้ถ้ามี log)
+  const allDates: Date[] = [];
+  tasks.forEach(t => { if (t.start) allDates.push(t.start); if (t.end) allDates.push(t.end); t.log.forEach(e => allDates.push(e.date)); });
+  if (tasks.some(t => t.log.length > 0)) allDates.push(today);
+  let min = allDates[0], max = allDates[0];
+  for (const d of allDates) { if (d < min) min = d; if (d > max) max = d; }
+  { const f = gToDate(fromStr); if (f) min = f; const tt = gToDate(toStr); if (tt) max = tt; if (min.getTime() > max.getTime()) max = min; }   // ฟิลเตอร์ช่วงวันที่
   const totalDays = gDayDiff(min, max) + 1;
   const days = Array.from({ length: totalDays }, (_, i) => { const d = new Date(min); d.setDate(d.getDate() + i); return d; });
 
-  // จัดกลุ่มหัวเดือน (เดือน+ปี) — ช่วงหลายวันในเดือนเดียวกัน merge เป็นช่องเดียว
   const months: { label: string; span: number }[] = [];
   days.forEach(d => {
-    const key = d.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' });
+    const key = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
     const last = months[months.length - 1];
     if (last && last.label === key) last.span++;
     else months.push({ label: key, span: 1 });
   });
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayOff = gDayDiff(min, today);
   const bodyW = totalDays * DAY_W;
   const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
-
-  const stickyLeft: React.CSSProperties = { width: LEFT_W, minWidth: LEFT_W, position: 'sticky', left: 0, background: '#fff', zIndex: 3, borderRight: '1px solid var(--border-color)' };
+  const centerX = (d: Date) => gDayDiff(min, d) * DAY_W + DAY_W / 2;
+  const fmt = (d: Date) => d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+  const stlOf = (s: string) => STATUS_STYLE[s] ?? STATUS_STYLE.CANCEL;
 
   return (
-    <div style={{ overflow: 'auto', maxHeight: 480, border: '1px solid var(--border-color)', borderRadius: 8 }}>
-      <div style={{ minWidth: LEFT_W + bodyW, position: 'relative' }}>
+    <div>
+      {/* ฟิลเตอร์ช่วงวันที่ */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', fontSize: '0.8rem', color: '#475569' }}>
+        <span style={{ fontWeight: 600 }}>ช่วงวันที่:</span>
+        <input type="date" value={fromStr} onChange={e => setFromStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
+        <span>ถึง</span>
+        <input type="date" value={toStr} onChange={e => setToStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
+        {(fromStr || toStr) && <button type="button" onClick={() => { setFromStr(''); setToStr(''); }} style={{ padding: '3px 10px', fontSize: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>ล้างช่วงวันที่</button>}
+      </div>
 
-        {/* พื้นหลัง: แรเงาวันหยุด (เสาร์-อาทิตย์) พาดทั้งคอลัมน์ */}
-        <div style={{ position: 'absolute', top: HEAD_H * 2, bottom: 0, left: LEFT_W, width: bodyW, zIndex: 0, pointerEvents: 'none' }}>
-          {days.map((d, i) => isWeekend(d)
-            ? <div key={i} style={{ position: 'absolute', top: 0, bottom: 0, left: i * DAY_W, width: DAY_W, background: 'rgba(148,163,184,0.10)' }} />
-            : null)}
-        </div>
-
-        {/* หัว: แถวเดือน (sticky บนสุด) */}
-        <div style={{ display: 'flex', position: 'sticky', top: 0, zIndex: 4 }}>
-          <div style={{ ...stickyLeft, zIndex: 5, height: HEAD_H, background: '#f1f5f9', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 700, color: '#475569', borderBottom: '1px solid var(--border-color)' }}>งาน</div>
-          <div style={{ display: 'flex', background: '#f1f5f9', borderBottom: '1px solid var(--border-color)' }}>
-            {months.map((m, i) => (
-              <div key={i} style={{ width: m.span * DAY_W, height: HEAD_H, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 700, color: '#475569', borderLeft: '1px solid var(--border-color)' }}>{m.label}</div>
-            ))}
-          </div>
-        </div>
-
-        {/* หัว: แถววันที่ (sticky ใต้แถวเดือน) */}
-        <div style={{ display: 'flex', position: 'sticky', top: HEAD_H, zIndex: 4 }}>
-          <div style={{ ...stickyLeft, zIndex: 5, height: HEAD_H, background: '#f8fafc', borderBottom: '1px solid var(--border-color)' }} />
-          <div style={{ display: 'flex', background: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
-            {days.map((d, i) => (
-              <div key={i} style={{ width: DAY_W, height: HEAD_H, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: 600, color: isWeekend(d) ? '#cbd5e1' : '#64748b', borderLeft: '1px solid #eef2f7', background: isWeekend(d) ? '#f1f5f9' : undefined }}>{d.getDate()}</div>
-            ))}
-          </div>
-        </div>
-
-        {/* แถวงาน — ป้ายซ้าย (sticky) + แท่งบนไทม์ไลน์ */}
-        {tasks.map(t => {
-          const offset = gDayDiff(min, t.start);
-          const span = gDayDiff(t.start, t.end) + 1;
-          const st = STATUS_STYLE[t.p.status_color || t.p.status] ?? STATUS_STYLE.ON_PROCESS;
-          const fmt = (d: Date) => d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
-          const barW = Math.max(DAY_W - 4, span * DAY_W - 4);
-          return (
-            <div key={t.p.id} style={{ display: 'flex', height: ROW_H, borderBottom: '1px solid #f1f5f9' }}>
-              <div style={{ ...stickyLeft, display: 'flex', alignItems: 'center', padding: '0 10px', overflow: 'hidden' }} title={t.p.model || ''}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.p.model || '—'}</span>
-              </div>
-              <div style={{ position: 'relative', width: bodyW, zIndex: 1 }}>
-                {/* เส้นกริดรายวัน (background โปร่งใส เห็นแรเงาวันหยุดด้านหลัง) */}
-                <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${DAY_W - 1}px, #eef2f7 ${DAY_W - 1}px, #eef2f7 ${DAY_W}px)` }} />
-                <div title={`${t.p.product_pn || t.p.model || ''}\n${fmt(t.start)} – ${fmt(t.end)} (${span} วัน)\nสถานะ: ${PP_STATUS_LABEL[t.p.status] ?? t.p.status}`}
-                  style={{ position: 'absolute', top: 7, left: offset * DAY_W + 2, width: barW, height: ROW_H - 14, background: st.bg, border: `1px solid ${st.border}`, borderRadius: 6, display: 'flex', alignItems: 'center', paddingLeft: 6, boxShadow: '0 1px 2px rgba(0,0,0,0.10)', overflow: 'hidden' }}>
-                  {barW > 46 && <span style={{ fontSize: '0.66rem', fontWeight: 700, color: st.text, whiteSpace: 'nowrap' }}>{span} วัน</span>}
-                </div>
-              </div>
+      {/* 2 แผง: คอลัมน์ชื่อ (ตรึง) + timeline (เลื่อน x/y เอง → scrollbar อยู่แค่ใต้ timeline) */}
+      <div style={{ display: 'flex', border: '1px solid var(--border-color)', borderRadius: 8, maxHeight: 640, overflow: 'hidden' }}>
+        {/* LEFT — คอลัมน์ชื่อ (เลื่อนแนวตั้ง sync ตาม timeline) */}
+        <div ref={leftRef} style={{ width: LEFT_W, minWidth: LEFT_W, flexShrink: 0, overflow: 'hidden', borderRight: '1px solid var(--border-color)', background: '#fff' }}>
+          <div style={{ position: 'sticky', top: 0, zIndex: 2, height: HEAD_H * 2, background: '#f1f5f9', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 700, color: '#475569', borderBottom: '1px solid var(--border-color)' }}>Name</div>
+          {tasks.map(t => (
+            <div key={t.p.id} style={{ height: ROW_H, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #f1f5f9', overflow: 'hidden' }} title={t.p.model || ''}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.p.model || '—'}</span>
             </div>
-          );
-        })}
+          ))}
+        </div>
 
-        {/* เส้น "วันนี้" พาดทับทั้งคอลัมน์ (ถ้าอยู่ในช่วง) */}
-        {todayOff >= 0 && todayOff < totalDays && (
-          <div style={{ position: 'absolute', top: HEAD_H * 2, bottom: 0, left: LEFT_W + todayOff * DAY_W + DAY_W / 2, width: 2, background: '#ef4444', zIndex: 2, pointerEvents: 'none' }}>
-            <span style={{ position: 'absolute', top: -1, left: -15, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>วันนี้</span>
+        {/* RIGHT — timeline (overflow auto → scrollbar อยู่แค่ตรงนี้) */}
+        <div onScroll={e => { if (leftRef.current) leftRef.current.scrollTop = e.currentTarget.scrollTop; }} style={{ overflow: 'auto', flex: 1 }}>
+          <div style={{ width: bodyW, position: 'relative' }}>
+            {/* แรเงาวันหยุด */}
+            <div style={{ position: 'absolute', top: HEAD_H * 2, bottom: 0, left: 0, width: bodyW, zIndex: 0, pointerEvents: 'none' }}>
+              {days.map((d, i) => isWeekend(d)
+                ? <div key={i} style={{ position: 'absolute', top: 0, bottom: 0, left: i * DAY_W, width: DAY_W, background: 'rgba(234,140,86,0.22)' }} />
+                : null)}
+            </div>
+
+            {/* หัว: เดือน */}
+            <div style={{ display: 'flex', position: 'sticky', top: 0, zIndex: 4, background: '#f1f5f9', borderBottom: '1px solid var(--border-color)' }}>
+              {months.map((m, i) => (
+                <div key={i} style={{ width: m.span * DAY_W, height: HEAD_H, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 700, color: '#475569', borderLeft: '1px solid var(--border-color)' }}>{m.label}</div>
+              ))}
+            </div>
+
+            {/* หัว: วันที่ */}
+            <div style={{ display: 'flex', position: 'sticky', top: HEAD_H, zIndex: 4, background: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
+              {days.map((d, i) => (
+                <div key={i} style={{ width: DAY_W, height: HEAD_H, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: 600, color: isWeekend(d) ? '#9a5b34' : '#64748b', borderLeft: '1px solid #eef2f7', background: isWeekend(d) ? 'rgba(234,140,86,0.22)' : undefined }}>{d.getDate()}</div>
+              ))}
+            </div>
+
+            {/* แถวงาน — timeline */}
+            {tasks.map(t => {
+              const isLate = t.p.status === 'DELAY' || (!!t.end && t.end.getTime() < today.getTime() && t.p.status !== 'DONE');
+              return (
+                <div key={t.p.id} style={{ position: 'relative', height: ROW_H, borderBottom: '1px solid #f1f5f9', zIndex: 1 }}>
+                  <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${DAY_W - 1}px, #eef2f7 ${DAY_W - 1}px, #eef2f7 ${DAY_W}px)` }} />
+                  {t.log.length > 0 ? (
+                    <>
+                      {t.log.map((pt, i) => {
+                        const x1 = centerX(pt.date);
+                        const nextDate = i + 1 < t.log.length ? t.log[i + 1].date : (today.getTime() > pt.date.getTime() ? today : pt.date);
+                        const x2 = centerX(nextDate);
+                        return <div key={'s' + i} title={pt.note || ''}
+                          style={{ position: 'absolute', top: '50%', left: x1, width: Math.max(0, x2 - x1), height: 3, background: stlOf(pt.status).border, transform: 'translateY(-50%)' }} />;
+                      })}
+                      {t.log.map((pt, i) => {
+                        const x = centerX(pt.date);
+                        const s = stlOf(pt.status);
+                        return <div key={'n' + i} title={pt.note || ''}
+                          style={{ position: 'absolute', top: '50%', left: x - R, width: R * 2, height: R * 2, borderRadius: '50%', background: s.bg, border: `2px solid ${s.border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1, cursor: 'help' }} />;
+                      })}
+                    </>
+                  ) : t.start ? (
+                    <div title={`${t.p.product_pn || t.p.model || ''} | ${fmt(t.start)} - ${fmt(t.end || t.start)}`} style={{ position: 'absolute', inset: 0 }}>
+                      <div style={{ position: 'absolute', top: '50%', left: centerX(t.start), width: Math.max(0, centerX(t.end || t.start) - centerX(t.start)), height: 3, background: isLate ? '#dc2626' : '#2b5f74', transform: 'translateY(-50%)' }} />
+                      <div style={{ position: 'absolute', top: '50%', left: centerX(t.start) - R, width: R * 2, height: R * 2, borderRadius: '50%', background: isLate ? '#dc2626' : '#2b5f74', transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff' }} />
+                      <div style={{ position: 'absolute', top: '50%', left: centerX(t.end || t.start) - R, width: R * 2, height: R * 2, borderRadius: '50%', background: isLate ? '#dc2626' : '#2b5f74', transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff' }} />
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+
+            {/* เส้นวันนี้ */}
+            {todayOff >= 0 && todayOff < totalDays && (
+              <div style={{ position: 'absolute', top: HEAD_H * 2, bottom: 0, left: todayOff * DAY_W + DAY_W / 2, width: 2, background: '#ef4444', zIndex: 2, pointerEvents: 'none' }}>
+                <span style={{ position: 'absolute', top: -1, left: -15, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>วันนี้</span>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {skipped > 0 && (
-        <div style={{ padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8', borderTop: '1px dashed var(--border-color)', background: '#fff', position: 'sticky', left: 0 }}>
-          * ซ่อน {skipped} งานที่ยังไม่ระบุ PD Start
+        <div style={{ padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8' }}>
+          * ซ่อน {skipped} งานที่ยังไม่มี PD Start / ประวัติ Process
         </div>
       )}
     </div>
@@ -531,7 +692,7 @@ const EMPTY: Partial<PpProject> = {
   status: 'ON_PROCESS', work_order: '', model: '', product_pn: '', customer: '', syn_requestor: '',
   qty: 0, produce: 0, total_ng: 0, total_ok: 0,
   target_per_day: 0, qa_test_rate: '', qa_status: '', pd_pic: '', pic_responsible: '',
-  pc_prpo: '', pc_wait: '', pc_incoming: '', pc_smt: '', pc_thr: '', pc_test: '', pc_bbas: '', pc_packing: '',
+  pc_prpo: '', pc_wait: '', pc_incoming: '', pc_smt: '', pc_thr: '', pc_test: '', pc_bbas: '', pc_packing: '', process_log: [],
   special_request: '', remark: '',
 };
 
@@ -676,8 +837,8 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
 /** ป๊อปอัพแก้ไข (wrap ProjectForm) — ปิดได้เฉพาะปุ่มยกเลิก */
 export function ProjectFormModal({ initial, onClose }: { initial: PpProject | null; onClose: () => void }) {
   return (
-    <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 720px)', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 860px)', maxHeight: '94vh', overflowY: 'auto' }}>
         <h2 className="panel__title" style={{ marginBottom: '1rem' }}>{initial ? 'แก้ไขโปรเจกต์' : 'เพิ่มโปรเจกต์ (Add Project)'}</h2>
         <ProjectForm initial={initial} onSaved={onClose} onCancel={onClose} />
       </div>
