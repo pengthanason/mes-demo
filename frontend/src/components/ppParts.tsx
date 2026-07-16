@@ -508,7 +508,10 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
     if (t.log.length) {
       t.log.forEach((pt, i) => {
         const col = pt.status && STATUS_STYLE[pt.status] ? argb(STATUS_STYLE[pt.status].border) : 'FF94A3B8';
-        const nextDate = i + 1 < t.log.length ? t.log[i + 1].date : (today.getTime() > pt.date.getTime() ? today : pt.date);
+        // segment สุดท้าย: งานจบแล้ว (DONE/CANCEL) แท่งจบที่วันนั้นเลย ไม่ลากต่อถึงวันนี้
+        const isLast = i + 1 >= t.log.length;
+        const terminal = pt.status === 'DONE' || pt.status === 'CANCEL';
+        const nextDate = !isLast ? t.log[i + 1].date : (terminal ? pt.date : (today.getTime() > pt.date.getTime() ? today : pt.date));
         for (let k = dd(min, pt.date); k <= dd(min, nextDate); k++) dayColor[k] = col;
       });
     } else if (t.start) {
@@ -655,7 +658,10 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
                     <>
                       {t.log.map((pt, i) => {
                         const x1 = centerX(pt.date);
-                        const nextDate = i + 1 < t.log.length ? t.log[i + 1].date : (today.getTime() > pt.date.getTime() ? today : pt.date);
+                        // segment สุดท้าย: ถ้างานจบแล้ว (DONE/CANCEL) เส้นจบที่จุดนั้นเลย ไม่ลากต่อถึงวันนี้ · ถ้ายังไม่จบค่อยลากถึงวันนี้
+                        const isLast = i + 1 >= t.log.length;
+                        const terminal = pt.status === 'DONE' || pt.status === 'CANCEL';
+                        const nextDate = !isLast ? t.log[i + 1].date : (terminal ? pt.date : (today.getTime() > pt.date.getTime() ? today : pt.date));
                         const x2 = centerX(nextDate);
                         return <div key={'s' + i} title={pt.note || ''}
                           style={{ position: 'absolute', top: '50%', left: x1, width: Math.max(0, x2 - x1), height: 3, background: stlOf(pt.status).border, transform: 'translateY(-50%)' }} />;
