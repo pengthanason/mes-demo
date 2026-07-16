@@ -462,6 +462,72 @@ const ppProjects: any[] = [
       { date: '2026-07-11', step: 'pc_incoming', status: 'ON_PROCESS' },
       { date: '2026-07-14', step: 'pc_smt', status: 'ON_PROCESS' },
     ], created_at: '2026-07-03T08:00:00Z', updated_at: '2026-07-14T08:00:00Z' },
+
+  // ── เดโมชุดใหญ่ (id 25–44) — process_log ครบ 6–8 step ต่อแถว → Gantt แท่งหลายสี/หลายจุดเยอะ ครอบคลุมทุกสถานะ+สีหลากหลาย ──
+  ...([
+    ['Injector Driver', 'INJ-DRV-01', 'Toyota TH', 'DONE', 'GREEN', 320, 318, '2026-06-01'],
+    ['Brake ABS Ctrl', 'ABS-CTL-77', 'Honda Mfg', 'ON_PROCESS', 'BLUE', 260, 140, '2026-06-24'],
+    ['Fuel Pump ECU', 'FUEL-ECU-3', 'Denso Corp', 'DELAY', 'RED', 480, 220, '2026-06-08'],
+    ['Seat Ctrl Module', 'SEAT-CM-12', 'AISIN', 'DONE', 'EMERALD', 200, 200, '2026-05-30'],
+    ['LiDAR Front', 'LIDAR-F-05', 'Bosch', 'ON_PROCESS', 'CYAN', 350, 120, '2026-07-02'],
+    ['Audio Amp Board', 'AMP-BRD-44', 'Panasonic', 'DONE', 'LIME', 600, 592, '2026-06-03'],
+    ['Battery Cell BMS', 'BMS-CELL-9', 'LG Energy', 'ON_PROCESS', 'PURPLE', 420, 300, '2026-06-20'],
+    ['Radar Corner', 'RAD-COR-18', 'Continental', 'DELAY', 'ORANGE', 280, 150, '2026-06-11'],
+    ['Climate Ctrl', 'CLIM-CT-30', 'Valeo', 'DONE', 'TEAL_PROCESS', 260, 258, '2026-06-05'],
+    ['Torque Sensor', 'TRQ-SEN-6', 'ZF', 'ON_PROCESS', 'INDIGO', 240, 90, '2026-07-05'],
+    ['Head Unit IVI', 'IVI-HU-21', 'Sony TH', 'DONE', 'GREEN', 500, 495, '2026-05-27'],
+    ['Power Relay v3', 'PWR-RLY-3', 'Samsung', 'CANCEL', 'BROWN', 150, 0, '2026-06-14'],
+    ['USB-C PD Ctrl', 'USBPD-C-8', 'Anker', 'ON_PROCESS', 'ROSE', 380, 260, '2026-06-22'],
+    ['5G Modem Board', 'MODEM-5G-2', 'Huawei', 'DELAY', 'AMBER', 300, 130, '2026-06-16'],
+    ['Motor Ctrl Unit', 'MCU-DRV-55', 'Mitsubishi', 'DONE', 'EMERALD', 440, 436, '2026-06-02'],
+    ['Inverter Gate', 'INV-GATE-7', 'Hitachi', 'ON_PROCESS', 'BLUE', 360, 210, '2026-06-26'],
+    ['BLDC Driver', 'BLDC-DRV-9', 'Nidec', 'DELAY', 'RED', 520, 240, '2026-06-09'],
+    ['Wire Harness Ctrl', 'WH-CTL-14', 'Yazaki', 'DONE', 'YELLOW', 700, 690, '2026-05-29'],
+    ['Junction Box', 'JBOX-SM-33', 'Sumitomo', 'ON_PROCESS', 'FUCHSIA', 290, 160, '2026-07-01'],
+    ['Server NIC Card', 'NIC-SRV-40', 'Foxconn', 'DONE', 'CYAN', 800, 788, '2026-06-04'],
+  ] as const).map(([model, pn, customer, status, color, qty, produce, start], i) => {
+    const id = 25 + i;
+    const s = new Date(start + 'T00:00:00');
+    const d = (add: number) => { const x = new Date(s); x.setDate(x.getDate() + add); return x.toISOString().slice(0, 10); };
+    // ไทม์ไลน์ 8 step ตามสถานะ: DONE=ครบเขียว, ON_PROCESS=ค้างกลางทาง, DELAY=มีช่วงเลท, CANCEL=หยุดกลางคัน
+    const STEPS = ['pc_prpo', 'pc_wait', 'pc_incoming', 'pc_smt', 'pc_thr', 'pc_test', 'pc_bbas', 'pc_packing'];
+    let log: any[] = [];
+    const pc: Record<string, string> = {};
+    if (status === 'DONE') {
+      log = STEPS.map((step, k) => ({ date: d(k * 3), step, status: k < 2 ? 'DONE' : (k % 3 === 0 ? 'ON_PROCESS' : 'DONE') }));
+      STEPS.forEach(step => pc[step] = 'DONE');
+    } else if (status === 'ON_PROCESS') {
+      const seq = ['DONE', 'DONE', 'ON_PROCESS', 'DELAY', 'ON_PROCESS', 'ON_PROCESS'];
+      log = seq.map((st, k) => ({ date: d(k * 4), step: STEPS[k], status: st }));
+      seq.forEach((st, k) => pc[STEPS[k]] = st);
+    } else if (status === 'DELAY') {
+      const seq = ['DONE', 'DONE', 'ON_PROCESS', 'DELAY', 'DELAY'];
+      log = seq.map((st, k) => ({ date: d(k * 4), step: STEPS[k], status: st }));
+      seq.forEach((st, k) => pc[STEPS[k]] = st);
+    } else { // CANCEL
+      const seq = ['DONE', 'WAIT', 'WAIT'];
+      log = seq.map((st, k) => ({ date: d(k * 3), step: STEPS[k], status: st }));
+      seq.forEach((st, k) => pc[STEPS[k]] = st);
+    }
+    const lastDate = log[log.length - 1].date;
+    const okBase = status === 'CANCEL' ? 0 : produce - (i % 9);
+    return {
+      ...ppBase, id, status, status_color: color === 'TEAL_PROCESS' ? 'PROCESS' : color,
+      wk: 22 + (i % 8), date_record: start, product_pn: pn, model, customer, qty, produce,
+      work_order: `WO-2026-0${id}`, syn_requestor: ['Ann', 'Beam', 'Mint', 'Run'][i % 4],
+      pd_pcba: true, pd_test: true, pd_start_date: start,
+      pd_finish_date: status === 'DONE' ? lastDate : null,
+      expected_date: d(30), revised_date: status === 'DELAY' ? d(40) : null,
+      qa_test_rate: status === 'DONE' ? '100' : '', qa_status: status === 'DONE' ? 'DONE' : (status === 'ON_PROCESS' ? 'ON_PROCESS' : ''),
+      store_received: status === 'DONE' ? d(24) : null, done: status === 'DONE',
+      target_per_day: 20 + (i % 15), pd_pic: ['Noi', 'Kiert', 'Ploy', 'Run', 'Fern', 'Boss'][i % 6],
+      pic_responsible: ['Somchai', 'Wichai', 'Kan', 'Anucha', 'Guy', 'Ta'][i % 6], team_member: 2 + (i % 4),
+      total_ng: status === 'CANCEL' ? 0 : (i % 8) + 1, total_ok: Math.max(0, okBase),
+      remark: status === 'DELAY' ? 'ล่าช้าจากวัตถุดิบ' : (status === 'CANCEL' ? 'ยกเลิกออเดอร์' : ''),
+      ...pc, process_log: log,
+      created_at: start + 'T08:00:00Z', updated_at: lastDate + 'T08:00:00Z',
+    };
+  }),
 ];
 
 // ── Workflow (presets + results) ──

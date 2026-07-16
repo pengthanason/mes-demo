@@ -588,7 +588,7 @@ export function DashboardPage() {
   const [detail, setDetail] = useState<PpProject | null>(null);   // ป๊อปอัพรายละเอียดสินค้า (คลิก Product P/N)
   const [saveAs, setSaveAs] = useState<'xlsx' | 'pdf' | null>(null);   // เปิดป๊อปอัพตั้งชื่อไฟล์ก่อนโหลด
   const [page, setPage] = useState(1);
-  const PAGE = 10;
+  const PAGE = 20;
 
   // เปิดรายละเอียดสินค้าอัตโนมัติเมื่อมากับ ?pp=<id> (ลิงก์จากหน้า Activities)
   const [params, setParams] = useSearchParams();
