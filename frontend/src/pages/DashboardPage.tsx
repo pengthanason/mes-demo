@@ -25,14 +25,22 @@ const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
 // ความกว้างคอลัมน์แบบล็อกตายตัว (px) — ใช้กับ <colgroup> + table-layout:fixed
 // กันปัญหา: filter แล้วข้อมูลสั้นลง → คอลัมน์หด → ตารางทั้งตารางขยับ (ตอนนี้ล็อกไว้ ยาวเกินให้ตัดเป็น ... แทน)
 const colWidthPx = (c: PpCol): number => {
-  if (PROCESS_KEYS.has(c.key)) return 46;              // ช่อง Process — แค่วงกลมสถานะ
+  if (c.key === 'pc_packing') return 80;               // PACKING — หัวยาว
+  if (c.key === 'pc_incoming') return 80;              // IN COMING — หัวยาว
+  if (PROCESS_KEYS.has(c.key)) return 66;              // ช่อง Process อื่น (SMT/THR/TEST/BBAS/PR-PO/WAIT MAT'L) — เนื้อในเป็นแค่วงกลมสถานะ
   if (c.key === 'status') return 110;
   if (c.key === 'date_record') return 92;
   if (c.key === 'remark') return 220;
   if (c.key === 'model') return 190;
   if (c.key === 'product_pn') return 150;
   if (c.key === 'qa_status') return 100;
-  return Math.max(70, Math.round(c.w * 8));
+  // คอลัมน์ที่ "หัวยาวกว่าเนื้อใน" — กว้างพอให้หัวไม่ล้นไปทับช่องข้างๆ
+  if (c.key === 'qty') return 86;                      // QUANTITY
+  if (c.key === 'produce') return 94;                  // PRODUCED
+  if (c.key === 'balanced') return 82;                 // BALANCE
+  if (c.key === 'qa_test_rate') return 104;            // SAMPLING%
+  if (c.key === 'pic_responsible') return 122;         // Responsible
+  return Math.max(72, Math.round(c.w * 8));
 };
 
 // ช่อง filter บน panel แบบเดิม แต่คลิกแล้วเปิด dropdown เลือกได้หลายค่า + เสิร์ชได้ (แทน select/input เดี่ยวแบบเก่า)
@@ -178,8 +186,11 @@ const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' 
 // ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
 const DONE_KEYS = new Set(['pd_finish', 'qa_finish']);
 const GREEN_CELL: React.CSSProperties = { background: '#dcfce7', color: '#166534', fontWeight: 600 };
-// "On process" ของแถว = status บนสุด = ON_PROCESS หรือมี process step ใดก็ได้กำลัง ON_PROCESS (ใช้ร่วมทั้ง filter/นับการ์ด/กราฟ)
+// "On process" ของแถว = มี process step ใดก็ได้กำลัง ON_PROCESS (หรือ status = ON_PROCESS)
 const rowOnProcess = (r: PpProject) => r.status === 'ON_PROCESS' || PROCESS_STEPS.some(s => (r as any)[s.key as string] === 'ON_PROCESS');
+// นับ/กรองแบบ "กลุ่มเดียวต่อแถว" (mutually exclusive) — Done/Delay/Cancel ยึด status บนสุดก่อน, ที่เหลือถึงนับเป็น On process
+// กัน KPI นับซ้ำ (เช่นแถว Delay ที่มี step กลางทางเป็น ON_PROCESS ไม่ถูกนับทั้ง Delay และ On process)
+const rowOnProcessOnly = (r: PpProject) => r.status !== 'DONE' && r.status !== 'DELAY' && r.status !== 'CANCEL' && rowOnProcess(r);
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ (ลำดับ/หัว = แหล่งเดียวกับ Excel)
 function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string, e?: React.MouseEvent<HTMLElement>) => void) {
@@ -621,7 +632,7 @@ export function DashboardPage() {
     // สถานะ: "On process" = แถวที่มี step ไหนก็ได้กำลัง ON_PROCESS (หรือ status บนสุด = ON_PROCESS) — ไม่ใช่แค่ status ตรงตัว
     // สถานะอื่น (Done/Delay/Cancel) เทียบ status ตรงตัวเหมือนเดิม · หลายสถานะ = OR กัน
     if (colFilters.status?.size) {
-      const matchStatus = [...colFilters.status].some(st => st === 'ON_PROCESS' ? rowOnProcess(r) : r.status === st);
+      const matchStatus = [...colFilters.status].some(st => st === 'ON_PROCESS' ? rowOnProcessOnly(r) : r.status === st);
       if (!matchStatus) return false;
     }
     if (colFilters.customer?.size && !colFilters.customer.has(r.customer)) return false;
@@ -658,7 +669,7 @@ export function DashboardPage() {
 
   // การ์ด KPI — คิดจาก allRows (ภาพรวมทั้งหมด) เสมอ เพื่อให้ตัวเลขไม่หายตอนกดกรอง · On process = step ใดก็ได้ ON_PROCESS
   const agg = useMemo(() => {
-    const by = (s: string) => s === 'ON_PROCESS' ? allRows.filter(rowOnProcess).length : allRows.filter(r => r.status === s).length;
+    const by = (s: string) => s === 'ON_PROCESS' ? allRows.filter(rowOnProcessOnly).length : allRows.filter(r => r.status === s).length;
     const ys = allRows.map(ppYield).filter((v): v is number => v != null);
     const avgYield = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : null;
     return { total: allRows.length, done: by('DONE'), onProc: by('ON_PROCESS'), delay: by('DELAY'), cancel: by('CANCEL'), avgYield };
@@ -666,7 +677,7 @@ export function DashboardPage() {
 
   // กราฟ — คิดจาก rows (ตามตัวกรองที่เลือก) เพื่อให้กราฟตรงกับสิ่งที่กรองในตาราง · On process = step ใดก็ได้ ON_PROCESS
   const chart = useMemo(() => {
-    const by = (s: string) => s === 'ON_PROCESS' ? rows.filter(rowOnProcess).length : rows.filter(r => r.status === s).length;
+    const by = (s: string) => s === 'ON_PROCESS' ? rows.filter(rowOnProcessOnly).length : rows.filter(r => r.status === s).length;
     const totalOk = rows.reduce((s, r) => s + (r.total_ok || 0), 0);
     const totalNg = rows.reduce((s, r) => s + (r.total_ng || 0), 0);
     const byStatus = PP_STATUS.map(s => ({ label: PP_STATUS_LABEL[s], value: by(s), color: STATUS_STYLE[s].text }));

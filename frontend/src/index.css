@@ -324,7 +324,7 @@ textarea[readonly] {
 /* ตารางแบบแน่น (dense) — บีบ padding/ฟอนต์ + หัวคอลัมน์ขึ้นบรรทัดได้ ให้เห็นคอลัมน์ครบขึ้น (Dashboard) */
 .table--dense th,
 .table--dense td { padding: 3px 6px; font-size: 0.8125rem; line-height: 1.25; }
-.table--dense th { white-space: normal; letter-spacing: 0; }
+.table--dense th { white-space: normal; letter-spacing: 0; overflow-wrap: anywhere; overflow: hidden; }
 /* คอลัมน์ล็อกความกว้างไว้ (table-layout:fixed + colgroup) — ข้อมูลยาวเกินตัดเป็น ... แทนการดันคอลัมน์ให้ขยาย/หด */
 .table--dense td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

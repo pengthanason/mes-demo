@@ -506,13 +506,22 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
 
     const dayColor: Record<number, string> = {};   // สีแท่งของแต่ละวัน
     if (t.log.length) {
+      const n = t.log.length;
+      const first = t.log[0].date, last = t.log[n - 1].date;
+      const lastStatus = t.log[n - 1].status;
+      const terminal = lastStatus === 'DONE' || lastStatus === 'CANCEL' || t.p.status === 'DONE' || t.p.status === 'CANCEL';
+      // แท่งครอบช่วงจริง: PD start (ถ้ามาก่อน log แรก) → PD finish/log สุดท้าย · ยังไม่จบค่อยลากถึงวันนี้
+      const barStart = t.start && t.start.getTime() < first.getTime() ? t.start : first;
+      let barEnd = t.end && t.end.getTime() > last.getTime() ? t.end : last;
+      if (!terminal && today.getTime() > barEnd.getTime()) barEnd = today;
+      const lastCol = lastStatus && STATUS_STYLE[lastStatus] ? argb(STATUS_STYLE[lastStatus].border) : 'FF94A3B8';
+      // เส้นฐานครอบช่วงจริง (สีสถานะล่าสุด) — กัน log กระจุกวันเดียวแล้วแท่งหด
+      for (let k = dd(min, barStart); k <= dd(min, barEnd); k++) dayColor[k] = lastCol;
+      // แต้มสีหลายช่วงจาก log ทับเส้นฐาน
       t.log.forEach((pt, i) => {
+        if (i + 1 >= n) return;
         const col = pt.status && STATUS_STYLE[pt.status] ? argb(STATUS_STYLE[pt.status].border) : 'FF94A3B8';
-        // segment สุดท้าย: งานจบแล้ว (DONE/CANCEL) แท่งจบที่วันนั้นเลย ไม่ลากต่อถึงวันนี้
-        const isLast = i + 1 >= t.log.length;
-        const terminal = pt.status === 'DONE' || pt.status === 'CANCEL';
-        const nextDate = !isLast ? t.log[i + 1].date : (terminal ? pt.date : (today.getTime() > pt.date.getTime() ? today : pt.date));
-        for (let k = dd(min, pt.date); k <= dd(min, nextDate); k++) dayColor[k] = col;
+        for (let k = dd(min, pt.date); k < dd(min, t.log[i + 1].date); k++) dayColor[k] = col;
       });
     } else if (t.start) {
       const isLate = t.p.status === 'DELAY' || (!!t.end && t.end.getTime() < today.getTime() && t.p.status !== 'DONE');
@@ -654,26 +663,44 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
               return (
                 <div key={t.p.id} style={{ position: 'relative', height: ROW_H, borderBottom: '1px solid #f1f5f9', zIndex: 1 }}>
                   <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${DAY_W - 1}px, #eef2f7 ${DAY_W - 1}px, #eef2f7 ${DAY_W}px)` }} />
-                  {t.log.length > 0 ? (
-                    <>
-                      {t.log.map((pt, i) => {
-                        const x1 = centerX(pt.date);
-                        // segment สุดท้าย: ถ้างานจบแล้ว (DONE/CANCEL) เส้นจบที่จุดนั้นเลย ไม่ลากต่อถึงวันนี้ · ถ้ายังไม่จบค่อยลากถึงวันนี้
-                        const isLast = i + 1 >= t.log.length;
-                        const terminal = pt.status === 'DONE' || pt.status === 'CANCEL';
-                        const nextDate = !isLast ? t.log[i + 1].date : (terminal ? pt.date : (today.getTime() > pt.date.getTime() ? today : pt.date));
-                        const x2 = centerX(nextDate);
-                        return <div key={'s' + i} title={pt.note || ''}
-                          style={{ position: 'absolute', top: '50%', left: x1, width: Math.max(0, x2 - x1), height: 3, background: stlOf(pt.status).border, transform: 'translateY(-50%)' }} />;
-                      })}
-                      {t.log.map((pt, i) => {
-                        const x = centerX(pt.date);
-                        const s = stlOf(pt.status);
-                        return <div key={'n' + i} title={pt.note || ''}
-                          style={{ position: 'absolute', top: '50%', left: x - R, width: R * 2, height: R * 2, borderRadius: '50%', background: s.bg, border: `2px solid ${s.border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1, cursor: 'help' }} />;
-                      })}
-                    </>
-                  ) : t.start ? (
+                  {t.log.length > 0 ? (() => {
+                    const n = t.log.length;
+                    const first = t.log[0].date, last = t.log[n - 1].date;
+                    const lastStatus = t.log[n - 1].status;
+                    // งานจบแล้ว = event สุดท้าย DONE/CANCEL หรือ status งาน DONE/CANCEL
+                    const terminal = lastStatus === 'DONE' || lastStatus === 'CANCEL' || t.p.status === 'DONE' || t.p.status === 'CANCEL';
+                    // แท่งครอบ "ช่วงจริง": เริ่มจาก PD start (ถ้ามาก่อน log แรก) → จบที่ PD finish/log สุดท้าย
+                    // กันกรณี log ลงวันเดียวกันหมดแล้วแท่งหดเหลือจุดเดียว · ยังไม่จบค่อยลากถึงวันนี้
+                    const barStart = t.start && t.start.getTime() < first.getTime() ? t.start : first;
+                    let barEnd = t.end && t.end.getTime() > last.getTime() ? t.end : last;
+                    if (!terminal && today.getTime() > barEnd.getTime()) barEnd = today;
+                    const lastCol = stlOf(lastStatus).border;
+                    const xs = centerX(barStart), xe = centerX(barEnd);
+                    return (
+                      <>
+                        {/* เส้นฐานครอบช่วงจริง (สีสถานะล่าสุด) */}
+                        <div style={{ position: 'absolute', top: '50%', left: xs, width: Math.max(0, xe - xs), height: 3, background: lastCol, transform: 'translateY(-50%)' }} />
+                        {/* เส้นย่อยหลายสีตามช่วง log (แต้มทับเส้นฐาน) */}
+                        {t.log.map((pt, i) => {
+                          if (i + 1 >= n) return null;
+                          const x1 = centerX(pt.date), x2 = centerX(t.log[i + 1].date);
+                          if (x2 <= x1) return null;
+                          return <div key={'s' + i} title={pt.note || ''}
+                            style={{ position: 'absolute', top: '50%', left: x1, width: x2 - x1, height: 3, background: stlOf(pt.status).border, transform: 'translateY(-50%)' }} />;
+                        })}
+                        {/* จุดปลายแท่ง (barStart / barEnd) ถ้าเลยจากช่วง log — เช่น PD start ก่อนบันทึก หรือ PD finish หลัง log */}
+                        {xs !== centerX(first) && <div style={{ position: 'absolute', top: '50%', left: xs - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stlOf(t.log[0].status).bg, border: `2px solid ${stlOf(t.log[0].status).border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1 }} />}
+                        {xe !== centerX(last) && <div style={{ position: 'absolute', top: '50%', left: xe - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stlOf(lastStatus).bg, border: `2px solid ${lastCol}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1 }} />}
+                        {/* จุดแต่ละ event */}
+                        {t.log.map((pt, i) => {
+                          const x = centerX(pt.date);
+                          const s = stlOf(pt.status);
+                          return <div key={'n' + i} title={pt.note || ''}
+                            style={{ position: 'absolute', top: '50%', left: x - R, width: R * 2, height: R * 2, borderRadius: '50%', background: s.bg, border: `2px solid ${s.border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1, cursor: 'help' }} />;
+                        })}
+                      </>
+                    );
+                  })() : t.start ? (
                     <div title={`${t.p.product_pn || t.p.model || ''} | ${fmt(t.start)} - ${fmt(t.end || t.start)}`} style={{ position: 'absolute', inset: 0 }}>
                       <div style={{ position: 'absolute', top: '50%', left: centerX(t.start), width: Math.max(0, centerX(t.end || t.start) - centerX(t.start)), height: 3, background: isLate ? '#dc2626' : '#2b5f74', transform: 'translateY(-50%)' }} />
                       <div style={{ position: 'absolute', top: '50%', left: centerX(t.start) - R, width: R * 2, height: R * 2, borderRadius: '50%', background: isLate ? '#dc2626' : '#2b5f74', transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff' }} />
