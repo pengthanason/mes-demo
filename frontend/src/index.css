@@ -258,6 +258,21 @@ textarea[readonly] {
   caret-color: transparent;
 }
 
+/* ─── ช่องเสิร์ชใน dropdown filter — บางเบา ไม่มีกรอบเต็มกล่อง (แทน input ปกติที่กรอบหนา + focus-visible เขียวหนา) ─── */
+.filter-search-input {
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  padding: 4px 2px;
+  font-size: 0.85rem;
+}
+.filter-search-input:focus,
+.filter-search-input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--primary);
+  box-shadow: none;
+}
+
 /* ─── Table ──────────────────────────────────────────────────────── */
 .table-container,
 .table-wrap {
@@ -310,6 +325,8 @@ textarea[readonly] {
 .table--dense th,
 .table--dense td { padding: 3px 6px; font-size: 0.8125rem; line-height: 1.25; }
 .table--dense th { white-space: normal; letter-spacing: 0; }
+/* คอลัมน์ล็อกความกว้างไว้ (table-layout:fixed + colgroup) — ข้อมูลยาวเกินตัดเป็น ... แทนการดันคอลัมน์ให้ขยาย/หด */
+.table--dense td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* bare table fallback (non-.table) */
 table { width: 100%; border-collapse: collapse; }

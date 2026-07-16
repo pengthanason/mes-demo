@@ -32,6 +32,23 @@ export const STATUS_STYLE: Record<string, { bg: string; text: string; border: st
   CANCEL:      { bg: '#94a3b8', text: '#1e293b', border: '#64748b' },   // เทา = Cancel (เฉพาะ Status หลัก)
   WAIT:        { bg: '#94a3b8', text: '#1e293b', border: '#64748b' },   // เทา = รอ (Waiting) — ใช้ในช่อง Process
   PROCESS:     { bg: '#2dd4bf', text: '#134e4a', border: '#0d9488' },   // ฟ้าอมเขียว (teal) = Status ที่เป็นชื่อ process step
+  // ── สีเพิ่มเติม — ให้เลือกเองได้อิสระจากช่อง Status (ไม่ผูกความหมายสถานะ แค่เป็นตัวเลือกสี) ──
+  RED:      { bg: '#f87171', text: '#7f1d1d', border: '#dc2626' },
+  ORANGE:   { bg: '#fb923c', text: '#7c2d12', border: '#ea580c' },
+  AMBER:    { bg: '#fcd34d', text: '#78350f', border: '#d97706' },
+  YELLOW:   { bg: '#facc15', text: '#713f12', border: '#ca8a04' },
+  LIME:     { bg: '#a3e635', text: '#365314', border: '#65a30d' },
+  GREEN:    { bg: '#22c55e', text: '#14532d', border: '#16a34a' },
+  EMERALD:  { bg: '#34d399', text: '#064e3b', border: '#059669' },
+  CYAN:     { bg: '#22d3ee', text: '#164e63', border: '#0891b2' },
+  BLUE:     { bg: '#60a5fa', text: '#1e3a8a', border: '#2563eb' },
+  INDIGO:   { bg: '#818cf8', text: '#312e81', border: '#4f46e5' },
+  VIOLET:   { bg: '#a78bfa', text: '#4c1d95', border: '#7c3aed' },
+  PURPLE:   { bg: '#c084fc', text: '#581c87', border: '#9333ea' },
+  FUCHSIA:  { bg: '#e879f9', text: '#701a75', border: '#c026d3' },
+  PINK:     { bg: '#f472b6', text: '#831843', border: '#db2777' },
+  ROSE:     { bg: '#fb7185', text: '#881337', border: '#e11d48' },
+  BROWN:    { bg: '#a8a29e', text: '#292524', border: '#78716c' },
 };
 
 // สถานะของแต่ละ Process step — ต่างจาก Status หลัก: ใช้ "รอ (Waiting)" แทน "Cancel" (ว่าง = ไม่มี/ยังไม่บันทึก)
@@ -155,20 +172,20 @@ export const DASH_COLUMNS: PpCol[] = XLSX_COLUMNS.filter(c => !c.excelOnly);
 /* ── สร้างโครงหัวตาราง 2 ชั้นจาก cols (ใช้ร่วม Dashboard HTML + PDF ให้ตรงกับ Excel) ──
    groupRow = แถวบน (คอลัมน์ไม่มีกลุ่ม rowSpan=2, กลุ่ม colSpan=จำนวนสมาชิก)
    subRow   = แถวล่าง เฉพาะหัวย่อยของคอลัมน์ที่อยู่ในกลุ่ม (เรียงซ้าย→ขวา) */
-export type HeaderCell = { label: string; colSpan: number; rowSpan: number; headerColor?: string; center?: boolean };
+export type HeaderCell = { label: string; colSpan: number; rowSpan: number; headerColor?: string; center?: boolean; key?: string };
 export function buildHeaderRows(cols: PpCol[]): { groupRow: HeaderCell[]; subRow: HeaderCell[] } {
   const groupRow: HeaderCell[] = [];
   const subRow: HeaderCell[] = [];
   for (let i = 0; i < cols.length; ) {
     const g = cols[i].group;
     if (!g) {
-      groupRow.push({ label: cols[i].header, colSpan: 1, rowSpan: 2, headerColor: cols[i].headerColor, center: cols[i].center });
+      groupRow.push({ label: cols[i].header, colSpan: 1, rowSpan: 2, headerColor: cols[i].headerColor, center: cols[i].center, key: cols[i].key });
       i++;
     } else {
       let j = i;
       while (j < cols.length && cols[j].group === g) j++;
       groupRow.push({ label: g, colSpan: j - i, rowSpan: 1, center: true });
-      for (let k = i; k < j; k++) subRow.push({ label: cols[k].header, colSpan: 1, rowSpan: 1, headerColor: cols[k].headerColor, center: cols[k].center });
+      for (let k = i; k < j; k++) subRow.push({ label: cols[k].header, colSpan: 1, rowSpan: 1, headerColor: cols[k].headerColor, center: cols[k].center, key: cols[k].key });
       i = j;
     }
   }
@@ -477,7 +494,7 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
     }
   }
 
-  // แต่ละงาน 1 แถว — แท่ง = เส้น (━) + จุดหัว-ท้าย (●) · หลายสีตามประวัติ log · แดง = เลท
+  // แต่ละงาน 1 แถว — แท่งงาน = ระบายสีพื้นเซลล์ทึบตามสถานะ (ไม่ใช้ตัวอักษร/เส้นขอบ) จึงต่อกันสนิทเสมอไม่มีช่องว่าง
   tasks.forEach((t, ri) => {
     const row = ri + 3;
     ws.getRow(row).height = 20;
@@ -487,34 +504,27 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
     nameCell.alignment = { vertical: 'middle' };
     nameCell.border = border;
 
-    const dayColor: Record<number, string> = {};   // สีเส้น/จุดของแต่ละวัน
-    const nodes = new Set<number>();                // วันที่เป็นจุด (●) — หัว/ท้าย/เหตุการณ์
+    const dayColor: Record<number, string> = {};   // สีแท่งของแต่ละวัน
     if (t.log.length) {
       t.log.forEach((pt, i) => {
         const col = pt.status && STATUS_STYLE[pt.status] ? argb(STATUS_STYLE[pt.status].border) : 'FF94A3B8';
         const nextDate = i + 1 < t.log.length ? t.log[i + 1].date : (today.getTime() > pt.date.getTime() ? today : pt.date);
         for (let k = dd(min, pt.date); k <= dd(min, nextDate); k++) dayColor[k] = col;
-        nodes.add(dd(min, pt.date));
       });
-      const lastEv = t.log[t.log.length - 1];
-      nodes.add(dd(min, today.getTime() > lastEv.date.getTime() ? today : lastEv.date));
     } else if (t.start) {
       const isLate = t.p.status === 'DELAY' || (!!t.end && t.end.getTime() < today.getTime() && t.p.status !== 'DONE');
       const col = isLate ? RED : TEAL;
       const ks = dd(min, t.start), ke = dd(min, t.end || t.start);
       for (let k = ks; k <= ke; k++) dayColor[k] = col;
-      nodes.add(ks); nodes.add(ke);
     }
     days.forEach((d, i) => {
       const cell = ws.getCell(row, i + 2);
       cell.border = border;
-      if (isWeekend(d)) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PEACH } };
       const col = dayColor[i];
       if (col) {
-        const isNode = nodes.has(i);
-        cell.value = isNode ? '●' : '━';
-        cell.font = { name: 'Calibri', bold: true, size: isNode ? 10 : 12, color: { argb: col } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col } };
+      } else if (isWeekend(d)) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PEACH } };
       }
     });
   });

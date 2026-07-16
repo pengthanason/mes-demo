@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { usePpProjects, usePpDelete, usePpUpdate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject, type PpFilters } from '../lib/ppApi';
+import { usePpProjects, usePpDelete, usePpUpdate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
@@ -21,19 +22,166 @@ const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
   ...(h.headerColor ? { background: `#${h.headerColor}`, color: (h.headerColor === '00B050' || h.headerColor === '4472C4') ? '#fff' : undefined } : {}),
 });
 
+// ความกว้างคอลัมน์แบบล็อกตายตัว (px) — ใช้กับ <colgroup> + table-layout:fixed
+// กันปัญหา: filter แล้วข้อมูลสั้นลง → คอลัมน์หด → ตารางทั้งตารางขยับ (ตอนนี้ล็อกไว้ ยาวเกินให้ตัดเป็น ... แทน)
+const colWidthPx = (c: PpCol): number => {
+  if (PROCESS_KEYS.has(c.key)) return 46;              // ช่อง Process — แค่วงกลมสถานะ
+  if (c.key === 'status') return 110;
+  if (c.key === 'date_record') return 92;
+  if (c.key === 'remark') return 220;
+  if (c.key === 'model') return 190;
+  if (c.key === 'product_pn') return 150;
+  if (c.key === 'qa_status') return 100;
+  return Math.max(70, Math.round(c.w * 8));
+};
+
+// ช่อง filter บน panel แบบเดิม แต่คลิกแล้วเปิด dropdown เลือกได้หลายค่า + เสิร์ชได้ (แทน select/input เดี่ยวแบบเก่า)
+// ใช้ createPortal ไปที่ document.body + position:fixed กันไม่ให้ dropdown โดนตัดโดย overflow-x:auto ของกล่องตาราง
+function ColumnFilterField({
+  label, options, labelFor, selected, onToggle, onClear, colKey, openKey, setOpenKey,
+  expandKey, expandItems, expandSelected, onToggleExpandItem, onToggleExpandAll,
+}: {
+  label: string; options: string[]; labelFor?: (v: string) => string;
+  selected: Set<string>; onToggle: (v: string) => void; onClear: () => void;
+  colKey: string; openKey: string | null; setOpenKey: (k: string | null) => void;
+  // ตัวเลือกที่ขยายเป็น checkbox ย่อยได้ (ใช้กับ "On process" → เลือก process step) — ไม่ใส่ก็ได้ ไม่บังคับ
+  expandKey?: string; expandItems?: { key: string; label: string }[];
+  expandSelected?: Set<string>; onToggleExpandItem?: (key: string) => void; onToggleExpandAll?: () => void;
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const submenuRef = useRef<HTMLDivElement>(null);
+  const [q, setQ] = useState('');
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  // ตำแหน่ง submenu ที่ผายออกไปด้านข้าง (เหมือนคลิกขวาบน Windows) — null = ปิดอยู่
+  const [submenuPos, setSubmenuPos] = useState<{ top: number; left: number } | null>(null);
+  const isOpen = openKey === colKey;
+  const active = selected.size > 0;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    setQ('');
+    setSubmenuPos(null);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (panelRef.current?.contains(e.target as Node) || btnRef.current?.contains(e.target as Node) || submenuRef.current?.contains(e.target as Node)) return;
+      setOpenKey(null);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpenKey(null); };
+    const onScroll = () => setOpenKey(null);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [isOpen, setOpenKey]);
+
+  const shown = q.trim() ? options.filter(o => (labelFor ? labelFor(o) : o).toLowerCase().includes(q.trim().toLowerCase())) : options;
+  const summary = selected.size === 0 ? 'ทั้งหมด' : selected.size === 1 ? (labelFor ? labelFor([...selected][0]) : [...selected][0]) : `เลือก ${selected.size} รายการ`;
+  const panelWidth = Math.max(230, pos.width);
+  const SUBMENU_W = 200;
+  // เปิด/ปิด submenu ที่แถวนี้ — ผายออกไปทางขวาของ panel เสมอ ยกเว้นล้นขอบจอค่อยพลิกไปทางซ้าย (เหมือนเมนูคลิกขวาของ Windows)
+  const toggleSubmenu = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (submenuPos) { setSubmenuPos(null); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const overflowsRight = pos.left + panelWidth + SUBMENU_W + 4 > window.innerWidth;
+    setSubmenuPos({ top: rect.top, left: overflowsRight ? pos.left - SUBMENU_W - 4 : pos.left + panelWidth + 4 });
+  };
+
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <button type="button" ref={btnRef} onClick={() => setOpenKey(isOpen ? null : colKey)} className="form-input"
+        style={{
+          cursor: 'pointer', textAlign: 'left', color: active ? 'var(--text-body)' : '#94a3b8',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '2rem',
+          boxSizing: 'border-box', outline: 'none', boxShadow: 'none',   // ล็อกขนาดปุ่มให้เท่าเดิมเป๊ะ ไม่ว่าจะ focus/active/เปิด-ปิด dropdown อยู่หรือไม่ (กัน UI ขยับ)
+          backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
+          backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem center', backgroundSize: '10px 6px',
+        }}>
+        {summary}
+      </button>
+      {isOpen && createPortal(
+        <div ref={panelRef} style={{
+          position: 'fixed', top: pos.top, left: pos.left, zIndex: 1000, width: Math.max(230, pos.width), maxHeight: 320,
+          background: '#fff', border: '1px solid var(--border-color)', borderRadius: 8, boxShadow: '0 10px 28px rgba(15,23,42,0.18)',
+          display: 'flex', flexDirection: 'column', fontWeight: 400, fontSize: '0.82rem', color: '#1e293b', textAlign: 'left',
+        }}>
+          <div style={{ padding: 8, borderBottom: '1px solid var(--border-color)' }}>
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหา..." className="filter-search-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ overflowY: 'auto', padding: '4px 0' }}>
+            {shown.length === 0 ? (
+              <div style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>ไม่พบ</div>
+            ) : shown.map(opt => {
+              const canExpand = opt === expandKey && expandItems && expandItems.length > 0;
+              return (
+                <div key={opt} style={{ display: 'flex', alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                    <input type="checkbox" checked={selected.has(opt)} onChange={() => onToggle(opt)} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{labelFor ? labelFor(opt) : opt}</span>
+                  </label>
+                  {canExpand && (
+                    <button type="button" onClick={toggleSubmenu} title="เลือก process step ย่อย"
+                      style={{ all: 'unset', cursor: 'pointer', padding: '5px 12px', color: submenuPos ? '#2563eb' : '#94a3b8', fontSize: '0.7rem' }}>
+                      ▶
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: 8, borderTop: '1px solid var(--border-color)' }}>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.75rem', padding: '3px 10px' }} disabled={!active} onClick={onClear}>ล้าง</button>
+            <button type="button" className="btn" style={{ fontSize: '0.75rem', padding: '3px 10px' }} onClick={() => setOpenKey(null)}>ปิด</button>
+          </div>
+        </div>,
+        document.body
+      )}
+      {isOpen && submenuPos && expandItems && createPortal(
+        <div ref={submenuRef} style={{
+          position: 'fixed', top: submenuPos.top, left: submenuPos.left, zIndex: 1001, width: SUBMENU_W, maxHeight: 260,
+          background: '#fff', border: '1px solid var(--border-color)', borderRadius: 8, boxShadow: '0 10px 28px rgba(15,23,42,0.18)',
+          overflowY: 'auto', padding: '4px 0', fontWeight: 400, fontSize: '0.82rem', color: '#1e293b', textAlign: 'left',
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', cursor: 'pointer', fontWeight: 600, borderBottom: '1px solid var(--border-color)' }}>
+            <input type="checkbox" checked={expandSelected?.size === expandItems.length} onChange={() => onToggleExpandAll?.()} />
+            <span>เลือกทั้งหมด</span>
+          </label>
+          {expandItems.map(it => (
+            <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={expandSelected?.has(it.key) ?? false} onChange={() => onToggleExpandItem?.(it.key)} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
+            </label>
+          ))}
+        </div>,
+        document.body
+      )}
+    </label>
+  );
+}
+
 // เซลล์ว่าง — ขีด "—" จัดกึ่งกลาง (สีจาง)
 const DASH_STYLE: React.CSSProperties = { textAlign: 'center', color: '#cbd5e1' };
 // ช่องที่ "เสร็จแล้ว/มีข้อมูล" → พื้นเขียว (PD Done, QA Finish)
 const DONE_KEYS = new Set(['pd_finish', 'qa_finish']);
 const GREEN_CELL: React.CSSProperties = { background: '#dcfce7', color: '#166534', fontWeight: 600 };
-// วนสถานะตอนคลิกช่อง Process: ว่าง → รอ (Waiting) → On process → Done → Delay → (วนกลับ)
-const PROC_CYCLE = ['', 'WAIT', 'ON_PROCESS', 'DONE', 'DELAY'];
 
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ (ลำดับ/หัว = แหล่งเดียวกับ Excel)
-function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string) => void) {
+function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string, e?: React.MouseEvent<HTMLElement>) => void) {
   // Status (คอลัมน์แรก) — ชื่อสถานะสีล้วน (ไม่มีกรอบ) · คลิกในตารางเพื่อวนสี/สถานะ
   if (c.key === 'status') { const sv = statusView(p); const s = STATUS_STYLE[sv.colorKey] ?? STATUS_STYLE.ON_PROCESS; return (
-    <td key={c.key} onClick={onToggle ? () => onToggle('status') : undefined} title={onToggle ? 'คลิกเพื่อเปลี่ยนสีของสถานะ (ชื่อสถานะคงเดิม)' : undefined}
+    <td key={c.key} onClick={onToggle ? (e) => onToggle('status', e) : undefined} title={onToggle ? 'คลิกเพื่อเปลี่ยนสีของสถานะ (ชื่อสถานะคงเดิม)' : undefined}
       style={{ textAlign: 'center', cursor: onToggle ? 'pointer' : undefined, background: s.bg, color: s.text, fontWeight: 700, whiteSpace: 'nowrap', userSelect: 'none' }}>
       {sv.label}
     </td>
@@ -71,8 +219,8 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
       </td>
     );
   }
-  if (c.key === 'remark') return <td key={c.key} style={{ minWidth: 280, color: 'var(--text-muted)', whiteSpace: 'pre-wrap', textAlign: 'center' }}>{p.remark || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
-  if (c.key === 'model') return <td key={c.key} style={{ minWidth: 200, textAlign: 'center' }}>{p.model || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
+  if (c.key === 'remark') return <td key={c.key} title={p.remark || undefined} style={{ color: 'var(--text-muted)', textAlign: 'center' }}>{p.remark || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
+  if (c.key === 'model') return <td key={c.key} title={p.model || undefined} style={{ textAlign: 'center' }}>{p.model || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
   if (c.key === 'yield') return <td key={c.key} style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>;
   if (c.key === 'total_ng') return <td key={c.key} style={{ textAlign: 'center', color: '#dc2626' }}>{p.total_ng || 0}</td>;
   if (c.key === 'total_ok') return <td key={c.key} style={{ textAlign: 'center', color: '#16a34a' }}>{p.total_ok || 0}</td>;
@@ -89,7 +237,7 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
   const v = c.value(p);
   if (!v) return <td key={c.key} style={DASH_STYLE}>—</td>;
   const base: React.CSSProperties = { textAlign: 'center', ...(c.center ? { whiteSpace: 'nowrap' } : {}) };
-  return <td key={c.key} style={DONE_KEYS.has(c.key) ? { ...base, ...GREEN_CELL } : base}>{v}</td>;
+  return <td key={c.key} title={v.replace(/\n/g, ' ')} style={DONE_KEYS.has(c.key) ? { ...base, ...GREEN_CELL } : base}>{v}</td>;
 }
 
 /* ── Popup รายละเอียดสินค้า — คลิก Product P/N ในตาราง → รูป (placeholder) + ข้อมูลทั้งหมดของรายการ ── */
@@ -319,33 +467,101 @@ function ProcessEventPopup({ p, stepKey, onClose, onSave }: { p: PpProject; step
   );
 }
 
+// สีที่เลือกได้ในช่อง Status — 4 สถานะหลัก + สีอิสระอีกชุดใหญ่ (ไม่ผูกความหมาย แค่เป็นตัวเลือกสี)
+const STATUS_COLOR_OPTIONS = [
+  ...PP_STATUS, 'PROCESS', 'RED', 'ORANGE', 'AMBER', 'YELLOW', 'LIME', 'GREEN', 'EMERALD',
+  'CYAN', 'BLUE', 'INDIGO', 'VIOLET', 'PURPLE', 'FUCHSIA', 'PINK', 'ROSE', 'BROWN',
+] as const;
+const STATUS_COLOR_LABEL: Record<string, string> = {
+  ...PP_STATUS_LABEL, PROCESS: 'ฟ้าอมเขียว', RED: 'แดง', ORANGE: 'ส้ม', AMBER: 'อำพัน', YELLOW: 'เหลือง',
+  LIME: 'เขียวมะนาว', GREEN: 'เขียว', EMERALD: 'เขียวมรกต', CYAN: 'ฟ้าอมเขียวอ่อน', BLUE: 'น้ำเงิน',
+  INDIGO: 'คราม', VIOLET: 'ม่วงน้ำเงิน', PURPLE: 'ม่วง', FUCHSIA: 'ม่วงบานเย็น', PINK: 'ชมพู', ROSE: 'ชมพูกุหลาบ', BROWN: 'น้ำตาล',
+};
+
+/* ── Palette เลือก "สี" ของช่อง Status — ไม่มี backdrop/กล่อง popup แค่ลอยขึ้นมาให้กด (เหมือน dropdown filter) ── */
+function StatusColorPopup({ p, pos, onClose, onPick }: { p: PpProject; pos: { top: number; left: number }; onClose: () => void; onPick: (color: string) => void }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const current = p.status_color || p.status || 'DONE';
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => { if (!panelRef.current?.contains(e.target as Node)) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onClose, true);
+    window.addEventListener('resize', onClose);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onClose, true);
+      window.removeEventListener('resize', onClose);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div ref={panelRef} style={{
+      position: 'fixed', top: pos.top, left: pos.left, zIndex: 1000, width: 190,
+      background: '#fff', border: '1px solid var(--border-color)', borderRadius: 10, boxShadow: '0 10px 28px rgba(15,23,42,0.18)',
+      padding: 10, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8,
+    }}>
+      {STATUS_COLOR_OPTIONS.map(key => {
+        const s = STATUS_STYLE[key];
+        const active = current === key;
+        return (
+          <button type="button" key={key} onClick={() => onPick(key)} title={STATUS_COLOR_LABEL[key] ?? key}
+            style={{
+              width: 24, height: 24, borderRadius: '50%', background: s.bg, cursor: 'pointer', padding: 0,
+              border: active ? `3px solid ${s.border}` : '2px solid #fff',
+              boxShadow: active ? `0 0 0 1px ${s.border}` : '0 0 0 1px var(--border-color)',
+            }} />
+        );
+      })}
+    </div>,
+    document.body
+  );
+}
+
 export function DashboardPage() {
   const isViewer = useIsViewer();
-  const [filters, setFilters] = useState<PpFilters>({});
-  const { data: rows = [], isLoading } = usePpProjects(filters);        // ตาราง — ตามตัวกรอง
-  const { data: allRows = [] } = usePpProjects({});                     // KPI การ์ด + กราฟ — ภาพรวมทั้งหมด (ไม่ขึ้นกับตัวกรอง)
+  const { data: allRows = [], isLoading } = usePpProjects({});          // แหล่งข้อมูลเดียว — กรองฝั่ง client ทั้งหมด (dropdown filter ที่หัวตาราง)
+  const [colFilters, setColFilters] = useState<Record<string, Set<string>>>({});   // key: status/customer/work_order/model → ค่าที่เลือก (ว่าง = ไม่กรอง)
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [openFilterCol, setOpenFilterCol] = useState<string | null>(null);
+  const toggleFilterValue = (col: string, v: string) => {
+    setColFilters(prev => {
+      const next = new Set(prev[col]);
+      next.has(v) ? next.delete(v) : next.add(v);
+      return { ...prev, [col]: next };
+    });
+    setPage(1);
+  };
+  const clearFilterCol = (col: string) => { setColFilters(prev => ({ ...prev, [col]: new Set() })); setPage(1); };
   const del = usePpDelete();
   const ppUpdate = usePpUpdate();
   // คลิกช่อง Status/Process ในตาราง → เปลี่ยนสี + บันทึกลง backend (my-api) · optimistic ให้เปลี่ยนทันที
   const [procEdit, setProcEdit] = useState<{ p: PpProject; key: string } | null>(null);   // popup บันทึก process 1 step
+  const [colorPick, setColorPick] = useState<{ p: PpProject; top: number; left: number } | null>(null);   // palette เลือกสี Status
   const toggleCheck = (p: PpProject, key: string) => {
-    const change: any = {};
-    if (key === 'status') {        // Status — เปลี่ยน "สี" เท่านั้น (ชื่อสถานะคงเดิม) วน Done→On process→Delay→Cancel
-      const cur = p.status_color || p.status || 'DONE';
-      change.status_color = PP_STATUS[(PP_STATUS.indexOf(cur as any) + 1) % PP_STATUS.length];
-    } else if (PROCESS_KEYS.has(key)) {   // Process — วนสี (ว่าง→On process→Done→Delay→Cancel→ว่าง)
-      const cur = (p as any)[key] || '';
-      change[key] = PROC_CYCLE[(PROC_CYCLE.indexOf(cur) + 1) % PROC_CYCLE.length];
-    } else {
-      change[key] = !(p as any)[key];
-    }
+    const change: any = { [key]: !(p as any)[key] };
     const merged = { ...p, ...change };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
     ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
   };
-  // คลิกช่อง Process → เปิด popup เลือกสถานะ+วันที่ · คลิกช่อง Status → วนสี (toggleCheck)
-  const onCellClick = (p: PpProject, key: string) => {
+  // บันทึกสี Status ที่เลือกจาก palette (ทับ status_color เท่านั้น ชื่อสถานะเดิมไม่เปลี่ยน)
+  const pickStatusColor = (p: PpProject, color: string) => {
+    const merged = { ...p, status_color: color };
+    queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
+    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    setColorPick(null);
+  };
+  // คลิกช่อง Process → เปิด popup เลือกสถานะ+วันที่ · คลิกช่อง Status → เปิด palette สีลอยตรงจุดที่คลิก
+  const onCellClick = (p: PpProject, key: string, e?: React.MouseEvent<HTMLElement>) => {
     if (PROCESS_KEYS.has(key)) setProcEdit({ p, key });
+    else if (key === 'status') {
+      const rect = e?.currentTarget.getBoundingClientRect();
+      setColorPick({ p, top: rect ? rect.bottom + 4 : 100, left: rect ? rect.left : 100 });
+    }
     else toggleCheck(p, key);
   };
   // บันทึก process 1 step: ตั้งค่าสถานะปัจจุบัน + เพิ่ม event (วันที่) ลง process_log → PUT
@@ -379,18 +595,46 @@ export function DashboardPage() {
     if (proj) { setDetail(proj); const n = new URLSearchParams(params); n.delete('pp'); setParams(n, { replace: true }); }
   }, [ppParam, allRows]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ตัวเลือกที่มีอยู่จริงในข้อมูล — ใช้เติม dropdown filter ที่หัวตาราง (Status ใช้ PP_STATUS คงที่แทน)
   const customers = useMemo(() => [...new Set(allRows.map(r => r.customer).filter(Boolean))], [allRows]);
+  const workOrders = useMemo(() => [...new Set(allRows.map(r => r.work_order).filter(Boolean))], [allRows]);
+  const models = useMemo(() => [...new Set(allRows.map(r => r.model).filter(Boolean))], [allRows]);
+
+  // Filter ย่อยของ "On process" — ขยายเลือกได้ว่า process step ไหนบ้างที่กำลัง ON_PROCESS อยู่
+  const [procStepFilter, setProcStepFilter] = useState<Set<string>>(new Set());
+  const toggleProcStep = (key: string) => {
+    setProcStepFilter(prev => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; });
+    setPage(1);
+  };
+  const toggleProcStepAll = () => {
+    setProcStepFilter(prev => prev.size === PROCESS_STEPS.length ? new Set() : new Set(PROCESS_STEPS.map(s => s.key as string)));
+    setPage(1);
+  };
+
+  // กรองฝั่ง client จาก allRows ตาม colFilters (เลือกได้หลายค่า) + ช่วงวันที่ + process step ย่อย
+  const rows = useMemo(() => allRows.filter(r => {
+    if (colFilters.status?.size && !colFilters.status.has(r.status)) return false;
+    if (colFilters.customer?.size && !colFilters.customer.has(r.customer)) return false;
+    if (colFilters.work_order?.size && !colFilters.work_order.has(r.work_order)) return false;
+    if (colFilters.model?.size && !colFilters.model.has(r.model)) return false;
+    if (procStepFilter.size && ![...procStepFilter].some(k => (r as any)[k] === 'ON_PROCESS')) return false;
+    if (dateFrom && (!r.date_record || r.date_record < dateFrom)) return false;
+    if (dateTo && (!r.date_record || r.date_record > dateTo)) return false;
+    return true;
+  }), [allRows, colFilters, procStepFilter, dateFrom, dateTo]);
   // เรียงตามวันที่สร้าง (created_at) — ใหม่สุดขึ้นก่อน
   const sortedRows = useMemo(() => [...rows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))), [rows]);
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE));
   const paged = sortedRows.slice((page - 1) * PAGE, page * PAGE);
-  const setF = (k: keyof PpFilters, v: string) => { setFilters(p => ({ ...p, [k]: v || undefined })); setPage(1); };
-  const hasFilter = Object.values(filters).some(Boolean);
+  const hasFilter = Object.values(colFilters).some(s => s && s.size > 0) || procStepFilter.size > 0 || !!dateFrom || !!dateTo;
+  const clearAllFilters = () => { setColFilters({}); setProcStepFilter(new Set()); setDateFrom(''); setDateTo(''); setPage(1); };
 
   // กดการ์ด → ตั้งตัวกรองสถานะ + ค่อยๆ เลื่อนหน้าจอลงมาให้เห็นกราฟ+ตารางที่ถูกกรอง
   const chartsRef = useRef<HTMLDivElement>(null);
+  const isStatusOnly = (v: string) => colFilters.status?.size === 1 && colFilters.status.has(v);
   const selectStatus = (v: string) => {
-    setF('status', v);
+    setColFilters(prev => ({ ...prev, status: v ? new Set([v]) : new Set() }));
+    setPage(1);
     // รอ 1 เฟรมให้ DOM อัปเดตก่อน แล้วค่อย ๆ เลื่อน (custom smooth — กัน behavior:'smooth' วาป/ไม่ทำงาน)
     requestAnimationFrame(() => {
       const el = chartsRef.current;
@@ -456,58 +700,52 @@ export function DashboardPage() {
 
         {/* KPI — กดเพื่อกรองสถานะ (เลื่อนหน้าจอลงมาให้เห็นกราฟ+ตารางที่กรอง) */}
         <div className="dash-grid-3" style={{ marginTop: '1.5rem' }}>
-          <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#2e7d4f" onClick={() => selectStatus('')} active={!filters.status} />
-          <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => selectStatus('DONE')} active={filters.status === 'DONE'} />
-          <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => selectStatus('ON_PROCESS')} active={filters.status === 'ON_PROCESS'} />
-          <KpiCard icon="⏰" label="Delay" value={agg.delay} accent="#ea580c" onClick={() => selectStatus('DELAY')} active={filters.status === 'DELAY'} />
-          <KpiCard icon="🚫" label="Cancel" value={agg.cancel} accent="#64748b" onClick={() => selectStatus('CANCEL')} active={filters.status === 'CANCEL'} />
+          <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#2e7d4f" onClick={() => selectStatus('')} active={!colFilters.status?.size} />
+          <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => selectStatus('DONE')} active={isStatusOnly('DONE')} />
+          <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => selectStatus('ON_PROCESS')} active={isStatusOnly('ON_PROCESS')} />
+          <KpiCard icon="⏰" label="Delay" value={agg.delay} accent="#ea580c" onClick={() => selectStatus('DELAY')} active={isStatusOnly('DELAY')} />
+          <KpiCard icon="🚫" label="Cancel" value={agg.cancel} accent="#64748b" onClick={() => selectStatus('CANCEL')} active={isStatusOnly('CANCEL')} />
           <StatCard icon="🎯" label="Yield Good เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
         </div>
       </div>
 
-      {/* กราฟ — ตามตัวกรองที่เลือก (ref ไว้เลื่อนหน้าจอมาตรงนี้ตอนกดการ์ด) */}
-      <div className="dash-grid-3" ref={chartsRef} style={{ scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
-        <ChartCard title="สัดส่วนงานตามสถานะ">
-          <Donut data={chart.byStatus} />
-        </ChartCard>
-        <ChartCard title="จำนวนงานตามลูกค้า (Top 8)">
-          {chart.byCustomer.length ? chart.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#2e7d4f" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
-        </ChartCard>
-        <ChartCard title="ผลผลิตรวม (OK vs NG)">
-          <BarRow label="Total OK" value={chart.totalOk} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#16a34a" />
-          <BarRow label="Total NG" value={chart.totalNg} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#dc2626" />
-        </ChartCard>
-      </div>
-
       {/* ตาราง + filter + export */}
       <div className="panel">
-        <div className="dash-grid-3">   {/* filter แถวละ 3 เท่าๆ กัน (6 ช่อง = 2 แถวสมส่วน ซ้าย-กลาง-ขวา) */}
-          <label className="field"><span>สถานะ</span>
-            <select value={filters.status ?? ''} onChange={e => setF('status', e.target.value)}>
-              <option value="">ทั้งหมด</option>
-              {PP_STATUS.map(s => <option key={s} value={s}>{PP_STATUS_LABEL[s]}</option>)}
-            </select>
-          </label>
-          <label className="field"><span>Customer</span>
-            <input list="dash-customers" value={filters.customer ?? ''} onChange={e => setF('customer', e.target.value)} placeholder="ทั้งหมด" />
-            <datalist id="dash-customers">{customers.map(c => <option key={c} value={c} />)}</datalist>
-          </label>
-          <label className="field"><span>WO</span><input value={filters.work_order ?? ''} onChange={e => setF('work_order', e.target.value)} placeholder="ค้นหา WO..." /></label>
-          <label className="field"><span>Model</span><input value={filters.model ?? ''} onChange={e => setF('model', e.target.value)} placeholder="ค้นหา..." /></label>
-          <label className="field"><span>ตั้งแต่วันที่</span><input type="date" value={filters.date_from ?? ''} onChange={e => setF('date_from', e.target.value)} /></label>
-          <label className="field"><span>ถึงวันที่</span><input type="date" value={filters.date_to ?? ''} onChange={e => setF('date_to', e.target.value)} /></label>
+        <div className="dash-grid-3">   {/* filter แถวละ 3 เท่าๆ กัน (6 ช่อง = 2 แถวสมส่วน) — Status/Customer/WO/Model เป็น dropdown เลือกหลายค่า+เสิร์ชได้ */}
+          <ColumnFilterField label="สถานะ" options={[...PP_STATUS]} labelFor={v => PP_STATUS_LABEL[v] ?? v}
+            selected={colFilters.status ?? new Set()} onToggle={v => toggleFilterValue('status', v)}
+            onClear={() => { clearFilterCol('status'); setProcStepFilter(new Set()); }}
+            colKey="status" openKey={openFilterCol} setOpenKey={setOpenFilterCol}
+            expandKey="ON_PROCESS" expandItems={PROCESS_STEPS.map(s => ({ key: s.key as string, label: s.label }))}
+            expandSelected={procStepFilter} onToggleExpandItem={toggleProcStep} onToggleExpandAll={toggleProcStepAll} />
+          <ColumnFilterField label="Customer" options={customers}
+            selected={colFilters.customer ?? new Set()} onToggle={v => toggleFilterValue('customer', v)} onClear={() => clearFilterCol('customer')}
+            colKey="customer" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
+          <ColumnFilterField label="WO" options={workOrders}
+            selected={colFilters.work_order ?? new Set()} onToggle={v => toggleFilterValue('work_order', v)} onClear={() => clearFilterCol('work_order')}
+            colKey="work_order" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
+          <ColumnFilterField label="Model" options={models}
+            selected={colFilters.model ?? new Set()} onToggle={v => toggleFilterValue('model', v)} onClear={() => clearFilterCol('model')}
+            colKey="model" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
+          <label className="field"><span>ตั้งแต่วันที่</span><input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} /></label>
+          <label className="field"><span>ถึงวันที่</span><input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} /></label>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', margin: '12px 0 0.75rem' }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{rows.length} โปรเจกต์</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => { setFilters({}); setPage(1); }}>ล้าง filter</button>}
+            {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={clearAllFilters}>ล้าง filter</button>}
             <button type="button" className="btn secondary" title="ดาวน์โหลดเป็นไฟล์ Excel ตามฟอร์ม FM03 (โลโก้+สี)" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => setSaveAs('xlsx')}>⬇️ Export to Excel</button>
           </div>
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-          <table className="table table--grid table--dense" style={{ minWidth: 1408, width: '100%' }}>
+          <table className="table table--grid table--dense" style={{ minWidth: 1408, width: '100%', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 44 }} />
+              {DASH_COLUMNS.map(c => <col key={c.key} style={{ width: colWidthPx(c) }} />)}
+              {!isViewer && <col style={{ width: 110 }} />}
+            </colgroup>
             <thead>
               <tr>
                 <th rowSpan={2} style={{ textAlign: 'center' }}>#</th>
@@ -529,7 +767,7 @@ export function DashboardPage() {
                 return (
                   <tr key={p.id} style={p.status === 'DELAY' ? { background: '#fff7ed', boxShadow: 'inset 3px 0 0 #ea580c' } : undefined}>
                     <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
-                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key) => onCellClick(p, key)))}
+                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key, e) => onCellClick(p, key, e)))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -545,6 +783,20 @@ export function DashboardPage() {
           </table>
         </div>
         <Paginator page={page} totalPages={totalPages} onPage={setPage} total={rows.length} />
+      </div>
+
+      {/* กราฟ — ตามตัวกรองที่เลือก (ย้ายมาอยู่ใต้ตารางตามที่ขอ · ref ไว้เลื่อนหน้าจอมาตรงนี้ตอนกดการ์ด KPI) */}
+      <div className="dash-grid-3" ref={chartsRef} style={{ scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
+        <ChartCard title="สัดส่วนงานตามสถานะ">
+          <Donut data={chart.byStatus} />
+        </ChartCard>
+        <ChartCard title="จำนวนงานตามลูกค้า (Top 8)">
+          {chart.byCustomer.length ? chart.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#2e7d4f" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
+        </ChartCard>
+        <ChartCard title="ผลผลิตรวม (OK vs NG)">
+          <BarRow label="Total OK" value={chart.totalOk} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#16a34a" />
+          <BarRow label="Total NG" value={chart.totalNg} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#dc2626" />
+        </ChartCard>
       </div>
 
       {/* Gantt — ไทม์ไลน์การผลิตรายวัน (ใต้ตาราง Production Plan · ตามตัวกรองปัจจุบัน) */}
@@ -573,6 +825,7 @@ export function DashboardPage() {
       {edit && <ProjectFormModal initial={edit} onClose={() => setEdit(null)} />}
       {detail && <ProductDetailModal p={detail} onClose={() => setDetail(null)} />}
       {procEdit && <ProcessEventPopup p={procEdit.p} stepKey={procEdit.key} onClose={() => setProcEdit(null)} onSave={(status, date, note) => saveProc(procEdit.p, procEdit.key, status, date, note)} />}
+      {colorPick && <StatusColorPopup p={colorPick.p} pos={colorPick} onClose={() => setColorPick(null)} onPick={color => pickStatusColor(colorPick.p, color)} />}
       {saveAs && (
         <FileNamePromptModal
           title={saveAs === 'xlsx' ? '⬇️ บันทึกเป็น Excel' : '🖨️ บันทึกเป็น PDF'}
