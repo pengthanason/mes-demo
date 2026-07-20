@@ -643,7 +643,7 @@ export function DashboardPage() {
   const [page, setPage] = useState(1);
   const [ppTab, setPpTab] = useState<'internal' | 'external'>('internal');   // แท็บงานภายใน/ภายนอก (External ยังใช้ข้อมูลชุดเดียวกันไปก่อน)
   const [adding, setAdding] = useState(false);   // เปิดฟอร์มเพิ่มโปรเจกต์ (พรีเซ็ต Type ตามแท็บที่เปิด)
-  const PAGE = 20;
+  const PAGE = 10;
 
   // เปิดรายละเอียดสินค้าอัตโนมัติเมื่อมากับ ?pp=<id> (ลิงก์จากหน้า Activities)
   const [params, setParams] = useSearchParams();
