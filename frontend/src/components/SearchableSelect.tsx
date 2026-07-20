@@ -8,7 +8,7 @@ export type SelectOption = { value: string; label: string };
  * panel เป็น position:fixed (คำนวณจาก getBoundingClientRect) กันโดน overflow ตัด
  */
 export function SearchableSelect({
-  value, onChange, options, placeholder = '— เลือก —', disabled, required, searchThreshold = 10, style, ariaLabel,
+  value, onChange, options, placeholder = '— Select —', disabled, required, searchThreshold = 10, style, ariaLabel,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -95,13 +95,13 @@ export function SearchableSelect({
                 <input
                   ref={searchRef} value={q} onChange={e => setQ(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
-                  placeholder="🔍 พิมพ์เพื่อค้นหา..." aria-label="ค้นหา"
+                  placeholder="🔍 Type to search..." aria-label="Search"
                   style={{ width: '100%', padding: '0.4rem 0.6rem', border: '1px solid var(--border-color)', borderRadius: 5, fontSize: '0.85rem', fontFamily: 'inherit' }}
                 />
               </div>
             )}
             <div style={{ overflowY: 'auto' }}>
-              {filtered.length === 0 && <div style={{ padding: '0.6rem 0.7rem', color: '#94a3b8', fontSize: '0.85rem' }}>ไม่พบ “{q}”</div>}
+              {filtered.length === 0 && <div style={{ padding: '0.6rem 0.7rem', color: '#94a3b8', fontSize: '0.85rem' }}>No results for “{q}”</div>}
               {filtered.map(o => (
                 <div
                   key={o.value} onClick={() => { onChange(o.value); setOpen(false); }}

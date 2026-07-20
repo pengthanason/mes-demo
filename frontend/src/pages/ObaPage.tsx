@@ -30,7 +30,7 @@ export function ObaPage() {
     e.preventDefault();
     setError('');
     if (result === 'FAIL' && !defectNote.trim()) {
-      setError('กรุณาระบุหมายเหตุ (Defect Note) เมื่อผลการตรวจเป็น FAIL');
+      setError('Please provide a Defect Note when the result is FAIL');
       return;
     }
     createMut.mutate(
@@ -42,7 +42,7 @@ export function ObaPage() {
           setSaved(true);
           setTimeout(() => setSaved(false), 2500);
         },
-        onError: () => setError('บันทึกไม่สำเร็จ — ลองใหม่อีกครั้ง'),
+        onError: () => setError('Save failed — please try again'),
       }
     );
   }
@@ -52,10 +52,10 @@ export function ObaPage() {
       {/* ── Form ── */}
       <div className="panel stack">
         <h2 className="panel__title">Out-of-Box Audit (M08)</h2>
-        <p className="panel__subtitle">บันทึกผลสุ่มเปิดกล่องตรวจก่อนส่งมอบ</p>
+        <p className="panel__subtitle">Record out-of-box sampling inspection before delivery</p>
 
         {error  && <div className="notice err">{error}</div>}
-        {saved  && <div className="notice ok">✅ บันทึกสำเร็จ!</div>}
+        {saved  && <div className="notice ok">✅ Saved successfully!</div>}
 
         <style>{`.oba-input::placeholder { color: #94a3b8; opacity: 1; }`}</style>
 
@@ -67,32 +67,32 @@ export function ObaPage() {
           <label className="field">
             <span>Lot No.</span>
             <input className="oba-input" list="oba-lot-options" value={lotNo} onChange={e => setLotNo(e.target.value)}
-              placeholder={woId.trim() ? 'เลือก/พิมพ์ Lot' : 'ใส่ WO ก่อน'} disabled={!woId.trim()} required />
+              placeholder={woId.trim() ? 'Select/type Lot' : 'Enter WO first'} disabled={!woId.trim()} required />
             <datalist id="oba-lot-options">
               {woLots.map(l => <option key={l} value={l} />)}
             </datalist>
           </label>
           <label className="field">
-            <span>จำนวนที่สุ่มตรวจ (Sample Qty)</span>
-            <input className="oba-input" type="number" min="1" value={sampleQty} onChange={e => setSampleQty(e.target.value)} placeholder="เช่น 5" required />
+            <span>Sample Qty</span>
+            <input className="oba-input" type="number" min="1" value={sampleQty} onChange={e => setSampleQty(e.target.value)} placeholder="e.g. 5" required />
           </label>
           <label className="field">
-            <span>ผลการตรวจ (Result)</span>
+            <span>Result</span>
             <select value={result} onChange={e => setResult(e.target.value as 'PASS' | 'FAIL')} style={{ padding: '0.75rem', fontSize: '1rem' }} required>
-              <option value="">-- เลือกผลการตรวจ --</option>
-              <option value="PASS">✅ PASS (ผ่าน)</option>
-              <option value="FAIL">❌ FAIL (ไม่ผ่าน)</option>
+              <option value="">-- Select result --</option>
+              <option value="PASS">✅ PASS</option>
+              <option value="FAIL">❌ FAIL</option>
             </select>
           </label>
           {result === 'FAIL' && (
             <label className="field">
-              <span>หมายเหตุ (Defect Note) <span style={{ color: 'var(--danger)' }}>*</span></span>
-              <textarea className="oba-input" value={defectNote} onChange={e => setDefectNote(e.target.value)} placeholder="ระบุอาการเสีย..." required />
+              <span>Defect Note <span style={{ color: 'var(--danger)' }}>*</span></span>
+              <textarea className="oba-input" value={defectNote} onChange={e => setDefectNote(e.target.value)} placeholder="Describe the defect..." required />
             </label>
           )}
           <button className="btn" type="submit" disabled={!woId || !lotNo || !sampleQty || !result || createMut.isPending}
             style={{ marginTop: '0.5rem', padding: '1rem', fontSize: '1rem' }}>
-            {createMut.isPending ? 'กำลังบันทึก...' : 'บันทึกผล OBA'}
+            {createMut.isPending ? 'Saving...' : 'Save OBA Result'}
           </button>
         </form>
       </div>
@@ -100,10 +100,10 @@ export function ObaPage() {
       {/* ── History table ── */}
       <div className="panel">
         <h3 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>
-          ประวัติผล OBA {records.length > 0 && `(${records.length} รายการ)`}
+          OBA History {records.length > 0 && `(${records.length} items)`}
         </h3>
         {records.length === 0 ? (
-          <BlockState state="empty" emptyText="ยังไม่มีประวัติ — บันทึก OBA เพื่อเพิ่มข้อมูล" />
+          <BlockState state="empty" emptyText="No history yet — save an OBA record to add data" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
             <table className="table table-readonly" style={{ minWidth: '550px', width: '100%' }}>

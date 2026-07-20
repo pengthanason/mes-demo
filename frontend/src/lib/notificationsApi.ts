@@ -23,7 +23,7 @@ export function useNotifications(unreadOnly = false) {
     queryKey: [...NOTIF_KEY, unreadOnly],
     queryFn: async (): Promise<Notification[]> => {
       const res = await api.get('/notifications', unreadOnly ? { params: { unread_only: true } } : undefined);
-      if (res.status >= 400 || res.status === 0) throw new Error(res.status === 0 ? 'เชื่อมต่อไม่ได้' : 'โหลดการแจ้งเตือนไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error(res.status === 0 ? 'Cannot connect' : 'Failed to load notifications');
       return ((res.data as any)?.data ?? []).map(mapRow);
     },
   });

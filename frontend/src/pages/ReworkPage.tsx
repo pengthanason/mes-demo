@@ -5,14 +5,14 @@ import { ResultBadge } from '../components/ResultBadge';
 import { TableState } from '../components/DataStates';
 
 const STATUS_STYLE: Record<ReworkStatus, { label: string; bg: string; text: string; border: string }> = {
-  OPEN:        { label: 'เปิด',       bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
-  IN_PROGRESS: { label: 'กำลังซ่อม',  bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
-  DONE:        { label: 'เสร็จ',      bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  OPEN:        { label: 'Open',        bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
+  IN_PROGRESS: { label: 'In Progress', bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
+  DONE:        { label: 'Done',        bg: '#dcfce7', text: '#166534', border: '#86efac' },
 };
 // ปุ่มเลื่อนสถานะถัดไป
 const NEXT: Partial<Record<ReworkStatus, { to: ReworkStatus; label: string; color: string }>> = {
-  OPEN:        { to: 'IN_PROGRESS', label: 'เริ่มซ่อม →', color: '#d97706' },
-  IN_PROGRESS: { to: 'DONE',        label: 'ปิดงาน (เสร็จ) →', color: '#16a34a' },
+  OPEN:        { to: 'IN_PROGRESS', label: 'Start Repair →', color: '#d97706' },
+  IN_PROGRESS: { to: 'DONE',        label: 'Close (Done) →', color: '#16a34a' },
 };
 
 export function ReworkPage() {
@@ -22,7 +22,7 @@ export function ReworkPage() {
 
   const advance = (id: number, to: ReworkStatus) => {
     statusMut.mutate({ id, status: to }, {
-      onSuccess: () => showToast(`อัปเดตสถานะ Rework #${id} → ${STATUS_STYLE[to].label}`, to === 'DONE' ? 'success' : 'info'),
+      onSuccess: () => showToast(`Rework #${id} status updated → ${STATUS_STYLE[to].label}`, to === 'DONE' ? 'success' : 'info'),
       onError: (e: any) => showToast(e.message, 'error'),
     });
   };
@@ -32,34 +32,34 @@ export function ReworkPage() {
   return (
     <div className="panel stack-lg">
       <div>
-        <h2 className="panel__title">Rework Tickets {tickets.length > 0 && `(ค้าง ${open}/${tickets.length})`}</h2>
-        <p className="panel__subtitle">ติดตามงานซ่อมแก้ของเสีย — เปิดจากผล QC ที่ไม่ผ่าน แล้วเลื่อนสถานะ เปิด → กำลังซ่อม → เสร็จ</p>
+        <h2 className="panel__title">Rework Tickets {tickets.length > 0 && `(Pending ${open}/${tickets.length})`}</h2>
+        <p className="panel__subtitle">Track defect repair jobs — opened from failed QC results, then advance status Open → In Progress → Done</p>
       </div>
 
       <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
         <table className="table" style={{ minWidth: 820, width: '100%' }}>
           <thead>
             <tr>
-              <th>วันที่</th><th>WO</th><th>Lot</th><th>ผล QC</th><th>ประเภทของเสีย</th><th>ผู้รับผิดชอบ</th><th style={{ textAlign: 'center' }}>กำหนดเสร็จ</th><th style={{ textAlign: 'center' }}>สถานะ</th>{!isViewer && <th style={{ textAlign: 'center' }}>จัดการ</th>}
+              <th>Date</th><th>WO</th><th>Lot</th><th>QC Result</th><th>Defect Type</th><th>Assigned To</th><th style={{ textAlign: 'center' }}>Due Date</th><th style={{ textAlign: 'center' }}>Status</th>{!isViewer && <th style={{ textAlign: 'center' }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <TableState colSpan={isViewer ? 8 : 9} state="loading" />
             ) : tickets.length === 0 ? (
-              <TableState colSpan={isViewer ? 8 : 9} state="empty" emptyText="ยังไม่มี Rework — เปิดได้จากแท็บ QC Result (แถวที่ผล FAIL/PARTIAL)" />
+              <TableState colSpan={isViewer ? 8 : 9} state="empty" emptyText="No Rework yet — open one from the QC Result tab (rows with FAIL/PARTIAL result)" />
             ) : tickets.map(t => {
               const s = STATUS_STYLE[t.status];
               const next = NEXT[t.status];
               return (
                 <tr key={t.id}>
-                  <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(t.createdAt).toLocaleDateString('th-TH')}</td>
+                  <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(t.createdAt).toLocaleDateString('en-GB')}</td>
                   <td style={{ fontWeight: 600 }}>{t.woId}</td>
                   <td><code>{t.lotNo}</code></td>
                   <td><ResultBadge value={t.qcOverall} /></td>
                   <td>{t.defectType}</td>
                   <td>{t.assignedTo || '—'}</td>
-                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{t.dueDate ? new Date(t.dueDate).toLocaleDateString('th-TH') : '—'}</td>
+                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-GB') : '—'}</td>
                   <td style={{ textAlign: 'center', width: 110 }}>
                     <span className="status-badge" style={{ minWidth: 78, textAlign: 'center', background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>{s.label}</span>
                   </td>
@@ -72,7 +72,7 @@ export function ReworkPage() {
                             style={{ width: '100%', background: next.color, borderColor: next.color, color: '#fff', fontWeight: 600, fontSize: '0.78rem', padding: '4px 8px', whiteSpace: 'nowrap' }}>
                             {next.label}
                           </button>
-                        ) : <span style={{ color: '#16a34a', fontSize: '0.8rem' }}>✓ เสร็จแล้ว</span>}
+                        ) : <span style={{ color: '#16a34a', fontSize: '0.8rem' }}>✓ Done</span>}
                       </div>
                     </td>
                   )}

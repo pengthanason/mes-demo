@@ -5,12 +5,12 @@ import { TRACE_URL } from '../lib/jigTrace';
 const KEY = 'mes_flowguide_collapsed';
 
 const STEPS = [
-  { n: 1, icon: '📥', title: 'Incoming', desc: 'รับวัตถุดิบเข้าเป็น "ล็อต" (พันชิ้น = 1 รายการ)', to: '/incoming', color: '#0ea5e9' },
-  { n: 2, icon: '✅', title: 'QA Check', desc: 'QA ตรวจรับล็อต กดผ่าน/ตีกลับ — ผ่านแล้วเข้า stock', to: '/incoming', color: '#16a34a' },
-  { n: 3, icon: '📦', title: 'Kitting', desc: 'เบิกของให้ WO เข้าไลน์ ตัด stock แบบ FIFO', to: '/incoming', color: '#6366f1' },
-  { n: 4, icon: '🔀', title: 'Production Plan · Workflow', desc: 'สแกน Serial เดินกระบวนการ + บันทึกผล PASS/FAIL', to: '/production-plan', color: '#8b5cf6' },
-  { n: 5, icon: '🧪', title: 'QC / Jig Test', desc: 'ตรวจคุณภาพชิ้นงาน — QC Board / Jig / OBA', to: '/qc-board', color: '#f59e0b' },
-  { n: 6, icon: '🧬', title: 'Traceability', desc: 'ค้น Serial ดูประวัติทุกสเตชัน + รายงานรายวัน', to: '/traceability', external: TRACE_URL, color: '#0891b2' },
+  { n: 1, icon: '📥', title: 'Incoming', desc: 'Receive raw materials as "lots" (thousands of pieces = 1 entry)', to: '/incoming', color: '#0ea5e9' },
+  { n: 2, icon: '✅', title: 'QA Check', desc: 'QA inspects lots, approve/reject — approved lots enter stock', to: '/incoming', color: '#16a34a' },
+  { n: 3, icon: '📦', title: 'Kitting', desc: 'Issue materials to a WO for the line, deduct stock FIFO', to: '/incoming', color: '#6366f1' },
+  { n: 4, icon: '🔀', title: 'Production Plan · Workflow', desc: 'Scan Serial to run the process + record PASS/FAIL results', to: '/production-plan', color: '#8b5cf6' },
+  { n: 5, icon: '🧪', title: 'QC / Jig Test', desc: 'Inspect product quality — QC Board / Jig / OBA', to: '/qc-board', color: '#f59e0b' },
+  { n: 6, icon: '🧬', title: 'Traceability', desc: 'Search a Serial to view its history across all stations + daily report', to: '/traceability', external: TRACE_URL, color: '#0891b2' },
 ];
 
 export function FlowGuide() {
@@ -22,11 +22,11 @@ export function FlowGuide() {
     <div className="panel" style={{ background: 'linear-gradient(135deg,#f0f9ff,#faf5ff)', border: '1px solid #e0e7ff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div>
-          <h2 className="panel__title" style={{ margin: 0 }}>🚀 เริ่มต้นใช้งาน — ขั้นตอนการทำงาน</h2>
-          <p className="panel__subtitle" style={{ margin: '0.25rem 0 0' }}>ของเข้ามา → จนส่งมอบ ทำตามลำดับนี้ (กดการ์ดเพื่อไปแต่ละขั้น)</p>
+          <h2 className="panel__title" style={{ margin: 0 }}>🚀 Getting Started — Workflow Steps</h2>
+          <p className="panel__subtitle" style={{ margin: '0.25rem 0 0' }}>From incoming goods → to delivery, follow this order (click a card to go to each step)</p>
         </div>
         <button type="button" className="btn secondary" style={{ fontSize: '0.8rem', flexShrink: 0 }} onClick={toggle}>
-          {collapsed ? 'แสดงขั้นตอน ▼' : 'ซ่อน ▲'}
+          {collapsed ? 'Show steps ▼' : 'Hide ▲'}
         </button>
       </div>
 

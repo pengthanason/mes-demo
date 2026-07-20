@@ -536,6 +536,10 @@ async function migrate() {
     }
     // ประวัติการเปลี่ยน process/สถานะ (event log) — [{ date, step, status }] · ใช้วาด Gantt หลายสีตามช่วงเวลา
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS process_log JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    // Bom Rec — วันที่รับ BOM (กลุ่ม WO)
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS bom_rec_date DATE`);
+    // ประเภทงาน: internal (งานภายใน) / external (งานภายนอก) — แยกแท็บใน Dashboard
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pp_type VARCHAR(20) NOT NULL DEFAULT 'internal'`);
 
     // ── Workflow (ลำดับกระบวนการผลิต — Manufacturing Sequence) ──
     await client.query(`

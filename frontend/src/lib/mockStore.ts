@@ -123,10 +123,10 @@ export async function apiLogin(username: string, password: string): Promise<{ ok
     }
     // เดโม + response ไม่ใช่ JSON ที่ถูก (SW ไม่ทำงาน → ได้ index.html/404) → ล็อกอิน local
     if (isDemo && demoLogin(uname, password)) return { ok: true };
-    return { ok: false, error: (json && json.message) || 'เข้าสู่ระบบไม่สำเร็จ' };
+    return { ok: false, error: (json && json.message) || 'Login failed' };
   } catch {
     if (isDemo && demoLogin(uname, password)) return { ok: true };
-    return { ok: false, error: 'เชื่อมต่อ server ไม่ได้' };
+    return { ok: false, error: 'Cannot connect to server' };
   }
 }
 
@@ -315,10 +315,10 @@ export function importData(file: File): Promise<void> {
         dispatch();
         resolve();
       } catch {
-        reject(new Error('ไฟล์ไม่ถูกต้อง — กรุณาใช้ไฟล์ backup ที่ export จากระบบนี้เท่านั้น'));
+        reject(new Error('Invalid file — please use only a backup file exported from this system'));
       }
     };
-    reader.onerror = () => reject(new Error('อ่านไฟล์ไม่ได้'));
+    reader.onerror = () => reject(new Error('Cannot read file'));
     reader.readAsText(file);
   });
 }

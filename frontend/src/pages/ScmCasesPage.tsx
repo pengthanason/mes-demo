@@ -184,7 +184,7 @@ export function ScmCasesPage() {
   function submitSplitLot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice(null);
-    if (!splitForm.original_uid.trim()) { setSplitUidErr('กรุณากรอก Original UID'); return; }
+    if (!splitForm.original_uid.trim()) { setSplitUidErr('Please enter Original UID'); return; }
     setSplitUidErr('');
     splitLot.mutate();
   }
@@ -193,7 +193,7 @@ export function ScmCasesPage() {
     <div className="stack-lg">
       <section className="panel">
         <h1 className="panel__title">SCM Cases</h1>
-        <p className="panel__subtitle">จัดการเคสซัพพลาย — case inbox · lot split · supplier disposition</p>
+        <p className="panel__subtitle">Manage supplier cases — case inbox · lot split · supplier disposition</p>
 
         {notice ? <div className={`notice ${notice.kind}`}>{notice.message}</div> : null}
 

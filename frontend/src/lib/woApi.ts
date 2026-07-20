@@ -74,7 +74,7 @@ export function useWoBoard() {
       const res = await api.get<{ data: WoBoardRow[] }>('/wo/board');
       // api.ts ไม่ throw เอง (คืน status/data) → เช็คเองเพื่อให้ error state ทำงาน (401/500/เชื่อมต่อไม่ได้)
       if (res.status >= 400 || res.status === 0) {
-        throw new Error(res.status === 401 ? 'ไม่มีสิทธิ์ (401) — กรุณาล็อกอินใหม่' : 'โหลดรายการ WO ไม่สำเร็จ');
+        throw new Error(res.status === 401 ? 'Unauthorized (401) — please log in again' : 'Failed to load WO list');
       }
       const rows = (res.data as any)?.data ?? [];
       return rows.map(mapRow);
@@ -88,7 +88,7 @@ export function useWoPatch() {
   return useMutation({
     mutationFn: async ({ woId, patch }: { woId: string; patch: WoPatch }) => {
       const res = await api.patch(`/wo/board/${woId}`, toApiPatch(patch));
-      if (res.status >= 400 || res.status === 0) throw new Error('อัปเดต WO ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Failed to update WO');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: WO_BOARD_KEY }),
@@ -107,7 +107,7 @@ export function useWoCreate() {
         current_step: wo.currentStep,
         due_date:     wo.expectedDate || null,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('สร้าง WO ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Failed to create WO');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: WO_BOARD_KEY }),

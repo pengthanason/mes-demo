@@ -39,7 +39,7 @@ export function Paginator({ page, totalPages, onPage, total }: PaginatorProps) {
         ›
       </button>
       <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '0.5rem', width: '100%', textAlign: 'center' }}>
-        {total} รายการ
+        {total} items
       </span>
     </div>
   );

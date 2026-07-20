@@ -71,7 +71,7 @@ export function useJigProjectCreate() {
   return useMutation({
     mutationFn: async (p: { projectCode: string; name: string; jigId: string; testType: 'ICT' | 'FCT' }) => {
       const res = await api.post('/jig/projects', { project_code: p.projectCode, name: p.name, jig_id: p.jigId, test_type: p.testType });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'สร้างโปรเจกต์ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to create project');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['jig-projects'] }),
@@ -83,7 +83,7 @@ export function useJigProjectDelete() {
   return useMutation({
     mutationFn: async (code: string) => {
       const res = await api.delete(`/jig/projects/${code}`);
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'ลบโปรเจกต์ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to delete project');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['jig-projects'] }),
@@ -98,7 +98,7 @@ export function useJigRecordCreate(code: string | undefined) {
         serial: p.serial, result: p.result, voltage: p.voltage, current_ma: p.currentMa,
         temp_c: p.tempC, fail_param: p.failParam, notes: p.notes,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึกผลไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save result');
       return res.data;
     },
     onSuccess: () => {
@@ -163,7 +163,7 @@ export function useJigRetestCreate(code: string | undefined) {
   return useMutation({
     mutationFn: async (serial: string) => {
       const res = await api.post(`/jig/projects/${code}/retest`, { serial });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'สั่ง Retest ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to request Retest');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['jig-retests', code] }),

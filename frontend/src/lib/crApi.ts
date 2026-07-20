@@ -62,7 +62,7 @@ export function useCrCreate() {
         description: payload.description,
         impact:      payload.impact,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('เปิด CR ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Failed to open CR');
       return mapRow((res.data as any)?.data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: CR_KEY }),
@@ -75,7 +75,7 @@ export function useCrApproveGate() {
     mutationFn: async ({ id, gate, note }: { id: number; gate: 'g1' | 'g2' | 'g3'; note: string }) => {
       const res = await api.put(`/cr/${id}/gate-${gate}`, { note });
       if (res.status >= 400 || res.status === 0) {
-        const msg = (res.data as any)?.message || 'อนุมัติ gate ไม่สำเร็จ';
+        const msg = (res.data as any)?.message || 'Failed to approve gate';
         throw new Error(msg);
       }
       return mapRow((res.data as any)?.data);

@@ -31,15 +31,15 @@ export function CrDetailPage() {
   const [notes, setNotes] = useState<Record<GateKey, string>>({ g1: '', g2: '', g3: '' });
 
   if (isLoading) {
-    return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>;
+    return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
   }
 
   if (!cr) {
     return (
       <div className="notice err" style={{ margin: '2rem' }}>
-        ไม่พบ Change Request
+        Change Request not found
         <div style={{ marginTop: '1rem' }}>
-          <Link to="/4m-change" className="btn secondary">← กลับรายการ CR</Link>
+          <Link to="/4m-change" className="btn secondary">← Back to CR list</Link>
         </div>
       </div>
     );
@@ -61,7 +61,7 @@ export function CrDetailPage() {
     <section className="stack-lg">
       <div className="panel">
         <div style={{ marginBottom: '0.75rem' }}>
-          <Link to="/4m-change" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← กลับรายการ CR</Link>
+          <Link to="/4m-change" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← Back to CR list</Link>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -73,7 +73,7 @@ export function CrDetailPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.25rem' }}>
           <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>ประเภท 4M</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>4M Type</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{cr.mType}</div>
           </div>
           <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
@@ -81,19 +81,19 @@ export function CrDetailPage() {
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{cr.woRef || '—'}</div>
           </div>
           <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>วันที่เปิด</span>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{new Date(cr.createdAt).toLocaleDateString('th-TH')}</div>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Date Opened</span>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{new Date(cr.createdAt).toLocaleDateString('en-GB')}</div>
           </div>
         </div>
 
         <div className="stack" style={{ marginTop: '1.25rem', gap: '0.75rem' }}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>รายละเอียดการเปลี่ยนแปลง</div>
+            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Change Details</div>
             <div style={{ whiteSpace: 'pre-wrap' }}>{cr.description}</div>
           </div>
           {cr.impact && (
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>ผลกระทบที่คาด</div>
+              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Expected Impact</div>
               <div style={{ whiteSpace: 'pre-wrap' }}>{cr.impact}</div>
             </div>
           )}
@@ -138,8 +138,8 @@ export function CrDetailPage() {
 
                   {passed && (
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      ผ่านเมื่อ {info.at ? new Date(info.at).toLocaleString('th-TH') : '—'}
-                      {info.note && <div style={{ marginTop: 2 }}>หมายเหตุ: {info.note}</div>}
+                      Passed on {info.at ? new Date(info.at).toLocaleString('en-GB') : '—'}
+                      {info.note && <div style={{ marginTop: 2 }}>Remark: {info.note}</div>}
                     </div>
                   )}
 
@@ -148,8 +148,8 @@ export function CrDetailPage() {
                       <input
                         value={notes[g.key]}
                         onChange={e => setNotes(prev => ({ ...prev, [g.key]: e.target.value }))}
-                        placeholder="หมายเหตุการอนุมัติ (ไม่บังคับ)..."
-                        aria-label="หมายเหตุการอนุมัติ"
+                        placeholder="Approval remark (optional)..."
+                        aria-label="Approval remark"
                         style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color, #cbd5e1)', borderRadius: 6, fontSize: '0.9rem' }}
                       />
                       <button
@@ -159,14 +159,14 @@ export function CrDetailPage() {
                         disabled={approveMut.isPending}
                         style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 600, alignSelf: 'flex-start' }}
                       >
-                        {approveMut.isPending ? 'กำลังอนุมัติ...' : `อนุมัติ ${g.title}`}
+                        {approveMut.isPending ? 'Approving...' : `Approve ${g.title}`}
                       </button>
                     </div>
                   )}
 
                   {!passed && !isNext && (
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      รอ gate ก่อนหน้าผ่านก่อน
+                      Waiting for the previous gate to pass
                     </div>
                   )}
                 </div>

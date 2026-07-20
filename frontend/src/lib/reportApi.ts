@@ -43,7 +43,7 @@ export function useReportCreate() {
   return useMutation({
     mutationFn: async (): Promise<ReportItem> => {
       const res = await api.post('/report');
-      if (res.status >= 400 || res.status === 0) throw new Error('สร้างไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Create failed');
       return mapRow((res.data as any)?.data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: REPORT_KEY }),
@@ -63,7 +63,7 @@ export function useReportPatch() {
         delivery:     item.delivery || null,
         is_completed: item.isCompleted,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('บันทึกไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Save failed');
       return res.data;
     },
   });
@@ -74,7 +74,7 @@ export function useReportDelete() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.delete(`/report/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('ลบไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Delete failed');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: REPORT_KEY }),

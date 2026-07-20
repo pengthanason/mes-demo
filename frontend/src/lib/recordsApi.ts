@@ -39,7 +39,7 @@ export function useObaCreate() {
         result:      rec.result,
         defect_note: rec.defectNote,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('บันทึก OBA ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Failed to save OBA');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: OBA_KEY }),
@@ -71,7 +71,7 @@ export function useQcCreate() {
   return useMutation({
     mutationFn: async (rec: { sn: string; status: string; error?: string | null }) => {
       const res = await api.post('/qc', rec);
-      if (res.status >= 400 || res.status === 0) throw new Error('บันทึก QC ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Failed to save QC');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QC_KEY }),
@@ -111,7 +111,7 @@ export function useRoutingCreate() {
         total_sec: rec.totalSec,
         wo_id:     rec.woId ?? '',
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('บันทึก Routing ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Failed to save Routing');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ROUTING_KEY }),
@@ -123,7 +123,7 @@ export function useRoutingDelete() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.delete(`/routing/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('ลบไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Failed to delete');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ROUTING_KEY }),

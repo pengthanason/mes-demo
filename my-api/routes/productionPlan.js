@@ -4,7 +4,7 @@ const db     = require('../db');
 const COLS = `id, status, status_color, wk, date_record, product_pn, model, customer, qty, produce, syn_requestor,
   work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat, chk_env,
   pd_pcba, pd_bbas, pd_test, pd_modified, pd_rma, pd_prep, pd_start_date, pd_finish_date, target_per_day,
-  qa_test_rate, qa_finish_date, qa_status, store_received, expected_date, revised_date, done,
+  qa_test_rate, qa_finish_date, qa_status, store_received, expected_date, revised_date, bom_rec_date, done,
   pd_pic, pic_responsible, team_member, ok_per_day, total_ng, total_ok, special_request, remark,
   pc_prpo, pc_wait, pc_incoming, pc_smt, pc_thr, pc_test, pc_bbas, pc_packing, process_log,
   st_pr_po, st_wait_mat, st_incoming, st_create_bo, st_test, st_rework, st_smt, st_thr, st_bbas,
@@ -15,12 +15,12 @@ const WRITABLE = [
   'status', 'status_color', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'produce', 'syn_requestor',
   'work_order', 'wo_name', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'chk_env',
   'pd_pcba', 'pd_bbas', 'pd_test', 'pd_modified', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date', 'target_per_day',
-  'qa_test_rate', 'qa_finish_date', 'qa_status', 'store_received', 'expected_date', 'revised_date', 'done',
+  'qa_test_rate', 'qa_finish_date', 'qa_status', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date', 'done',
   'pd_pic', 'pic_responsible', 'team_member', 'ok_per_day', 'total_ng', 'total_ok', 'special_request', 'remark',
   'pc_prpo', 'pc_wait', 'pc_incoming', 'pc_smt', 'pc_thr', 'pc_test', 'pc_bbas', 'pc_packing', 'process_log',
   'st_pr_po', 'st_wait_mat', 'st_incoming', 'st_create_bo', 'st_test', 'st_rework', 'st_smt', 'st_thr', 'st_bbas',
 ];
-const DATE_FIELDS = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date'];
+const DATE_FIELDS = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date'];
 
 function clean(body) {
   const out = {};

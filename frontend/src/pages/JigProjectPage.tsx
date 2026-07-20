@@ -11,7 +11,7 @@ function LineChart({ data }: { data: JigTimeseries[] }) {
   const inner = { w: W - PAD.left - PAD.right, h: H - PAD.top - PAD.bottom };
 
   if (data.length < 2) {
-    return <div style={{ height: H, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ข้อมูลไม่เพียงพอ</div>;
+    return <div style={{ height: H, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Not enough data</div>;
   }
 
   const rates = data.map(d => d.passRate);
@@ -99,13 +99,13 @@ function RecordsTable({ records, onSelect }: { records: JigRecord[]; onSelect: (
                 }}>{r.result}</span>
               </td>
               <td style={{ padding: '0.45rem 0.6rem', fontSize: '0.78rem', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
-                {new Date(r.testedAt).toLocaleString('th-TH')}
+                {new Date(r.testedAt).toLocaleString('en-GB')}
               </td>
               <td style={{ padding: '0.45rem 0.6rem' }}>{r.voltage ?? '—'}</td>
               <td style={{ padding: '0.45rem 0.6rem' }}>{r.currentMa ?? '—'}</td>
               <td style={{ padding: '0.45rem 0.6rem' }}>{r.tempC ?? '—'}</td>
               <td style={{ padding: '0.45rem 0.6rem', color: r.failParam ? '#ef4444' : 'var(--text-muted)' }}>{r.failParam ?? '—'}</td>
-              <td style={{ padding: '0.45rem 0.6rem', textAlign: 'right', color: 'var(--primary)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>ดู →</td>
+              <td style={{ padding: '0.45rem 0.6rem', textAlign: 'right', color: 'var(--primary)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>View →</td>
             </tr>
           ))}
         </tbody>
@@ -120,8 +120,8 @@ function RecordDetailModal({ record, onClose, onRetest, retesting, alreadyReques
   const isFail = record.result === 'FAIL';
   const rows: [string, any][] = [
     ['Serial', record.serial],
-    ['ผลทดสอบ', record.result],
-    ['เวลาทดสอบ', new Date(record.testedAt).toLocaleString('th-TH')],
+    ['Result', record.result],
+    ['Tested At', new Date(record.testedAt).toLocaleString('en-GB')],
     ['Voltage (V)', record.voltage ?? '—'],
     ['Current (mA)', record.currentMa ?? '—'],
     ['Temperature (°C)', record.tempC ?? '—'],
@@ -134,7 +134,7 @@ function RecordDetailModal({ record, onClose, onRetest, retesting, alreadyReques
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
           <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: isFail ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)' }}>{isFail ? '❌' : '✅'}</span>
           <div>
-            <h2 className="panel__title" style={{ margin: 0 }}>รายละเอียดการทดสอบ</h2>
+            <h2 className="panel__title" style={{ margin: 0 }}>Test Details</h2>
             <p className="panel__subtitle" style={{ margin: 0 }}><code>{record.serial}</code></p>
           </div>
         </div>
@@ -149,14 +149,14 @@ function RecordDetailModal({ record, onClose, onRetest, retesting, alreadyReques
           </tbody>
         </table>
         <div className="modal-actions">
-          <button type="button" className="btn secondary" onClick={onClose}>ปิด</button>
+          <button type="button" className="btn secondary" onClick={onClose}>Close</button>
           {isFail && (
             alreadyRequested ? (
-              <span style={{ alignSelf: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#f59e0b' }}>🔁 ขอ Retest แล้ว</span>
+              <span style={{ alignSelf: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#f59e0b' }}>🔁 Retest requested</span>
             ) : (
               <button type="button" className="btn" disabled={retesting} onClick={onRetest}
                 style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#fff', fontWeight: 600 }}>
-                {retesting ? 'กำลังส่ง...' : '🔁 สั่ง Retest'}
+                {retesting ? 'Sending...' : '🔁 Request Retest'}
               </button>
             )
           )}
@@ -181,10 +181,10 @@ function AddRecordModal({ code, onClose }: { code: string; onClose: () => void }
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
-    if (!serial.trim()) return setErr('กรุณาใส่ Serial');
+    if (!serial.trim()) return setErr('Please enter Serial');
     mut.mutate(
       { serial: serial.trim(), result, voltage, currentMa, tempC, failParam: result === 'FAIL' ? failParam : '', notes },
-      { onSuccess: () => { showToast(`บันทึกผล ${serial.trim()} (${result})`, result === 'PASS' ? 'success' : 'error'); onClose(); },
+      { onSuccess: () => { showToast(`Saved result ${serial.trim()} (${result})`, result === 'PASS' ? 'success' : 'error'); onClose(); },
         onError: (e: any) => setErr(e.message) }
     );
   }
@@ -192,12 +192,12 @@ function AddRecordModal({ code, onClose }: { code: string; onClose: () => void }
   return (
     <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 460px)' }}>
-        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>บันทึกผลทดสอบ Jig</h2>
+        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>Record Jig Test Result</h2>
         <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>
           <label className="field"><span>Serial *</span>
-            <input value={serial} onChange={e => setSerial(e.target.value)} placeholder="เช่น SN-001" autoFocus required />
+            <input value={serial} onChange={e => setSerial(e.target.value)} placeholder="e.g. SN-001" autoFocus required />
           </label>
-          <label className="field"><span>ผลทดสอบ *</span>
+          <label className="field"><span>Result *</span>
             <select value={result} onChange={e => setResult(e.target.value as 'PASS' | 'FAIL')}>
               <option value="PASS">✅ PASS</option>
               <option value="FAIL">❌ FAIL</option>
@@ -216,16 +216,16 @@ function AddRecordModal({ code, onClose }: { code: string; onClose: () => void }
           </div>
           {result === 'FAIL' && (
             <label className="field"><span>Fail Parameter</span>
-              <input value={failParam} onChange={e => setFailParam(e.target.value)} placeholder="เช่น VOLTAGE_LOW" />
+              <input value={failParam} onChange={e => setFailParam(e.target.value)} placeholder="e.g. VOLTAGE_LOW" />
             </label>
           )}
-          <label className="field"><span>หมายเหตุ</span>
-            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="(ถ้ามี)" />
+          <label className="field"><span>Remark</span>
+            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="(optional)" />
           </label>
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions">
-            <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
-            <button type="submit" className="btn" disabled={mut.isPending}>{mut.isPending ? 'กำลังบันทึก...' : 'บันทึกผล'}</button>
+            <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn" disabled={mut.isPending}>{mut.isPending ? 'Saving...' : 'Save Result'}</button>
           </div>
         </form>
       </div>
@@ -260,16 +260,16 @@ export function JigProjectPage() {
 
   function handleRetest(serial: string) {
     retestMut.mutate(serial, {
-      onSuccess: () => { showToast(`ส่งคำสั่ง Retest: ${serial}`, 'success'); setSelected(null); },
+      onSuccess: () => { showToast(`Retest requested: ${serial}`, 'success'); setSelected(null); },
       onError: (err: any) => showToast(err.message, 'error'),
     });
   }
 
-  if (loadingProject) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>;
+  if (loadingProject) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
   if (projError || !project) return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <p style={{ color: 'var(--danger)' }}>ไม่พบโปรเจกต์ "{projectCode}"</p>
-      <button type="button" className="btn secondary" style={{ marginTop: '1rem' }} onClick={() => navigate('/jig-test')}>← กลับ</button>
+      <p style={{ color: 'var(--danger)' }}>Project "{projectCode}" not found</p>
+      <button type="button" className="btn secondary" style={{ marginTop: '1rem' }} onClick={() => navigate('/jig-test')}>← Back</button>
     </div>
   );
 
@@ -280,7 +280,7 @@ export function JigProjectPage() {
       {/* Header */}
       <div className="panel">
         <button type="button" className="btn secondary" style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }} onClick={() => navigate('/jig-test')}>
-          ← กลับ Jig Test
+          ← Back to Jig Test
         </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
@@ -310,9 +310,9 @@ export function JigProjectPage() {
 
       {/* Trend Chart */}
       <div className="panel">
-        <h2 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>Pass Rate Trend (รายวัน)</h2>
+        <h2 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>Pass Rate Trend (Daily)</h2>
         {loadingTs ? (
-          <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+          <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading...</div>
         ) : (
           <LineChart data={timeseries} />
         )}
@@ -325,18 +325,18 @@ export function JigProjectPage() {
             Test Records {loadingRecords ? '' : `(${shownRecords.length})`}
           </h2>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-            {!isViewer && <button type="button" className="btn" style={{ fontSize: '0.78rem', padding: '4px 12px' }} onClick={() => setShowAdd(true)}>+ บันทึกผล</button>}
+            {!isViewer && <button type="button" className="btn" style={{ fontSize: '0.78rem', padding: '4px 12px' }} onClick={() => setShowAdd(true)}>+ Add Result</button>}
             <input
               type="date"
               value={dateFilter}
               onChange={e => setDateFilter(e.target.value)}
               className="form-input"
               style={{ fontSize: '0.78rem', padding: '4px 8px', height: 30 }}
-              title="กรองตามวันที่ทดสอบ"
-              aria-label="กรองตามวันที่ทดสอบ"
+              title="Filter by test date"
+              aria-label="Filter by test date"
             />
             {dateFilter && (
-              <button type="button" className="btn secondary" title="ล้างการกรองตามวันที่" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setDateFilter('')}>ล้างวันที่</button>
+              <button type="button" className="btn secondary" title="Clear date filter" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setDateFilter('')}>Clear date</button>
             )}
             {(['', 'PASS', 'FAIL'] as const).map(f => (
               <button
@@ -354,7 +354,7 @@ export function JigProjectPage() {
         {loadingRecords ? (
           <BlockState state="loading" />
         ) : shownRecords.length === 0 ? (
-          <BlockState state="empty" emptyText={`ไม่พบข้อมูล${dateFilter ? ` ในวันที่ ${dateFilter}` : ''}`} />
+          <BlockState state="empty" emptyText={`No data found${dateFilter ? ` for ${dateFilter}` : ''}`} />
         ) : (
           <RecordsTable records={shownRecords} onSelect={setSelected} />
         )}

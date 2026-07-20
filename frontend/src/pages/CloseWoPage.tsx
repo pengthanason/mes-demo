@@ -19,14 +19,14 @@ export function CloseWoPage() {
     e.preventDefault();
     setError('');
     const qty = Number(actualQty);
-    if (isNaN(qty) || qty <= 0) { setError('กรุณาระบุจำนวนให้ถูกต้อง'); return; }
-    if (targetQty && qty > targetQty) { setError(`จำนวนที่ผลิตได้ (${qty}) ห้ามเกินยอดสั่งผลิต (${targetQty})`); return; }
+    if (isNaN(qty) || qty <= 0) { setError('Please enter a valid quantity'); return; }
+    if (targetQty && qty > targetQty) { setError(`Actual quantity produced (${qty}) cannot exceed the ordered quantity (${targetQty})`); return; }
 
     patchMut.mutate(
       { woId: woId || '', patch: { currentStep: 'CLOSED', actualQty: qty, qtyGood: qty } },
       {
-        onSuccess: () => { showToast(`WO ${woId} ปิดงานสำเร็จ`, 'success'); setSuccess(true); },
-        onError:   () => setError('ปิดงานไม่สำเร็จ — ลองใหม่อีกครั้ง'),
+        onSuccess: () => { showToast(`WO ${woId} closed successfully`, 'success'); setSuccess(true); },
+        onError:   () => setError('Failed to close WO — please try again'),
       }
     );
   }
@@ -34,9 +34,9 @@ export function CloseWoPage() {
   if (success) {
     return (
       <div className="panel stack" style={{ textAlign: 'center', padding: '3rem 1rem', maxWidth: '400px', margin: '0 auto' }}>
-        <h2 style={{ color: 'var(--success)', marginBottom: '1rem' }}>✅ ปิดงานสำเร็จ</h2>
-        <p style={{ marginBottom: '2rem' }}>Work Order: <strong>{woId}</strong> ถูกปิดเรียบร้อยแล้ว</p>
-        <button type="button" className="btn" onClick={() => navigate('/wo-dashboard')}>กลับ WO Board</button>
+        <h2 style={{ color: 'var(--success)', marginBottom: '1rem' }}>✅ Closed successfully</h2>
+        <p style={{ marginBottom: '2rem' }}>Work Order: <strong>{woId}</strong> has been closed</p>
+        <button type="button" className="btn" onClick={() => navigate('/wo-dashboard')}>Back to WO Board</button>
       </div>
     );
   }
@@ -50,24 +50,24 @@ export function CloseWoPage() {
         {targetQty && <> | Target: {targetQty.toLocaleString()} pcs</>}
       </p>
       <div style={{ marginBottom: '0.5rem' }}>
-        <Link to={`/wo/${woId}`} style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← กลับหน้า WO Detail</Link>
+        <Link to={`/wo/${woId}`} style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← Back to WO Detail</Link>
       </div>
 
       {error && <div className="notice err">{error}</div>}
 
       <form className="stack" onSubmit={handleSubmit}>
         <label className="field">
-          <span>จำนวนที่ผลิตได้จริง (Actual Qty)</span>
+          <span>Actual Quantity Produced (Actual Qty)</span>
           <input
             type="number" min="1"
             value={actualQty}
             onChange={e => setActualQty(e.target.value)}
-            placeholder="เช่น 1500"
+            placeholder="e.g. 1500"
             required autoFocus
           />
         </label>
         <button className="btn" type="submit" disabled={!actualQty || patchMut.isPending} style={{ padding: '1rem', fontSize: '1rem' }}>
-          {patchMut.isPending ? 'กำลังปิดงาน...' : 'ยืนยันปิดงาน'}
+          {patchMut.isPending ? 'Closing...' : 'Confirm Close'}
         </button>
       </form>
     </div>

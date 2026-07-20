@@ -2,31 +2,31 @@
 // ใช้ได้ทั้งจาก response ของ api.ts ({ status, data }) และจาก Error ที่ throw มา
 
 const BY_CODE: Record<string, string> = {
-  AUTH_REQUIRED:         'ต้องเข้าสู่ระบบก่อน',
-  AUTH_LOGIN_FAILED:     'เข้าสู่ระบบไม่สำเร็จ — ตรวจสอบ username/password',
-  AUTH_MODE_HEADER_ONLY: 'ระบบตั้งค่า auth แบบ header — ล็อกอินวิธีนี้ไม่ได้',
-  JWT_SECRET_NOT_READY:  'ระบบยังไม่พร้อม (JWT) — แจ้งผู้ดูแลระบบ',
-  VALIDATION_ERROR:      'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบ',
-  NOT_FOUND:             'ไม่พบข้อมูลที่ต้องการ',
-  FORBIDDEN:             'ไม่มีสิทธิ์ทำรายการนี้',
-  RATE_LIMITED:          'ทำรายการถี่เกินไป กรุณารอสักครู่',
+  AUTH_REQUIRED:         'Please sign in first',
+  AUTH_LOGIN_FAILED:     'Login failed — check username/password',
+  AUTH_MODE_HEADER_ONLY: 'Auth is configured as header mode — cannot log in this way',
+  JWT_SECRET_NOT_READY:  'System not ready (JWT) — please contact the administrator',
+  VALIDATION_ERROR:      'Invalid data, please check',
+  NOT_FOUND:             'The requested data was not found',
+  FORBIDDEN:             'You do not have permission for this action',
+  RATE_LIMITED:          'Too many requests, please wait a moment',
 };
 
 const BY_STATUS: Record<number, string> = {
-  0:   'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบอินเทอร์เน็ต',
-  400: 'คำขอไม่ถูกต้อง กรุณาตรวจสอบข้อมูล',
-  401: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่',
-  403: 'ไม่มีสิทธิ์ทำรายการนี้',
-  404: 'ไม่พบข้อมูลที่ต้องการ',
-  409: 'ข้อมูลขัดแย้ง (อาจซ้ำกับที่มีอยู่แล้ว)',
-  422: 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบ',
-  429: 'ทำรายการถี่เกินไป กรุณารอสักครู่',
-  500: 'เซิร์ฟเวอร์มีปัญหา กรุณาลองใหม่',
-  502: 'เซิร์ฟเวอร์มีปัญหา กรุณาลองใหม่',
-  503: 'ระบบไม่พร้อมให้บริการชั่วคราว',
+  0:   'Cannot connect to server — check your internet connection',
+  400: 'Bad request, please check your data',
+  401: 'Session expired, please sign in again',
+  403: 'You do not have permission for this action',
+  404: 'The requested data was not found',
+  409: 'Data conflict (it may already exist)',
+  422: 'Invalid data, please check',
+  429: 'Too many requests, please wait a moment',
+  500: 'Server error, please try again',
+  502: 'Server error, please try again',
+  503: 'Service temporarily unavailable',
 };
 
-const FALLBACK = 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+const FALLBACK = 'An error occurred, please try again';
 const hasThai = (s: string) => /[฀-๿]/.test(s);
 
 // จาก response ของ api.ts: apiErrorMessage(res.status, res.data)

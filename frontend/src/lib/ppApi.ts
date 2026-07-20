@@ -36,7 +36,8 @@ export interface PpProject {
   qa_status: string;               // สถานะฝั่ง QA — แยกจาก status งาน แต่ตัวเลือกเดียวกัน (PP_STATUS)
   store_received: string | null;
   expected_date: string | null;
-  revised_date: string | null;     // แสดงเป็น "Actual shipping date"
+  revised_date: string | null;     // Revised date (แสดงก่อน Remark)
+  bom_rec_date: string | null;     // Bom Rec — วันที่รับ BOM (กลุ่ม WO)
   done: boolean;                   // (เลิกใช้)
   pd_pic: string;
   pic_responsible: string;         // PIC → Responsible
@@ -87,7 +88,7 @@ export function usePpCreate() {
   return useMutation({
     mutationFn: async (data: Partial<PpProject>) => {
       const res = await api.post('/pp/projects', data);
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึกไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Save failed');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
@@ -99,7 +100,7 @@ export function usePpUpdate() {
   return useMutation({
     mutationFn: async ({ id, ...data }: Partial<PpProject> & { id: number }) => {
       const res = await api.put(`/pp/projects/${id}`, data);
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'แก้ไขไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Update failed');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
@@ -111,7 +112,7 @@ export function usePpDelete() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await api.delete(`/pp/projects/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('ลบไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Delete failed');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),

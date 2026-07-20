@@ -16,17 +16,17 @@ export type DataState = 'loading' | 'empty' | 'coming-soon' | 'error';
 
 // ข้อความสั้น (ใช้ในตาราง/บล็อก) — error มีปุ่มลองใหม่จึงแยก render ต่างหาก
 function shortText(state: DataState, emptyText?: string): ReactNode {
-  if (state === 'loading') return 'กำลังโหลด...';
-  if (state === 'coming-soon') return '🚧 ฟีเจอร์นี้กำลังพัฒนา';
-  if (state === 'empty') return emptyText || 'ยังไม่มีข้อมูล';
+  if (state === 'loading') return 'Loading...';
+  if (state === 'coming-soon') return '🚧 This feature is in development';
+  if (state === 'empty') return emptyText || 'No data';
   return null; // 'error' → ใช้ ErrorInline
 }
 
 function ErrorInline({ onRetry }: { onRetry?: () => void }) {
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-      <span>⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</span>
-      {onRetry && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={onRetry}>ลองใหม่</button>}
+      <span>⚠️ Failed to load data, please retry</span>
+      {onRetry && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={onRetry}>Retry</button>}
     </span>
   );
 }
@@ -79,10 +79,10 @@ export function BlockState({ state, emptyText, onRetry }: { state: DataState; em
 // ---------------------------------------------------------------------------
 
 const PRESETS: Record<DataState, { icon: ReactNode; title: string; message: string }> = {
-  loading:       { icon: <Spinner />, title: 'กำลังโหลด...',       message: '' },
-  empty:         { icon: '📭',        title: 'ยังไม่มีข้อมูล',       message: '' },
-  'coming-soon': { icon: '🚧',        title: 'ฟีเจอร์นี้กำลังพัฒนา',  message: 'ส่วนนี้ยังไม่เปิดให้ใช้งาน — กำลังพัฒนาอยู่' },
-  error:         { icon: '⚠️',        title: 'โหลดข้อมูลไม่สำเร็จ',   message: 'เชื่อมต่อไม่ได้หรือเกิดข้อผิดพลาด กรุณาลองใหม่' },
+  loading:       { icon: <Spinner />, title: 'Loading...',                  message: '' },
+  empty:         { icon: '📭',        title: 'No data',                     message: '' },
+  'coming-soon': { icon: '🚧',        title: 'This feature is in development', message: 'This section is not available yet — currently in development' },
+  error:         { icon: '⚠️',        title: 'Failed to load data',         message: 'Could not connect or an error occurred, please retry' },
 };
 
 export function EmptyState({ state = 'empty', title, message, icon, onRetry, action, compact = false }: {
@@ -106,7 +106,7 @@ export function EmptyState({ state = 'empty', title, message, icon, onRetry, act
       {msg && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: 420, margin: '0 auto', lineHeight: 1.5 }}>{msg}</div>}
       {(action || onRetry) && (
         <div style={{ marginTop: 18 }}>
-          {action ?? (onRetry && <button type="button" className="btn secondary" style={{ fontSize: '0.85rem' }} onClick={onRetry}>ลองใหม่</button>)}
+          {action ?? (onRetry && <button type="button" className="btn secondary" style={{ fontSize: '0.85rem' }} onClick={onRetry}>Retry</button>)}
         </div>
       )}
     </div>

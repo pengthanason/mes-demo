@@ -39,7 +39,7 @@ function ReworkDialog({ qcResult, onClose }: { qcResult: QcResult; onClose: () =
       { qcResultId: qcResult.id, defectType, assignedTo, dueDate },
       {
         onSuccess: (rw) => {
-          showToast(`เปิด Rework Ticket #${rw.id} สำเร็จ`, 'success');
+          showToast(`Rework Ticket #${rw.id} opened successfully`, 'success');
           onClose();
         },
         onError: (err) => showToast(err.message, 'error'),
@@ -50,29 +50,29 @@ function ReworkDialog({ qcResult, onClose }: { qcResult: QcResult; onClose: () =
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
       <div className="panel" style={{ maxWidth: 480, width: '100%' }}>
-        <h3 className="panel__title">เปิด Rework Ticket</h3>
+        <h3 className="panel__title">Open Rework Ticket</h3>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>
           WO: <strong>{qcResult.woId}</strong> · Lot: {qcResult.lotNo} · NG: {qcResult.qtyFail} pcs
         </p>
         <form onSubmit={handleSubmit} className="stack" style={{ gap: '0.75rem' }}>
           <label className="field">
-            <span>ประเภทของเสีย / Defect Type *</span>
-            <input value={defectType} onChange={e => setDefectType(e.target.value)} placeholder="เช่น บัดกรีเสีย, ขาดั้มเสีย..." required />
+            <span>Defect Type *</span>
+            <input value={defectType} onChange={e => setDefectType(e.target.value)} placeholder="e.g. bad solder, damaged pin..." required />
           </label>
           <label className="field">
-            <span>ผู้รับผิดชอบซ่อม</span>
-            <input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder="ชื่อช่างซ่อม..." />
+            <span>Assigned Technician</span>
+            <input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder="Technician name..." />
           </label>
           <label className="field">
-            <span>วันที่แก้เสร็จ (Due Date)</span>
+            <span>Due Date</span>
             <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </label>
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
             <button type="submit" className="btn" disabled={!defectType.trim() || reworkMut.isPending}
               style={{ flex: 1, background: '#ef4444', borderColor: '#ef4444', color: '#fff', fontWeight: 600 }}>
-              {reworkMut.isPending ? 'กำลังเปิด...' : 'ยืนยันเปิด Rework Ticket'}
+              {reworkMut.isPending ? 'Opening...' : 'Confirm Open Rework Ticket'}
             </button>
-            <button type="button" className="btn secondary" onClick={onClose} style={{ flex: 1 }}>ข้ามไปก่อน</button>
+            <button type="button" className="btn secondary" onClick={onClose} style={{ flex: 1 }}>Skip for now</button>
           </div>
         </form>
       </div>
@@ -142,7 +142,7 @@ export function QcResultPage() {
       { woId: woId.trim(), lotNo: lotNo.trim(), qtyChecked: qtyCheckedN, qtyPass: qtyPassN, qtyFail: qtyFailN, overall, defectDesc, remark },
       {
         onSuccess: (result) => {
-          showToast(`บันทึก QC Result สำเร็จ — ${overall}`, overall === 'PASS' ? 'success' : 'error');
+          showToast(`QC Result saved — ${overall}`, overall === 'PASS' ? 'success' : 'error');
           // reset form
           setLotNo(''); setQtyChecked(''); setQtyPass(''); setDefectDesc(''); setRemark('');
           setShowForm(false);
@@ -159,12 +159,12 @@ export function QcResultPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 className="panel__title">QC Result</h1>
-            <p className="panel__subtitle">บันทึกผลตรวจ QC และเปิด Rework Ticket</p>
+            <p className="panel__subtitle">Record QC inspection results and open Rework Tickets</p>
           </div>
           {!isViewer && (
             <button type="button" className="btn" onClick={() => setShowForm(v => !v)}
               style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>
-              {showForm ? '✕ ยกเลิก' : '+ บันทึก QC Result'}
+              {showForm ? '✕ Cancel' : '+ Record QC Result'}
             </button>
           )}
         </div>
@@ -172,7 +172,7 @@ export function QcResultPage() {
         {/* ─── Form ─────────────────────────────────────────────── */}
         {showForm && !isViewer && (
           <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
-            <h3 className="panel__title panel__title--sm">บันทึกผล QC</h3>
+            <h3 className="panel__title panel__title--sm">Record QC Result</h3>
             <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem', gap: '0.75rem' }}>
               <div className="grid-2col">
                 <label className="field">
@@ -182,7 +182,7 @@ export function QcResultPage() {
                 <label className="field">
                   <span>Lot No *</span>
                   <input list="qc-lot-options" value={lotNo} onChange={e => setLotNo(e.target.value)}
-                    placeholder={woId.trim() ? 'เลือก/พิมพ์ Lot' : 'ใส่ WO ก่อน'} disabled={!woId.trim()} required />
+                    placeholder={woId.trim() ? 'Select/type Lot' : 'Enter WO first'} disabled={!woId.trim()} required />
                   <datalist id="qc-lot-options">
                     {woLots.map(l => <option key={l} value={l} />)}
                   </datalist>
@@ -191,17 +191,17 @@ export function QcResultPage() {
 
               {scan && scan.total > 0 && (
                 <div className="notice info" style={{ fontSize: '0.82rem' }}>
-                  📡 ดึงจาก Production Scan: ตรวจ {scan.total} · PASS {scan.pass} · FAIL {scan.fail} (แก้ไขได้)
+                  📡 Pulled from Production Scan: Checked {scan.total} · PASS {scan.pass} · FAIL {scan.fail} (editable)
                 </div>
               )}
 
               <div className="grid-3col">
                 <label className="field">
-                  <span>จำนวนตรวจ (Checked)</span>
+                  <span>Qty Checked</span>
                   <input type="number" min="1" value={qtyChecked} onChange={e => setQtyChecked(e.target.value)} placeholder="100" required />
                 </label>
                 <label className="field">
-                  <span>PASS (ผ่าน)</span>
+                  <span>PASS</span>
                   <input type="number" min="0" max={qtyCheckedN || undefined} value={qtyPass} onChange={e => setQtyPass(e.target.value)} placeholder="95" />
                 </label>
                 <label className="field">
@@ -212,31 +212,31 @@ export function QcResultPage() {
 
               {overall && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 1rem', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>ผลรวม:</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Overall:</span>
                   <OverallBadge overall={overall} />
                 </div>
               )}
 
               {needsDefect && (
                 <label className="field">
-                  <span>รายละเอียดของเสีย (Defect Description) *</span>
+                  <span>Defect Description *</span>
                   <textarea value={defectDesc} onChange={e => setDefectDesc(e.target.value)} rows={2}
-                    placeholder="ระบุตำแหน่ง / ลักษณะของเสียให้ชัดเจน..." required />
+                    placeholder="Clearly specify the location / nature of the defect..." required />
                 </label>
               )}
 
               {needsDefect && (
                 <label className="field">
-                  <span>หมายเหตุ (Remark)</span>
+                  <span>Remark</span>
                   <textarea value={remark} onChange={e => setRemark(e.target.value)} rows={2}
-                    placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ) — เช่น สาเหตุเบื้องต้น, การติดตาม..." />
+                    placeholder="Additional remark (optional) — e.g. preliminary cause, follow-up..." />
                 </label>
               )}
 
               <button type="submit" className="btn"
                 disabled={!woId.trim() || !lotNo.trim() || !qtyCheckedN || !overall || (needsDefect && !defectDesc.trim()) || createMut.isPending}
                 style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
-                {createMut.isPending ? 'กำลังบันทึก...' : 'ยืนยันบันทึก QC Result'}
+                {createMut.isPending ? 'Saving...' : 'Confirm Save QC Result'}
               </button>
             </form>
           </div>
@@ -246,7 +246,7 @@ export function QcResultPage() {
         <div style={{ marginTop: '1.5rem', marginBottom: '1rem', maxWidth: 320 }}>
           <label className="field">
             <span>Filter by WO</span>
-            <input list="wo-filter-options" value={woFilter} onChange={e => { setWoFilter(e.target.value); setPage(1); }} placeholder="พิมพ์ WO เพื่อกรอง..." />
+            <input list="wo-filter-options" value={woFilter} onChange={e => { setWoFilter(e.target.value); setPage(1); }} placeholder="Type WO to filter..." />
             <datalist id="wo-filter-options">
               {[...new Set(allResults.map(r => r.woId).filter(Boolean))].map(w => <option key={w} value={w} />)}
             </datalist>
@@ -258,14 +258,14 @@ export function QcResultPage() {
           <table className="table table-readonly" style={{ minWidth: 920, width: '100%' }}>
             <thead>
               <tr>
-                <th>วันที่</th>
+                <th>Date</th>
                 <th>WO</th>
                 <th>Lot</th>
                 <th style={{ textAlign: 'center' }}>Checked</th>
                 <th style={{ textAlign: 'center' }}>Pass</th>
                 <th style={{ textAlign: 'center' }}>Fail</th>
                 <th style={{ textAlign: 'center' }}>Overall</th>
-                <th style={{ textAlign: 'center' }}>ของเสีย / หมายเหตุ</th>
+                <th style={{ textAlign: 'center' }}>Defect / Remark</th>
                 <th style={{ textAlign: 'center' }}>QA Verify</th>
                 <th>Actions</th>
               </tr>
@@ -274,10 +274,10 @@ export function QcResultPage() {
               {isLoading ? (
                 <TableState colSpan={10} state="loading" />
               ) : filtered.length === 0 ? (
-                <TableState colSpan={10} state="empty" emptyText={woFilter.trim() ? 'ไม่พบรายการตามตัวกรอง — ล้างช่องค้นหา WO เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล QC Result — กด “+ บันทึก QC Result” เพื่อเริ่ม'} />
+                <TableState colSpan={10} state="empty" emptyText={woFilter.trim() ? 'No items match the filter — clear the WO search to see all' : 'No QC Result data yet — click “+ Record QC Result” to start'} />
               ) : pagedList.map(r => (
                 <tr key={r.id}>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(r.createdAt).toLocaleDateString('th-TH')}</td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(r.createdAt).toLocaleDateString('en-GB')}</td>
                   <td style={{ fontWeight: 600 }}>{r.woId}</td>
                   <td>{r.lotNo}</td>
                   <td style={{ textAlign: 'center' }}>{r.qtyChecked}</td>

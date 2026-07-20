@@ -34,10 +34,10 @@ const DEFAULT_CUSTOM = [
 // สถานีของแท็บ External — แยกตามบริษัท/ประเภท (Plastic ฉีด/เป่า + EMS) · แต่ละประเภทมีสถานีของตัวเอง
 type ExtKey = 'ext_inj' | 'ext_blow' | 'ext_ems';
 const EXT_GROUPS: Record<ExtKey, { header: string; items: string[] }> = {
-  ext_inj:  { header: '🧴 Plastic · ฉีด (Injection)', items: [
+  ext_inj:  { header: '🧴 Plastic · Injection', items: [
     'Preparation', 'Feeding', 'Heating & Melting', 'Injection', 'Molding & Cooling', 'Demolding & Ejection', 'Finished Product',
   ] },
-  ext_blow: { header: '💨 Plastic · เป่า (Blow)', items: [
+  ext_blow: { header: '💨 Plastic · Blow', items: [
     'Feeding & Melting', 'Parison Formation', 'Mold Clamping', 'Blowing', 'Cooling', 'Ejection & Trimming',
   ] },
   ext_ems:  { header: '🔌 EMS · Electronics', items: [
@@ -131,13 +131,13 @@ const inferRole = (p: string): Role => {
 const fmtTime = (sec: number) => {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
   const p: string[] = [];
-  if (h) p.push(`${h} ชม.`);
-  if (m) p.push(`${m} นาที`);
-  if (s || !p.length) p.push(`${s} วิ`);
+  if (h) p.push(`${h} h`);
+  if (m) p.push(`${m} min`);
+  if (s || !p.length) p.push(`${s} s`);
   return p.join(' ');
 };
 
-const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
+const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
 
 /* ── โหลด preset ── */
 function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
@@ -154,7 +154,7 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
     <div style={{ position: 'relative', flexGrow: 1, minWidth: 0 }}>
       <div onClick={() => { if (!open) setQ(''); setOpen(o => !o); }}
         style={{ padding: '8px 10px', border: '1px solid #ccc', borderRadius: 4, background: '#f8fafc', color: '#64748b', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>📂 โหลด Preset ที่บันทึกไว้...</span>
+        <span>📂 Load saved Preset...</span>
         <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
       </div>
       {open && (
@@ -165,13 +165,13 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
               <div style={{ padding: 6, borderBottom: '1px solid #e2e8f0' }}>
                 <input ref={searchRef} value={q} onChange={e => setQ(e.target.value)} onClick={e => e.stopPropagation()}
                   onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
-                  placeholder="🔍 ค้นหา preset..." aria-label="ค้นหา preset"
+                  placeholder="🔍 Search preset..." aria-label="Search preset"
                   style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4, fontSize: '0.82rem', fontFamily: 'inherit' }} />
               </div>
             )}
             <div style={{ overflowY: 'auto' }}>
-            {workflows.length === 0 && <div style={{ padding: '10px', color: '#94a3b8', fontSize: '0.85rem' }}>ยังไม่มี preset ที่บันทึก</div>}
-            {workflows.length > 0 && shown.length === 0 && <div style={{ padding: '10px', color: '#94a3b8', fontSize: '0.85rem' }}>ไม่พบ “{q}”</div>}
+            {workflows.length === 0 && <div style={{ padding: '10px', color: '#94a3b8', fontSize: '0.85rem' }}>No saved presets yet</div>}
+            {workflows.length > 0 && shown.length === 0 && <div style={{ padding: '10px', color: '#94a3b8', fontSize: '0.85rem' }}>No results for “{q}”</div>}
             {shown.map(w => (
               <div key={w.id} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
                 <div style={{ flexGrow: 1, padding: '8px 10px', cursor: 'pointer', color: '#334155', minWidth: 0 }} onClick={() => { onLoad(w); setOpen(false); }}>
@@ -179,9 +179,9 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
                   <div style={{ fontSize: '0.72rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.steps.map(s => s.process).join(' → ')}</div>
                 </div>
                 {canDelete && w.id > 0 && (
-                  <button onClick={async (e) => { e.preventDefault(); e.stopPropagation(); if (await confirmDialog('ลบ preset นี้?')) onDelete(w.id); }}
+                  <button onClick={async (e) => { e.preventDefault(); e.stopPropagation(); if (await confirmDialog('Delete this preset?')) onDelete(w.id); }}
                     style={{ background: 'transparent', border: 'none', color: '#e74c3c', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}
-                    title="ลบ" onMouseOver={e => e.currentTarget.style.background = '#fee2e2'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>✕</button>
+                    title="Delete" onMouseOver={e => e.currentTarget.style.background = '#fee2e2'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>✕</button>
                 )}
               </div>
             ))}
@@ -203,27 +203,27 @@ const ROLE_VIS: Record<Role, { stroke: string; fill: string }> = {
 };
 // ป้าย disposition เมื่อ fail (ใช้ทั้ง flowchart + dropdown)
 const FAIL_OPTS: { value: FailAction; label: string }[] = [
-  { value: 'rework', label: '🛠️ Rework (วนกลับซ่อม)' },
-  { value: 'back',   label: '↩️ ย้อนกลับขั้น...' },
-  { value: 'scrap',  label: '❌ Scrap (NG ออก)' },
+  { value: 'rework', label: '🛠️ Rework (loop back to repair)' },
+  { value: 'back',   label: '↩️ Go back to step...' },
+  { value: 'scrap',  label: '❌ Scrap (NG out)' },
   { value: 'hold',   label: '⏸️ Hold / MRB' },
 ];
 
 /* ── mermaid flowchart — สะท้อน disposition ต่อ checkpoint (rework/scrap/hold/back) ── */
 function toMermaid(steps: Step[]): string {
-  if (!steps.length) return 'flowchart TD\n  START([เริ่ม]) --> DONE([จบ])';
-  const L = ['flowchart TD', '  START([▶ เริ่มสายผลิต]):::se'];
+  if (!steps.length) return 'flowchart TD\n  START([Start]) --> DONE([End])';
+  const L = ['flowchart TD', '  START([▶ Start line]):::se'];
   steps.forEach((s, i) => {
     const t = s.seconds !== '' ? `<br/>⏱ ${fmtTime(Number(s.seconds))}` : '';
     L.push(`  S${i}["${i + 1}. ${s.process}${t}"]:::${s.kind === 'checkpoint' ? 'chk' : 'proc'}`);
   });
-  steps.forEach((s, i) => { if (s.kind === 'checkpoint') L.push(`  D${i}{"ผ่าน?"}:::dec`); });
-  L.push('  DONE([■ เสร็จ]):::se');
+  steps.forEach((s, i) => { if (s.kind === 'checkpoint') L.push(`  D${i}{"Pass?"}:::dec`); });
+  L.push('  DONE([■ Done]):::se');
   L.push('  START --> S0');
   // spine + ทาง pass
   steps.forEach((s, i) => {
     const next = i < steps.length - 1 ? `S${i + 1}` : 'DONE';
-    if (s.kind === 'checkpoint') { L.push(`  S${i} --> D${i}`); L.push(`  D${i} -->|"✓ ใช่"| ${next}`); }
+    if (s.kind === 'checkpoint') { L.push(`  S${i} --> D${i}`); L.push(`  D${i} -->|"✓ Yes"| ${next}`); }
     else L.push(`  S${i} --> ${next}`);
   });
   // ทาง fail (ทุกโอกาส)
@@ -232,16 +232,16 @@ function toMermaid(steps: Step[]): string {
     const fa = s.failAction || 'rework';
     const tIdx = s.backToId ? steps.findIndex(x => x.id === s.backToId) : -1;
     if (fa === 'back' && tIdx >= 0) {
-      L.push(`  D${i} -.->|"✗ ย้อนกลับ"| S${tIdx}`);
+      L.push(`  D${i} -.->|"✗ Go back"| S${tIdx}`);
     } else if (fa === 'scrap') {
-      L.push(`  D${i} -->|"✗ ไม่"| SC${i}["❌ SCRAP (NG)"]:::rw`);
+      L.push(`  D${i} -->|"✗ No"| SC${i}["❌ SCRAP (NG)"]:::rw`);
     } else if (fa === 'hold') {
-      L.push(`  D${i} -->|"✗ ไม่"| HD${i}["⏸️ HOLD / MRB"]:::hd`);
+      L.push(`  D${i} -->|"✗ No"| HD${i}["⏸️ HOLD / MRB"]:::hd`);
     } else {
-      L.push(`  D${i} -->|"✗ ไม่"| RW${i}["🛠️ REWORK"]:::rw`);
-      L.push(`  RW${i} --> F${i}{"แก้ได้?${Number(s.maxRetry) > 0 ? ` ≤${s.maxRetry}×` : ''}"}:::dec`);
-      L.push(`  F${i} -.->|"✓ ใช่ ลองใหม่"| S${i}`);
-      L.push(`  F${i} -->|"✗ ไม่"| SC${i}["❌ SCRAP (NG)"]:::rw`);
+      L.push(`  D${i} -->|"✗ No"| RW${i}["🛠️ REWORK"]:::rw`);
+      L.push(`  RW${i} --> F${i}{"Fixable?${Number(s.maxRetry) > 0 ? ` ≤${s.maxRetry}×` : ''}"}:::dec`);
+      L.push(`  F${i} -.->|"✓ Yes, retry"| S${i}`);
+      L.push(`  F${i} -->|"✗ No"| SC${i}["❌ SCRAP (NG)"]:::rw`);
     }
   });
   L.push('  classDef proc fill:#eef2ff,stroke:#6366f1,stroke-width:2px,color:#1e293b;');
@@ -304,7 +304,7 @@ const FM05_PRESET: Workflow = {
    • หัวข้อคั่น = หมวดที่ AI จัดให้ (categorize) */
 function buildFlowSvg(steps: Step[]): string {
   const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  if (!steps.length) return `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="60" font-family="'Segoe UI',Tahoma,sans-serif"><text x="120" y="34" text-anchor="middle" font-size="13" fill="#64748b">ยังไม่มีขั้นตอน</text></svg>`;
+  if (!steps.length) return `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="60" font-family="'Segoe UI',Tahoma,sans-serif"><text x="120" y="34" text-anchor="middle" font-size="13" fill="#64748b">No steps yet</text></svg>`;
 
   const MX = 20, GAP = 22, HEAD_H = 26, LINEH = 15;
   const BW = 40, BH = 28, DHW = 26, DHH = 20;
@@ -385,13 +385,13 @@ function buildFlowSvg(steps: Step[]): string {
   for (let ci = 1; ci < cols.length; ci++) {
     const first = cols[ci][0];
     if (first && first.t === 'step') {
-      cols[ci].unshift({ t: 'head', label: `${cats[first.i]} (ต่อ)`, h: HEAD_H, top: 0, mid: 0, bottom: 0 });
+      cols[ci].unshift({ t: 'head', label: `${cats[first.i]} (cont.)`, h: HEAD_H, top: 0, mid: 0, bottom: 0 });
     }
   }
   // ท้ายคอลัมน์ (ที่ไม่ใช่อันสุดท้าย) → แถบบอกว่าไหลต่อไปหมวดไหนในคอลัมน์ถัดไป (กันงงว่าขั้นสุดท้ายไปไหน)
   for (let ci = 0; ci < cols.length - 1; ci++) {
     const nf = cols[ci + 1][0];
-    const label = nf && nf.t === 'head' ? nf.label.replace(' (ต่อ)', '') : '';
+    const label = nf && nf.t === 'head' ? nf.label.replace(' (cont.)', '') : '';
     if (label) cols[ci].push({ t: 'head', label: `${label} ▶`, h: HEAD_H, top: 0, mid: 0, bottom: 0 });
   }
 
@@ -434,7 +434,7 @@ function buildFlowSvg(steps: Step[]): string {
     for (let k = 0; k < crows.length - 1; k++) {
       const a = crows[k], b = crows[k + 1];
       parts.push(`<line x1="${colNX}" y1="${a.bottom}" x2="${colNX}" y2="${b.top}" stroke="#111" stroke-width="1.3" ${b.t === 'step' ? 'marker-end="url(#ah)"' : ''}/>`);
-      if (a.t === 'step' && a.dec) parts.push(`<text x="${colNX + 7}" y="${(a.bottom + b.top) / 2}" font-size="9.5" fill="#111" dominant-baseline="central">ผ่าน</text>`);
+      if (a.t === 'step' && a.dec) parts.push(`<text x="${colNX + 7}" y="${(a.bottom + b.top) / 2}" font-size="9.5" fill="#111" dominant-baseline="central">Pass</text>`);
     }
 
     // โหนด + คำอธิบาย + ทางแยก "ไม่ผ่าน"
@@ -484,15 +484,15 @@ function buildFlowSvg(steps: Step[]): string {
         }
       };
       if (fa === 'scrap') {
-        cap(firstPerUnit >= 0 ? `ทิ้ง → เริ่ม #${stepNum[firstPerUnit]}` : 'Scrap (ตัดจบ)');
+        cap(firstPerUnit >= 0 ? `Discard → start #${stepNum[firstPerUnit]}` : 'Scrap (end)');
         if (firstPerUnit >= 0) gotoStep(firstPerUnit);   // ทิ้งชิ้นนี้ → ลากไปต้นสายผลิต
       } else if (fa === 'back') {
-        cap(tIdx >= 0 ? `ย้อนกลับ #${stepNum[tIdx]}` : 'ย้อนกลับ');
+        cap(tIdx >= 0 ? `Back to #${stepNum[tIdx]}` : 'Back');
         gotoStep(tIdx);
       } else if (fa === 'hold') {
-        cap(Number(s.holdMin) > 0 ? `พัก ${s.holdMin} นาที` : 'Hold'); loopBack();   // พักแล้ววนทำเดิมต่อ (วนใกล้ๆ)
+        cap(Number(s.holdMin) > 0 ? `Hold ${s.holdMin} min` : 'Hold'); loopBack();   // พักแล้ววนทำเดิมต่อ (วนใกล้ๆ)
       } else {
-        cap('รีเวิค'); loopBack();                                                     // รีเวิคแล้วตรวจซ้ำ (วนใกล้ๆ)
+        cap('Rework'); loopBack();                                                     // รีเวิคแล้วตรวจซ้ำ (วนใกล้ๆ)
       }
     });
   });
@@ -592,7 +592,7 @@ function buildGanttSvg(steps: Step[], qty: number, zoom: number = 1, fitW: numbe
 
   if (!R || axisMax <= 0) {
     const Wsvg = LX + 720 + PADR;
-    const emptySvg = `<svg viewBox="0 0 ${Wsvg} 120" width="${Wsvg}" height="120" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif"><text x="${Wsvg / 2}" y="60" text-anchor="middle" font-size="13" fill="#94a3b8">ยังไม่มีขั้นตอนที่มีเวลา — เพิ่มขั้นตอน + ใส่เวลาเพื่อดู Gantt</text></svg>`;
+    const emptySvg = `<svg viewBox="0 0 ${Wsvg} 120" width="${Wsvg}" height="120" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Tahoma,sans-serif"><text x="${Wsvg / 2}" y="60" text-anchor="middle" font-size="13" fill="#94a3b8">No steps with time yet — add steps + enter time to view the Gantt</text></svg>`;
     return { label: '', chart: emptySvg, full: emptySvg };
   }
 
@@ -619,7 +619,7 @@ function buildGanttSvg(steps: Step[], qty: number, zoom: number = 1, fitW: numbe
     const day = Math.floor(total / 86400), rem = total % 86400;
     const hh = Math.floor(rem / 3600), mm = Math.floor((rem % 3600) / 60);
     const s = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-    return day > 0 ? `${s} (+${day}ว)` : s;
+    return day > 0 ? `${s} (+${day}d)` : s;
   };
 
   // ขาว-ดำ-เทา (ทางการ ใส่รายงานได้ เข้าชุดกับ flowchart) — ไม่ใช้สีสด
@@ -676,10 +676,10 @@ function buildGanttSvg(steps: Step[], qty: number, zoom: number = 1, fitW: numbe
     } else {
       const shownName = fitName(d.label);
       parts.push(`<text x="30" y="${mid - 6}" dominant-baseline="central" font-size="${NAME_FS}" fill="#1f2937">${shownName !== d.label ? `<title>${esc(d.label)}</title>` : ''}${esc(shownName)}</text>`);
-      parts.push(`<text x="30" y="${mid + 11}" dominant-baseline="central" font-size="9.5" fill="#90a0ac">${esc(d.once ? `ครั้งเดียว · ${fmtTime(d.t)}` : `×${d.m} เครื่อง · ${fmtTime(d.t)}/ชิ้น`)}</text>`);
+      parts.push(`<text x="30" y="${mid + 11}" dominant-baseline="central" font-size="9.5" fill="#90a0ac">${esc(d.once ? `Once · ${fmtTime(d.t)}` : `×${d.m} machines · ${fmtTime(d.t)}/pc`)}</text>`);
       const bx = x(d.start), bw = Math.max(7, x(d.end) - x(d.start)), by = mid - BAR_H / 2;
       // ชี้ที่ "ตัวกล่อง" (บาร์) เท่านั้น → tooltip (custom ขึ้นทันที): เริ่มกี่โมง / ชิ้นละกี่นาที / เสร็จกี่โมง
-      const tip = `${d.label}\nเริ่ม ${clockAt(d.start)}\nชิ้นละ ${fmtTime(d.t)}${d.once ? ' (ครั้งเดียว)' : ` · ×${d.m} เครื่อง`}\nเสร็จ ${clockAt(d.end)}`;
+      const tip = `${d.label}\nStart ${clockAt(d.start)}\nPer pc ${fmtTime(d.t)}${d.once ? ' (once)' : ` · ×${d.m} machines`}\nEnd ${clockAt(d.end)}`;
       parts.push(`<rect x="${bx.toFixed(1)}" y="${by}" width="${bw.toFixed(1)}" height="${BAR_H}" rx="3" fill="${d.once ? C_ONCE : (i % 2 ? '#64748b' : C_BAR)}" stroke="${d.once ? C_ONCE_BD : '#334155'}" stroke-width="1" data-tip="${esc(tip).replace(/"/g, '&quot;')}"/>`);
       const durTxt = fmtTime(Math.round(d.end - d.start));
       if (bx + bw + 46 < LX + W) parts.push(`<text x="${(bx + bw + 7).toFixed(1)}" y="${mid}" dominant-baseline="central" font-size="10" pointer-events="none" fill="#475569">${esc(durTxt)}</text>`);
@@ -724,31 +724,31 @@ function buildTimeDetailHtml(steps: Step[], qty: number): string {
   const lotSec = qtyN > 0 ? setupSec + perUnitSec + (qtyN - 1) * bottleneckSec : setupSec + perUnitSec;
   const rows = steps.map((s, i) => {
     const once = s.timeScope === 'once';
-    const mode = once ? 'ครั้งเดียว/ล็อต' : `ทุกชิ้น${stationsOf(s) > 1 ? ` ×${stationsOf(s)} เครื่อง` : ''}`;
-    return `<tr><td class="c">${i + 1}</td><td>${esc(s.process)}${s.kind === 'checkpoint' ? ' <span class="chk">(จุดตรวจ)</span>' : ''}</td><td>${esc(mode)}</td><td class="r">${s.seconds !== '' ? esc(fmtTime(effSec(s))) : '-'}</td></tr>`;
+    const mode = once ? 'Once/lot' : `Every pc${stationsOf(s) > 1 ? ` ×${stationsOf(s)} machines` : ''}`;
+    return `<tr><td class="c">${i + 1}</td><td>${esc(s.process)}${s.kind === 'checkpoint' ? ' <span class="chk">(checkpoint)</span>' : ''}</td><td>${esc(mode)}</td><td class="r">${s.seconds !== '' ? esc(fmtTime(effSec(s))) : '-'}</td></tr>`;
   }).join('');
   return `
-    <h2 class="t2title">รายละเอียดเวลา (Time Breakdown)</h2>
+    <h2 class="t2title">Time Breakdown</h2>
     <table class="tt">
-      <tr><th class="c" style="width:7%">#</th><th>กระบวนการ</th><th style="width:28%">โหมด</th><th class="r" style="width:20%">เวลา/ครั้ง</th></tr>
-      ${rows || '<tr><td colspan="4" class="c">— ไม่มีขั้นตอน —</td></tr>'}
+      <tr><th class="c" style="width:7%">#</th><th>Process</th><th style="width:28%">Mode</th><th class="r" style="width:20%">Time/instance</th></tr>
+      ${rows || '<tr><td colspan="4" class="c">— No steps —</td></tr>'}
     </table>
     <table class="tt sum">
-      <tr><th>สรุปเวลา</th><th class="r" style="width:28%">เวลา</th></tr>
-      <tr><td>เวลาครั้งเดียว/ล็อต (setup + รับของ + คลัง)</td><td class="r">${esc(fmtTime(Math.round(setupSec)))}</td></tr>
-      <tr><td>เวลาต่อ 1 ชิ้นผ่านครบสาย (latency)</td><td class="r">${esc(fmtTime(Math.round(perUnitSec)))}</td></tr>
-      <tr><td>คอขวด (สถานีต่อชิ้นช้าสุด ÷ เครื่องขนาน)</td><td class="r">${esc(fmtTime(Math.round(bottleneckSec)))}</td></tr>
-      <tr><td>จำนวนที่ผลิต (Qty)</td><td class="r">${qtyN > 0 ? qtyN.toLocaleString() : '-'}</td></tr>
-      <tr class="grand"><td>รวมทั้งล็อต (แบบสายพาน)${qtyN > 0 ? ` @ ${qtyN.toLocaleString()} ชิ้น` : ''}</td><td class="r">${esc(fmtTime(Math.round(lotSec)))}</td></tr>
+      <tr><th>Time Summary</th><th class="r" style="width:28%">Time</th></tr>
+      <tr><td>One-time/lot (setup + incoming + storage)</td><td class="r">${esc(fmtTime(Math.round(setupSec)))}</td></tr>
+      <tr><td>Time for 1 pc through the whole line (latency)</td><td class="r">${esc(fmtTime(Math.round(perUnitSec)))}</td></tr>
+      <tr><td>Bottleneck (slowest per-pc station ÷ parallel machines)</td><td class="r">${esc(fmtTime(Math.round(bottleneckSec)))}</td></tr>
+      <tr><td>Quantity produced (Qty)</td><td class="r">${qtyN > 0 ? qtyN.toLocaleString() : '-'}</td></tr>
+      <tr class="grand"><td>Total lot (pipeline)${qtyN > 0 ? ` @ ${qtyN.toLocaleString()} pcs` : ''}</td><td class="r">${esc(fmtTime(Math.round(lotSec)))}</td></tr>
     </table>
-    <div class="t2note">สูตร: setup + latency (ชิ้นแรกผ่านครบสาย) + (Qty−1) × คอขวด — คิดแบบสายพาน (ชิ้นถัดไปไม่รอชิ้นก่อนจบทั้งสาย) · เป็นค่าประมาณการ</div>
+    <div class="t2note">Formula: setup + latency (first pc through the whole line) + (Qty−1) × bottleneck — pipeline model (the next pc does not wait for the previous one to finish the whole line) · estimate</div>
   `;
 }
 
 // เจน/พิมพ์แผนภาพเป็น PDF — โหมด form = ฟอร์ม FM 05 (SYNTECH Process Flow Chart) ตามเอกสารจริง
 function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
   const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  if (!svg) { showToast('ยังไม่มีแผนภาพให้พิมพ์ — กด Gen ก่อน', 'error'); return; }
+  if (!svg) { showToast('No diagram to print yet — press Gen first', 'error'); return; }
   const {
     title = 'Manufacturing Workflow', customer = '', model = '', pn = '',
     issuedBy = '', checkedBy = '', approvedBy = '', revNo = '', revDate = '', revDesc = '', filename = '', form = false, timeHtml = '',
@@ -820,7 +820,7 @@ function exportFlowchartPdf(svg: string, meta: ExportMeta = {}) {
     </style></head>
     <body>${body}${timeHtml ? `<div class="page2">${timeHtml}</div>` : ''}<script>window.onload=()=>window.print()</script></body></html>`;
   const w = window.open('', '_blank');
-  if (!w) { showToast('เบราว์เซอร์บล็อก popup — อนุญาตก่อนพิมพ์', 'error'); return; }
+  if (!w) { showToast('Browser blocked the popup — allow it before printing', 'error'); return; }
   w.document.write(html); w.document.close();
 }
 
@@ -846,9 +846,9 @@ function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'flow' | '
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 760px)' }}>
         <h2 className="panel__title" style={{ marginBottom: 4 }}>🖨️ Export {mode === 'flow' ? 'Process Flow Chart (PDF)' : 'Gantt (PDF)'}</h2>
-        <p className="panel__subtitle" style={{ marginTop: 0 }}>{mode === 'flow' ? 'ตั้งชื่อไฟล์ + กรอกข้อมูลเอกสาร (เว้นว่างได้) แล้วกด Export' : 'ตั้งชื่อไฟล์แล้วกด Export'}</p>
+        <p className="panel__subtitle" style={{ marginTop: 0 }}>{mode === 'flow' ? 'Name the file + fill in document info (optional) then press Export' : 'Name the file then press Export'}</p>
         <div className="stack" style={{ marginTop: '0.9rem', gap: '0.75rem' }}>
-          <label className="field"><span>ชื่อไฟล์ (.pdf)</span>
+          <label className="field"><span>File name (.pdf)</span>
             <input ref={nameRef} value={f.filename} onChange={e => set('filename', e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } else if (e.key === 'Escape') onCancel(); }} />
           </label>
@@ -872,7 +872,7 @@ function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'flow' | '
           )}
         </div>
         <div className="modal-actions" style={{ marginTop: '1.1rem' }}>
-          <button type="button" className="btn secondary" onClick={onCancel}>ยกเลิก</button>
+          <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
           <button type="button" className="btn" onClick={confirm}>🖨️ Export</button>
         </div>
       </div>
@@ -887,7 +887,7 @@ function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'flow' | '
 const DD_ARROW = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")";
 type DDItem = { value: string; label: string; deletable?: boolean };
 type DDGroup = { header?: string; items: DDItem[] };
-function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ เพิ่มกระบวนการ...', onDelete, disabled }: {
+function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ Add process...', onDelete, disabled }: {
   value: string; groups: DDGroup[];
   onPick: (v: string) => void; onAdd?: () => void; addLabel?: string; onDelete?: (v: string) => void; disabled?: boolean;
 }) {
@@ -943,12 +943,12 @@ function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ เพิ่�
               <div style={{ padding: 6, borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
                 <input ref={searchRef} value={q} onChange={e => setQ(e.target.value)} onClick={e => e.stopPropagation()}
                   onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
-                  placeholder="🔍 พิมพ์เพื่อค้นหา..." aria-label="ค้นหา"
+                  placeholder="🔍 Type to search..." aria-label="Search"
                   style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4, fontSize: '0.82rem', fontFamily: 'inherit' }} />
               </div>
             )}
             <div style={{ overflowY: 'auto' }}>
-              {shownGroups.length === 0 && <div style={{ padding: '8px 10px', color: '#94a3b8', fontSize: '0.82rem' }}>ไม่พบ “{q}”</div>}
+              {shownGroups.length === 0 && <div style={{ padding: '8px 10px', color: '#94a3b8', fontSize: '0.82rem' }}>No results for “{q}”</div>}
               {shownGroups.map((g, gi) => (
                 <div key={gi}>
                   {g.header && <div style={{ padding: '5px 10px', fontSize: '0.7rem', fontWeight: 700, color: '#6366f1', background: '#eef2ff', borderBottom: '1px solid #e2e8f0' }}>{g.header}</div>}
@@ -957,7 +957,7 @@ function Dropdown({ value, groups, onPick, onAdd, addLabel = '➕ เพิ่�
                       <div style={{ flexGrow: 1, padding: '8px 10px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: value === it.value ? '#0369a1' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                         onClick={() => { onPick(it.value); setOpen(false); }}>{it.label}</div>
                       {it.deletable && onDelete && (
-                        <button type="button" title={`ลบ "${it.label}"`} onClick={e => { e.stopPropagation(); onDelete(it.value); }}
+                        <button type="button" title={`Delete "${it.label}"`} onClick={e => { e.stopPropagation(); onDelete(it.value); }}
                           onMouseOver={e => (e.currentTarget.style.background = '#fee2e2')} onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
                           style={{ background: 'transparent', border: 'none', color: '#e11d48', cursor: 'pointer', padding: '8px 11px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>✕</button>
                       )}
@@ -1003,12 +1003,12 @@ function TimeCells({ step, isViewer, setStep }: CellProps) {
   };
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); };
   return (
-    <div style={{ display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'center' }} title="ชั่วโมง : นาที : วินาที — พิมพ์ให้เสร็จแล้วระบบจะคำนวณ/ทดหน่วยให้เอง">
-      <input type="number" min="0" placeholder="ชั่วโมง" disabled={isViewer} value={h} onChange={e => setH(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
+    <div style={{ display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'center' }} title="Hours : minutes : seconds — finish typing and the system will calculate/carry units for you">
+      <input type="number" min="0" placeholder="Hours" disabled={isViewer} value={h} onChange={e => setH(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
       <span style={{ color: '#94a3b8', fontWeight: 700 }}>:</span>
-      <input type="number" min="0" placeholder="นาที" disabled={isViewer} value={m} onChange={e => setM(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
+      <input type="number" min="0" placeholder="Minutes" disabled={isViewer} value={m} onChange={e => setM(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
       <span style={{ color: '#94a3b8', fontWeight: 700 }}>:</span>
-      <input type="number" min="0" placeholder="วินาที" disabled={isViewer} value={s} onChange={e => setS(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
+      <input type="number" min="0" placeholder="Seconds" disabled={isViewer} value={s} onChange={e => setS(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
     </div>
   );
 }
@@ -1021,11 +1021,11 @@ function MachineCell({ step, isViewer, setStep, machineGroups, onAddMachine, onD
       <div style={{ flex: 1, minWidth: 0 }}>
         <Dropdown value={step.machine} groups={machineGroups} disabled={isViewer}
           onPick={v => setStep(step.id, { machine: v })}
-          onAdd={onAddMachine} addLabel="➕ เพิ่มเครื่อง..." onDelete={onDeleteMachine} />
+          onAdd={onAddMachine} addLabel="➕ Add machine..." onDelete={onDeleteMachine} />
       </div>
-      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap' }} title="จำนวนเครื่องขนาน">
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap' }} title="Number of parallel machines">
         ×<input type="number" min="1" value={step.stations || 1} disabled={isViewer}
-          onChange={e => setStep(step.id, { stations: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} style={{ ...NUMBOX, width: 46 }} /> เครื่อง
+          onChange={e => setStep(step.id, { stations: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} style={{ ...NUMBOX, width: 46 }} /> machines
       </label>
     </div>
   );
@@ -1165,8 +1165,8 @@ export function WorkflowBuilder() {
   const machineMain = [...MACHINE_DEFAULT].sort((a, b) => a.localeCompare(b));
   const machineCustomSorted = [...machines].sort((a, b) => a.localeCompare(b));
   const machineGroups: DDGroup[] = [
-    { header: 'เครื่อง/สถานี', items: machineMain.map(o => ({ value: o, label: o })) },
-    ...(machineCustomSorted.length ? [{ header: 'เพิ่มเอง', items: machineCustomSorted.map(o => ({ value: o, label: o, deletable: true })) }] : []),
+    { header: 'Machine/Station', items: machineMain.map(o => ({ value: o, label: o })) },
+    ...(machineCustomSorted.length ? [{ header: 'Custom', items: machineCustomSorted.map(o => ({ value: o, label: o, deletable: true })) }] : []),
   ];
 
   // เวลามาตรฐาน (ประมาณการ): once = ครั้งเดียว · per_unit = × จำนวน ÷ เครื่อง · SMT คูณจำนวนรอบ (repeat)
@@ -1230,14 +1230,14 @@ export function WorkflowBuilder() {
 
   /* บันทึกผลเดินสายผลิต (P/N จริง) — เก็บลงตารางผล */
   function record() {
-    if (!pn.trim()) { showToast('กรุณากรอก P/N', 'error'); return; }
-    if (!steps.length || steps.some(s => s.seconds === '' || Number(s.seconds) <= 0)) { showToast('กรุณากรอกเวลาให้ครบทุกกระบวนการ', 'error'); return; }
+    if (!pn.trim()) { showToast('Please enter P/N', 'error'); return; }
+    if (!steps.length || steps.some(s => s.seconds === '' || Number(s.seconds) <= 0)) { showToast('Please enter time for every process', 'error'); return; }
     const perStep = steps.map(s => ({ process: s.process, result: 'PASS' }));
     const seqStr = steps.map(s => `${s.process}${s.timeScope === 'per_unit' ? '×N' : ''}${s.seconds !== '' ? `(${s.seconds}s)` : ''}`).join(' → ');
     recordResult.mutate(
       { serial: pn.trim(), customer: customer.trim(), model: model.trim(), sequence: seqStr, result: 'PASS', total_sec: Math.round(perUnitSec), line: tab, steps: perStep },
       {
-        onSuccess: () => { showToast(`บันทึกผล ${pn.trim()} สำเร็จ`, 'success'); setPn(''); },
+        onSuccess: () => { showToast(`Recorded result ${pn.trim()} successfully`, 'success'); setPn(''); },
         onError: (e: any) => showToast(e.message, 'error'),
       },
     );
@@ -1246,9 +1246,9 @@ export function WorkflowBuilder() {
   /* บันทึก Preset */
   function savePreset() {
     if (!steps.length) return;
-    const name = window.prompt('ตั้งชื่อ Preset:', customer && model ? `${customer} - ${model}` : '');
+    const name = window.prompt('Name the Preset:', customer && model ? `${customer} - ${model}` : '');
     if (name == null) return;
-    if (!name.trim()) { showToast('ต้องตั้งชื่อ Preset', 'error'); return; }
+    if (!name.trim()) { showToast('A preset name is required', 'error'); return; }
     create.mutate({
       name: name.trim(), customer: customer.trim(), model: model.trim(),
       steps: steps.map(s => ({
@@ -1264,7 +1264,7 @@ export function WorkflowBuilder() {
         machine: s.machine || '',
       })),
     }, {
-      onSuccess: () => showToast(`บันทึก Preset "${name.trim()}" สำเร็จ`, 'success'),
+      onSuccess: () => showToast(`Saved Preset "${name.trim()}" successfully`, 'success'),
       onError: (e: any) => showToast(e.message, 'error'),
     });
   }
@@ -1302,7 +1302,7 @@ export function WorkflowBuilder() {
     const machineExtra = ws.map(s => (s as any).machine).filter((m: string) => m && !MACHINE_DEFAULT.includes(m) && !machines.includes(m));
     if (machineExtra.length) setMachines(prev => [...new Set([...prev, ...machineExtra])]);
     setShowFlow(false);
-    showToast(`โหลด Preset "${w.name || w.customer}"`, 'info');
+    showToast(`Loaded Preset "${w.name || w.customer}"`, 'info');
   }
 
   /* โหลดตัวอย่างฟอร์ม FM 05 (RSU / JUMBO) — เติมครบทั้ง 30 ขั้นตามเอกสาร พร้อมจุดตรวจ/ทางย้อน */
@@ -1325,39 +1325,39 @@ export function WorkflowBuilder() {
     backTo(23, 22);  // ตรวจสำเร็จรูป → รับใหม่
     // ที่เหลือ (ตรวจหลัง Reflow / หลังบัดกรี / ก่อนส่งมอบ) = rework (ซ่อมแล้วตรวจซ้ำ)
     setSteps(st); setShowFlow(true);
-    showToast('โหลดตัวอย่างฟอร์ม FM 05 (RSU / JUMBO) แล้ว', 'success');
+    showToast('Loaded FM 05 sample form (RSU / JUMBO)', 'success');
   }
 
   /* เพิ่ม/ลบ กระบวนการ custom (เฉพาะช่วง SMT) */
   function addCustomProcess(stepId: string) {
-    const name = window.prompt('ชื่อกระบวนการ SMT ใหม่:');
+    const name = window.prompt('New SMT process name:');
     if (name == null) return;
     const t = name.trim();
-    if (!t) { showToast('ต้องใส่ชื่อกระบวนการ', 'error'); return; }
-    if (isBuiltinProc(t) || customProcs.includes(t)) showToast('มีกระบวนการนี้อยู่แล้ว — เลือกได้เลย', 'info');
-    else { setCustomProcs(prev => [...prev, t]); showToast(`เพิ่มกระบวนการ "${t}" แล้ว`, 'success'); }
+    if (!t) { showToast('A process name is required', 'error'); return; }
+    if (isBuiltinProc(t) || customProcs.includes(t)) showToast('This process already exists — you can select it', 'info');
+    else { setCustomProcs(prev => [...prev, t]); showToast(`Added process "${t}"`, 'success'); }
     pickProcess(stepId, t);
   }
 
   /* เพิ่ม/ลบ เครื่องในดรอปดาว (ต่อ process) */
   function addMachine(stepId: string) {
-    const name = window.prompt('ชื่อเครื่อง/สถานีใหม่:');
+    const name = window.prompt('New machine/station name:');
     if (name == null) return;
     const t = name.trim();
-    if (!t) { showToast('ต้องใส่ชื่อเครื่อง', 'error'); return; }
-    if (MACHINE_DEFAULT.includes(t) || machines.includes(t)) showToast('มีเครื่องนี้อยู่แล้ว — เลือกได้เลย', 'info');
-    else { setMachines(prev => [...prev, t]); showToast(`เพิ่มเครื่อง "${t}" แล้ว`, 'success'); }
+    if (!t) { showToast('A machine name is required', 'error'); return; }
+    if (MACHINE_DEFAULT.includes(t) || machines.includes(t)) showToast('This machine already exists — you can select it', 'info');
+    else { setMachines(prev => [...prev, t]); showToast(`Added machine "${t}"`, 'success'); }
     setStep(stepId, { machine: t });
   }
   async function deleteMachine(name: string) {
-    if (!(await confirmDialog(`ลบเครื่อง "${name}" ออกจากลิสต์?`))) return;
+    if (!(await confirmDialog(`Delete machine "${name}" from the list?`))) return;
     setMachines(prev => prev.filter(n => n !== name));
     setSteps(prev => prev.map(s => s.machine === name ? { ...s, machine: '' } : s));
   }
 
   /* ลบกระบวนการที่เพิ่มเอง (custom) ออกจากลิสต์ — ขั้นที่ใช้อยู่จะย้ายไปตัวแรก (default) */
   async function deleteCustomProc(name: string) {
-    if (!(await confirmDialog(`ลบกระบวนการ "${name}" ออกจากลิสต์?`))) return;
+    if (!(await confirmDialog(`Delete process "${name}" from the list?`))) return;
     setCustomProcs(prev => prev.filter(n => n !== name));
     setSteps(prev => prev.map(s => (s.role === 'smt' && s.process === name) ? { ...s, process: smtMain[0] || 'SMT' } : s));
   }
@@ -1368,20 +1368,20 @@ export function WorkflowBuilder() {
         <span className="mes-module-code">1.3</span>
         <div>
           <h2 className="panel__title">Manufacturing Sequence Builder</h2>
-          <p className="panel__subtitle">โครงสายผลิต: รับของ → ตั้งเครื่อง → SMT → แพ็ก → เข้าคลัง · ทุกขั้นเลือก/ลาก/ลบได้ · เผลอลบหัว-ท้ายก็เลือกใส่กลับจากดรอปดาวน์ได้</p>
+          <p className="panel__subtitle">Production line structure: incoming → setup → SMT → packing → storage · every step can be selected/dragged/deleted · if you accidentally delete the head/tail steps you can add them back from the dropdown</p>
         </div>
       </div>
 
       {/* P/N + Customer + Model */}
       <div className="filters-grid" style={{ marginBottom: 15 }}>
         <label className="field"><span>P/N (Part Number)</span>
-          <input value={pn} onChange={e => setPn(e.target.value)} placeholder="กรอก P/N..." disabled={isViewer} />
+          <input value={pn} onChange={e => setPn(e.target.value)} placeholder="Enter P/N..." disabled={isViewer} />
         </label>
         <label className="field"><span>Customer</span>
-          <input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="ชื่อลูกค้า" disabled={isViewer} />
+          <input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="Customer name" disabled={isViewer} />
         </label>
         <label className="field"><span>Model</span>
-          <input value={model} onChange={e => setModel(e.target.value)} placeholder="ชื่อรุ่น" disabled={isViewer} />
+          <input value={model} onChange={e => setModel(e.target.value)} placeholder="Model name" disabled={isViewer} />
         </label>
       </div>
 
@@ -1390,7 +1390,7 @@ export function WorkflowBuilder() {
         <strong style={{ fontSize: '0.9rem', color: 'var(--text-muted)', minWidth: 80 }}>⚙️ Preset:</strong>
         {!isViewer && (
           <button type="button" className="btn secondary" onClick={savePreset} disabled={create.isPending || steps.length === 0}>
-            {create.isPending ? 'กำลังบันทึก...' : '💾 บันทึกเป็น Preset'}
+            {create.isPending ? 'Saving...' : '💾 Save as Preset'}
           </button>
         )}
         <div style={{ width: 280, maxWidth: '100%' }}>
@@ -1401,10 +1401,10 @@ export function WorkflowBuilder() {
       {/* steps — ตาราง Routing (ทุกขั้นเลือก/ลาก/ลบได้) */}
       <div style={{ background: '#f8f9fa', padding: 16, border: '1px solid #e2e8f0', borderRadius: 6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-          <strong style={{ fontSize: '0.95rem', color: '#334155' }}>📋 ลำดับกระบวนการ (Routing)</strong>
+          <strong style={{ fontSize: '0.95rem', color: '#334155' }}>📋 Process sequence (Routing)</strong>
           {!isViewer && (
             <button type="button" className="btn" onClick={addSmt} style={{ background: 'var(--brand)', color: '#fff', border: 'none' }}>
-              + เพิ่มขั้นตอน
+              + Add step
             </button>
           )}
         </div>
@@ -1430,15 +1430,15 @@ export function WorkflowBuilder() {
         {tab === 'external' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, minWidth: 54 }}>บริษัท</span>
+              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, minWidth: 54 }}>Company</span>
               {([['plastic', '🛢️ Plastic'], ['ems', '🔌 EMS']] as const).map(([k, label]) => (
                 <button key={k} type="button" onClick={() => { if (extMode !== k) { setExtMode(k); resetView(); } }} style={subPill(extMode === k)}>{label}</button>
               ))}
             </div>
             {extMode === 'plastic' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, minWidth: 54 }}>โหมด</span>
-                {([['inj', '🧴 ฉีด (Injection)'], ['blow', '💨 เป่า (Blow)']] as const).map(([k, label]) => (
+                <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, minWidth: 54 }}>Mode</span>
+                {([['inj', '🧴 Injection'], ['blow', '💨 Blow']] as const).map(([k, label]) => (
                   <button key={k} type="button" onClick={() => { if (extPlastic !== k) { setExtPlastic(k); resetView(); } }} style={subPill(extPlastic === k)}>{label}</button>
                 ))}
               </div>
@@ -1453,10 +1453,10 @@ export function WorkflowBuilder() {
             <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 21, alignItems: 'center', padding: '9px 12px', background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
               <span></span>
               <span style={{ textAlign: 'center' }}>#</span>
-              <span>กระบวนการ</span>
-              <span style={{ textAlign: 'center' }}>เวลา/หน่วย</span>
-              <span style={{ textAlign: 'center' }}>ต่อชิ้น?</span>
-              <span>เครื่อง / จำนวน</span>
+              <span>Process</span>
+              <span style={{ textAlign: 'center' }}>Time/unit</span>
+              <span style={{ textAlign: 'center' }}>Per pc?</span>
+              <span>Machine / Qty</span>
               <span></span>
             </div>
 
@@ -1488,14 +1488,14 @@ export function WorkflowBuilder() {
                       document.body.appendChild(ghost); stepGhostRef.current = ghost;
                       document.body.style.cursor = CURSOR_GRABBING; document.body.style.userSelect = 'none';
                     }}
-                    title={!isViewer ? 'ลากค้างเพื่อจัดลำดับ' : undefined}>{!isViewer ? '☰' : ''}</div>
+                    title={!isViewer ? 'Drag to reorder' : undefined}>{!isViewer ? '☰' : ''}</div>
                   {/* # */}
                   <div style={{ textAlign: 'center', fontWeight: 700, color: cfg.color }}>{index + 1}</div>
                   {/* กระบวนการ — ดรอปดาวน์เดียวกันทุกขั้น (เลือกสถานีหลัก/setup/SMT/custom ได้) */}
                   <div style={{ minWidth: 0 }}>
                     <Dropdown value={step.process} disabled={isViewer}
                       groups={[
-                        { header: 'สถานีหลัก', items: MAIN_OPTS.map(o => ({ value: o, label: o })) },
+                        { header: 'Main stations', items: MAIN_OPTS.map(o => ({ value: o, label: o })) },
                         { header: 'Set up', items: SETUP_OPTS.map(o => ({ value: o, label: o })) },
                         ...FORM_GROUPS.map(g => ({ header: g.header, items: g.items.map(f => ({ value: f.n, label: (f.qc ? '◇ ' : '') + f.n })) })),
                         ...procGroups,
@@ -1508,11 +1508,11 @@ export function WorkflowBuilder() {
                   <TimeCells step={step} isViewer={isViewer} setStep={setStep} />
                   {/* ต่อชิ้น? — ติ๊ก = ทำทุกชิ้น (เวลา × จำนวนในล็อต) · ไม่ติ๊ก = ทำครั้งเดียวต่อล็อต */}
                   <div style={{ textAlign: 'center' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: '#64748b', cursor: isViewer ? 'default' : 'pointer' }} title="ติ๊ก = ทำทุกชิ้น (เวลา × จำนวนในล็อต) · ไม่ติ๊ก = ทำครั้งเดียวต่อล็อต เช่น Check material">
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: '#64748b', cursor: isViewer ? 'default' : 'pointer' }} title="Checked = done for every pc (time × qty in lot) · unchecked = done once per lot, e.g. Check material">
                       <input type="checkbox" checked={!isOnce} disabled={isViewer}
                         onChange={e => setStep(step.id, e.target.checked ? { timeScope: 'per_unit' } : { timeScope: 'once', machine: '', stations: 1 })}
                         style={{ width: 16, height: 16 }} />
-                      ทุกชิ้น
+                      Every pc
                     </label>
                   </div>
                   {/* เครื่อง (per_unit เท่านั้น) */}
@@ -1522,7 +1522,7 @@ export function WorkflowBuilder() {
                   {/* ลบ (SMT เท่านั้น) */}
                   <div style={{ textAlign: 'center' }}>
                     {!isViewer && (
-                      <button type="button" onClick={() => removeStep(step.id)} title="ลบขั้นตอนนี้" className="tap-sm"
+                      <button type="button" onClick={() => removeStep(step.id)} title="Delete this step" className="tap-sm"
                         style={{ border: 'none', background: 'transparent', color: '#e11d48', cursor: 'pointer', fontSize: 16, fontWeight: 700, lineHeight: 1, padding: '2px 6px' }}>✕</button>
                     )}
                   </div>
@@ -1530,32 +1530,32 @@ export function WorkflowBuilder() {
                 {/* fail disposition — เฉพาะขั้นตรวจ (checkpoint) · default = Rework */}
                 {step.kind === 'checkpoint' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '0 12px 9px 46px', fontSize: '0.78rem', color: '#b45309' }}>
-                    <span style={{ fontWeight: 600 }}>⚠️ ถ้าไม่ผ่าน →</span>
-                    <select value={step.failAction} disabled={isViewer} title="เลือกว่าถ้าขั้นนี้ไม่ผ่านจะทำอย่างไร"
+                    <span style={{ fontWeight: 600 }}>⚠️ If failed →</span>
+                    <select value={step.failAction} disabled={isViewer} title="Choose what to do if this step fails"
                       onChange={e => setStep(step.id, { failAction: e.target.value as FailAction, ...(e.target.value !== 'back' ? { backToId: '' } : {}) })}
                       style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #fcd34d', background: '#fff', fontSize: '0.78rem', color: '#334155', fontWeight: 600 }}>
                       {FAIL_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                     {step.failAction === 'back' && (
-                      <select value={step.backToId} disabled={isViewer} title="เลือกขั้นปลายทางที่จะย้อนกลับไปเมื่อไม่ผ่าน"
+                      <select value={step.backToId} disabled={isViewer} title="Choose the target step to go back to on failure"
                         onChange={e => setStep(step.id, { backToId: e.target.value })}
                         style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #fcd34d', background: '#fff', fontSize: '0.78rem', color: '#334155' }}>
-                        <option value="">— เลือกขั้นปลายทาง —</option>
+                        <option value="">— Select target step —</option>
                         {steps.slice(0, index).map((x, xi) => <option key={x.id} value={x.id}>#{xi + 1} {x.process}</option>)}
                       </select>
                     )}
                     {step.failAction !== 'scrap' && step.failAction !== 'hold' && (
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#64748b' }} title="ทำซ้ำได้กี่ครั้งก่อน escalate (0 = ไม่จำกัด)">
-                        ซ้ำได้ <input type="number" min="0" value={step.maxRetry || 0} disabled={isViewer}
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#64748b' }} title="How many retries before escalation (0 = unlimited)">
+                        Retries <input type="number" min="0" value={step.maxRetry || 0} disabled={isViewer}
                           onChange={e => setStep(step.id, { maxRetry: Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
-                          style={{ width: 42, padding: '3px 4px', borderRadius: 4, border: '1px solid #cbd5e1', textAlign: 'center', fontSize: '0.78rem' }} /> ครั้ง
+                          style={{ width: 42, padding: '3px 4px', borderRadius: 4, border: '1px solid #cbd5e1', textAlign: 'center', fontSize: '0.78rem' }} /> times
                       </label>
                     )}
                     {step.failAction === 'hold' && (
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#64748b' }} title="พักกี่นาทีก่อนวนกลับมาทำใหม่">
-                        พัก <input type="number" min="0" value={step.holdMin || 0} disabled={isViewer}
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#64748b' }} title="How many minutes to hold before looping back">
+                        Hold <input type="number" min="0" value={step.holdMin || 0} disabled={isViewer}
                           onChange={e => setStep(step.id, { holdMin: Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
-                          style={{ width: 48, padding: '3px 4px', borderRadius: 4, border: '1px solid #cbd5e1', textAlign: 'center', fontSize: '0.78rem' }} /> นาที
+                          style={{ width: 48, padding: '3px 4px', borderRadius: 4, border: '1px solid #cbd5e1', textAlign: 'center', fontSize: '0.78rem' }} /> min
                       </label>
                     )}
                   </div>
@@ -1565,11 +1565,11 @@ export function WorkflowBuilder() {
             })}
             {steps.length === 0 ? (
               <div style={{ padding: '18px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', background: '#fffdf6' }}>
-                ยังไม่มีขั้นตอน — กด “+ เพิ่มขั้นตอน” เพื่อเริ่มสร้าง routing เอง
+                No steps yet — press “+ Add step” to start building your own routing
               </div>
             ) : smtCount === 0 && (
               <div style={{ padding: '14px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', background: '#fffdf6' }}>
-                ยังไม่มีขั้น SMT ตรงกลาง — กด “+ เพิ่มขั้นตอน” เพื่อใส่ BBAS / SMT / TEST ฯลฯ
+                No SMT steps in the middle yet — press “+ Add step” to insert BBAS / SMT / TEST etc.
               </div>
             )}
           </div>
@@ -1579,38 +1579,38 @@ export function WorkflowBuilder() {
       {/* เวลามาตรฐาน (ประมาณการ) */}
       <div style={{ padding: 16, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
-          <span style={{ fontWeight: 700, color: '#0369a1' }}>⏱️ เวลามาตรฐาน (ประมาณการ)</span>
+          <span style={{ fontWeight: 700, color: '#0369a1' }}>⏱️ Standard time (estimate)</span>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: '#0369a1', whiteSpace: 'nowrap' }}>
-            จำนวนชิ้นในล็อต (Qty)
-            <input type="number" min="0" value={qty} disabled={isViewer} placeholder="เช่น 3000"
+            Pieces per lot (Qty)
+            <input type="number" min="0" value={qty} disabled={isViewer} placeholder="e.g. 3000"
               onChange={e => setQty(e.target.value === '' ? '' : Math.max(0, Math.floor(Number(e.target.value)) || 0))}
               style={{ width: 110, padding: '7px 10px', borderRadius: 6, border: '1px solid #7dd3fc', textAlign: 'right' }} />
           </label>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
           <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0f2fe', padding: '10px 12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>📌 ครั้งเดียว/ล็อต (รับของ+setup+คลัง)</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>📌 Once/lot (incoming+setup+storage)</div>
             <strong style={{ fontSize: '1.05rem', color: '#155e75' }}>{fmtTime(Math.round(setupSec))}</strong>
           </div>
           <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0f2fe', padding: '10px 12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>🔁 ต่อชิ้น (1 ชิ้นผ่านครบ)</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>🔁 Per pc (1 pc through all)</div>
             <strong style={{ fontSize: '1.05rem', color: '#166534' }}>{fmtTime(Math.round(perUnitSec))}</strong>
           </div>
           <div style={{ background: '#fff', borderRadius: 8, border: '2px solid #38bdf8', padding: '10px 12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>📦 รวมทั้งล็อต (สายพาน)</div>
-            <strong style={{ fontSize: '1.15rem', color: '#0284c7' }}>{qtyN > 0 ? fmtTime(Math.round(lotSec)) : '— ใส่ Qty —'}</strong>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>📦 Total lot (pipeline)</div>
+            <strong style={{ fontSize: '1.15rem', color: '#0284c7' }}>{qtyN > 0 ? fmtTime(Math.round(lotSec)) : '— Enter Qty —'}</strong>
           </div>
           <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0f2fe', padding: '10px 12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>⛓️ คอขวด (สถานีช้าสุด/ชิ้น)</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>⛓️ Bottleneck (slowest station/pc)</div>
             <strong style={{ fontSize: '1.05rem', color: '#b45309' }}>{fmtTime(Math.round(bottleneckSec))}</strong>
           </div>
         </div>
         <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: 12, lineHeight: 1.6, background: '#fff', border: '1px solid #e0f2fe', borderRadius: 6, padding: '9px 12px' }}>
-          📦 <strong>รวมทั้งล็อต (แบบสายพาน)</strong> = <strong style={{ color: '#155e75' }}>{fmtTime(Math.round(setupSec))}</strong> <span style={{ color: '#64748b' }}>(ครั้งเดียว)</span>
-          {' '}<strong>+</strong> <strong style={{ color: '#166534' }}>{fmtTime(Math.round(perUnitSec))}</strong> <span style={{ color: '#64748b' }}>(ชิ้นแรกผ่านครบสาย)</span>
-          {' '}<strong>+</strong> ({qtyN > 0 ? `${qtyN.toLocaleString()}` : 'N'}−1) <strong>×</strong> <strong style={{ color: '#b45309' }}>{fmtTime(Math.round(bottleneckSec))}</strong> <span style={{ color: '#64748b' }}>(คอขวด)</span>
+          📦 <strong>Total lot (pipeline)</strong> = <strong style={{ color: '#155e75' }}>{fmtTime(Math.round(setupSec))}</strong> <span style={{ color: '#64748b' }}>(once)</span>
+          {' '}<strong>+</strong> <strong style={{ color: '#166534' }}>{fmtTime(Math.round(perUnitSec))}</strong> <span style={{ color: '#64748b' }}>(first pc through whole line)</span>
+          {' '}<strong>+</strong> ({qtyN > 0 ? `${qtyN.toLocaleString()}` : 'N'}−1) <strong>×</strong> <strong style={{ color: '#b45309' }}>{fmtTime(Math.round(bottleneckSec))}</strong> <span style={{ color: '#64748b' }}>(bottleneck)</span>
           {qtyN > 0 && <> {' '}<strong>≈</strong> <strong style={{ color: '#0284c7' }}>{fmtTime(Math.round(lotSec))}</strong></>}
-          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 5 }}>คิดแบบ<strong>สายพาน</strong>: ชิ้นถัดไปไม่รอชิ้นก่อนจบทั้งสาย เข้าสถานีถัดไปได้เลย จึงทำพร้อมกันได้ (parallel) — หลังสายเต็มแล้ว ผลผลิตออกทุกๆ "คอขวด" · เป็นค่าประมาณการ เวลาจริงขึ้นกับคิว/การพัก</div>
+          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 5 }}><strong>Pipeline</strong> model: the next pc does not wait for the previous one to finish the whole line and can enter the next station right away, so they run in parallel — once the line is full, output comes out every "bottleneck" · estimate, actual time depends on queues/breaks</div>
         </div>
       </div>
 
@@ -1618,12 +1618,12 @@ export function WorkflowBuilder() {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button type="button" className="btn" onClick={() => setShowFlow(v => !v)} disabled={steps.length === 0}
           style={{ background: '#6366f1', borderColor: '#6366f1', color: '#fff', fontWeight: 600 }}>
-          {showFlow ? 'ซ่อน FlowChart' : '🔀 Gen FlowChart'}
+          {showFlow ? 'Hide FlowChart' : '🔀 Gen FlowChart'}
         </button>
         <button type="button" className="btn" onClick={() => setShowGantt(v => !v)} disabled={steps.length === 0 || !qtyN}
-          title={!qtyN ? 'กรอกจำนวนผลิต (Qty) ก่อน' : ''}
+          title={!qtyN ? 'Enter production quantity (Qty) first' : ''}
           style={{ background: '#0891b2', borderColor: '#0891b2', color: '#fff', fontWeight: 600 }}>
-          {showGantt ? 'ซ่อน Gantt' : '📊 Gen Gantt'}
+          {showGantt ? 'Hide Gantt' : '📊 Gen Gantt'}
         </button>
       </div>
 
@@ -1647,18 +1647,18 @@ export function WorkflowBuilder() {
       {showGantt && (
         <div style={{ padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-            <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>Gantt · Timeline การผลิต</h3>
+            <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>Gantt · Production Timeline</h3>
             <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={() => setExportMode('gantt')}>🖨️ Export to PDF</button>
           </div>
           <div style={{ marginBottom: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · Qty: <strong>{qtyN.toLocaleString()}</strong> ชิ้น</span>
+            <span>Customer: <strong>{customer || '—'}</strong> · Model: <strong>{model || '—'}</strong> · Qty: <strong>{qtyN.toLocaleString()}</strong> pcs</span>
           </div>
           <div ref={ganttWrapRef} style={{ position: 'relative' }}>
             <div style={{ position: 'absolute', top: 4, right: 8, zIndex: 3, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 6, padding: '1px 4px' }}>
-              <button type="button" className="btn" style={{ fontSize: '1rem', fontWeight: 800, padding: '0 9px', lineHeight: 1.5, background: '#fee2e2', borderColor: '#ef4444', color: '#b91c1c' }} title="ซูมออก (ลด)" onClick={() => setGanttZoom(z => Math.max(1, +(z / 1.5).toFixed(2)))}>−</button>
+              <button type="button" className="btn" style={{ fontSize: '1rem', fontWeight: 800, padding: '0 9px', lineHeight: 1.5, background: '#fee2e2', borderColor: '#ef4444', color: '#b91c1c' }} title="Zoom out" onClick={() => setGanttZoom(z => Math.max(1, +(z / 1.5).toFixed(2)))}>−</button>
               <span style={{ fontSize: '0.78rem', minWidth: 38, textAlign: 'center', fontWeight: 700, color: '#334155' }}>{Math.round(ganttZoom * 100)}%</span>
-              <button type="button" className="btn" style={{ fontSize: '1rem', fontWeight: 800, padding: '0 9px', lineHeight: 1.5, background: '#dbeafe', borderColor: '#3b82f6', color: '#1d4ed8' }} title="ซูมเข้า (เพิ่ม)" onClick={() => setGanttZoom(z => Math.min(20, +(z * 1.5).toFixed(2)))}>+</button>
-              <span style={{ marginLeft: 30, fontSize: '0.75rem', color: '#64748b' }}>รวม ≈ <strong style={{ color: '#334155' }}>{qtyN > 0 ? fmtTime(Math.round(lotSec)) : '—'}</strong></span>
+              <button type="button" className="btn" style={{ fontSize: '1rem', fontWeight: 800, padding: '0 9px', lineHeight: 1.5, background: '#dbeafe', borderColor: '#3b82f6', color: '#1d4ed8' }} title="Zoom in" onClick={() => setGanttZoom(z => Math.min(20, +(z * 1.5).toFixed(2)))}>+</button>
+              <span style={{ marginLeft: 30, fontSize: '0.75rem', color: '#64748b' }}>Total ≈ <strong style={{ color: '#334155' }}>{qtyN > 0 ? fmtTime(Math.round(lotSec)) : '—'}</strong></span>
             </div>
             {/* มือถือ/จอแคบ: เลื่อนทั้งอัน (label+timeline) ในสกอลล์เดียว — ไม่ freeze label เพื่อให้ chart ได้พื้นที่พอดู */}
             {ganttNarrow ? (
@@ -1692,17 +1692,17 @@ export function WorkflowBuilder() {
       {/* ตารางผล — รวมทุกสาย มี filter เลือกดูตามสายได้ (ไม่มีคอลัมน์ ผล PASS/FAIL) */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-          <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>📋 ผลการบันทึก {shownResults.length > 0 && `(${shownResults.length})`}</h3>
+          <h3 className="panel__title panel__title--sm" style={{ margin: 0 }}>📋 Recorded results {shownResults.length > 0 && `(${shownResults.length})`}</h3>
           {!isViewer && (
             <button type="button" className="btn" onClick={record} disabled={recordResult.isPending || steps.length === 0}
-              title="บันทึกเวิร์กโฟลว์ปัจจุบัน (P/N ที่กรอกด้านบน) ลงตารางผล" style={{ background: '#27ae60', borderColor: '#27ae60', color: '#fff', fontWeight: 600, fontSize: '0.82rem' }}>
-              {recordResult.isPending ? 'กำลังบันทึก...' : '💾 บันทึกผล (P/N ปัจจุบัน)'}
+              title="Record the current workflow (P/N entered above) into the results table" style={{ background: '#27ae60', borderColor: '#27ae60', color: '#fff', fontWeight: 600, fontSize: '0.82rem' }}>
+              {recordResult.isPending ? 'Saving...' : '💾 Record result (current P/N)'}
             </button>
           )}
         </div>
         {/* filter: รวม / Internal / External / Mix */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: 4, background: '#eef2f7', borderRadius: 8, marginBottom: 12, width: 'fit-content' }}>
-          {([['all', 'รวมทั้งหมด'], ['internal', '🏭 Internal'], ['external', '🚚 External'], ['mix', '🔀 Mix']] as const).map(([k, label]) => {
+          {([['all', 'All'], ['internal', '🏭 Internal'], ['external', '🚚 External'], ['mix', '🔀 Mix']] as const).map(([k, label]) => {
             const cnt = k === 'all' ? results.length : results.filter(r => r.line === k).length;
             return (
               <button key={k} type="button" onClick={() => setResFilter(k)}
@@ -1720,12 +1720,12 @@ export function WorkflowBuilder() {
           <table className="table" style={{ minWidth: 720 }}>
             <thead>
               <tr>
-                <th>วันที่/เวลา</th><th>P/N</th><th>Customer</th><th>Model</th><th>ลำดับกระบวนการ</th><th>Cycle</th>{!isViewer && <th></th>}
+                <th>Date/Time</th><th>P/N</th><th>Customer</th><th>Model</th><th>Process sequence</th><th>Cycle</th>{!isViewer && <th></th>}
               </tr>
             </thead>
             <tbody>
               {shownResults.length === 0 ? (
-                <tr><td colSpan={isViewer ? 6 : 7} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>{results.length === 0 ? 'ยังไม่มีผลที่บันทึก — กรอก P/N + เวลา แล้วกด “บันทึกผล”' : 'ไม่มีผลในสายที่เลือก — กด “รวมทั้งหมด” เพื่อดูทั้งหมด'}</td></tr>
+                <tr><td colSpan={isViewer ? 6 : 7} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>{results.length === 0 ? 'No recorded results yet — enter P/N + time then press “Record result”' : 'No results for the selected line — press “All” to view everything'}</td></tr>
               ) : pagedResults.map(r => (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: '#64748b' }}>{fmtDateTime(r.created_at)}</td>
@@ -1735,7 +1735,7 @@ export function WorkflowBuilder() {
                   <td style={{ fontSize: '0.8rem', color: '#475569', minWidth: 260, maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>{r.sequence || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtTime(r.total_sec)}</td>
                   {!isViewer && (
-                    <td><button className="btn danger" style={{ padding: '4px 10px', fontSize: '0.78rem' }} onClick={async () => { if (await confirmDialog(`ลบผล ${r.serial}?`)) delResult.mutate(r.id); }}>ลบ</button></td>
+                    <td><button className="btn danger" style={{ padding: '4px 10px', fontSize: '0.78rem' }} onClick={async () => { if (await confirmDialog(`Delete result ${r.serial}?`)) delResult.mutate(r.id); }}>Delete</button></td>
                   )}
                 </tr>
               ))}
@@ -1765,7 +1765,7 @@ export function WorkflowBuilder() {
                 form: true, title: 'PROCESS FLOW CHART', filename: fm.filename,
                 customer: fm.customer, model: fm.model, pn: fm.pn,
                 issuedBy: fm.issuedBy, checkedBy: fm.checkedBy, approvedBy: fm.approvedBy,
-                revNo: fm.revNo, revDesc: fm.revDesc, revDate: new Date().toLocaleDateString('th-TH'),
+                revNo: fm.revNo, revDesc: fm.revDesc, revDate: new Date().toLocaleDateString('en-GB'),
                 timeHtml: buildTimeDetailHtml(steps, qtyN),   // หน้า 2 = รายละเอียดเวลา
               });
             } else {

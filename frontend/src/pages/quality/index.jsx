@@ -30,7 +30,7 @@ export default function QcBoard() {
           setUnitSn('');
           showToast(`QC ${result}: ${sn}`, result === 'PASS' ? 'success' : 'error');
         },
-        onError: () => setGlobalError('บันทึกไม่สำเร็จ — ลองใหม่อีกครั้ง'),
+        onError: () => setGlobalError('Save failed — please try again'),
       }
     );
   };
@@ -44,7 +44,7 @@ export default function QcBoard() {
         </div>
         <div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>QC Board</h2>
-          <p style={{ color: 'var(--text-muted)' }}>สแกน Serial ของชิ้นงานแล้วบันทึกผล PASS / FAIL</p>
+          <p style={{ color: 'var(--text-muted)' }}>Scan the unit serial and record the PASS / FAIL result</p>
         </div>
       </div>
 
@@ -68,7 +68,7 @@ export default function QcBoard() {
             autoFocus
             style={{ fontSize: '1.25rem', padding: '1rem' }}
           />
-          {isLoading && <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>⏳ กำลังบันทึกผล...</div>}
+          {isLoading && <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>⏳ Saving result...</div>}
         </div>
 
         {isViewer && (

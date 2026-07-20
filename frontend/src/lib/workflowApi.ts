@@ -87,7 +87,7 @@ export function useWorkflowCreate() {
   return useMutation({
     mutationFn: async (input: { name: string; customer: string; model: string; steps: WfStep[] }) => {
       const res = await api.post('/workflow', input);
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึก Workflow ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save workflow');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
@@ -99,7 +99,7 @@ export function useWorkflowDelete() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await api.delete(`/workflow/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('ลบไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Delete failed');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
@@ -126,7 +126,7 @@ export function useWorkflowResultCreate() {
   return useMutation({
     mutationFn: async (input: { serial: string; customer: string; model: string; sequence: string; result: string; total_sec: number; line?: 'internal' | 'external' | 'mix'; steps?: { process: string; result: string }[] }) => {
       const res = await api.post('/workflow/results', input);
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึกผลไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save result');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: RESULT_KEY }),
@@ -138,7 +138,7 @@ export function useWorkflowResultDelete() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await api.delete(`/workflow/results/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('ลบไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Delete failed');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: RESULT_KEY }),

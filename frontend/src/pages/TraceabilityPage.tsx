@@ -7,10 +7,13 @@ import {
 import { TableState, BlockState } from '../components/DataStates';
 
 // ── helpers ──
-const fmt = (s: string) => { try { return new Date(s).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
-const fmtDate = (s: string) => { try { return new Date(s).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }); } catch { return s; } };
+const fmt = (s: string) => { try { return new Date(s).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
+const fmtDate = (s: string) => { try { return new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); } catch { return s; } };
 
-function StatusPill({ status }: { status: 'PASS' | 'FAIL' }) {
+function StatusPill({ status }: { status: 'PASS' | 'FAIL' | null }) {
+  if (status == null) return (   // routing scan-in / ยังไม่มีผล → กลางๆ (ไม่ใช่ fail)
+    <span className="status-badge" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}>• Scan</span>
+  );
   const ok = status === 'PASS';
   return (
     <span className="status-badge" style={{ background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b', border: `1px solid ${ok ? '#86efac' : '#fca5a5'}` }}>
@@ -25,11 +28,14 @@ function Timeline({ steps }: { steps: TraceStep[] }) {
     <div style={{ position: 'relative', paddingLeft: 28 }}>
       <div style={{ position: 'absolute', left: 9, top: 8, bottom: 8, width: 2, background: '#e2e8f0' }} />
       {steps.map((s, i) => {
-        const ok = s.status === 'PASS';
+        const st = s.status;   // 'PASS' | 'FAIL' | null (null = scan-in/ยังไม่มีผล)
+        const dotBg = st === 'PASS' ? '#16a34a' : st === 'FAIL' ? '#dc2626' : '#94a3b8';
+        const dotIcon = st === 'PASS' ? '✓' : st === 'FAIL' ? '✗' : '•';
+        const cardBorder = st === 'FAIL' ? '#fca5a5' : '#e2e8f0';
         return (
           <div key={i} style={{ position: 'relative', marginBottom: i === steps.length - 1 ? 0 : 18 }}>
-            <span style={{ position: 'absolute', left: -28, top: 2, width: 20, height: 20, borderRadius: '50%', background: ok ? '#16a34a' : '#dc2626', color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #fff' }}>{ok ? '✓' : '✗'}</span>
-            <div style={{ background: '#fff', border: `1px solid ${ok ? '#e2e8f0' : '#fca5a5'}`, borderRadius: 8, padding: '10px 12px' }}>
+            <span style={{ position: 'absolute', left: -28, top: 2, width: 20, height: 20, borderRadius: '50%', background: dotBg, color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #fff' }}>{dotIcon}</span>
+            <div style={{ background: '#fff', border: `1px solid ${cardBorder}`, borderRadius: 8, padding: '10px 12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: '0.92rem', color: '#1e293b' }}>{i + 1}. {s.step}</strong>
                 <StatusPill status={s.status} />
@@ -39,7 +45,7 @@ function Timeline({ steps }: { steps: TraceStep[] }) {
                 <span>👤 {s.operator}</span>
                 <span>🏭 {s.station}</span>
               </div>
-              {s.note && <div style={{ fontSize: '0.8rem', color: ok ? '#64748b' : '#b91c1c', marginTop: 4, fontStyle: 'italic' }}>📝 {s.note}</div>}
+              {s.note && <div style={{ fontSize: '0.8rem', color: st === 'FAIL' ? '#b91c1c' : '#64748b', marginTop: 4, fontStyle: 'italic' }}>📝 {s.note}</div>}
             </div>
           </div>
         );
@@ -59,15 +65,15 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
   return (
     <div className="stack" style={{ marginTop: '1.25rem' }}>
       <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input list="trace-serials" value={q} onChange={e => setQ(e.target.value)} placeholder="กรอก / สแกน Serial Number เช่น SN-A100-0001" aria-label="ค้นหา Serial Number"
+        <input list="trace-serials" value={q} onChange={e => setQ(e.target.value)} placeholder="Enter / scan Serial Number e.g. SN-A100-0001" aria-label="Search Serial Number"
           style={{ flex: 1, minWidth: 220, padding: '0.6rem 0.8rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.95rem' }} autoFocus />
         <datalist id="trace-serials">{serials.map(s => <option key={s} value={s} />)}</datalist>
-        <button type="submit" className="btn" disabled={!q.trim()} style={{ fontWeight: 600 }}>🔍 ค้นหา</button>
+        <button type="submit" className="btn" disabled={!q.trim()} style={{ fontWeight: 600 }}>🔍 Search</button>
       </form>
 
       {!sn && (
         <div style={{ padding: '1rem', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, color: '#64748b', fontSize: '0.88rem' }}>
-          พิมพ์หรือสแกน Serial แล้วกดค้นหา — จะเห็นประวัติทุกสเตชันของชิ้นงานนั้น
+          Type or scan a Serial and press Search — you will see the history of that item across every station
           {serials.length > 0 && (
             <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {serials.slice(0, 8).map(s => (
@@ -79,12 +85,12 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
         </div>
       )}
 
-      {sn && isLoading && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังค้นหา...</div>}
+      {sn && isLoading && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Searching...</div>}
 
       {sn && isError && (
         <div style={{ padding: '1.25rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, color: '#b91c1c', textAlign: 'center' }}>
-          ⚠️ {(error as Error)?.message || 'ไม่พบ serial นี้'}<br />
-          <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>ตรวจสอบเลข Serial อีกครั้ง หรือเลือกจากรายการด้านบน</span>
+          ⚠️ {(error as Error)?.message || 'Serial not found'}<br />
+          <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Check the Serial number again, or choose from the list above</span>
         </div>
       )}
 
@@ -92,9 +98,8 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
         <>
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px' }}>
             <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e3a8a' }}>{trace.serial}</div>
-            <span style={{ color: '#94a3b8' }}>·</span>
-            <span style={{ fontSize: '0.88rem', color: '#334155' }}>Product: <strong>{trace.product}</strong></span>
-            <span style={{ fontSize: '0.88rem', color: '#334155' }}>WO: <strong>{trace.wo}</strong></span>
+            {trace.product && <><span style={{ color: '#94a3b8' }}>·</span><span style={{ fontSize: '0.88rem', color: '#334155' }}>Product: <strong>{trace.product}</strong></span></>}
+            {trace.wo && <span style={{ fontSize: '0.88rem', color: '#334155' }}>Route/WO: <strong>{trace.wo}</strong></span>}
             {trace.box && (
               <button type="button" onClick={() => goBox(trace.box)}
                 style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: '1px solid #93c5fd', background: '#fff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
@@ -117,27 +122,27 @@ function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: stri
   if (boxId) {
     return (
       <div className="stack" style={{ marginTop: '1.25rem' }}>
-        <button type="button" className="btn secondary" style={{ alignSelf: 'flex-start', fontSize: '0.82rem' }} onClick={() => setBox('')}>← กลับรายการกล่อง</button>
-        {boxLoading && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>กำลังโหลด...</div>}
-        {isError && <div style={{ padding: '1rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, color: '#b91c1c', textAlign: 'center' }}>⚠️ ไม่พบกล่องนี้</div>}
+        <button type="button" className="btn secondary" style={{ alignSelf: 'flex-start', fontSize: '0.82rem' }} onClick={() => setBox('')}>← Back to box list</button>
+        {boxLoading && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading...</div>}
+        {isError && <div style={{ padding: '1rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, color: '#b91c1c', textAlign: 'center' }}>⚠️ Box not found</div>}
         {box && (
           <>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px', fontSize: '0.88rem' }}>
               <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>📦 {box.box_id}</span>
               <span>Product: <strong>{box.product}</strong></span>
               <span>WO: <strong>{box.wo}</strong></span>
-              <span>แพ็ก: {fmt(box.packed_at)}</span>
-              <span style={{ marginLeft: 'auto', color: '#64748b' }}>{box.items.length} ชิ้น</span>
+              <span>Packed: {fmt(box.packed_at)}</span>
+              <span style={{ marginLeft: 'auto', color: '#64748b' }}>{box.items.length} pcs</span>
             </div>
             <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
               <table className="table" style={{ minWidth: 480, width: '100%' }}>
-                <thead><tr><th>Serial</th><th>Product</th><th>ขั้นล่าสุด</th><th style={{ textAlign: 'center' }}>ผล</th></tr></thead>
+                <thead><tr><th>Serial</th><th>Product</th><th>Last step</th><th style={{ textAlign: 'center' }}>Result</th></tr></thead>
                 <tbody>
                   {box.items.map(it => (
                     <tr key={it.serial} style={{ cursor: 'pointer' }} onClick={() => goSerial(it.serial)}
-                      tabIndex={0} role="button" aria-label={`ดู timeline ของ ${it.serial}`}
+                      tabIndex={0} role="button" aria-label={`View timeline of ${it.serial}`}
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goSerial(it.serial); } }}
-                      title="ดู timeline ของ serial นี้">
+                      title="View timeline of this serial">
                       <td style={{ fontWeight: 600, color: 'var(--brand)' }}>{it.serial}</td>
                       <td>{it.product}</td>
                       <td>{it.last_step}</td>
@@ -162,15 +167,15 @@ function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: stri
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           <table className="table" style={{ minWidth: 520, width: '100%' }}>
-            <thead><tr><th>กล่อง</th><th>Product</th><th>WO</th><th>แพ็กเมื่อ</th><th style={{ textAlign: 'center' }}>จำนวน</th></tr></thead>
+            <thead><tr><th>Box</th><th>Product</th><th>WO</th><th>Packed at</th><th style={{ textAlign: 'center' }}>Qty</th></tr></thead>
             <tbody>
               {boxes.length === 0 ? (
-                <TableState colSpan={5} state="empty" emptyText="ยังไม่มีกล่อง" />
+                <TableState colSpan={5} state="empty" emptyText="No boxes yet" />
               ) : boxes.map(b => (
                 <tr key={b.box_id} style={{ cursor: 'pointer' }} onClick={() => setBox(b.box_id)}
-                  tabIndex={0} role="button" aria-label={`เปิดกล่อง ${b.box_id}`}
+                  tabIndex={0} role="button" aria-label={`Open box ${b.box_id}`}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setBox(b.box_id); } }}
-                  title="ดูรายการ serial ในกล่อง">
+                  title="View serials in the box">
                   <td style={{ fontWeight: 600, color: 'var(--brand)' }}>📦 {b.box_id}</td>
                   <td>{b.product}</td>
                   <td>{b.wo}</td>
@@ -214,10 +219,10 @@ function ReportTab() {
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           <table className="table" style={{ minWidth: 480, width: '100%' }}>
-            <thead><tr><th>วันที่</th><th style={{ textAlign: 'center' }}>ผลิต</th><th style={{ textAlign: 'center' }}>Pass</th><th style={{ textAlign: 'center' }}>Fail</th><th style={{ textAlign: 'center' }}>% ผ่าน</th></tr></thead>
+            <thead><tr><th>Date</th><th style={{ textAlign: 'center' }}>Produced</th><th style={{ textAlign: 'center' }}>Pass</th><th style={{ textAlign: 'center' }}>Fail</th><th style={{ textAlign: 'center' }}>% Pass</th></tr></thead>
             <tbody>
               {report.length === 0 ? (
-                <TableState colSpan={5} state="empty" emptyText="ไม่มีข้อมูล" />
+                <TableState colSpan={5} state="empty" emptyText="No data" />
               ) : report.map(r => (
                 <tr key={r.date}>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.date)}</td>
@@ -256,16 +261,16 @@ export function TraceabilityPage() {
   const goBox = (b: string) => patch({ tab: 'boxes', box: b, sn: null });
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'search', label: '🔍 ค้นหา Serial' },
-    { key: 'boxes', label: '📦 กล่อง (Boxes)' },
-    { key: 'report', label: '📊 รายงานรายวัน' },
+    { key: 'search', label: '🔍 Search Serial' },
+    { key: 'boxes', label: '📦 Boxes' },
+    { key: 'report', label: '📊 Daily report' },
   ];
 
   return (
     <section className="stack-lg">
       <div className="panel">
-        <h1 className="panel__title">Traceability — ติดตามประวัติชิ้นงาน</h1>
-        <p className="panel__subtitle">ค้น Serial → ดูทุกสเตชันที่ผ่านมา · ดูกล่อง/รายงานรายวัน</p>
+        <h1 className="panel__title">Traceability — Track Item History</h1>
+        <p className="panel__subtitle">Search a Serial → view every station it passed · view boxes/daily report</p>
 
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
           {TABS.map(t => (

@@ -64,7 +64,7 @@ const NAV_GROUPS = [
     { to: '/equipment-borrow', label: 'Equipment Borrow' },
     { to: '/notifications',    label: 'Notifications' },
     { to: '/admin/panel',      label: 'Admin Panel', sub: [
-      { tab: 'users',      label: 'จัดการผู้ใช้' },
+      { tab: 'users',      label: 'Manage Users' },
       { tab: 'activities', label: 'Activities' },
       { tab: 'audit',      label: 'Audit Log' },
     ] },
@@ -516,13 +516,13 @@ function NotificationBell() {
           boxShadow: '0 12px 32px rgba(0,0,0,0.18)', zIndex: 300, overflow: 'hidden',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9' }}>
-            <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.9rem' }}>การแจ้งเตือน</span>
-            {count > 0 && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ef4444' }}>{count} ใหม่</span>}
+            <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.9rem' }}>Notifications</span>
+            {count > 0 && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ef4444' }}>{count} new</span>}
           </div>
 
           <div style={{ maxHeight: 'min(360px, calc(100vh - 140px))', overflowY: 'auto' }}>
             {recent.length === 0 ? (
-              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>ไม่มีการแจ้งเตือน</div>
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>No notifications</div>
             ) : recent.map(n => (
               <div
                 key={n.id}
@@ -540,7 +540,7 @@ function NotificationBell() {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: n.isRead ? 500 : 700, fontSize: '0.85rem', color: '#1e293b' }}>{n.title}</div>
                   <div style={{ fontSize: '0.78rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.message}</div>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 2 }}>{new Date(n.createdAt).toLocaleString('th-TH')}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 2 }}>{new Date(n.createdAt).toLocaleString('en-GB')}</div>
                 </div>
               </div>
             ))}
@@ -551,7 +551,7 @@ function NotificationBell() {
             onClick={() => setOpen(false)}
             style={{ display: 'block', textAlign: 'center', padding: '0.7rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--brand)', textDecoration: 'none', borderTop: '1px solid #f1f5f9' }}
           >
-            ดูทั้งหมด →
+            View all →
           </Link>
         </div>
       )}
@@ -565,7 +565,7 @@ function EquipmentBorrowPage() {
     <div style={{ margin: '-1.5rem', overflow: 'hidden' }}>
       <iframe
         src={`${import.meta.env.BASE_URL}equipment-borrow/index.html`}
-        title="ระบบยืม-คืนอุปกรณ์"
+        title="Equipment Borrow System"
         style={{ width: '100%', height: 'calc(100vh - var(--topbar-h))', border: 'none', display: 'block' }}
       />
     </div>
@@ -661,14 +661,14 @@ function ConfirmContainer() {
     <div onClick={() => done(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.3)', width: 'min(100%, 420px)', overflow: 'hidden', animation: 'toastIn 0.18s ease' }}>
         <div style={{ padding: '1.25rem 1.25rem 0.75rem' }}>
-          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b', marginBottom: 6 }}>{opts.title || 'ยืนยันการทำรายการ'}</div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b', marginBottom: 6 }}>{opts.title || 'Confirm action'}</div>
           <div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-line', lineHeight: 1.55 }}>{message}</div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '0.5rem 1.25rem 1.15rem' }}>
-          <button type="button" className="btn secondary" onClick={() => done(false)}>{opts.cancelText || 'ยกเลิก'}</button>
+          <button type="button" className="btn secondary" onClick={() => done(false)}>{opts.cancelText || 'Cancel'}</button>
           <button type="button" className="btn" onClick={() => done(true)}
             style={danger ? { background: '#dc2626', borderColor: '#dc2626', color: '#fff' } : undefined}>
-            {opts.confirmText || 'ยืนยัน'}
+            {opts.confirmText || 'Confirm'}
           </button>
         </div>
       </div>
@@ -700,14 +700,14 @@ function TopBar({ isDesktop, setExpanded }) {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
-  const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' });
-  const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const pageTitle = titleForPath(location.pathname);
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginRight: 'auto', minWidth: 0 }}>
         {!isDesktop && (
-          <button type="button" aria-label="เปิดเมนู" onClick={() => setExpanded(true)}
+          <button type="button" aria-label="Open menu" onClick={() => setExpanded(true)}
             style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
             <span style={{ width: 20, height: 2.5, background: '#fff', borderRadius: 2 }} />
             <span style={{ width: 20, height: 2.5, background: '#fff', borderRadius: 2 }} />
@@ -723,12 +723,12 @@ function TopBar({ isDesktop, setExpanded }) {
         {/* สถานะจริง — อิงการเชื่อมต่อเครือข่ายของเบราว์เซอร์ (navigator.onLine) · ชี้เมาส์เพื่อดูคำอธิบาย */}
         <span
           title={online
-            ? 'ออนไลน์: เชื่อมต่อเครือข่ายปกติ — โหลด/บันทึกข้อมูลได้ตามปกติ'
-            : 'ออฟไลน์: อุปกรณ์ไม่ได้เชื่อมต่ออินเทอร์เน็ต — ข้อมูลอาจไม่อัปเดตจนกว่าจะกลับมาเชื่อมต่อ'}
+            ? 'Online: network connected normally — you can load/save data as usual'
+            : 'Offline: the device is not connected to the internet — data may not update until reconnected'}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.76rem', whiteSpace: 'nowrap', cursor: 'help' }}
         >
           <span style={{ width: 8, height: 8, borderRadius: 99, background: online ? '#4ade80' : '#f87171', boxShadow: online ? '0 0 0 3px rgba(74,222,128,0.25)' : '0 0 0 3px rgba(248,113,113,0.25)', display: 'inline-block' }} />
-          {online ? 'ออนไลน์' : 'ออฟไลน์'}
+          {online ? 'Online' : 'Offline'}
         </span>
       </div>
       <NotificationBell />
@@ -833,7 +833,7 @@ function OfflineBanner() {
   if (!offline) return null;
   return (
     <div role="alert" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10000, background: '#b91c1c', color: '#fff', textAlign: 'center', padding: '6px 12px', fontSize: '0.85rem', fontWeight: 600 }}>
-      ⚠️ ออฟไลน์ — เชื่อมต่ออินเทอร์เน็ตไม่ได้ · ข้อมูลอาจไม่อัปเดต
+      ⚠️ Offline — cannot connect to the internet · data may not update
     </div>
   );
 }
@@ -843,9 +843,9 @@ function NotFound() {
   return (
     <div className="panel" style={{ textAlign: 'center', padding: '3rem 1.5rem', maxWidth: 480, margin: '2rem auto' }}>
       <div style={{ fontSize: '3rem', marginBottom: 8, lineHeight: 1 }}>🔍</div>
-      <h1 className="panel__title" style={{ marginBottom: 6 }}>ไม่พบหน้านี้</h1>
-      <p className="panel__subtitle">ลิงก์อาจผิด หรือหน้านี้ถูกย้าย/ลบไปแล้ว</p>
-      <Link to="/dashboard" className="btn" style={{ marginTop: 12, display: 'inline-flex' }}>← กลับ Dashboard</Link>
+      <h1 className="panel__title" style={{ marginBottom: 6 }}>Page not found</h1>
+      <p className="panel__subtitle">The link may be wrong, or this page was moved/deleted</p>
+      <Link to="/dashboard" className="btn" style={{ marginTop: 12, display: 'inline-flex' }}>← Back to Dashboard</Link>
     </div>
   );
 }
@@ -856,7 +856,7 @@ function SessionWatcher() {
     const handler = () => {
       if (!getAuth().isLoggedIn) return;   // ยังไม่ล็อกอิน → ไม่ทำอะไร (กัน toast บนหน้า login + กันเด้งซ้ำจาก request หลายตัว)
       mockLogout();
-      showToast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', 'error');
+      showToast('Session expired, please sign in again', 'error');
     };
     window.addEventListener('app:unauthorized', handler);
     return () => window.removeEventListener('app:unauthorized', handler);

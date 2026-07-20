@@ -22,7 +22,7 @@ async function exportDriftXlsx(rows: DriftRow[], filename: string) {
   const ws = wb.addWorksheet('Stock vs Odoo', { views: [{ state: 'frozen', ySplit: 3, showGridLines: false }] });
   const COLS = [
     { h: 'Item Code', w: 18 }, { h: 'Item Name', w: 32 }, { h: 'Location', w: 13 },
-    { h: 'ของเรา (Our)', w: 13 }, { h: 'Odoo', w: 13 }, { h: 'ส่วนต่าง (Diff)', w: 15 },
+    { h: 'Ours', w: 13 }, { h: 'Odoo', w: 13 }, { h: 'Diff', w: 15 },
   ];
   const N = COLS.length;
   ws.columns = COLS.map(c => ({ width: c.w }));
@@ -32,11 +32,11 @@ async function exportDriftXlsx(rows: DriftRow[], filename: string) {
   const logoId = wb.addImage({ base64: SYNTECH_LOGO_PNG_BASE64, extension: 'png' });
   ws.addImage(logoId, { tl: { col: 0.15, row: 0.15 }, ext: { width: 200, height: 46 } });
   ws.mergeCells(1, 3, 1, N);
-  ws.getCell(1, 3).value = 'Stock Drift — เทียบสต็อก เรา vs Odoo';
+  ws.getCell(1, 3).value = 'Stock Drift — Our Stock vs Odoo';
 
   // แถว 2 — คำบรรยาย/วันที่
   ws.mergeCells(2, 1, 2, N);
-  ws.getCell(2, 1).value = `รายงานส่วนต่างสต็อก · ${new Date().toLocaleDateString('th-TH')} · ${rows.length} รายการ · แรเงาตามสัดส่วน %: ต่าง≥10%=แดง · <10%=เหลือง`;
+  ws.getCell(2, 1).value = `Stock drift report · ${new Date().toLocaleDateString('en-GB')} · ${rows.length} items · shaded by %: diff≥10%=red · <10%=yellow`;
   ws.getRow(2).height = 16;
 
   // แถว 3 — หัวตาราง
@@ -48,7 +48,7 @@ async function exportDriftXlsx(rows: DriftRow[], filename: string) {
   const dataLast = 3 + rows.length;
   const sumRow = dataLast + 1;
   ws.mergeCells(sumRow, 1, sumRow, N - 1);
-  ws.getCell(sumRow, 1).value = 'ผลรวมส่วนต่าง (|diff|)';
+  ws.getCell(sumRow, 1).value = 'Total difference (|diff|)';
   ws.getCell(sumRow, N).value = rows.reduce((s, r) => s + Math.abs(r.diff), 0);
 
   const thin = { style: 'thin' as const, color: { argb: 'FFB0B8C4' } };
@@ -111,14 +111,14 @@ function FileNamePromptModal({ defaultBase, onCancel, onConfirm }: { defaultBase
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={onCancel}>
       <div className="panel" style={{ width: 'min(100%, 440px)' }} onClick={e => e.stopPropagation()}>
-        <h3 className="panel__title panel__title--sm" style={{ marginTop: 0 }}>⬇️ บันทึกเป็น Excel</h3>
-        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>ตั้งชื่อไฟล์ แล้วกด “ตกลง” เพื่อดาวน์โหลด</p>
-        <input ref={ref} value={name} onChange={e => setName(e.target.value)} aria-label="ชื่อไฟล์" placeholder="ชื่อไฟล์.xlsx"
+        <h3 className="panel__title panel__title--sm" style={{ marginTop: 0 }}>⬇️ Save as Excel</h3>
+        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Enter a file name and click “OK” to download</p>
+        <input ref={ref} value={name} onChange={e => setName(e.target.value)} aria-label="File name" placeholder="filename.xlsx"
           onKeyDown={e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') onCancel(); }}
           style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.95rem' }} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: '1.2rem' }}>
-          <button type="button" className="btn secondary" onClick={onCancel}>ยกเลิก</button>
-          <button type="button" className="btn" onClick={confirm}>ตกลง</button>
+          <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="btn" onClick={confirm}>OK</button>
         </div>
       </div>
     </div>
@@ -173,28 +173,28 @@ export function DriftViewerPage() {
   return (
     <section className="stack-lg">
       <div className="panel">
-        <h1 className="panel__title">Stock Drift — เทียบสต็อก เรา vs Odoo</h1>
-        <p className="panel__subtitle">ดูว่าวันนี้ของชิ้นไหนจำนวนไม่ตรงกับ Odoo — คิดตามสัดส่วน %: ต่าง ≥10% = แดง, &lt;10% = เหลือง</p>
+        <h1 className="panel__title">Stock Drift — Our Stock vs Odoo</h1>
+        <p className="panel__subtitle">See which items don't match Odoo today — by %: diff ≥10% = red, &lt;10% = yellow</p>
 
         {/* แถบสรุป */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: '1.1rem' }}>
-          <SummaryCard label="รายการทั้งหมด" value={summary.total} />
-          <SummaryCard label="ไม่ตรงกับ Odoo" value={summary.driftCount} accent="#b45309" />
-          <SummaryCard label="ต่างมาก (รุนแรง)" value={summary.crit} accent="#dc2626" />
-          <SummaryCard label="ผลรวมส่วนต่าง |diff|" value={summary.totalAbs.toLocaleString()} accent="#0369a1" />
+          <SummaryCard label="Total items" value={summary.total} />
+          <SummaryCard label="Mismatched with Odoo" value={summary.driftCount} accent="#b45309" />
+          <SummaryCard label="Large difference (critical)" value={summary.crit} accent="#dc2626" />
+          <SummaryCard label="Total difference |diff|" value={summary.totalAbs.toLocaleString()} accent="#0369a1" />
         </div>
 
         {/* ตัวกรอง */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: '1.25rem' }}>
-          <input value={q} onChange={e => setQ(e.target.value)} aria-label="ค้นหา item (รหัส/ชื่อ)" placeholder="🔍 ค้นหา item (รหัส/ชื่อ)"
+          <input value={q} onChange={e => setQ(e.target.value)} aria-label="Search item (code/name)" placeholder="🔍 Search item (code/name)"
             style={{ flex: '1 1 200px', minWidth: 0, padding: '0.5rem 0.7rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.9rem' }} />
-          <select value={loc} onChange={e => setLoc(e.target.value)} aria-label="กรองตามคลัง" style={{ padding: '0.5rem 2rem 0.5rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color)', minWidth: 130 }}>
-            <option value="">ทุกคลัง</option>
+          <select value={loc} onChange={e => setLoc(e.target.value)} aria-label="Filter by location" style={{ padding: '0.5rem 2rem 0.5rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color)', minWidth: 130 }}>
+            <option value="">All locations</option>
             {locations.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: '#475569', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             <input type="checkbox" checked={onlyDiff} onChange={e => setOnlyDiff(e.target.checked)} style={{ width: 16, height: 16 }} />
-            เฉพาะที่ต่าง
+            Only differences
           </label>
           <button type="button" className="btn" style={{ fontSize: '0.82rem', marginLeft: 'auto' }} disabled={shown.length === 0} onClick={() => setSaveAs(true)}>⬇️ Export to Excel</button>
         </div>
@@ -205,10 +205,10 @@ export function DriftViewerPage() {
             <thead>
               <tr>
                 <SortTh k="code" label="Item" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <SortTh k="location" label="คลัง" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <SortTh k="our" label="ของเรา" right sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh k="location" label="Location" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh k="our" label="Ours" right sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortTh k="odoo" label="Odoo" right sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <SortTh k="diff" label="ส่วนต่าง" right sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortTh k="diff" label="Diff" right sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
@@ -218,7 +218,7 @@ export function DriftViewerPage() {
                 <TableState colSpan={5} state="error" onRetry={() => refetch()} />
               ) : shown.length === 0 ? (
                 <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2.5rem', color: '#16a34a' }}>
-                  ✓ {onlyDiff && rows.length > 0 ? 'ไม่มีรายการที่ต่างจาก Odoo ตามตัวกรอง' : 'ไม่มีข้อมูล'}
+                  ✓ {onlyDiff && rows.length > 0 ? 'No items differ from Odoo for this filter' : 'No data'}
                 </td></tr>
               ) : shown.map(r => {
                 const s = SEV[sevOf(r)];
@@ -238,7 +238,7 @@ export function DriftViewerPage() {
             </tbody>
           </table>
         </div>
-        {!isLoading && !isError && <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-muted)' }}>แสดง {shown.length} รายการ</div>}
+        {!isLoading && !isError && <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Showing {shown.length} items</div>}
       </div>
 
       {saveAs && (
@@ -267,7 +267,7 @@ function SortTh({ k, label, right, sortKey, sortDir, onSort }: {
 }) {
   const active = sortKey === k;
   return (
-    <th onClick={() => onSort(k)} title="กดเพื่อเรียง" style={{ textAlign: right ? 'right' : 'left', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+    <th onClick={() => onSort(k)} title="Click to sort" style={{ textAlign: right ? 'right' : 'left', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
       {label}
       <span style={{ marginLeft: 4, color: active ? 'var(--brand)' : '#cbd5e1', fontSize: '0.75rem' }}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
     </th>

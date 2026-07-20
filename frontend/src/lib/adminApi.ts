@@ -49,7 +49,7 @@ export function useAdminUserCreate() {
   return useMutation({
     mutationFn: async (p: { username: string; fullName: string; role: AppRole; password: string; permissions?: string[] }) => {
       const res = await api.post('/admin/users', { username: p.username, full_name: p.fullName, role: p.role, password: p.password, permissions: p.permissions ?? [] });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'สร้างผู้ใช้ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to create user');
       return mapUser((res.data as any)?.data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: USERS_KEY }),
@@ -67,7 +67,7 @@ export function useAdminUserUpdate() {
       if (p.password)               body.password = p.password;
       if (p.permissions !== undefined) body.permissions = p.permissions;
       const res = await api.put(`/admin/users/${p.id}`, body);
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'แก้ไขไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Update failed');
       return mapUser((res.data as any)?.data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: USERS_KEY }),
@@ -79,7 +79,7 @@ export function useAdminUserDelete() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await api.delete(`/admin/users/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('ลบผู้ใช้ไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error('Failed to delete user');
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: USERS_KEY }),
   });

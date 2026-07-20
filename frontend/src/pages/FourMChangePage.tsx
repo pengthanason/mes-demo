@@ -58,7 +58,7 @@ export function FourMChangePage() {
       { mType, woRef, description, impact },
       {
         onSuccess: (cr) => {
-          showToast(`เปิด CR สำเร็จ: ${cr.crNo}`, 'success');
+          showToast(`CR opened successfully: ${cr.crNo}`, 'success');
           setShowForm(false);
           setMType(''); setWoRef(''); setDescription(''); setImpact('');
         },
@@ -73,47 +73,47 @@ export function FourMChangePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 className="panel__title">4M Change Request</h1>
-            <p className="panel__subtitle">เปิดและติดตาม Change Request — Man / Machine / Material / Method</p>
+            <p className="panel__subtitle">Open and track Change Requests — Man / Machine / Material / Method</p>
           </div>
           {!isViewer && (
             <button type="button" className="btn" onClick={() => setShowForm(v => !v)}
               style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600 }}>
-              {showForm ? '✕ ยกเลิก' : '+ เปิด CR ใหม่'}
+              {showForm ? '✕ Cancel' : '+ New CR'}
             </button>
           )}
         </div>
 
         {showForm && (
           <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
-            <h3 className="panel__title panel__title--sm">เปิด Change Request ใหม่</h3>
+            <h3 className="panel__title panel__title--sm">Open New Change Request</h3>
             <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem' }}>
               <label className="field">
-                <span>ประเภท 4M *</span>
+                <span>4M Type *</span>
                 <select value={mType} onChange={e => setMType(e.target.value as MType)} required>
-                  <option value="">-- เลือกประเภท --</option>
-                  <option value="Man">👷 Man (คน)</option>
-                  <option value="Machine">⚙️ Machine (เครื่องจักร)</option>
-                  <option value="Material">📦 Material (วัตถุดิบ)</option>
-                  <option value="Method">📋 Method (วิธีการ)</option>
+                  <option value="">-- Select type --</option>
+                  <option value="Man">👷 Man (People)</option>
+                  <option value="Machine">⚙️ Machine (Machinery)</option>
+                  <option value="Material">📦 Material (Raw Material)</option>
+                  <option value="Method">📋 Method (Process)</option>
                 </select>
               </label>
               <label className="field">
-                <span>WO ที่เกี่ยวข้อง</span>
-                <WoInput value={woRef} onChange={setWoRef} placeholder="เลือก WO..." asSelect />
+                <span>Related WO</span>
+                <WoInput value={woRef} onChange={setWoRef} placeholder="Select WO..." asSelect />
               </label>
               <label className="field">
-                <span>รายละเอียดการเปลี่ยนแปลง (what + why) *</span>
+                <span>Change details (what + why) *</span>
                 <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-                  placeholder="เปลี่ยนอะไร เพราะอะไร..." required />
+                  placeholder="What is changing and why..." required />
               </label>
               <label className="field">
-                <span>ผลกระทบที่คาดว่าจะเกิด</span>
+                <span>Expected impact</span>
                 <textarea value={impact} onChange={e => setImpact(e.target.value)} rows={2}
-                  placeholder="กระทบไลน์ไหน คุณภาพ/เวลา/ต้นทุนอย่างไร..." />
+                  placeholder="Which line is affected; impact on quality / time / cost..." />
               </label>
               <button type="submit" className="btn" disabled={!mType || !description.trim() || createMut.isPending}
                 style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
-                {createMut.isPending ? 'กำลังเปิด CR...' : 'ยืนยันเปิด CR'}
+                {createMut.isPending ? 'Opening CR...' : 'Confirm Open CR'}
               </button>
             </form>
           </div>
@@ -121,7 +121,7 @@ export function FourMChangePage() {
 
         <div className="filters-grid" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
           <label className="field">
-            <span>Filter ประเภท 4M</span>
+            <span>Filter 4M Type</span>
             <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}>
               <option value="">All Types</option>
               <option value="Man">Man</option>
@@ -147,18 +147,18 @@ export function FourMChangePage() {
             <thead>
               <tr>
                 <th>CR No.</th>
-                <th style={{ textAlign: 'center' }}>ประเภท</th>
+                <th style={{ textAlign: 'center' }}>Type</th>
                 <th>WO / Product</th>
-                <th style={{ width: '32%' }}>รายละเอียด</th>
+                <th style={{ width: '32%' }}>Details</th>
                 <th style={{ textAlign: 'center' }}>State</th>
-                <th style={{ textAlign: 'center' }}>วันที่เปิด</th>
+                <th style={{ textAlign: 'center' }}>Date Opened</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <TableState colSpan={6} state="loading" />
               ) : filtered.length === 0 ? (
-                <TableState colSpan={6} state="empty" emptyText={(stateFilter || typeFilter) ? 'ไม่พบรายการตามตัวกรอง — ล้างตัวกรองเพื่อดูทั้งหมด' : 'ยังไม่มี Change Request — กด “+ เปิด CR ใหม่” มุมขวาบนเพื่อเริ่ม'} />
+                <TableState colSpan={6} state="empty" emptyText={(stateFilter || typeFilter) ? 'No items match the filters — clear the filters to see all' : 'No Change Requests yet — click “+ New CR” at the top right to start'} />
               ) : (
                 filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(cr => (
                   <tr key={cr.id}>
@@ -172,7 +172,7 @@ export function FourMChangePage() {
                     </td>
                     <td style={{ textAlign: 'center' }}><CrStateBadge state={cr.state} /></td>
                     <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      {new Date(cr.createdAt).toLocaleDateString('th-TH')}
+                      {new Date(cr.createdAt).toLocaleDateString('en-GB')}
                     </td>
                   </tr>
                 ))

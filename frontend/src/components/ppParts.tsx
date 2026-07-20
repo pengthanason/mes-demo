@@ -28,7 +28,7 @@ export function isoWeek(dateStr: string | null | undefined): number | null {
 export const STATUS_STYLE: Record<string, { bg: string; text: string; border: string }> = {
   DONE:        { bg: '#4ade80', text: '#14532d', border: '#16a34a' },   // เขียวสด = Done
   ON_PROCESS:  { bg: '#38bdf8', text: '#0c4a6e', border: '#0284c7' },   // ฟ้าสด = On process / Normal
-  DELAY:       { bg: '#fbbf24', text: '#78350f', border: '#d97706' },   // ส้ม/เหลืองอำพัน = Delay / Late
+  DELAY:       { bg: '#f87171', text: '#7f1d1d', border: '#dc2626' },   // แดง = Delay / Late (เตือนงานล่าช้า)
   CANCEL:      { bg: '#94a3b8', text: '#1e293b', border: '#64748b' },   // เทา = Cancel (เฉพาะ Status หลัก)
   WAIT:        { bg: '#94a3b8', text: '#1e293b', border: '#64748b' },   // เทา = รอ (Waiting) — ใช้ในช่อง Process
   PROCESS:     { bg: '#2dd4bf', text: '#134e4a', border: '#0d9488' },   // ฟ้าอมเขียว (teal) = Status ที่เป็นชื่อ process step
@@ -54,7 +54,7 @@ export const STATUS_STYLE: Record<string, { bg: string; text: string; border: st
 // สถานะของแต่ละ Process step — ต่างจาก Status หลัก: ใช้ "รอ (Waiting)" แทน "Cancel" (ว่าง = ไม่มี/ยังไม่บันทึก)
 export const PROC_STATUS = ['WAIT', 'ON_PROCESS', 'DONE', 'DELAY'] as const;
 export const PROC_STATUS_LABEL: Record<string, string> = {
-  WAIT: 'รอ (Waiting)', ON_PROCESS: 'On process', DONE: 'Done', DELAY: 'Delay',
+  WAIT: 'Waiting', ON_PROCESS: 'On process', DONE: 'Done', DELAY: 'Delay',
 };
 
 // Process steps (ตาม FM03) — แต่ละ step เก็บสถานะ ('' | PP_STATUS) → โชว์เป็นช่องสีในตาราง
@@ -132,11 +132,10 @@ export const PP_PIPELINE: { key: keyof PpProject; label: string }[] = [
    ใช้ร่วมกัน: Dashboard table (กรอง excelOnly ออก) · Excel/PDF (ครบทุกคอลัมน์)
    excelOnly = โชว์เฉพาะ Excel/PDF (เช่น STATUS pipeline) ไม่โชว์ในตาราง Dashboard */
 export const XLSX_COLUMNS: PpCol[] = [
-  { key: 'status',       header: 'Status',      w: 13, center: true, value: p => statusView(p).label },
-  { key: 'date_record',  header: 'Date record', w: 14, center: true, value: p => { const d = xlsxDate(p.date_record); return d ? (p.wk != null ? `${d}\n(WW${p.wk})` : d) : ''; } },
-  { key: 'work_order',   header: 'WO',          w: 12, center: true, value: p => p.work_order || '' },
+  // 3 อันแรก: Model → Product P/N → Status
   { key: 'model',        header: 'MODEL',       w: 26, value: p => p.model || '' },
   { key: 'product_pn',   header: 'Product P/N', w: 18, value: p => p.product_pn || '' },
+  { key: 'status',       header: 'Status',      w: 13, center: true, value: p => statusView(p).label },
   // PRODUCTION RECORD — Quantity / Produced / Balance / Total FG / Total NG / Yield
   { key: 'qty',        header: 'Quantity', w: 8, center: true, group: 'PRODUCTION RECORD', value: p => (p.qty != null ? String(p.qty) : '') },
   { key: 'produce',    header: 'Produced', w: 8, center: true, group: 'PRODUCTION RECORD', value: p => (p.produce ? String(p.produce) : '') },
@@ -148,10 +147,14 @@ export const XLSX_COLUMNS: PpCol[] = [
   { key: 'pd_start',   header: 'PD Start',      w: 12, center: true, group: 'PD PLAN', value: p => xlsxDate(p.pd_start_date) },
   { key: 'pd_finish',  header: 'PD Done',       w: 12, center: true, group: 'PD PLAN', value: p => xlsxDate(p.pd_finish_date) },
   { key: 'expected',   header: 'Expected date',  w: 12, center: true, headerColor: 'FFC000', group: 'PD PLAN', value: p => xlsxDate(p.expected_date) },
-  { key: 'revised',    header: 'Actual shipping', w: 13, center: true, headerColor: 'FFFF00', group: 'PD PLAN', value: p => xlsxDate(p.revised_date) },
   { key: 'cap_day',    header: 'CAP / DAY',      w: 16, center: true, group: 'PD PLAN', value: p => (p.target_per_day ? String(p.target_per_day) : '') },
-  { key: 'syn_requestor', header: 'Owner', w: 14, center: true, headerColor: '4472C4', value: p => p.syn_requestor || '' },
-  { key: 'customer',   header: 'Customer',   w: 14, value: p => p.customer || '' },
+  // Customer group — Owner / Company name
+  { key: 'syn_requestor', header: 'Owner',        w: 14, center: true, headerColor: '4472C4', group: 'Customer', value: p => p.syn_requestor || '' },
+  { key: 'customer',      header: 'Company name', w: 16, group: 'Customer', value: p => p.customer || '' },
+  // WO group — Date record / WO No. / Bom Rec (วันที่รับ BOM)
+  { key: 'date_record',  header: 'Date record', w: 14, center: true, group: 'WO', value: p => { const d = xlsxDate(p.date_record); return d ? (p.wk != null ? `${d}\n(WW${p.wk})` : d) : ''; } },
+  { key: 'work_order',   header: 'WO No.',      w: 12, center: true, group: 'WO', value: p => p.work_order || '' },
+  { key: 'bom_rec',      header: 'Bom Rec',     w: 12, center: true, group: 'WO', value: p => xlsxDate((p as any).bom_rec_date) },
   // Process — 8 step โชว์เป็นช่องสี (ค่าจริงอ่านจาก p[key] ตอน render/export · value ว่างไว้)
   ...PROCESS_STEPS.map((s): PpCol => ({ key: s.key as string, header: s.label, w: 7, center: true, group: 'Process', value: () => '' })),
   // QA — Sampling% / QA Finish / Status
@@ -159,10 +162,11 @@ export const XLSX_COLUMNS: PpCol[] = [
   { key: 'qa_finish',    header: 'QA Finish', w: 12, center: true, group: 'QA', value: p => xlsxDate(p.qa_finish_date) },
   { key: 'qa_status',    header: 'Status',    w: 11, center: true, group: 'QA', value: p => p.qa_status ? (PP_STATUS_LABEL[p.qa_status] ?? p.qa_status) : '' },
   { key: 'store',      header: 'Received date', w: 12, center: true, group: 'Store', value: p => xlsxDate(p.store_received) },
-  // PIC — Name / Responsible
-  { key: 'pd_pic',        header: 'Name',        w: 12, group: 'PIC', value: p => p.pd_pic || '' },
-  { key: 'pic_responsible', header: 'Responsible', w: 13, group: 'PIC', value: p => p.pic_responsible || '' },
+  // PIC — ช่องเดียว (รวม Responsible เดิมออก)
+  { key: 'pd_pic',        header: 'PIC Name',    w: 14, value: p => p.pd_pic || '' },
   { key: 'special_request', header: 'Special request', w: 22, value: p => p.special_request || '' },
+  // Revised date — ก่อน Remark
+  { key: 'revised',    header: 'Revised date', w: 13, center: true, headerColor: 'FFFF00', value: p => xlsxDate(p.revised_date) },
   { key: 'remark',     header: 'Remark', w: 34, value: p => p.remark || '' },
 ];
 
@@ -369,7 +373,7 @@ export function Donut({ data, size = 170 }: { data: { label: string; value: numb
           return seg;
         })}
         <text x={c} y={c - 2} textAnchor="middle" fontSize="24" fontWeight="800" fill="#1e293b">{Math.round(count)}</text>
-        <text x={c} y={c + 16} textAnchor="middle" fontSize="10" fill="#64748b">รวม</text>
+        <text x={c} y={c + 16} textAnchor="middle" fontSize="10" fill="#64748b">Total</text>
       </svg>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 130 }}>
         {data.map((d, i) => (
@@ -432,7 +436,9 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
   const dd = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86400000);
   const tasks = rows.map(p => {
     const start = toD(p.pd_start_date);
-    let end = toD(p.pd_finish_date) || toD(p.expected_date);
+    let end = toD(p.pd_finish_date);
+    const exp = toD(p.expected_date);
+    if (exp && (!end || exp.getTime() > end.getTime())) end = exp;
     if (start && end && end.getTime() < start.getTime()) end = start;
     const log = (Array.isArray(p.process_log) ? p.process_log : [])
       .map(e => ({ date: toD(e.date), status: e.status }))
@@ -440,7 +446,7 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
       .sort((a, b) => a.date.getTime() - b.date.getTime());
     return { p, start, end: end || start, log };
   }).filter(t => !!t.start || t.log.length > 0);
-  if (!tasks.length) { showToast('ไม่มีข้อมูลสำหรับ Gantt (ต้องมี PD Start หรือประวัติ Process)', 'error'); return; }
+  if (!tasks.length) { showToast('No data for the Gantt (needs a PD Start or Process history)', 'error'); return; }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const allDates: Date[] = [];
@@ -566,7 +572,10 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   // แต่ละงาน: start/end จาก PD + ประวัติ log (แต่ละ event มีวันที่ → วาด Gantt หลายสี)
   const tasks = rows.map(p => {
     const start = gToDate(p.pd_start_date);
-    let end = gToDate(p.pd_finish_date) || gToDate(p.expected_date);
+    // end = วันหลังสุดระหว่าง PD Done กับ Expected date (ให้แก้ expected แล้วแท่งขยับตาม — ไม่ยึด pd_finish อย่างเดียว)
+    let end = gToDate(p.pd_finish_date);
+    const exp = gToDate(p.expected_date);
+    if (exp && (!end || exp.getTime() > end.getTime())) end = exp;
     if (start && end && end.getTime() < start.getTime()) end = start;
     const log = (Array.isArray(p.process_log) ? p.process_log : [])
       .map(e => ({ date: gToDate(e.date), status: e.status, step: e.step, note: e.note || '' }))
@@ -580,7 +589,7 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   if (tasks.length === 0) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-        ยังไม่มีงานที่ระบุ PD Start หรือประวัติ Process — เพิ่มวันเริ่มผลิต หรือกดที่ช่อง Process ในตารางเพื่อบันทึกความคืบหน้า
+        No jobs with a PD Start or Process history yet — add a production start date, or click a Process cell in the table to log progress
       </div>
     );
   }
@@ -614,11 +623,11 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
     <div>
       {/* ฟิลเตอร์ช่วงวันที่ */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', fontSize: '0.8rem', color: '#475569' }}>
-        <span style={{ fontWeight: 600 }}>ช่วงวันที่:</span>
+        <span style={{ fontWeight: 600 }}>Date range:</span>
         <input type="date" value={fromStr} onChange={e => setFromStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
-        <span>ถึง</span>
+        <span>to</span>
         <input type="date" value={toStr} onChange={e => setToStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
-        {(fromStr || toStr) && <button type="button" onClick={() => { setFromStr(''); setToStr(''); }} style={{ padding: '3px 10px', fontSize: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>ล้างช่วงวันที่</button>}
+        {(fromStr || toStr) && <button type="button" onClick={() => { setFromStr(''); setToStr(''); }} style={{ padding: '3px 10px', fontSize: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>Clear date range</button>}
       </div>
 
       {/* 2 แผง: คอลัมน์ชื่อ (ตรึง) + timeline (เลื่อน x/y เอง → scrollbar อยู่แค่ใต้ timeline) */}
@@ -714,7 +723,7 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
             {/* เส้นวันนี้ */}
             {todayOff >= 0 && todayOff < totalDays && (
               <div style={{ position: 'absolute', top: HEAD_H * 2, bottom: 0, left: todayOff * DAY_W + DAY_W / 2, width: 2, background: '#ef4444', zIndex: 2, pointerEvents: 'none' }}>
-                <span style={{ position: 'absolute', top: -1, left: -15, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>วันนี้</span>
+                <span style={{ position: 'absolute', top: -1, left: -15, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>Today</span>
               </div>
             )}
           </div>
@@ -723,7 +732,7 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
 
       {skipped > 0 && (
         <div style={{ padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8' }}>
-          * ซ่อน {skipped} งานที่ยังไม่มี PD Start / ประวัติ Process
+          * {skipped} job(s) hidden — no PD Start / Process history
         </div>
       )}
     </div>
@@ -743,8 +752,15 @@ const EMPTY: Partial<PpProject> = {
 const blankForm = (): Partial<PpProject> => { const today = new Date().toISOString().slice(0, 10); return { ...EMPTY, date_record: today, wk: isoWeek(today) }; };
 
 /** ฟอร์มกรอกข้อมูลโปรเจกต์ (ใช้ทั้ง inline ในหน้า Add Project และในป๊อปอัพแก้ไข) */
+// แปลงค่าวันที่จาก API (ISO datetime เช่น 2026-06-03T00:00:00.000Z) → YYYY-MM-DD ให้ <input type="date"> โชว์ค่าเดิมได้
+const DATE_KEYS: (keyof PpProject)[] = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date' as keyof PpProject];
+const initForm = (p: PpProject): Partial<PpProject> => {
+  const out: any = { ...p };
+  for (const k of DATE_KEYS) if (out[k]) out[k] = String(out[k]).slice(0, 10);
+  return out;
+};
 export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject | null; onSaved?: () => void; onCancel?: () => void }) {
-  const [f, setF] = useState<Partial<PpProject>>(() => initial ?? blankForm());
+  const [f, setF] = useState<Partial<PpProject>>(() => initial ? initForm(initial) : blankForm());
   const [err, setErr] = useState('');
   const create = usePpCreate();
   const update = usePpUpdate();
@@ -754,7 +770,7 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
-    if (!f.product_pn?.trim() && !f.model?.trim()) return setErr('ต้องมี Product P/N หรือ Model');
+    if (!f.product_pn?.trim() && !f.model?.trim()) return setErr('Product P/N or Model is required');
     const mut = editing ? update : create;
     // Status = ค่าที่ตั้งในฟอร์ม (ไม่ auto จาก process) · status_color เริ่มต้น = ตามสถานะ (เปลี่ยนสีเองทีหลังในตาราง) · date_record auto วันนี้ถ้าเว้นว่าง
     const today = new Date().toISOString().slice(0, 10);
@@ -765,7 +781,7 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
       : { ...f, status, status_color, date_record: f.date_record || today, wk: f.wk ?? isoWeek(f.date_record || today) };
     mut.mutate(payload, {
       onSuccess: () => {
-        showToast(editing ? 'แก้ไขสำเร็จ' : 'เพิ่มโปรเจกต์สำเร็จ', 'success');
+        showToast(editing ? 'Updated' : 'Project added', 'success');
         if (!editing) { setF(blankForm()); window.scrollTo({ top: 0, behavior: 'smooth' }); }   // create → เคลียร์ฟอร์ม (วันนี้) + เลื่อนขึ้นบนสุด
         onSaved?.();
       },
@@ -786,8 +802,12 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
 
   return (
         <form onSubmit={submit} className="stack" style={{ gap: '0.7rem' }}>
-          <Section title="ข้อมูลหลัก" />
+          <Section title="Main info" />
+          {/* WO อยู่บนสุด */}
+          <label className="field"><span>WO</span><input value={f.work_order ?? ''} onChange={txt('work_order')} placeholder="WO number" autoFocus /></label>
           <div className="grid-3col">
+            <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." /></label>
+            <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." /></label>
             <label className="field"><span>Status</span>
               <select value={f.status} onChange={txt('status')}>
                 {PP_STATUS.map(s => <option key={s} value={s}>{PP_STATUS_LABEL[s]}</option>)}
@@ -795,17 +815,15 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
               </select>
             </label>
             <label className="field"><span>Date record</span><input type="date" value={f.date_record ?? ''} onChange={onDateRecord} /></label>
-            <label className="field"><span>WW (Work Week)</span><input type="number" value={f.wk ?? ''} readOnly title="คำนวณอัตโนมัติจาก Date Record (ISO week)" placeholder="auto" style={{ background: '#f1f5f9' }} /></label>
-            <label className="field"><span>WO</span><input value={f.work_order ?? ''} onChange={txt('work_order')} placeholder="เลขที่ WO" /></label>
-            <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." /></label>
-            <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." autoFocus /></label>
+            <label className="field"><span>WW (Work Week)</span><input type="number" value={f.wk ?? ''} readOnly title="Auto-calculated from Date Record (ISO week)" placeholder="auto" style={{ background: '#f1f5f9' }} /></label>
+            <label className="field"><span>Bom Rec (BOM received date)</span><input type="date" value={(f as any).bom_rec_date ?? ''} onChange={txt('bom_rec_date' as keyof PpProject)} /></label>
           </div>
 
           <Section title="Production Record" />
           <div className="grid-3col">
             <label className="field"><span>Quantity</span><input type="number" value={f.qty ?? 0} onChange={num('qty')} /></label>
             <label className="field"><span>Produced</span><input type="number" min="0" value={f.produce ?? 0} onChange={num('produce')} placeholder="0" /></label>
-            <label className="field"><span>Balance</span><input value={(Number(f.qty) || 0) - (Number(f.produce) || 0)} readOnly title="Quantity − Produced (คำนวณอัตโนมัติ)" style={{ background: '#f1f5f9' }} /></label>
+            <label className="field"><span>Balance</span><input value={(Number(f.qty) || 0) - (Number(f.produce) || 0)} readOnly title="Quantity − Produced (auto)" style={{ background: '#f1f5f9' }} /></label>
             <label className="field"><span>Total FG</span><input type="number" value={f.total_ok ?? 0} onChange={num('total_ok')} /></label>
             <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? 0} onChange={num('total_ng')} /></label>
             <label className="field"><span>Yield (FG ÷ (FG+NG) × 100)</span><input value={ppYield({ total_ok: f.total_ok ?? 0, total_ng: f.total_ng ?? 0 })?.toFixed(2) ?? '—'} readOnly style={{ background: '#f1f5f9' }} /></label>
@@ -817,25 +835,27 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             <label className="field"><span>PD Done</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} /></label>
             <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} /></label>
             <label className="field"><span>Actual shipping date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
-            <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? 0} onChange={num('target_per_day')} placeholder="เช่น 40" /></label>
+            <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? 0} onChange={num('target_per_day')} placeholder="e.g. 40" /></label>
           </div>
 
           <Section title="Owner / Customer" />
           <div className="grid-3col">
-            <label className="field"><span>Owner</span><input value={f.syn_requestor ?? ''} onChange={txt('syn_requestor')} placeholder="ผู้รับผิดชอบ / ผู้มอบหมาย" /></label>
+            <label className="field"><span>Owner</span><input value={f.syn_requestor ?? ''} onChange={txt('syn_requestor')} placeholder="Owner / assignee" /></label>
             <label className="field"><span>Customer</span><input value={f.customer ?? ''} onChange={txt('customer')} /></label>
           </div>
 
-          <Section title="Process (เลือกสถานะแต่ละขั้น)" />
-          <div className="grid-3col">
-            {PROCESS_STEPS.map(s => (
-              <label key={s.key as string} className="field"><span>{s.label}</span>
-                <select value={(f as any)[s.key] ?? ''} onChange={txt(s.key)}>
-                  <option value="">— ว่าง —</option>
-                  {PP_STATUS.map(v => <option key={v} value={v}>{PP_STATUS_LABEL[v]}</option>)}
-                </select>
-              </label>
-            ))}
+          <Section title="Process (check which steps exist)" />
+          {/* ติ๊ก = มีขั้นนี้ → ขึ้นสีเทา (Waiting) ที่แดชบอร์ด แล้วค่อยเลือกสถานะจริงในตาราง · ไม่ติ๊ก = ไม่มี (No process, ว่างไม่มีสี) */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 20px', padding: '2px 2px 4px' }}>
+            {PROCESS_STEPS.map(s => {
+              const has = !!(f as any)[s.key];
+              return (
+                <label key={s.key as string} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-body)' }}>
+                  <input type="checkbox" checked={has} onChange={e => set(s.key, e.target.checked ? 'WAIT' : '')} />
+                  {s.label}
+                </label>
+              );
+            })}
           </div>
 
           <Section title="QA" />
@@ -845,8 +865,8 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             </label>
             <label className="field"><span>QA Finish date</span><input type="date" value={f.qa_finish_date ?? ''} onChange={txt('qa_finish_date')} /></label>
             <label className="field"><span>QA Status</span>
-              <select value={f.qa_status ?? ''} onChange={txt('qa_status')} title="สถานะฝั่ง QA — แยกจากสถานะงาน">
-                <option value="">— ไม่ระบุ —</option>
+              <select value={f.qa_status ?? ''} onChange={txt('qa_status')} title="QA status — separate from the job status">
+                <option value="">— None —</option>
                 {PP_STATUS.map(s => <option key={s} value={s}>{PP_STATUS_LABEL[s]}</option>)}
               </select>
             </label>
@@ -859,18 +879,17 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
 
           <Section title="PIC" />
           <div className="grid-3col">
-            <label className="field"><span>Name</span><input value={f.pd_pic ?? ''} onChange={txt('pd_pic')} placeholder="Noi,Kiert" /></label>
-            <label className="field"><span>Responsible</span><input value={f.pic_responsible ?? ''} onChange={txt('pic_responsible')} placeholder="หน้าที่ที่รับผิดชอบ" /></label>
+            <label className="field"><span>PIC Name</span><input value={f.pd_pic ?? ''} onChange={txt('pd_pic')} placeholder="Noi,Kiert" /></label>
           </div>
 
-          <label className="field"><span>Special request (ขอพิเศษเพิ่มเติม)</span><textarea value={f.special_request ?? ''} onChange={txt('special_request')} rows={2} placeholder="เช่น ขอเร่งด่วน, ขอ QA ก่อน ฯลฯ" /></label>
+          <label className="field"><span>Special request</span><textarea value={f.special_request ?? ''} onChange={txt('special_request')} rows={2} placeholder="e.g. urgent, QA first, etc." /></label>
           <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={4} /></label>
 
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions">
-            {onCancel && <button type="button" className="btn secondary" onClick={onCancel}>ยกเลิก</button>}
+            {onCancel && <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>}
             <button type="submit" className="btn" disabled={create.isPending || update.isPending}>
-              {editing ? 'บันทึกการแก้ไข' : 'เพิ่มโปรเจกต์'}
+              {editing ? 'Save changes' : 'Add project'}
             </button>
           </div>
         </form>
@@ -882,7 +901,7 @@ export function ProjectFormModal({ initial, onClose }: { initial: PpProject | nu
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 860px)', maxHeight: '94vh', overflowY: 'auto' }}>
-        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>{initial ? 'แก้ไขโปรเจกต์' : 'เพิ่มโปรเจกต์ (Add Project)'}</h2>
+        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>{initial ? 'Edit Project' : 'Add Project'}</h2>
         <ProjectForm initial={initial} onSaved={onClose} onCancel={onClose} />
       </div>
     </div>

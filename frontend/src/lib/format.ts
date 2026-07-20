@@ -13,13 +13,13 @@ export function timeAgo(iso: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) return String(iso);
   const sec = Math.floor((Date.now() - d.getTime()) / 1000);
   if (sec < 0) return fmtDateTime(iso);
-  if (sec < 60) return 'เมื่อสักครู่';
+  if (sec < 60) return 'just now';
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min} นาทีที่แล้ว`;
+  if (min < 60) return `${min} min ago`;
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr} ชม.ที่แล้ว`;
+  if (hr < 24) return `${hr} hr ago`;
   const day = Math.floor(hr / 24);
-  if (day < 7) return `${day} วันที่แล้ว`;
+  if (day < 7) return `${day} days ago`;
   return fmtDateTime(iso);
 }
 

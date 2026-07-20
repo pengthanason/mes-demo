@@ -5,9 +5,9 @@ import { showToast } from '../lib/toast';
 import { ROLE_COLOR } from '../lib/roles';
 
 const DEMO_ACCOUNTS = [
-  { username: 'admin',   password: 'admin',   role: 'admin',  desc: 'ดูและจัดการได้ทุกอย่าง' },
-  { username: 'member1', password: 'member1', role: 'member', desc: 'ทำงานได้ + ดู Dashboard' },
-  { username: 'viewer1', password: 'viewer1', role: 'viewer', desc: 'ดู Dashboard เท่านั้น' },
+  { username: 'admin',   password: 'admin',   role: 'admin',  desc: 'View and manage everything' },
+  { username: 'member1', password: 'member1', role: 'member', desc: 'Can work + view Dashboard' },
+  { username: 'viewer1', password: 'viewer1', role: 'viewer', desc: 'View Dashboard only' },
 ];
 
 export function MesAuthPage() {
@@ -25,11 +25,11 @@ export function MesAuthPage() {
     const result = await apiLogin(username.trim(), password);
     setLoading(false);
     if (!result.ok) {
-      setError(result.error || 'เข้าสู่ระบบไม่สำเร็จ');
+      setError(result.error || 'Sign in failed');
     } else {
       setUsername('');
       setPassword('');
-      showToast(`ยินดีต้อนรับ, ${username.trim()}!`, 'success');
+      showToast(`Welcome, ${username.trim()}!`, 'success');
     }
   }
 
@@ -82,15 +82,15 @@ export function MesAuthPage() {
                 />
               </label>
               <button type="submit" className="btn" disabled={!username.trim() || !password || loading}>
-                {loading ? 'กำลังเข้าสู่ระบบ...' : 'Login'}
+                {loading ? 'Signing in...' : 'Login'}
               </button>
             </form>
 
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem', marginTop: '0.5rem' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Demo Accounts <span style={{ fontWeight: 400, color: '#94a3b8' }}>— กดเพื่อกรอกให้อัตโนมัติ</span></div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Demo Accounts <span style={{ fontWeight: 400, color: '#94a3b8' }}>— click to autofill</span></div>
               {DEMO_ACCOUNTS.map(acc => (
                 <button key={acc.username} type="button" className="tap-sm" onClick={() => { setUsername(acc.username); setPassword(acc.password); setError(''); }}
-                  title="กดเพื่อกรอก username/password ให้อัตโนมัติ"
+                  title="Click to autofill username/password"
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', fontSize: '0.82rem', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderRadius: 6, padding: '0.25rem', cursor: 'pointer' }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#eef2f7'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>

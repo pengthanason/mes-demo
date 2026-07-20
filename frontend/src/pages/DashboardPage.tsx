@@ -39,6 +39,7 @@ const colWidthPx = (c: PpCol): number => {
   if (c.key === 'produce') return 94;                  // PRODUCED
   if (c.key === 'balanced') return 82;                 // BALANCE
   if (c.key === 'qa_test_rate') return 104;            // SAMPLING%
+  if (c.key === 'bom_rec') return 92;                  // Bom Rec (วันที่)
   if (c.key === 'pic_responsible') return 122;         // Responsible
   return Math.max(72, Math.round(c.w * 8));
 };
@@ -96,7 +97,7 @@ function ColumnFilterField({
   }, [isOpen, setOpenKey]);
 
   const shown = q.trim() ? options.filter(o => (labelFor ? labelFor(o) : o).toLowerCase().includes(q.trim().toLowerCase())) : options;
-  const summary = selected.size === 0 ? 'ทั้งหมด' : selected.size === 1 ? (labelFor ? labelFor([...selected][0]) : [...selected][0]) : `เลือก ${selected.size} รายการ`;
+  const summary = selected.size === 0 ? 'All' : selected.size === 1 ? (labelFor ? labelFor([...selected][0]) : [...selected][0]) : `${selected.size} selected`;
   const panelWidth = Math.max(230, pos.width);
   const SUBMENU_W = 200;
   // เปิด/ปิด submenu ที่แถวนี้ — ผายออกไปทางขวาของ panel เสมอ ยกเว้นล้นขอบจอค่อยพลิกไปทางซ้าย (เหมือนเมนูคลิกขวาของ Windows)
@@ -128,11 +129,11 @@ function ColumnFilterField({
           display: 'flex', flexDirection: 'column', fontWeight: 400, fontSize: '0.82rem', color: '#1e293b', textAlign: 'left',
         }}>
           <div style={{ padding: 8, borderBottom: '1px solid var(--border-color)' }}>
-            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหา..." className="filter-search-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search..." className="filter-search-input" style={{ width: '100%', boxSizing: 'border-box' }} />
           </div>
           <div style={{ overflowY: 'auto', padding: '4px 0' }}>
             {shown.length === 0 ? (
-              <div style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>ไม่พบ</div>
+              <div style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>Not found</div>
             ) : shown.map(opt => {
               const canExpand = opt === expandKey && expandItems && expandItems.length > 0;
               return (
@@ -142,7 +143,7 @@ function ColumnFilterField({
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{labelFor ? labelFor(opt) : opt}</span>
                   </label>
                   {canExpand && (
-                    <button type="button" onClick={toggleSubmenu} title="เลือก process step ย่อย"
+                    <button type="button" onClick={toggleSubmenu} title="Select process steps"
                       style={{ all: 'unset', cursor: 'pointer', padding: '5px 12px', color: submenuPos ? '#2563eb' : '#94a3b8', fontSize: '0.7rem' }}>
                       ▶
                     </button>
@@ -152,8 +153,8 @@ function ColumnFilterField({
             })}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: 8, borderTop: '1px solid var(--border-color)' }}>
-            <button type="button" className="btn secondary" style={{ fontSize: '0.75rem', padding: '3px 10px' }} disabled={!active} onClick={onClear}>ล้าง</button>
-            <button type="button" className="btn" style={{ fontSize: '0.75rem', padding: '3px 10px' }} onClick={() => setOpenKey(null)}>ปิด</button>
+            <button type="button" className="btn secondary" style={{ fontSize: '0.75rem', padding: '3px 10px' }} disabled={!active} onClick={onClear}>Clear</button>
+            <button type="button" className="btn" style={{ fontSize: '0.75rem', padding: '3px 10px' }} onClick={() => setOpenKey(null)}>Close</button>
           </div>
         </div>,
         document.body
@@ -166,7 +167,7 @@ function ColumnFilterField({
         }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', cursor: 'pointer', fontWeight: 600, borderBottom: '1px solid var(--border-color)' }}>
             <input type="checkbox" checked={expandAllChecked ?? false} onChange={() => onToggleExpandAll?.()} />
-            <span>เลือกทั้งหมด</span>
+            <span>Select all</span>
           </label>
           {expandItems.map(it => (
             <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', cursor: 'pointer' }}>
@@ -198,7 +199,7 @@ const rowHasDelay = (r: PpProject) => r.status === 'DELAY' || PROCESS_STEPS.some
 function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string, e?: React.MouseEvent<HTMLElement>) => void) {
   // Status (คอลัมน์แรก) — ชื่อสถานะสีล้วน (ไม่มีกรอบ) · คลิกในตารางเพื่อวนสี/สถานะ
   if (c.key === 'status') { const sv = statusView(p); const s = STATUS_STYLE[sv.colorKey] ?? STATUS_STYLE.ON_PROCESS; return (
-    <td key={c.key} onClick={onToggle ? (e) => onToggle('status', e) : undefined} title={onToggle ? 'คลิกเพื่อเปลี่ยนสีของสถานะ (ชื่อสถานะคงเดิม)' : undefined}
+    <td key={c.key} onClick={onToggle ? (e) => onToggle('status', e) : undefined} title={onToggle ? 'Click to change the status color (label stays the same)' : undefined}
       style={{ textAlign: 'center', cursor: onToggle ? 'pointer' : undefined, background: s.bg, color: s.text, fontWeight: 700, whiteSpace: 'nowrap', userSelect: 'none' }}>
       {sv.label}
     </td>
@@ -244,7 +245,7 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
   if (c.key === 'product_pn') return (
     <td key={c.key} style={{ minWidth: 150, textAlign: 'center' }}>
       {p.product_pn
-        ? <button type="button" onClick={onOpen} title="ดูรายละเอียดสินค้า"
+        ? <button type="button" onClick={onOpen} title="View product details"
             style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }}>
             {p.product_pn}
           </button>
@@ -260,22 +261,22 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
 /* ── Popup รายละเอียดสินค้า — คลิก Product P/N ในตาราง → รูป (placeholder) + ข้อมูลทั้งหมดของรายการ ── */
 function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void }) {
   const y = ppYield(p);
-  const fmtD = (v: string | null | undefined) => { if (!v) return '—'; const d = new Date(v); return isNaN(+d) ? String(v) : d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }); };
+  const fmtD = (v: string | null | undefined) => { if (!v) return '—'; const d = new Date(v); return isNaN(+d) ? String(v) : d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }); };
   const val = (v: any) => (v === null || v === undefined || v === '' ? '—' : v);
   const groups: { title: string; items: [string, React.ReactNode][] }[] = [
-    { title: '📋 ข้อมูลงาน', items: [
-      ['Customer', val(p.customer)], ['Qty', p.qty ? p.qty.toLocaleString() : '—'], ['Week (WK)', val(p.wk)], ['วันที่บันทึก', fmtD(p.date_record)],
+    { title: '📋 Job Info', items: [
+      ['Customer', val(p.customer)], ['Qty', p.qty ? p.qty.toLocaleString() : '—'], ['Week (WK)', val(p.wk)], ['Date record', fmtD(p.date_record)],
       ['WO', val(p.work_order)], ['Owner', val(p.syn_requestor)],
     ] },
-    { title: '👤 ผู้รับผิดชอบ', items: [
-      ['PD PIC', val(p.pd_pic)], ['PIC Responsible', val(p.pic_responsible)], ['CAP / วัน', p.target_per_day || '—'],
+    { title: '👤 Responsible', items: [
+      ['PD PIC', val(p.pd_pic)], ['PIC Responsible', val(p.pic_responsible)], ['CAP / day', p.target_per_day || '—'],
     ] },
-    { title: '📅 กำหนดการ', items: [
-      ['PD Start', fmtD(p.pd_start_date)], ['PD Finish', fmtD(p.pd_finish_date)], ['Expected', fmtD(p.expected_date)], ['Actual shipping', fmtD(p.revised_date)],
-      ['CAP / วัน', p.target_per_day || '—'], ['Store Received', fmtD(p.store_received)], ['QA Finish', fmtD(p.qa_finish_date)], ['QA Test Rate', val(p.qa_test_rate)],
+    { title: '📅 Schedule', items: [
+      ['PD Start', fmtD(p.pd_start_date)], ['PD Finish', fmtD(p.pd_finish_date)], ['Expected', fmtD(p.expected_date)], ['Revised date', fmtD(p.revised_date)],
+      ['CAP / day', p.target_per_day || '—'], ['Store Received', fmtD(p.store_received)], ['QA Finish', fmtD(p.qa_finish_date)], ['QA Test Rate', val(p.qa_test_rate)],
       ['QA Status', p.qa_status ? <StatusBadge status={p.qa_status} /> : '—'],
     ] },
-    { title: '📊 ผลผลิต', items: [
+    { title: '📊 Output', items: [
       ['Produce', (p.produce || 0).toLocaleString()], ['Balance', ((p.qty || 0) - (p.produce || 0)).toLocaleString()],
       ['Total FG', <span style={{ color: '#16a34a', fontWeight: 700 }}>{p.total_ok || 0}</span>],
       ['Total NG', <span style={{ color: '#dc2626', fontWeight: 700 }}>{p.total_ng || 0}</span>],
@@ -291,14 +292,14 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', wordBreak: 'break-word' }}>{p.product_pn || '—'}</div>
             <div style={{ fontSize: '0.9rem', color: '#64748b', marginTop: 2 }}>{[p.model, p.customer].filter(Boolean).join(' · ') || '—'}</div>
           </div>
-          <button type="button" aria-label="ปิด" className="btn secondary" style={{ padding: '4px 12px', flexShrink: 0 }} onClick={onClose}>✕</button>
+          <button type="button" aria-label="Close" className="btn secondary" style={{ padding: '4px 12px', flexShrink: 0 }} onClick={onClose}>✕</button>
         </div>
         <div style={{ marginTop: 10 }}><StatusBadge status={statusView(p).colorKey} label={statusView(p).label} /></div>
         {/* รูปสินค้า (placeholder — ของจริงจะแนบภายหลัง) */}
         <div style={{ marginTop: 14, height: 180, borderRadius: 10, border: '2px dashed #cbd5e1', background: 'linear-gradient(135deg,#f8fafc,#eef2f7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#94a3b8' }}>
           <span style={{ fontSize: 40, lineHeight: 1 }}>🖼️</span>
-          <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>ยังไม่มีรูปสินค้า</span>
-          <span style={{ fontSize: '0.75rem' }}>รูปจริงของโปรดักต์จะถูกแนบเมื่อใช้งานจริง</span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>No product image yet</span>
+          <span style={{ fontSize: '0.75rem' }}>The actual product image will be attached later</span>
         </div>
         {groups.map(g => (
           <div key={g.title}>
@@ -313,17 +314,17 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
             </div>
           </div>
         ))}
-        <div style={sectionTitle}>🔧 Process (สถานะแต่ละขั้น)</div>
+        <div style={sectionTitle}>🔧 Process (status per step)</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {PROCESS_STEPS.map(s => { const v = (p as any)[s.key] as string; const stl = v ? STATUS_STYLE[v] : null; return (
             <span key={s.key as string} style={{ padding: '3px 11px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 600, border: `1px solid ${stl ? stl.border : '#e5e9f0'}`, background: stl ? stl.bg : '#f8fafc', color: stl ? stl.text : '#94a3b8' }}>{s.label}{v ? `: ${PP_STATUS_LABEL[v] ?? v}` : ''}</span>
           ); })}
         </div>
         {p.special_request && (<><div style={sectionTitle}>⭐ Special request</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.special_request}</div></>)}
-        {p.remark && (<><div style={sectionTitle}>📝 หมายเหตุ</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.remark}</div></>)}
+        {p.remark && (<><div style={sectionTitle}>📝 Remark</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.remark}</div></>)}
         <div style={{ marginTop: 18, paddingTop: 10, borderTop: '1px solid #eef2f7', fontSize: '0.72rem', color: '#94a3b8', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          {p.created_at && <span>สร้าง: {fmtD(p.created_at)}</span>}
-          {p.updated_at && <span>แก้ไขล่าสุด: {fmtD(p.updated_at)}</span>}
+          {p.created_at && <span>Created: {fmtD(p.created_at)}</span>}
+          {p.updated_at && <span>Updated: {fmtD(p.updated_at)}</span>}
         </div>
       </div>
     </div>
@@ -369,7 +370,7 @@ function printPdf(rows: PpProject[], filename?: string) {
     <div class="hd">
       <img src="data:image/png;base64,${SYNTECH_LOGO_PNG_BASE64}" alt="SYNTECH"/>
       <div class="t">Production Plan Internal</div>
-      <div class="code">FM03 Rev.01 Ref.EN-P-01<br/>${new Date().toLocaleDateString('th-TH')}</div>
+      <div class="code">FM03 Rev.01 Ref.EN-P-01<br/>${new Date().toLocaleDateString('en-GB')}</div>
     </div>
     <table>
       <thead><tr>${hr1}</tr><tr>${hr2}</tr></thead>
@@ -377,7 +378,7 @@ function printPdf(rows: PpProject[], filename?: string) {
     </table>
     <script>window.onload=()=>{window.print()}</script></body></html>`;
   const w = window.open('', '_blank');
-  if (!w) { showToast('เบราว์เซอร์บล็อก popup — อนุญาตก่อนพิมพ์', 'error'); return; }
+  if (!w) { showToast('Browser blocked the popup — allow it before printing', 'error'); return; }
   w.document.write(html); w.document.close();
 }
 
@@ -386,7 +387,7 @@ function KpiCard({ icon, label, value, accent, onClick, active }: {
   icon: string; label: string; value: number | string; accent: string; onClick: () => void; active: boolean;
 }) {
   return (
-    <div onClick={onClick} title="กดเพื่อกรองตารางตามสถานะนี้"
+    <div onClick={onClick} title="Click to filter the table by this status"
       style={{ cursor: 'pointer', borderRadius: 12, outline: active ? `2px solid ${accent}` : '2px solid transparent', transition: 'transform 0.12s, box-shadow 0.12s' }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.10)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
@@ -434,14 +435,14 @@ function FileNamePromptModal({ title, defaultBase, ext, onConfirm, onCancel }: {
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>{title}</h2>
-        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>ตั้งชื่อไฟล์ แล้วกด “ตกลง” เพื่อดาวน์โหลด</p>
-        <label className="field"><span>ชื่อไฟล์</span>
+        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Name the file, then click “OK” to download</p>
+        <label className="field"><span>File name</span>
           <input ref={inputRef} value={name} onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } else if (e.key === 'Escape') onCancel(); }} />
         </label>
         <div className="modal-actions" style={{ marginTop: '1.2rem' }}>
-          <button type="button" className="btn secondary" onClick={onCancel}>ยกเลิก</button>
-          <button type="button" className="btn" onClick={confirm}>ตกลง</button>
+          <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="btn" onClick={confirm}>OK</button>
         </div>
       </div>
     </div>
@@ -462,22 +463,22 @@ function ProcessEventPopup({ p, stepKey, onClose, onSave }: { p: PpProject; step
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 380px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>Process: {step?.label ?? stepKey}</h2>
-        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>เลือกสถานะ + วันที่ที่เกิดขึ้น (บันทึกลงประวัติเพื่อวาด Gantt)</p>
-        <label className="field"><span>สถานะ</span>
+        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Select a status + the date it happened (saved to history for the Gantt)</p>
+        <label className="field"><span>Status</span>
           <select value={status} onChange={e => setStatus(e.target.value)}>
-            <option value="">— ว่าง —</option>
+            <option value="">— None —</option>
             {PROC_STATUS.map(s => <option key={s} value={s}>{PROC_STATUS_LABEL[s]}</option>)}
           </select>
         </label>
-        <label className="field" style={{ marginTop: 10 }}><span>วันที่</span>
+        <label className="field" style={{ marginTop: 10 }}><span>Date</span>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} />
         </label>
         <label className="field" style={{ marginTop: 10 }}><span>Remark</span>
           <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} />
         </label>
         <div className="modal-actions" style={{ marginTop: '1.2rem' }}>
-          <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
-          <button type="button" className="btn" onClick={() => onSave(status, date, note)}>บันทึก</button>
+          <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn" onClick={() => onSave(status, date, note)}>Save</button>
         </div>
       </div>
     </div>
@@ -490,9 +491,9 @@ const STATUS_COLOR_OPTIONS = [
   'CYAN', 'BLUE', 'INDIGO', 'VIOLET', 'PURPLE', 'FUCHSIA', 'PINK', 'ROSE', 'BROWN',
 ] as const;
 const STATUS_COLOR_LABEL: Record<string, string> = {
-  ...PP_STATUS_LABEL, PROCESS: 'ฟ้าอมเขียว', RED: 'แดง', ORANGE: 'ส้ม', AMBER: 'อำพัน', YELLOW: 'เหลือง',
-  LIME: 'เขียวมะนาว', GREEN: 'เขียว', EMERALD: 'เขียวมรกต', CYAN: 'ฟ้าอมเขียวอ่อน', BLUE: 'น้ำเงิน',
-  INDIGO: 'คราม', VIOLET: 'ม่วงน้ำเงิน', PURPLE: 'ม่วง', FUCHSIA: 'ม่วงบานเย็น', PINK: 'ชมพู', ROSE: 'ชมพูกุหลาบ', BROWN: 'น้ำตาล',
+  ...PP_STATUS_LABEL, PROCESS: 'Teal', RED: 'Red', ORANGE: 'Orange', AMBER: 'Amber', YELLOW: 'Yellow',
+  LIME: 'Lime', GREEN: 'Green', EMERALD: 'Emerald', CYAN: 'Cyan', BLUE: 'Blue',
+  INDIGO: 'Indigo', VIOLET: 'Violet', PURPLE: 'Purple', FUCHSIA: 'Fuchsia', PINK: 'Pink', ROSE: 'Rose', BROWN: 'Brown',
 };
 
 /* ── Palette เลือก "สี" ของช่อง Status — ไม่มี backdrop/กล่อง popup แค่ลอยขึ้นมาให้กด (เหมือน dropdown filter) ── */
@@ -563,13 +564,13 @@ export function DashboardPage() {
     const change: any = { [key]: !(p as any)[key] };
     const merged = { ...p, ...change };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
   };
   // บันทึกสี Status ที่เลือกจาก palette (ทับ status_color เท่านั้น ชื่อสถานะเดิมไม่เปลี่ยน)
   const pickStatusColor = (p: PpProject, color: string) => {
     const merged = { ...p, status_color: color };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'อัปเดตไม่สำเร็จ', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
     setColorPick(null);
   };
   // คลิกช่อง Process → เปิด popup เลือกสถานะ+วันที่ · คลิกช่อง Status → เปิด palette สีลอยตรงจุดที่คลิก
@@ -587,7 +588,7 @@ export function DashboardPage() {
     log.push({ date, step: key, status, ...(note.trim() ? { note: note.trim() } : {}) });
     const merged = { ...p, [key]: status, process_log: log };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'บันทึกไม่สำเร็จ', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'Save failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
     setProcEdit(null);
   };
   const queryClient = useQueryClient();
@@ -601,6 +602,7 @@ export function DashboardPage() {
   const [detail, setDetail] = useState<PpProject | null>(null);   // ป๊อปอัพรายละเอียดสินค้า (คลิก Product P/N)
   const [saveAs, setSaveAs] = useState<'xlsx' | 'pdf' | null>(null);   // เปิดป๊อปอัพตั้งชื่อไฟล์ก่อนโหลด
   const [page, setPage] = useState(1);
+  const [ppTab, setPpTab] = useState<'internal' | 'external'>('internal');   // แท็บงานภายใน/ภายนอก (External ยังใช้ข้อมูลชุดเดียวกันไปก่อน)
   const PAGE = 20;
 
   // เปิดรายละเอียดสินค้าอัตโนมัติเมื่อมากับ ?pp=<id> (ลิงก์จากหน้า Activities)
@@ -684,14 +686,14 @@ export function DashboardPage() {
     const totalNg = rows.reduce((s, r) => s + (r.total_ng || 0), 0);
     const byStatus = PP_STATUS.map(s => ({ label: PP_STATUS_LABEL[s], value: by(s), color: STATUS_STYLE[s].text }));
     const cm: Record<string, number> = {};
-    rows.forEach(r => { const c = r.customer || '(ไม่ระบุ)'; cm[c] = (cm[c] || 0) + 1; });
+    rows.forEach(r => { const c = r.customer || '(N/A)'; cm[c] = (cm[c] || 0) + 1; });
     const byCustomer = Object.entries(cm).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
     return { totalOk, totalNg, byStatus, byCustomer };
   }, [rows]);
 
   async function handleDelete(p: PpProject) {
-    if (!(await confirmDialog(`ลบโปรเจกต์ "${p.product_pn || p.model}"?\nลบแล้วกู้ไม่ได้`, { title: 'ลบโปรเจกต์' }))) return;
-    del.mutate(p.id, { onSuccess: () => { showToast('ลบแล้ว', 'info'); setPage(1); }, onError: (e: any) => showToast(e.message, 'error') });
+    if (!(await confirmDialog(`Delete project "${p.product_pn || p.model}"?\nThis cannot be undone`, { title: 'Delete project' }))) return;
+    del.mutate(p.id, { onSuccess: () => { showToast('Deleted', 'info'); setPage(1); }, onError: (e: any) => showToast(e.message, 'error') });
   }
 
   const maxCust = Math.max(1, ...chart.byCustomer.map(x => x.value));
@@ -710,7 +712,7 @@ export function DashboardPage() {
         </div>
         <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.92)', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
           <span style={{ width: 9, height: 9, borderRadius: 99, background: '#86efac', display: 'inline-block', boxShadow: '0 0 0 3px rgba(134,239,172,0.3)' }} />
-          อัปเดต {updatedAt.toLocaleTimeString('th-TH')}
+          Updated {updatedAt.toLocaleTimeString('en-GB')}
         </span>
       </div>
 
@@ -718,25 +720,41 @@ export function DashboardPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 className="panel__title">📋 Production Plan</h1>
-            <p className="panel__subtitle">ภาพรวมและตรวจสอบงานผลิต — ข้อมูลจาก Add Project</p>
           </div>
         </div>
 
         {/* KPI — กดเพื่อกรองสถานะ (เลื่อนหน้าจอลงมาให้เห็นกราฟ+ตารางที่กรอง) */}
-        <div className="dash-grid-3" style={{ marginTop: '1.5rem' }}>
-          <KpiCard icon="📦" label="ทั้งหมด" value={agg.total} accent="#2e7d4f" onClick={() => selectStatus('')} active={!colFilters.status?.size} />
+        <div className="dash-grid-3" style={{ marginTop: '0.75rem' }}>
+          <KpiCard icon="📦" label="All" value={agg.total} accent="#2e7d4f" onClick={() => selectStatus('')} active={!colFilters.status?.size} />
           <KpiCard icon="✅" label="Done" value={agg.done} accent="#16a34a" onClick={() => selectStatus('DONE')} active={isStatusOnly('DONE')} />
           <KpiCard icon="⚙️" label="On process" value={agg.onProc} accent="#2563eb" onClick={() => selectStatus('ON_PROCESS')} active={isStatusOnly('ON_PROCESS')} />
           <KpiCard icon="⏰" label="Delay" value={agg.delay} accent="#ea580c" onClick={() => selectStatus('DELAY')} active={isStatusOnly('DELAY')} />
           <KpiCard icon="🚫" label="Cancel" value={agg.cancel} accent="#64748b" onClick={() => selectStatus('CANCEL')} active={isStatusOnly('CANCEL')} />
-          <StatCard icon="🎯" label="Yield Good เฉลี่ย" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
+          <StatCard icon="🎯" label="Avg Yield Good" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
         </div>
       </div>
 
       {/* ตาราง + filter + export */}
       <div className="panel" ref={tableRef} style={{ scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
+        {/* Production Plan + แท็บ Internal / External (segmented control) — ตอนนี้ External ใช้ข้อมูลชุดเดียวกับ Internal ไปก่อน */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>Production Plan</h2>
+          <div style={{ display: 'inline-flex', gap: 4, background: '#eef2f7', borderRadius: 9, padding: 4 }}>
+            {(['internal', 'external'] as const).map(t => (
+              <button key={t} type="button" onClick={() => { setPpTab(t); setPage(1); }}
+                style={{
+                  padding: '6px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', fontFamily: 'inherit',
+                  background: ppTab === t ? '#fff' : 'transparent', color: ppTab === t ? 'var(--brand)' : 'var(--text-muted)',
+                  boxShadow: ppTab === t ? '0 1px 3px rgba(15,23,42,0.14)' : 'none', transition: 'all 0.12s',
+                }}>
+                {t === 'internal' ? 'Internal' : 'External'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="dash-grid-3">   {/* filter แถวละ 3 เท่าๆ กัน (6 ช่อง = 2 แถวสมส่วน) — Status/Customer/WO/Model เป็น dropdown เลือกหลายค่า+เสิร์ชได้ */}
-          <ColumnFilterField label="สถานะ" options={[...PP_STATUS]} labelFor={v => PP_STATUS_LABEL[v] ?? v}
+          <ColumnFilterField label="Status" options={[...PP_STATUS]} labelFor={v => PP_STATUS_LABEL[v] ?? v}
             selected={colFilters.status ?? new Set()} onToggle={v => toggleFilterValue('status', v)}
             onClear={() => { clearFilterCol('status'); setProcStepFilter(new Set()); }}
             colKey="status" openKey={openFilterCol} setOpenKey={setOpenFilterCol}
@@ -752,16 +770,31 @@ export function DashboardPage() {
           <ColumnFilterField label="Model" options={models}
             selected={colFilters.model ?? new Set()} onToggle={v => toggleFilterValue('model', v)} onClear={() => clearFilterCol('model')}
             colKey="model" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
-          <label className="field"><span>ตั้งแต่วันที่</span><input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} /></label>
-          <label className="field"><span>ถึงวันที่</span><input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} /></label>
+          <label className="field"><span>From date</span><input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} /></label>
+          <label className="field"><span>To date</span><input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} /></label>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', margin: '12px 0 0.75rem' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{rows.length} โปรเจกต์</span>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{rows.length} projects</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={clearAllFilters}>ล้าง filter</button>}
-            <button type="button" className="btn secondary" title="ดาวน์โหลดเป็นไฟล์ Excel ตามฟอร์ม FM03 (โลโก้+สี)" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => setSaveAs('xlsx')}>⬇️ Export to Excel</button>
+            {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={clearAllFilters}>Clear filter</button>}
+            <button type="button" className="btn secondary" title="Download as an Excel file in the FM03 format (logo + colors)" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => setSaveAs('xlsx')}>⬇️ Export to Excel</button>
           </div>
+        </div>
+
+        {/* แถบ legend สี — บอกความหมายแต่ละสีในตาราง (สีจริงจาก STATUS_STYLE) */}
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--text-body)' }}>
+          {[
+            { label: 'Done', s: STATUS_STYLE.DONE },
+            { label: 'On process', s: STATUS_STYLE.ON_PROCESS },
+            { label: 'Delay', s: STATUS_STYLE.DELAY },
+            { label: 'Waiting', s: STATUS_STYLE.WAIT },
+          ].map(x => (
+            <span key={x.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 22, height: 14, borderRadius: 3, background: x.s.bg, border: `1px solid ${x.s.border}`, display: 'inline-block' }} />
+              {x.label}
+            </span>
+          ))}
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
@@ -775,7 +808,7 @@ export function DashboardPage() {
               <tr>
                 <th rowSpan={2} style={{ textAlign: 'center' }}>#</th>
                 {groupRow.map((h, i) => <th key={i} colSpan={h.colSpan} rowSpan={h.rowSpan} style={hdrStyle(h)}>{h.label}</th>)}
-                {!isViewer && <th rowSpan={2} style={{ textAlign: 'center' }}>จัดการ</th>}
+                {!isViewer && <th rowSpan={2} style={{ textAlign: 'center' }}>Actions</th>}
               </tr>
               <tr>
                 {subRow.map((h, i) => <th key={i} style={hdrStyle(h)}>{h.label}</th>)}
@@ -785,7 +818,7 @@ export function DashboardPage() {
               {isLoading ? (
                 <TableState colSpan={colCount} state="loading" />
               ) : paged.length === 0 ? (
-                <TableState colSpan={colCount} state="empty" emptyText={hasFilter ? 'ไม่พบรายการตามตัวกรอง — กด “ล้าง filter” เพื่อดูทั้งหมด' : 'ยังไม่มีข้อมูล — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม'} />
+                <TableState colSpan={colCount} state="empty" emptyText={hasFilter ? 'No matching records — click “Clear filter” to show all' : 'No data yet — click “+ Add Project” to start'} />
               ) : paged.map((p, idx) => {
                 const y = ppYield(p);
                 const no = (page - 1) * PAGE + idx + 1;   // ลำดับต่อเนื่องข้ามหน้า
@@ -796,8 +829,8 @@ export function DashboardPage() {
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                          <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.75rem' }} onClick={() => setEdit(p)}>แก้ไข</button>
-                          <button type="button" className="btn danger" style={{ padding: '3px 10px', fontSize: '0.75rem' }} onClick={() => handleDelete(p)}>ลบ</button>
+                          <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.75rem' }} onClick={() => setEdit(p)}>Edit</button>
+                          <button type="button" className="btn danger" style={{ padding: '3px 10px', fontSize: '0.75rem' }} onClick={() => handleDelete(p)}>Delete</button>
                         </div>
                       </td>
                     )}
@@ -812,13 +845,13 @@ export function DashboardPage() {
 
       {/* กราฟ — ตามตัวกรองที่เลือก (ย้ายมาอยู่ใต้ตารางตามที่ขอ · ref ไว้เลื่อนหน้าจอมาตรงนี้ตอนกดการ์ด KPI) */}
       <div className="dash-grid-3" ref={chartsRef} style={{ scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
-        <ChartCard title="สัดส่วนงานตามสถานะ">
+        <ChartCard title="Status breakdown">
           <Donut data={chart.byStatus} />
         </ChartCard>
-        <ChartCard title="จำนวนงานตามลูกค้า (Top 8)">
+        <ChartCard title="Customer (Top 8)">
           {chart.byCustomer.length ? chart.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#2e7d4f" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
         </ChartCard>
-        <ChartCard title="ผลผลิตรวม (OK vs NG)">
+        <ChartCard title="Total output (OK vs NG)">
           <BarRow label="Total OK" value={chart.totalOk} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#16a34a" />
           <BarRow label="Total NG" value={chart.totalNg} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#dc2626" />
         </ChartCard>
@@ -853,7 +886,7 @@ export function DashboardPage() {
       {colorPick && <StatusColorPopup p={colorPick.p} pos={colorPick} onClose={() => setColorPick(null)} onPick={color => pickStatusColor(colorPick.p, color)} />}
       {saveAs && (
         <FileNamePromptModal
-          title={saveAs === 'xlsx' ? '⬇️ บันทึกเป็น Excel' : '🖨️ บันทึกเป็น PDF'}
+          title={saveAs === 'xlsx' ? '⬇️ Save as Excel' : '🖨️ Save as PDF'}
           defaultBase={`production-plan-${new Date().toISOString().slice(0, 10)}`}
           ext={saveAs}
           onCancel={() => setSaveAs(null)}

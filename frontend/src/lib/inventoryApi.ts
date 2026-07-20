@@ -63,7 +63,7 @@ export function useReceiveLot() {
       const res = await api.post('/inventory/receive', {
         part_no: input.partNo, part_name: input.partName, lot_no: input.lotNo, qty: input.qty,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'รับของไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to receive goods');
       return res.data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: LOTS_KEY }); qc.invalidateQueries({ queryKey: STOCK_KEY }); },
@@ -75,7 +75,7 @@ export function useReviewLot() {
   return useMutation({
     mutationFn: async (input: { id: number; status: 'APPROVED' | 'REJECTED'; note?: string }) => {
       const res = await api.post(`/inventory/lots/${input.id}/review`, { status: input.status, note: input.note });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'บันทึกผลตรวจไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save review');
       return res.data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: LOTS_KEY }); qc.invalidateQueries({ queryKey: STOCK_KEY }); },
@@ -87,7 +87,7 @@ export function useDeleteLot() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await api.delete(`/inventory/lots/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'ลบไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to delete');
       return res.data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: LOTS_KEY }); qc.invalidateQueries({ queryKey: STOCK_KEY }); },
@@ -121,7 +121,7 @@ export function useIssueMaterial() {
   return useMutation({
     mutationFn: async (input: { woId: string; partNo: string; qty: number }) => {
       const res = await api.post('/inventory/issue', { wo_id: input.woId, part_no: input.partNo, qty: input.qty });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'เบิกของไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to issue goods');
       return res.data;
     },
     onSuccess: () => {

@@ -20,15 +20,15 @@ export function QaVerifyPage() {
   const [verifiedBy,  setVerifiedBy]  = useState('');
 
   if (isLoading) {
-    return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>;
+    return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
   }
 
   if (!qcResult) {
     return (
       <div className="notice err" style={{ margin: '2rem' }}>
-        ไม่พบ QC Result
+        QC Result not found
         <div style={{ marginTop: '1rem' }}>
-          <Link to="/qc-result" className="btn secondary">← กลับรายการ QC</Link>
+          <Link to="/qc-result" className="btn secondary">← Back to QC list</Link>
         </div>
       </div>
     );
@@ -57,21 +57,21 @@ export function QaVerifyPage() {
     <section className="stack-lg">
       <div className="panel">
         <div style={{ marginBottom: '0.75rem' }}>
-          <Link to="/qc-result" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← กลับรายการ QC Result</Link>
+          <Link to="/qc-result" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← Back to QC Result list</Link>
         </div>
         <h1 className="panel__title">Transfer Verify</h1>
-        <p className="panel__subtitle">QA ตรวจสอบก่อนส่งมอบ</p>
+        <p className="panel__subtitle">QA inspection before delivery</p>
       </div>
 
       {/* ─── QC Result Info ─────────────────────────────────────── */}
       <div className="panel">
-        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ข้อมูล QC Result #{qcResult.id}</h2>
+        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>QC Result #{qcResult.id} Info</h2>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
           {[
             { label: 'WO',           value: qcResult.woId },
             { label: 'Lot No',       value: qcResult.lotNo },
-            { label: 'วันที่ QC',    value: new Date(qcResult.createdAt).toLocaleDateString('th-TH') },
+            { label: 'QC Date',      value: new Date(qcResult.createdAt).toLocaleDateString('en-GB') },
             { label: 'Checked',      value: String(qcResult.qtyChecked) },
             { label: 'Pass',         value: String(qcResult.qtyPass) },
             { label: 'Fail',         value: String(qcResult.qtyFail) },
@@ -99,13 +99,13 @@ export function QaVerifyPage() {
       {/* ─── Already Verified ─────────────────────────────────── */}
       {alreadyVerified && (
         <div className="panel" style={{ borderLeft: `4px solid ${qcResult.verdict === 'APPROVED' ? '#10b981' : '#ef4444'}` }}>
-          <h2 className="panel__title panel__title--sm">ผลการ Verify แล้ว</h2>
+          <h2 className="panel__title panel__title--sm">Verification Result</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
             <span style={{ fontWeight: 700, fontSize: '1.1rem', color: qcResult.verdict === 'APPROVED' ? '#16a34a' : '#dc2626' }}>
               {qcResult.verdict === 'APPROVED' ? '✓ APPROVED' : '✗ REJECTED'}
             </span>
-            {qcResult.verifiedBy && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>โดย: {qcResult.verifiedBy}</span>}
-            {qcResult.verifiedAt && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(qcResult.verifiedAt).toLocaleDateString('th-TH')}</span>}
+            {qcResult.verifiedBy && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>By: {qcResult.verifiedBy}</span>}
+            {qcResult.verifiedAt && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(qcResult.verifiedAt).toLocaleDateString('en-GB')}</span>}
           </div>
         </div>
       )}
@@ -146,13 +146,13 @@ export function QaVerifyPage() {
             </div>
 
             <label className="field">
-              <span>หมายเหตุ</span>
-              <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="เหตุผลหรือหมายเหตุประกอบ..." />
+              <span>Remark</span>
+              <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Reason or supporting remark..." />
             </label>
 
             <label className="field">
-              <span>ชื่อ QA ผู้ตรวจ *</span>
-              <input list="qa-verifier-options" value={verifiedBy} onChange={e => setVerifiedBy(e.target.value)} placeholder="เลือก/พิมพ์ชื่อ..." required />
+              <span>QA Inspector Name *</span>
+              <input list="qa-verifier-options" value={verifiedBy} onChange={e => setVerifiedBy(e.target.value)} placeholder="Select/type a name..." required />
               <datalist id="qa-verifier-options">
                 {users.map(u => <option key={u.id} value={u.fullName}>{u.username}</option>)}
               </datalist>
@@ -160,7 +160,7 @@ export function QaVerifyPage() {
 
             <button type="submit" className="btn" disabled={!verdict || !verifiedBy.trim() || verifyMut.isPending}
               style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
-              {verifyMut.isPending ? 'กำลังบันทึก...' : 'ยืนยัน Transfer Verify'}
+              {verifyMut.isPending ? 'Saving...' : 'Confirm Transfer Verify'}
             </button>
           </form>
         </div>
@@ -168,7 +168,7 @@ export function QaVerifyPage() {
 
       {!alreadyVerified && isViewer && (
         <div className="notice info">
-          👁 Viewer mode — ไม่สามารถ verify ได้
+          👁 Viewer mode — cannot verify
         </div>
       )}
     </section>

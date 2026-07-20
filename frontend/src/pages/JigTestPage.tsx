@@ -28,7 +28,7 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
     <div
       className="panel"
       onClick={onClick}
-      role="button" tabIndex={0} aria-label={`เปิดโปรเจกต์ ${p.name}`}
+      role="button" tabIndex={0} aria-label={`Open project ${p.name}`}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
       style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 1 280px', minWidth: 0 }}
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)')}
@@ -46,7 +46,7 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
             {p.isActive ? 'ACTIVE' : 'INACTIVE'}
           </span>
           {onDelete && (
-            <button type="button" title="ลบโปรเจกต์" aria-label="ลบโปรเจกต์" className="tap-sm"
+            <button type="button" title="Delete project" aria-label="Delete project" className="tap-sm"
               onClick={e => { e.stopPropagation(); onDelete(); }}
               style={{ width: 26, height: 26, padding: 0, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, lineHeight: 1, flexShrink: 0 }}
               onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
@@ -74,7 +74,7 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
       <PassRateBar rate={p.passRate} />
 
       <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
-        <span style={{ fontSize: '0.78rem', color: 'var(--primary)' }}>ดูรายละเอียด →</span>
+        <span style={{ fontSize: '0.78rem', color: 'var(--primary)' }}>View details →</span>
       </div>
     </div>
   );
@@ -87,9 +87,9 @@ function TraceKnexCard() {
     <div
       className="panel"
       onClick={() => window.open(TRACE_URL, '_blank', 'noopener,noreferrer')}
-      role="button" tabIndex={0} aria-label="เปิดระบบ Traceability (แท็บใหม่)"
+      role="button" tabIndex={0} aria-label="Open Traceability system (new tab)"
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open(TRACE_URL, '_blank', 'noopener,noreferrer'); } }}
-      title="เปิดระบบ Traceability (แท็บใหม่)"
+      title="Open Traceability system (new tab)"
       style={{ cursor: 'pointer', transition: 'box-shadow 0.15s', border: '1px solid var(--border)', flex: '0 1 280px', minWidth: 0 }}
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}
@@ -111,10 +111,10 @@ function TraceKnexCard() {
         ))}
       </div>
 
-      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center' }}>ข้อมูลสดอยู่ในระบบ Traceability</div>
+      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center' }}>Live data is in the Traceability system</div>
 
       <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
-        <span style={{ fontSize: '0.78rem', color: 'var(--primary)' }}>ดูรายละเอียด →</span>
+        <span style={{ fontSize: '0.78rem', color: 'var(--primary)' }}>View details →</span>
       </div>
     </div>
   );
@@ -131,10 +131,10 @@ function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
-    if (!projectCode.trim() || !name.trim()) return setErr('กรุณาใส่ Project Code และชื่อ');
+    if (!projectCode.trim() || !name.trim()) return setErr('Please enter Project Code and name');
     mut.mutate(
       { projectCode: projectCode.trim(), name: name.trim(), jigId: jigId.trim(), testType },
-      { onSuccess: () => { showToast('สร้างโปรเจกต์ Jig สำเร็จ', 'success'); onClose(); },
+      { onSuccess: () => { showToast('Jig project created', 'success'); onClose(); },
         onError: (e: any) => setErr(e.message) }
     );
   }
@@ -142,18 +142,18 @@ function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
-        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>เพิ่มโปรเจกต์ Jig</h2>
+        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>Add Jig Project</h2>
         <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>
           <label className="field"><span>Project Code *</span>
-            <input value={projectCode} onChange={e => setProjectCode(e.target.value)} placeholder="เช่น PCB-A100" autoFocus required />
+            <input value={projectCode} onChange={e => setProjectCode(e.target.value)} placeholder="e.g. PCB-A100" autoFocus required />
           </label>
-          <label className="field"><span>ชื่อโปรเจกต์ *</span>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="เช่น PCB Assembly A100" required />
+          <label className="field"><span>Project Name *</span>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. PCB Assembly A100" required />
           </label>
           <label className="field"><span>Jig ID</span>
-            <input value={jigId} onChange={e => setJigId(e.target.value)} placeholder="เช่น JIG-001" />
+            <input value={jigId} onChange={e => setJigId(e.target.value)} placeholder="e.g. JIG-001" />
           </label>
-          <label className="field"><span>ชนิดเทส (Test Type)</span>
+          <label className="field"><span>Test Type</span>
             <select value={testType} onChange={e => setTestType(e.target.value as 'ICT' | 'FCT')}>
               <option value="ICT">ICT Test</option>
               <option value="FCT">FCT Test</option>
@@ -161,8 +161,8 @@ function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
           </label>
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions">
-            <button type="button" className="btn secondary" onClick={onClose}>ยกเลิก</button>
-            <button type="submit" className="btn" disabled={mut.isPending}>{mut.isPending ? 'กำลังสร้าง...' : 'สร้างโปรเจกต์'}</button>
+            <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn" disabled={mut.isPending}>{mut.isPending ? 'Creating...' : 'Create Project'}</button>
           </div>
         </form>
       </div>
@@ -178,9 +178,9 @@ export function JigTestPage() {
   const del = useJigProjectDelete();
 
   const handleDelete = async (p: JigProject) => {
-    if (!(await confirmDialog(`ลบโปรเจกต์ "${p.name}" (${p.projectCode})?\nผลทดสอบทั้งหมดของโปรเจกต์นี้จะถูกลบด้วย — กู้คืนไม่ได้`, { title: 'ลบโปรเจกต์ Jig' }))) return;
+    if (!(await confirmDialog(`Delete project "${p.name}" (${p.projectCode})?\nAll test results for this project will also be deleted — cannot be undone`, { title: 'Delete Jig Project' }))) return;
     del.mutate(p.projectCode, {
-      onSuccess: () => showToast('ลบโปรเจกต์แล้ว', 'info'),
+      onSuccess: () => showToast('Project deleted', 'info'),
       onError: (e: any) => showToast(e.message, 'error'),
     });
   };
@@ -193,9 +193,9 @@ export function JigTestPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h1 className="panel__title">Jig Test</h1>
-          <p className="panel__subtitle">ผลการทดสอบ Jig แยกตามโปรเจกต์</p>
+          <p className="panel__subtitle">Jig test results by project</p>
         </div>
-        {!isViewer && <button type="button" className="btn" onClick={() => setShowCreate(true)}>+ เพิ่มโปรเจกต์</button>}
+        {!isViewer && <button type="button" className="btn" onClick={() => setShowCreate(true)}>+ Add Project</button>}
       </div>
       {showCreate && <CreateJigProjectModal onClose={() => setShowCreate(false)} />}
 
@@ -210,7 +210,7 @@ export function JigTestPage() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
             {ict.length ? ict.map(p => (
               <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} />
-            )) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem' }}>— ยังไม่มีโปรเจกต์ ICT —</div>}
+            )) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem' }}>— No ICT projects yet —</div>}
           </div>
         </div>
       )}
@@ -230,7 +230,7 @@ export function JigTestPage() {
       )}
 
       {!isLoading && projects.length === 0 && (
-        <BlockState state="empty" emptyText="ยังไม่มีโปรเจกต์ Jig — กด “+ เพิ่มโปรเจกต์” เพื่อเริ่ม" />
+        <BlockState state="empty" emptyText="No Jig projects yet — click “+ Add Project” to start" />
       )}
     </div>
   );

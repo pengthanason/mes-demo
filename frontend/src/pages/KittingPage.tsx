@@ -31,7 +31,7 @@ export function KittingPage() {
       { woId: woId.trim(), partNo, qty: n },
       {
         onSuccess: () => {
-          showToast(`เบิก ${partNo} จำนวน ${n.toLocaleString()} ให้ ${woId}`, 'success');
+          showToast(`Issued ${partNo}, ${n.toLocaleString()} to ${woId}`, 'success');
           setQty('');
         },
         onError: (err: any) => showToast(err.message, 'error'),
@@ -46,18 +46,18 @@ export function KittingPage() {
           <span style={{ width: 48, height: 48, flexShrink: 0, borderRadius: 12, fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(99,102,241,0.12)' }}>🧰</span>
           <div>
             <h1 className="panel__title" style={{ margin: 0 }}>Kitting</h1>
-            <p className="panel__subtitle" style={{ margin: 0 }}>เบิกของจากล็อตที่ QA อนุมัติแล้ว ไปเข้าไลน์ผลิตตาม WO — ตัด stock แบบ FIFO (ล็อตเก่าก่อน)</p>
+            <p className="panel__subtitle" style={{ margin: 0 }}>Issue goods from QA-approved lots to the production line by WO — deducts stock FIFO (oldest lot first)</p>
           </div>
         </div>
 
         <div className="grid-sidebar" style={{ marginTop: '1.5rem' }}>
           {/* ── Stock พร้อมเบิก ── */}
           <div className="panel" style={{ padding: '1rem', margin: 0 }}>
-            <div className="panel__title panel__title--sm" style={{ marginBottom: '0.75rem' }}>Stock พร้อมเบิก</div>
+            <div className="panel__title panel__title--sm" style={{ marginBottom: '0.75rem' }}>Stock Ready to Issue</div>
             {stockLoading ? (
               <BlockState state="loading" />
             ) : stock.length === 0 ? (
-              <BlockState state="empty" emptyText="ไม่มีของพร้อมเบิก (ต้องให้ QA อนุมัติล็อตก่อน)" />
+              <BlockState state="empty" emptyText="No goods ready to issue (QA must approve a lot first)" />
             ) : (
               <div className="stack" style={{ gap: '0.4rem' }}>
                 {stock.map(s => (
@@ -84,33 +84,33 @@ export function KittingPage() {
 
           {/* ── ฟอร์มเบิก ── */}
           <div className="panel" style={{ padding: '1rem', margin: 0 }}>
-            <div className="panel__title panel__title--sm" style={{ marginBottom: '0.75rem' }}>เบิกของ</div>
+            <div className="panel__title panel__title--sm" style={{ marginBottom: '0.75rem' }}>Issue Goods</div>
             {isViewer ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👁 Viewer ดูได้อย่างเดียว เบิกไม่ได้</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👁 Viewer is read-only, cannot issue</p>
             ) : (
               <form onSubmit={handleIssue} className="stack" style={{ gap: '0.85rem' }}>
                 <label className="field">
-                  <span>WO ที่จะเบิกให้ *</span>
+                  <span>WO to issue to *</span>
                   <WoInput value={woId} onChange={setWoId} required asSelect />
                 </label>
                 <label className="field">
                   <span>Part No *</span>
                   <select value={partNo} onChange={e => setPartNo(e.target.value)} required>
-                    <option value="">-- เลือกจาก stock --</option>
-                    {stock.map(s => <option key={s.partNo} value={s.partNo}>{s.partNo} (เหลือ {s.qtyAvailable.toLocaleString()})</option>)}
+                    <option value="">-- Select from stock --</option>
+                    {stock.map(s => <option key={s.partNo} value={s.partNo}>{s.partNo} ({s.qtyAvailable.toLocaleString()} left)</option>)}
                   </select>
                 </label>
                 <label className="field">
-                  <span>จำนวนที่เบิก *</span>
-                  <input type="number" min="1" max={selected?.qtyAvailable || undefined} value={qty} onChange={e => setQty(e.target.value)} placeholder="เช่น 500" required />
+                  <span>Qty to issue *</span>
+                  <input type="number" min="1" max={selected?.qtyAvailable || undefined} value={qty} onChange={e => setQty(e.target.value)} placeholder="e.g. 500" required />
                 </label>
                 {selected && Number(qty) > selected.qtyAvailable && (
-                  <div className="notice err">เกิน stock ที่มี (เหลือ {selected.qtyAvailable.toLocaleString()})</div>
+                  <div className="notice err">Exceeds available stock ({selected.qtyAvailable.toLocaleString()} left)</div>
                 )}
                 <button type="submit" className="btn"
                   disabled={!woId.trim() || !partNo || !Number(qty) || (selected && Number(qty) > selected.qtyAvailable) || issueMut.isPending}
                   style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
-                  {issueMut.isPending ? 'กำลังเบิก...' : 'เบิกของเข้าไลน์'}
+                  {issueMut.isPending ? 'Issuing...' : 'Issue to Line'}
                 </button>
               </form>
             )}
@@ -119,7 +119,7 @@ export function KittingPage() {
 
         {/* ── ประวัติการเบิก ── */}
         <h3 className="panel__title panel__title--sm" style={{ marginTop: '1.75rem', marginBottom: '0.75rem' }}>
-          ประวัติการเบิก {issues.length > 0 && `(${issues.length})`}
+          Issue History {issues.length > 0 && `(${issues.length})`}
         </h3>
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           <table className="table table-readonly" style={{ minWidth: 560, width: '100%' }}>
@@ -127,14 +127,14 @@ export function KittingPage() {
               <tr>
                 <th>WO</th>
                 <th>Part No</th>
-                <th>Lot ที่ตัด</th>
-                <th style={{ textAlign: 'center' }}>จำนวน</th>
-                <th style={{ textAlign: 'center' }}>เวลา</th>
+                <th>Lot Deducted</th>
+                <th style={{ textAlign: 'center' }}>Qty</th>
+                <th style={{ textAlign: 'center' }}>Time</th>
               </tr>
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <TableState colSpan={5} state="empty" emptyText="ยังไม่มีการเบิก — เลือกของจาก Stock ด้านบน กรอก WO แล้วกด “เบิกของเข้าไลน์”" />
+                <TableState colSpan={5} state="empty" emptyText="No issues yet — select goods from Stock above, enter a WO, then click “Issue to Line”" />
               ) : paged.map(i => (
                 <tr key={i.id}>
                   <td style={{ fontWeight: 600 }}>{i.woId}</td>
@@ -142,7 +142,7 @@ export function KittingPage() {
                   <td><code style={{ fontSize: '0.85rem' }}>{i.lotNo}</code></td>
                   <td style={{ textAlign: 'center' }}>{i.qty.toLocaleString()}</td>
                   <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                    {new Date(i.issuedAt).toLocaleString('th-TH')}
+                    {new Date(i.issuedAt).toLocaleString('en-GB')}
                   </td>
                 </tr>
               ))}

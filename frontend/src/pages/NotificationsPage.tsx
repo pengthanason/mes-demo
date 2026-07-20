@@ -33,10 +33,10 @@ export function NotificationsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 className="panel__title">Notifications</h1>
-            <p className="panel__subtitle">การแจ้งเตือนจากระบบ MES</p>
+            <p className="panel__subtitle">Notifications from the MES system</p>
           </div>
           <button type="button" className="btn secondary" onClick={() => markAll.mutate()} disabled={markAll.isPending}>
-            {markAll.isPending ? 'กำลังทำ...' : 'Mark All Read'}
+            {markAll.isPending ? 'Working...' : 'Mark All Read'}
           </button>
         </div>
 
@@ -45,7 +45,7 @@ export function NotificationsPage() {
         {!isLoading && isError && <BlockState state="error" onRetry={() => refetch()} />}
 
         {!isLoading && !isError && list.length === 0 && (
-          <BlockState state="empty" emptyText="ยังไม่มีการแจ้งเตือน" />
+          <BlockState state="empty" emptyText="No notifications yet" />
         )}
 
         <div className="stack" style={{ gap: 0, marginTop: list.length ? '0.5rem' : 0 }}>
@@ -74,7 +74,7 @@ export function NotificationsPage() {
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 2 }}>{n.message}</div>
               </div>
               <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title={new Date(n.createdAt).toLocaleString('th-TH')}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title={new Date(n.createdAt).toLocaleString('en-GB')}>
                   {timeAgo(n.createdAt)}
                 </span>
                 {!n.isRead && (

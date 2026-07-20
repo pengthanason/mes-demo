@@ -119,7 +119,7 @@ export function useQcResultCreate() {
         remark:      payload.remark ?? '',
       });
       if (res.status >= 400 || res.status === 0) {
-        const msg = (res.data as any)?.message || 'บันทึก QC Result ไม่สำเร็จ';
+        const msg = (res.data as any)?.message || 'Failed to save QC Result';
         throw new Error(msg);
       }
       return mapQcResult((res.data as any)?.data);
@@ -151,7 +151,7 @@ export function useReworkCreate() {
         due_date:     payload.dueDate || null,
       });
       if (res.status >= 400 || res.status === 0) {
-        const msg = (res.data as any)?.message || 'เปิด Rework Ticket ไม่สำเร็จ';
+        const msg = (res.data as any)?.message || 'Failed to open Rework Ticket';
         throw new Error(msg);
       }
       return mapRework((res.data as any)?.data);
@@ -165,7 +165,7 @@ export function useReworkStatus() {
   return useMutation({
     mutationFn: async (payload: { id: number; status: ReworkStatus }) => {
       const res = await api.patch(`/rework/${payload.id}/status`, { status: payload.status });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'อัปเดตสถานะไม่สำเร็จ');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to update status');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: REWORK_KEY }),
@@ -197,7 +197,7 @@ export function useTransferVerifyCreate() {
         verified_by:  payload.verifiedBy,
       });
       if (res.status >= 400 || res.status === 0) {
-        const msg = (res.data as any)?.message || 'Transfer verify ไม่สำเร็จ';
+        const msg = (res.data as any)?.message || 'Transfer verify failed';
         throw new Error(msg);
       }
       return (res.data as any)?.data;

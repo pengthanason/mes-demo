@@ -23,7 +23,7 @@ function ClickCard({ to, icon, label, value, accent, external }: { to: string; i
     <div onClick={() => external ? window.open(external, '_blank', 'noopener,noreferrer') : nav(to)}
       role="button" tabIndex={0} aria-label={label}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); external ? window.open(external, '_blank', 'noopener,noreferrer') : nav(to); } }}
-      style={{ cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', borderRadius: 12 }} title={external ? 'เปิดระบบ Traceability (แท็บใหม่)' : 'กดเพื่อดูรายละเอียด'}
+      style={{ cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', borderRadius: 12 }} title={external ? 'Open Traceability system (new tab)' : 'Click to view details'}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.10)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
       <StatCard icon={icon} label={label} value={value} accent={accent} />
@@ -68,7 +68,7 @@ export function FactoryOverview() {
     // 4M (cr)
     const crPending = cr.filter(c => c.state !== 'ACTIVE').length;
     const crStates = ['DRAFT', 'G1_REVIEW', 'G2_APPROVED', 'ACTIVE'] as const;
-    const crLabel: Record<string, string> = { DRAFT: 'ร่าง', G1_REVIEW: 'รอ G1', G2_APPROVED: 'อนุมัติ G2', ACTIVE: 'ใช้งาน' };
+    const crLabel: Record<string, string> = { DRAFT: 'Draft', G1_REVIEW: 'Awaiting G1', G2_APPROVED: 'G2 Approved', ACTIVE: 'Active' };
 
     // scm
     const scmOpen = scm.filter(s => s.status === 'OPEN').length;
@@ -105,54 +105,54 @@ export function FactoryOverview() {
     <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">🏭 Factory Overview</h1>
-        <p className="panel__subtitle">สรุปข้อมูลทุกโมดูลแบบเรียลไทม์ — ผลิต · QC · Jig · คลัง · 4M · SCM</p>
+        <p className="panel__subtitle">Real-time summary of all modules — Production · QC · Jig · Inventory · 4M · SCM</p>
 
         {/* KPI ข้ามโมดูล */}
         <div className="dash-grid-4" style={{ marginTop: '1.5rem' }}>
           <ClickCard to="/traceability" external={TRACE_URL} icon="✅" label="Production Pass Rate" value={pct(m.prodRate)} accent={rateColor(m.prodRate)} />
           <ClickCard to="/jig-test" icon="🧪" label="Jig Pass Rate" value={pct(m.jigRate)} accent={rateColor(m.jigRate)} />
           <ClickCard to="/production-plan" icon="📑" label="OBA Pass Rate" value={pct(m.obaRate)} accent={rateColor(m.obaRate)} />
-          <ClickCard to="/production-plan" icon="🔀" label="เดินสาย Pass Rate" value={pct(m.wfRate)} accent={rateColor(m.wfRate)} />
-          <ClickCard to="/incoming" icon="📦" label="Lot รอตรวจ QA" value={m.lotPending} accent="#d97706" />
-          <ClickCard to="/4m-change" icon="🔧" label="4M รออนุมัติ" value={m.crPending} accent="#2563eb" />
-          <ClickCard to="/scm-cases" icon="📋" label="SCM เปิดอยู่" value={m.scmOpen} accent="#dc2626" />
-          <ClickCard to="/qc-result" icon="🛠️" label="Rework ค้าง" value={m.reworkOpen} accent="#7c3aed" />
+          <ClickCard to="/production-plan" icon="🔀" label="Line Pass Rate" value={pct(m.wfRate)} accent={rateColor(m.wfRate)} />
+          <ClickCard to="/incoming" icon="📦" label="Lots awaiting QA" value={m.lotPending} accent="#d97706" />
+          <ClickCard to="/4m-change" icon="🔧" label="4M awaiting approval" value={m.crPending} accent="#2563eb" />
+          <ClickCard to="/scm-cases" icon="📋" label="SCM open" value={m.scmOpen} accent="#dc2626" />
+          <ClickCard to="/qc-result" icon="🛠️" label="Rework pending" value={m.reworkOpen} accent="#7c3aed" />
         </div>
       </div>
 
       {/* กราฟข้ามโมดูล */}
       <div className="dash-grid-3">
-        <ChartCard title="📈 การผลิตรายวัน (7 วันล่าสุด)">
+        <ChartCard title="📈 Daily production (last 7 days)">
           {m.trend.length ? m.trend.map(d => (
             <BarRow key={d.date} label={`${d.date?.slice(5) ?? ''} · ${pct(rate(d.pass || 0, d.total || 0))}`} value={d.total || 0} max={m.maxTrend} color={rateColor(rate(d.pass || 0, d.total || 0))} />
-          )) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>ยังไม่มีข้อมูลการสแกน</div>}
+          )) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No scan data yet</div>}
         </ChartCard>
 
-        <ChartCard title="🧪 Jig Pass Rate ต่อโปรเจกต์">
+        <ChartCard title="🧪 Jig Pass Rate by project">
           {m.jigTop.length ? m.jigTop.map(j => (
             <BarRow key={j.projectCode} label={j.name || j.projectCode} value={Math.round(j.passRate)} max={100} color={rateColor(j.passRate)} />
           )) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
         </ChartCard>
 
-        <ChartCard title="🔧 4M Change ตามสถานะ">
+        <ChartCard title="🔧 4M Change by status">
           {m.crStates.map(s => <BarRow key={s} label={m.crLabel[s]} value={cr.filter(c => c.state === s).length} max={maxCr} color="#2563eb" />)}
         </ChartCard>
 
-        <ChartCard title="📦 Inventory Lots ตามสถานะ">
-          <BarRow label="รอตรวจ (PENDING)" value={m.lotBy('PENDING')} max={maxLot} color="#d97706" />
-          <BarRow label="ผ่าน (APPROVED)" value={m.lotBy('APPROVED')} max={maxLot} color="#16a34a" />
-          <BarRow label="ตีกลับ (REJECTED)" value={m.lotBy('REJECTED')} max={maxLot} color="#dc2626" />
+        <ChartCard title="📦 Inventory Lots by status">
+          <BarRow label="Pending (PENDING)" value={m.lotBy('PENDING')} max={maxLot} color="#d97706" />
+          <BarRow label="Approved (APPROVED)" value={m.lotBy('APPROVED')} max={maxLot} color="#16a34a" />
+          <BarRow label="Rejected (REJECTED)" value={m.lotBy('REJECTED')} max={maxLot} color="#dc2626" />
         </ChartCard>
 
         <ChartCard title="📋 SCM Cases">
-          <BarRow label="เปิดอยู่ (OPEN)" value={m.scmOpen} max={Math.max(1, m.scmOpen + m.scmClosed)} color="#dc2626" />
-          <BarRow label="ปิดแล้ว (CLOSED)" value={m.scmClosed} max={Math.max(1, m.scmOpen + m.scmClosed)} color="#16a34a" />
+          <BarRow label="Open (OPEN)" value={m.scmOpen} max={Math.max(1, m.scmOpen + m.scmClosed)} color="#dc2626" />
+          <BarRow label="Closed (CLOSED)" value={m.scmClosed} max={Math.max(1, m.scmOpen + m.scmClosed)} color="#16a34a" />
         </ChartCard>
 
-        <ChartCard title="🛠️ Rework ตามสถานะ">
-          <BarRow label="เปิด (OPEN)" value={m.rwBy('OPEN')} max={maxRw} color="#dc2626" />
-          <BarRow label="กำลังทำ (IN_PROGRESS)" value={m.rwBy('IN_PROGRESS')} max={maxRw} color="#d97706" />
-          <BarRow label="เสร็จ (DONE)" value={m.rwBy('DONE')} max={maxRw} color="#16a34a" />
+        <ChartCard title="🛠️ Rework by status">
+          <BarRow label="Open (OPEN)" value={m.rwBy('OPEN')} max={maxRw} color="#dc2626" />
+          <BarRow label="In progress (IN_PROGRESS)" value={m.rwBy('IN_PROGRESS')} max={maxRw} color="#d97706" />
+          <BarRow label="Done (DONE)" value={m.rwBy('DONE')} max={maxRw} color="#16a34a" />
         </ChartCard>
       </div>
     </section>

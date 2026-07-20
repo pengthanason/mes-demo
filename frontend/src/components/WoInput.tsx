@@ -4,7 +4,7 @@ import { SearchableSelect } from './SearchableSelect';
 // ช่องเลือก/กรอก WO: ค่าเริ่มต้นเป็น datalist (พิมพ์ได้+เลือกได้)
 // asSelect = true → ดรอปดาวน์เลือกอย่างเดียว (คลิกเลือก) + ค้นหาได้เมื่อ WO เกิน 10 (เช่นหน้า Kitting)
 export function WoInput({
-  value, onChange, placeholder = 'เช่น WO-202606-001', required, style, disabled, asSelect,
+  value, onChange, placeholder = 'e.g. WO-202606-001', required, style, disabled, asSelect,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -20,7 +20,7 @@ export function WoInput({
       <SearchableSelect
         value={value} onChange={onChange} disabled={disabled} required={required} style={style}
         options={wos.map(w => ({ value: w, label: w }))}
-        placeholder="-- เลือก WO --" ariaLabel="เลือก WO"
+        placeholder="-- Select WO --" ariaLabel="Select WO"
       />
     );
   }

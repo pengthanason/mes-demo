@@ -13,10 +13,10 @@ import { BlockState } from '../components/DataStates';
 import { showToast } from '../lib/toast';
 
 const ADVANCE_LABEL: Partial<Record<WoStep, string>> = {
-  DRAFT:    'Release งาน →',
-  OPEN:     'Kitting พร้อม →',
-  READY:    'เริ่มผลิต →',
-  RUNNING:  'ส่ง FAI →',
+  DRAFT:    'Release WO →',
+  OPEN:     'Kitting Ready →',
+  READY:    'Start Production →',
+  RUNNING:  'Send to FAI →',
 };
 
 export function WoDetailPage() {
@@ -37,7 +37,7 @@ export function WoDetailPage() {
   const wo = (woList ?? []).find(w => w.woId === woId) ?? null;
 
   if (isLoading) {
-    return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>;
+    return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
   }
 
   if (!wo) {
@@ -45,7 +45,7 @@ export function WoDetailPage() {
       <div className="notice err" style={{ margin: '2rem' }}>
         WO Not Found: <strong>{woId}</strong>
         <div style={{ marginTop: '1rem' }}>
-          <Link to="/work-orders" className="btn secondary">← กลับ Work Orders</Link>
+          <Link to="/work-orders" className="btn secondary">← Back to Work Orders</Link>
         </div>
       </div>
     );
@@ -67,7 +67,7 @@ export function WoDetailPage() {
       { woId: wo!.woId, patch: { currentStep: nextStep } },
       {
         onSuccess: () => showToast(`${wo!.woId} → ${nextStep}`, 'success'),
-        onError:   () => showToast('อัปเดตไม่สำเร็จ', 'error'),
+        onError:   () => showToast('Update failed', 'error'),
       }
     );
   }
@@ -77,7 +77,7 @@ export function WoDetailPage() {
       <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 className="panel__title">Work Order Detail</h1>
-          <p className="panel__subtitle">รายละเอียดรหัส: <strong>{wo.woId}</strong></p>
+          <p className="panel__subtitle">Reference: <strong>{wo.woId}</strong></p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {canAct && advanceLabel && nextStep && (
@@ -93,13 +93,13 @@ export function WoDetailPage() {
           )}
           {canAct && canFai && (
             <Link to={`/fai/${wo.woId}`} className="btn" style={{ background: '#f59e0b', color: '#fff', border: 'none' }}>
-              {wo.currentStep === 'WAIT_FAI_QA' ? 'ตรวจ FAI (QA)' : 'อนุมัติ FAI (MGR)'}
+              {wo.currentStep === 'WAIT_FAI_QA' ? 'Inspect FAI (QA)' : 'Approve FAI (MGR)'}
             </Link>
           )}
           {canAct && wo.currentStep !== 'CLOSED' && (
-            <Link to={`/wo/${wo.woId}/close`} className="btn danger">ปิดงาน (Close)</Link>
+            <Link to={`/wo/${wo.woId}/close`} className="btn danger">Close WO</Link>
           )}
-          <Link to="/work-orders" className="btn secondary">กลับไป Work Orders</Link>
+          <Link to="/work-orders" className="btn secondary">Back to Work Orders</Link>
         </div>
       </div>
 
@@ -135,7 +135,7 @@ export function WoDetailPage() {
           </div>
           <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Expected date</span>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.expectedDate ? new Date(wo.expectedDate).toLocaleDateString('th-TH') : '—'}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.expectedDate ? new Date(wo.expectedDate).toLocaleDateString('en-GB') : '—'}</div>
           </div>
           <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Status</span>
@@ -146,23 +146,23 @@ export function WoDetailPage() {
 
       {/* ประวัติ QC / QA ของ WO นี้ */}
       <div className="panel">
-        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติ QC / QA {qcResults.length > 0 && `(${qcResults.length})`}</h2>
+        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>QC / QA History {qcResults.length > 0 && `(${qcResults.length})`}</h2>
         {qcResults.length === 0 ? (
-          <BlockState state="empty" emptyText="ยังไม่มีผล QC สำหรับ WO นี้ — บันทึกได้ที่หน้า QC → QC Result" />
+          <BlockState state="empty" emptyText="No QC results for this WO yet — record them on the QC → QC Result page" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <table className="table" style={{ minWidth: 820, width: '100%' }}>
               <thead>
                 <tr>
-                  <th>วันที่</th><th>Lot</th>
-                  <th style={{ textAlign: 'center' }}>ตรวจ</th><th style={{ textAlign: 'center' }}>ผ่าน</th><th style={{ textAlign: 'center' }}>เสีย</th>
-                  <th style={{ textAlign: 'center' }}>ผล QC</th><th>ของเสีย / หมายเหตุ</th><th>QA Verify</th>
+                  <th>Date</th><th>Lot</th>
+                  <th style={{ textAlign: 'center' }}>Checked</th><th style={{ textAlign: 'center' }}>Pass</th><th style={{ textAlign: 'center' }}>Fail</th>
+                  <th style={{ textAlign: 'center' }}>QC Result</th><th>Defect / Remark</th><th>QA Verify</th>
                 </tr>
               </thead>
               <tbody>
                 {qcResults.map(r => (
                   <tr key={r.id}>
-                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(r.createdAt).toLocaleDateString('th-TH')}</td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(r.createdAt).toLocaleDateString('en-GB')}</td>
                     <td><code>{r.lotNo}</code></td>
                     <td style={{ textAlign: 'center' }}>{r.qtyChecked}</td>
                     <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>{r.qtyPass}</td>
@@ -175,8 +175,8 @@ export function WoDetailPage() {
                     </td>
                     <td style={{ fontSize: '0.82rem' }}>
                       {r.verdict
-                        ? <span style={{ color: r.verdict === 'APPROVED' ? '#166534' : '#991b1b', fontWeight: 600 }}>{r.verdict === 'APPROVED' ? '✅ อนุมัติ' : '❌ ตีกลับ'} {r.verifiedBy ? `· ${r.verifiedBy}` : ''}</span>
-                        : <span style={{ color: '#d97706' }}>⏳ รอ QA verify</span>}
+                        ? <span style={{ color: r.verdict === 'APPROVED' ? '#166534' : '#991b1b', fontWeight: 600 }}>{r.verdict === 'APPROVED' ? '✅ Approved' : '❌ Rejected'} {r.verifiedBy ? `· ${r.verifiedBy}` : ''}</span>
+                        : <span style={{ color: '#d97706' }}>⏳ Waiting QA verify</span>}
                     </td>
                   </tr>
                 ))}
@@ -188,17 +188,17 @@ export function WoDetailPage() {
 
       {/* ประวัติการเบิกของ (Kitting) ของ WO นี้ */}
       <div className="panel">
-        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติการเบิกของ (Kitting) {kitting.length > 0 && `(${kitting.length})`}</h2>
+        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>Material Issue History (Kitting) {kitting.length > 0 && `(${kitting.length})`}</h2>
         {kitting.length === 0 ? (
-          <BlockState state="empty" emptyText="ยังไม่มีการเบิกของให้ WO นี้ — เบิกได้ที่หน้า Incoming & Kitting" />
+          <BlockState state="empty" emptyText="No material issued for this WO yet — issue on the Incoming & Kitting page" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <table className="table" style={{ minWidth: 560, width: '100%' }}>
-              <thead><tr><th>เวลา</th><th>Part No</th><th>Lot ที่ตัด</th><th style={{ textAlign: 'center' }}>จำนวน</th></tr></thead>
+              <thead><tr><th>Time</th><th>Part No</th><th>Lot Cut</th><th style={{ textAlign: 'center' }}>Qty</th></tr></thead>
               <tbody>
                 {kitting.map(k => (
                   <tr key={k.id}>
-                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(k.issuedAt).toLocaleString('th-TH')}</td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(k.issuedAt).toLocaleString('en-GB')}</td>
                     <td><code>{k.partNo}</code></td>
                     <td><code style={{ fontSize: '0.85rem' }}>{k.lotNo}</code></td>
                     <td style={{ textAlign: 'center' }}>{k.qty.toLocaleString()}</td>
@@ -212,17 +212,17 @@ export function WoDetailPage() {
 
       {/* ประวัติการสแกนผลิต (Routing / Production) ของ WO นี้ */}
       <div className="panel">
-        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>ประวัติการสแกนผลิต {scans.length > 0 && `(${scans.length})`}</h2>
+        <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>Production Scan History {scans.length > 0 && `(${scans.length})`}</h2>
         {scans.length === 0 ? (
-          <BlockState state="empty" emptyText="ยังไม่มีการสแกนผลิตของ WO นี้" />
+          <BlockState state="empty" emptyText="No production scans for this WO yet" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <table className="table" style={{ minWidth: 620, width: '100%' }}>
-              <thead><tr><th>เวลา</th><th>Serial</th><th>สเตชัน</th><th style={{ textAlign: 'center' }}>ผล</th><th>ผู้ทำ</th></tr></thead>
+              <thead><tr><th>Time</th><th>Serial</th><th>Station</th><th style={{ textAlign: 'center' }}>Result</th><th>Operator</th></tr></thead>
               <tbody>
                 {scans.map((s: any) => (
                   <tr key={s.id}>
-                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(s.scanned_at).toLocaleString('th-TH')}</td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(s.scanned_at).toLocaleString('en-GB')}</td>
                     <td><code>{s.serial}</code></td>
                     <td>{s.station}</td>
                     <td style={{ textAlign: 'center' }}><ResultBadge value={s.result} /></td>

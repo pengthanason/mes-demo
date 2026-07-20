@@ -6,7 +6,7 @@ import { WorkflowBuilder } from '../components/WorkflowBuilder';
 function AddProjectTab() {
   return (
     <div className="stack" style={{ marginTop: '1.25rem' }}>
-      <p className="panel__subtitle">กรอกข้อมูลโปรเจกต์ — บันทึกแล้วไปแสดงที่หน้า Dashboard (ฟอร์มจะเคลียร์ให้กรอกต่อได้เลย)</p>
+      <p className="panel__subtitle">Enter project details — once saved they appear on the Dashboard (the form clears so you can keep adding)</p>
       <ProjectForm initial={null} />
     </div>
   );
@@ -27,7 +27,7 @@ export function ProductionPlanPage() {
     <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">Production Plan</h1>
-        <p className="panel__subtitle">Add Project · Workflow — ดูภาพรวม/ตารางได้ที่หน้า Dashboard</p>
+        <p className="panel__subtitle">Add Project · Workflow — view the overview/table on the Dashboard</p>
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
           {TABS.map(t => (
             <button key={t.key} type="button" className={`mes-module-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
