@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePpCreate, usePpUpdate, usePpHistory, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
 import { showToast } from '../lib/toast';
+import { confirmDialog } from '../lib/confirm';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 
 // hex (#rrggbb) → ARGB ('FFRRGGBB') สำหรับ ExcelJS
@@ -568,6 +569,15 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   const [fromStr, setFromStr] = useState('');   // ฟิลเตอร์ช่วงวันที่ที่แสดง (ว่าง = อัตโนมัติทั้งหมด)
   const [toStr, setToStr] = useState('');
   const leftRef = useRef<HTMLDivElement>(null);   // แผงชื่อ (sync เลื่อนแนวตั้งกับ timeline)
+  const timelineRef = useRef<HTMLDivElement>(null);   // แผง timeline (เลื่อนแนวนอน) — auto-scroll ไปวันนี้ตอนเข้าหน้า
+  const didScrollToday = useRef(false);           // scroll ไปวันนี้ครั้งเดียวตอนข้อมูลพร้อม
+  const scrollTarget = useRef(0);                 // ตำแหน่ง scrollLeft ของ "วันนี้" (คำนวณตอน render)
+  // เข้าหน้ามา → เลื่อน timeline ให้วันนี้อยู่ด้านหน้า (ซ้าย) อัตโนมัติครั้งเดียว แล้วผู้ใช้เลื่อนเองต่อได้
+  useEffect(() => {
+    if (didScrollToday.current) return;
+    const el = timelineRef.current;
+    if (el && scrollTarget.current > 0) { el.scrollLeft = scrollTarget.current; didScrollToday.current = true; }
+  });
 
   // แต่ละงาน: start/end จาก PD + ประวัติ log (แต่ละ event มีวันที่ → วาด Gantt หลายสี)
   const tasks = rows.map(p => {
@@ -612,9 +622,11 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
 
   const todayOff = gDayDiff(min, today);
   const bodyW = totalDays * DAY_W;
+  // ตำแหน่งวันนี้สำหรับ auto-scroll (ให้วันนี้อยู่ค่อนซ้าย เว้น 1 วันไว้ข้างหน้า) — browser จะ clamp ให้เองถ้าเกินขอบ
+  scrollTarget.current = Math.max(0, (todayOff - 1) * DAY_W);
   const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
   const centerX = (d: Date) => gDayDiff(min, d) * DAY_W + DAY_W / 2;
-  const fmt = (d: Date) => d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+  const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const stlOf = (s: string) => STATUS_STYLE[s] ?? STATUS_STYLE.CANCEL;
 
   return (
@@ -641,7 +653,7 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
         </div>
 
         {/* RIGHT — timeline (overflow auto → scrollbar อยู่แค่ตรงนี้) */}
-        <div onScroll={e => { if (leftRef.current) leftRef.current.scrollTop = e.currentTarget.scrollTop; }} style={{ overflow: 'auto', flex: 1 }}>
+        <div ref={timelineRef} onScroll={e => { if (leftRef.current) leftRef.current.scrollTop = e.currentTarget.scrollTop; }} style={{ overflow: 'auto', flex: 1 }}>
           <div style={{ width: bodyW, position: 'relative' }}>
             {/* แรเงาวันหยุด */}
             <div style={{ position: 'absolute', top: HEAD_H * 2, bottom: 0, left: 0, width: bodyW, zIndex: 0, pointerEvents: 'none' }}>
@@ -793,14 +805,17 @@ const initForm = (p: PpProject): Partial<PpProject> => {
   for (const k of DATE_KEYS) if (out[k]) out[k] = String(out[k]).slice(0, 10);
   return out;
 };
-export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject | null; onSaved?: () => void; onCancel?: () => void }) {
-  const [f, setF] = useState<Partial<PpProject>>(() => initial ? initForm(initial) : blankForm());
+export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, defaultType }: { initial: PpProject | null; onSaved?: () => void; onCancel?: () => void; onDirtyChange?: (dirty: boolean) => void; defaultType?: string }) {
+  const [f, setF] = useState<Partial<PpProject>>(() => initial ? initForm(initial) : { ...blankForm(), pp_type: defaultType || 'internal' });
   const [err, setErr] = useState('');
   const [askRemark, setAskRemark] = useState(false);   // แก้ไข: กด Save → เด้ง popup ให้กรอกหมายเหตุก่อน
+  const [bad, setBad] = useState<Record<string, boolean>>({});   // ช่องที่ validate ไม่ผ่าน → ไฮไลต์ขอบแดง
+  const [dirty, setDirty] = useState(false);           // มีการแก้ไขค้างไว้ไหม (กันปิดแล้วข้อมูลหาย)
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   const create = usePpCreate();
   const update = usePpUpdate();
   const editing = !!initial;
-  const set = (k: keyof PpProject, v: any) => setF(p => ({ ...p, [k]: v }));
+  const set = (k: keyof PpProject, v: any) => { setF(p => ({ ...p, [k]: v })); setDirty(true); };
 
   // ยิงบันทึกจริง — editNote = หมายเหตุการแก้ไข (เฉพาะตอนแก้ไข ส่งไปเก็บใน history)
   function doSave(editNote?: string) {
@@ -815,27 +830,48 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
       onSuccess: () => {
         showToast(editing ? 'Updated' : 'Project added', 'success');
         if (!editing) { setF(blankForm()); window.scrollTo({ top: 0, behavior: 'smooth' }); }   // create → เคลียร์ฟอร์ม (วันนี้) + เลื่อนขึ้นบนสุด
-        setAskRemark(false);
+        setAskRemark(false); setDirty(false);
         onSaved?.();
       },
       onError: (e: any) => { setErr(e.message); setAskRemark(false); },
     });
   }
 
+  // ตรวจความถูกต้องก่อนบันทึก — คืนรายการ error + ชุด field ที่ผิด (ไว้ไฮไลต์ขอบแดง)
+  function validate(): { errs: string[]; bad: Record<string, boolean> } {
+    const errs: string[] = []; const bad: Record<string, boolean> = {};
+    if (!f.product_pn?.trim() && !f.model?.trim()) { errs.push('Product P/N or Model is required'); bad.product_pn = true; bad.model = true; }
+    const ds = f.pd_start_date || '', df = f.pd_finish_date || '', ex = f.expected_date || '';   // 'YYYY-MM-DD' เทียบ string ได้
+    if (ds && df && df < ds) { errs.push('PD Done must be on/after PD Start'); bad.pd_finish_date = true; }
+    if (ds && ex && ex < ds) { errs.push('Expected date must be on/after PD Start'); bad.expected_date = true; }
+    const qty = Number(f.qty) || 0, prod = Number(f.produce) || 0;
+    if (qty < 0) { errs.push('Quantity cannot be negative'); bad.qty = true; }
+    if (prod < 0) { errs.push('Produced cannot be negative'); bad.produce = true; }
+    if (prod > qty) { errs.push('Produced cannot exceed Quantity'); bad.produce = true; }
+    if ((Number(f.total_ng) || 0) < 0) { errs.push('Total NG cannot be negative'); bad.total_ng = true; }
+    if ((Number(f.total_ok) || 0) < 0) { errs.push('Total FG cannot be negative'); bad.total_ok = true; }
+    return { errs, bad };
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
-    if (!f.product_pn?.trim() && !f.model?.trim()) return setErr('Product P/N or Model is required');
+    const { errs, bad } = validate();
+    setBad(bad);
+    if (errs.length) return setErr(errs.join(' · '));
     if (editing) { setAskRemark(true); return; }   // แก้ไข → ถามหมายเหตุก่อนบันทึก
     doSave();                                        // สร้างใหม่ → บันทึกเลย
   }
 
-  const num = (k: keyof PpProject) => (e: any) => set(k, e.target.value === '' ? 0 : Number(e.target.value));
-  const txt = (k: keyof PpProject) => (e: any) => set(k, e.target.value);
+  // ไฮไลต์ขอบแดงช่องที่ผิด · เคลียร์สถานะผิดของช่องนั้นเมื่อผู้ใช้เริ่มพิมพ์แก้
+  const errBorder = { borderColor: '#dc2626', boxShadow: '0 0 0 2px rgba(220,38,38,0.15)' } as React.CSSProperties;
+  const eb = (k: string): React.CSSProperties | undefined => (bad[k] ? errBorder : undefined);
+  const num = (k: keyof PpProject) => (e: any) => { set(k, e.target.value === '' ? 0 : Number(e.target.value)); if (bad[k]) setBad(b => ({ ...b, [k]: false })); };
+  const txt = (k: keyof PpProject) => (e: any) => { set(k, e.target.value); if (bad[k]) setBad(b => ({ ...b, [k]: false })); };
   // เลือก Date Record → คำนวณ WW (ISO week) ให้อัตโนมัติ
   const onDateRecord = (e: any) => {
     const v = e.target.value;
-    setF(p => ({ ...p, date_record: v, wk: v ? isoWeek(v) : null }));
+    setF(p => ({ ...p, date_record: v, wk: v ? isoWeek(v) : null })); setDirty(true);
   };
   const Section = ({ title }: { title: string }) => (
     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '0.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>{title}</div>
@@ -856,8 +892,8 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             </label>
           </div>
           <div className="grid-3col">
-            <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." /></label>
-            <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." /></label>
+            <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." style={eb('model')} /></label>
+            <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." style={eb('product_pn')} /></label>
             <label className="field"><span>Status</span>
               <select value={f.status} onChange={txt('status')}>
                 {PP_STATUS.map(s => <option key={s} value={s}>{PP_STATUS_LABEL[s]}</option>)}
@@ -871,19 +907,19 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
 
           <Section title="Production Record" />
           <div className="grid-3col">
-            <label className="field"><span>Quantity</span><input type="number" value={f.qty ?? 0} onChange={num('qty')} /></label>
-            <label className="field"><span>Produced</span><input type="number" min="0" value={f.produce ?? 0} onChange={num('produce')} placeholder="0" /></label>
+            <label className="field"><span>Quantity</span><input type="number" value={f.qty ?? 0} onChange={num('qty')} style={eb('qty')} /></label>
+            <label className="field"><span>Produced</span><input type="number" min="0" value={f.produce ?? 0} onChange={num('produce')} placeholder="0" style={eb('produce')} /></label>
             <label className="field"><span>Balance</span><input value={(Number(f.qty) || 0) - (Number(f.produce) || 0)} readOnly title="Quantity − Produced (auto)" style={{ background: '#f1f5f9' }} /></label>
-            <label className="field"><span>Total FG</span><input type="number" value={f.total_ok ?? 0} onChange={num('total_ok')} /></label>
-            <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? 0} onChange={num('total_ng')} /></label>
+            <label className="field"><span>Total FG</span><input type="number" value={f.total_ok ?? 0} onChange={num('total_ok')} style={eb('total_ok')} /></label>
+            <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? 0} onChange={num('total_ng')} style={eb('total_ng')} /></label>
             <label className="field"><span>Yield (FG ÷ (FG+NG) × 100)</span><input value={ppYield({ total_ok: f.total_ok ?? 0, total_ng: f.total_ng ?? 0 })?.toFixed(2) ?? '—'} readOnly style={{ background: '#f1f5f9' }} /></label>
           </div>
 
           <Section title="PD PLAN" />
           <div className="grid-3col">
-            <label className="field"><span>PD Start</span><input type="date" value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} /></label>
-            <label className="field"><span>PD Done</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} /></label>
-            <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} /></label>
+            <label className="field"><span>PD Start</span><input type="date" value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} style={eb('pd_start_date')} /></label>
+            <label className="field"><span>PD Done</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} style={eb('pd_finish_date')} /></label>
+            <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} style={eb('expected_date')} /></label>
             <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? 0} onChange={num('target_per_day')} placeholder="e.g. 40" /></label>
           </div>
 
@@ -972,13 +1008,18 @@ function SaveRemarkPopup({ saving, onCancel, onConfirm }: { saving: boolean; onC
   );
 }
 
-/** ป๊อปอัพแก้ไข (wrap ProjectForm) — ปิดได้เฉพาะปุ่มยกเลิก */
-export function ProjectFormModal({ initial, onClose }: { initial: PpProject | null; onClose: () => void }) {
+/** ป๊อปอัพแก้ไข (wrap ProjectForm) — ปิดแล้วเตือนถ้ามีข้อมูลค้าง (unsaved) */
+export function ProjectFormModal({ initial, onClose, defaultType }: { initial: PpProject | null; onClose: () => void; defaultType?: string }) {
+  const dirtyRef = useRef(false);
+  const guardedClose = async () => {
+    if (dirtyRef.current && !(await confirmDialog('Discard unsaved changes?', { title: 'Discard changes', confirmText: 'Discard', danger: true }))) return;
+    onClose();
+  };
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={guardedClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 860px)', maxHeight: '94vh', overflowY: 'auto' }}>
-        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>{initial ? 'Edit Project' : 'Add Project'}</h2>
-        <ProjectForm initial={initial} onSaved={onClose} onCancel={onClose} />
+        <h2 className="panel__title" style={{ marginBottom: '1rem' }}>{initial ? 'Edit Project' : `Add Project${defaultType === 'external' ? ' — External' : ''}`}</h2>
+        <ProjectForm initial={initial} defaultType={defaultType} onSaved={onClose} onCancel={guardedClose} onDirtyChange={d => { dirtyRef.current = d; }} />
       </div>
     </div>
   );

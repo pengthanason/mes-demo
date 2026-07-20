@@ -598,10 +598,11 @@ function ToastContainer() {
 
   useEffect(() => {
     const handler = (e) => {
-      const { msg, type } = e.detail;
+      const { msg, type, action } = e.detail;
       const id = ++_toastId;
-      setToasts(prev => [...prev, { id, msg, type }]);
-      const tid = setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), type === 'error' ? 8000 : 3500);
+      setToasts(prev => [...prev, { id, msg, type, action }]);
+      // toast ที่มีปุ่ม (เช่น Undo) ให้เวลากดนานขึ้น
+      const tid = setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), action ? 7000 : type === 'error' ? 8000 : 3500);
       timers.current.push(tid);
     };
     window.addEventListener('app:toast', handler);
@@ -625,9 +626,17 @@ function ToastContainer() {
               display: 'flex', alignItems: 'center', gap: '0.5rem',
               animation: 'toastIn 0.25s ease',
               minWidth: 0, maxWidth: 'min(360px, calc(100vw - 2rem))',
+              pointerEvents: t.action ? 'auto' : 'none',
             }}>
               <span>{TOAST_ICONS[t.type] || TOAST_ICONS.success}</span>
               <span>{t.msg}</span>
+              {t.action && (
+                <button type="button"
+                  onClick={() => { try { t.action.onClick(); } catch { /* noop */ } setToasts(prev => prev.filter(x => x.id !== t.id)); }}
+                  style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.22)', color: '#fff', border: '1px solid rgba(255,255,255,0.5)', borderRadius: 6, padding: '2px 10px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {t.action.label}
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -865,7 +874,10 @@ function SessionWatcher() {
 }
 
 // ─── App ───────────────────────────────────────────────────────────
-const queryClient = new QueryClient();
+// retry 1 ครั้งพอ (network/server error) — ไม่ให้ค้าง "Loading" นานเพราะ default retry 3 + backoff
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
 
 export default function App() {
   return (

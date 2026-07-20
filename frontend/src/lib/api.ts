@@ -58,6 +58,7 @@ export function getRefreshToken(): string | null {
 }
 
 import { API_BASE_URL } from './config';
+import { apiErrorMessage } from './errorMessage';
 const API_ORIGIN: string = API_BASE_URL;
 
 function buildUrl(path: string, params?: RequestConfig['params']): string {
@@ -100,8 +101,12 @@ async function request<T>(
       signal: config?.signal,
       credentials: API_ORIGIN ? 'omit' : 'include',
     });
-  } catch {
-    // Network error — backend not reachable, return null data silently
+  } catch (e: any) {
+    // Network error — backend not reachable.
+    // GET: throw → useQuery เข้า isError → หน้าโชว์ error+Retry (ไม่ใช่ "No data" เงียบๆ)
+    // อื่นๆ (mutation): คืน status 0 ให้ hook เดิมจัดการ throw เอง (คงพฤติกรรม/ข้อความเดิม)
+    if (e?.name === 'AbortError') throw e;
+    if (method === 'GET') throw new Error('Connection failed — cannot reach the server');
     return { data: null as T, status: 0, headers: new Headers() };
   }
   const contentType = res.headers.get('content-type') || '';
@@ -117,7 +122,11 @@ async function request<T>(
     if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/auth/login')) {
       window.dispatchEvent(new CustomEvent('app:unauthorized'));
     }
-    // Return null data instead of throwing — pages with fallback data show empty state
+    // GET + server error (5xx) → throw ให้ useQuery เข้า isError (แยก "server ล่ม" ออกจาก "ไม่มีข้อมูล")
+    // 4xx (400/403/404) → คืน null ให้ caller จัดการเอง (validation/notfound/permission) เหมือนเดิม
+    if (method === 'GET' && res.status >= 500) {
+      throw new Error(apiErrorMessage(res.status, data));   // แปลงเป็นข้อความเป็นมิตร กัน raw pg error รั่ว
+    }
     return { data: null as T, status: res.status, headers: res.headers };
   }
   // แจ้ง mutation ที่สำเร็จ (POST/PUT/PATCH/DELETE) → โหมดเดโมเก็บเป็น Activity (ดักที่ browser.ts)

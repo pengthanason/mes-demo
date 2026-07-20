@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { usePpProjects, usePpDelete, usePpUpdate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
+import { usePpProjects, usePpDelete, usePpUpdate, usePpCreate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
@@ -398,6 +398,41 @@ function KpiCard({ icon, label, value, accent, onClick, active }: {
   );
 }
 
+// Total output รายงาน — ต่อ 1 แถว = 1 งาน: ชื่องานซ้าย + แท่งยาวตามยอดผลิตรวม (เขียว FG / แดง NG) + ตัวเลขขวา
+function FgNgByJob({ jobs }: { jobs: { name: string; fg: number; ng: number }[] }) {
+  const max = Math.max(1, ...jobs.map(j => j.fg + j.ng));   // แท่งยาวสุด = งานที่ผลิตมากสุด
+  const seg: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden' };
+  if (!jobs.length) return <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>No data</div>;
+  return (
+    <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+        {jobs.map(j => {
+          const total = j.fg + j.ng;
+          const barPct = (total / max) * 100;
+          const fgPct = total > 0 ? (j.fg / total) * 100 : 0;
+          const ngPct = 100 - fgPct;
+          return (
+            <div key={j.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div title={j.name} style={{ width: 120, flexShrink: 0, fontSize: '0.76rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.name}</div>
+              <div style={{ flex: 1, display: 'flex', height: 20, borderRadius: 5, overflow: 'hidden', background: '#f1f5f9', border: '1px solid var(--border-color)' }}>
+                <div style={{ width: `${barPct}%`, display: 'flex', height: '100%' }}>
+                  {j.fg > 0 && <div title={`FG ${j.fg}`} style={{ ...seg, width: `${fgPct}%`, background: '#16a34a' }}>{fgPct >= 30 && barPct >= 22 ? j.fg.toLocaleString() : ''}</div>}
+                  {j.ng > 0 && <div title={`NG ${j.ng}`} style={{ ...seg, width: `${ngPct}%`, background: '#dc2626' }}>{ngPct >= 30 && barPct >= 22 ? j.ng.toLocaleString() : ''}</div>}
+                </div>
+              </div>
+              <div style={{ width: 74, flexShrink: 0, fontSize: '0.72rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                <span style={{ color: '#16a34a', fontWeight: 700 }}>{j.fg.toLocaleString()}</span>
+                <span style={{ color: 'var(--text-muted)' }}> / </span>
+                <span style={{ color: '#dc2626', fontWeight: 700 }}>{j.ng.toLocaleString()}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // เลื่อนหน้าจอแบบ custom (easeOutCubic) — คุม duration เองให้ค่อย ๆ เลื่อน ไม่พึ่ง behavior:'smooth'
 function smoothScrollTo(targetY: number, duration: number) {
   const startY = window.scrollY;
@@ -520,9 +555,10 @@ function StatusColorPopup({ p, pos, onClose, onPick }: { p: PpProject; pos: { to
 
   return createPortal(
     <div ref={panelRef} style={{
-      position: 'fixed', top: pos.top, left: pos.left, zIndex: 1000, width: 190,
-      background: '#fff', border: '1px solid var(--border-color)', borderRadius: 10, boxShadow: '0 10px 28px rgba(15,23,42,0.18)',
-      padding: 10, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8,
+      // กว้างพอดี = padding 12*2 + 6 ช่อง(28px) + gap 8*5 → กันสีล้นขอบ (แต่ก่อน 190 แคบไป)
+      position: 'fixed', top: pos.top, left: pos.left, zIndex: 1000,
+      background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, boxShadow: '0 10px 28px rgba(15,23,42,0.18)',
+      padding: 12, display: 'grid', gridTemplateColumns: 'repeat(6, 28px)', gap: 8, justifyContent: 'center',
     }}>
       {STATUS_COLOR_OPTIONS.map(key => {
         const s = STATUS_STYLE[key];
@@ -530,7 +566,7 @@ function StatusColorPopup({ p, pos, onClose, onPick }: { p: PpProject; pos: { to
         return (
           <button type="button" key={key} onClick={() => onPick(key)} title={STATUS_COLOR_LABEL[key] ?? key}
             style={{
-              width: 24, height: 24, borderRadius: '50%', background: s.bg, cursor: 'pointer', padding: 0,
+              width: 28, height: 28, boxSizing: 'border-box', borderRadius: '50%', background: s.bg, cursor: 'pointer', padding: 0,
               border: active ? `3px solid ${s.border}` : '2px solid #fff',
               boxShadow: active ? `0 0 0 1px ${s.border}` : '0 0 0 1px var(--border-color)',
             }} />
@@ -558,6 +594,7 @@ export function DashboardPage() {
   };
   const clearFilterCol = (col: string) => { setColFilters(prev => ({ ...prev, [col]: new Set() })); setPage(1); };
   const del = usePpDelete();
+  const create = usePpCreate();
   const ppUpdate = usePpUpdate();
   // คลิกช่อง Status/Process ในตาราง → เปลี่ยนสี + บันทึกลง backend (my-api) · optimistic ให้เปลี่ยนทันที
   const [procEdit, setProcEdit] = useState<{ p: PpProject; key: string } | null>(null);   // popup บันทึก process 1 step
@@ -566,13 +603,13 @@ export function DashboardPage() {
     const change: any = { [key]: !(p as any)[key] };
     const merged = { ...p, ...change };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    ppUpdate.mutate({ ...merged, updated_at: undefined }, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
   };
   // บันทึกสี Status ที่เลือกจาก palette (ทับ status_color เท่านั้น ชื่อสถานะเดิมไม่เปลี่ยน)
   const pickStatusColor = (p: PpProject, color: string) => {
     const merged = { ...p, status_color: color };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    ppUpdate.mutate({ ...merged, updated_at: undefined }, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
     setColorPick(null);
   };
   // คลิกช่อง Process → เปิด popup เลือกสถานะ+วันที่ · คลิกช่อง Status → เปิด palette สีลอยตรงจุดที่คลิก
@@ -590,7 +627,7 @@ export function DashboardPage() {
     log.push({ date, step: key, status, ...(note.trim() ? { note: note.trim() } : {}) });
     const merged = { ...p, [key]: status, process_log: log };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate(merged, { onError: (e: any) => { showToast(e?.message || 'Save failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    ppUpdate.mutate({ ...merged, updated_at: undefined }, { onError: (e: any) => { showToast(e?.message || 'Save failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
     setProcEdit(null);
   };
   const queryClient = useQueryClient();
@@ -605,6 +642,7 @@ export function DashboardPage() {
   const [saveAs, setSaveAs] = useState<'xlsx' | 'pdf' | null>(null);   // เปิดป๊อปอัพตั้งชื่อไฟล์ก่อนโหลด
   const [page, setPage] = useState(1);
   const [ppTab, setPpTab] = useState<'internal' | 'external'>('internal');   // แท็บงานภายใน/ภายนอก (External ยังใช้ข้อมูลชุดเดียวกันไปก่อน)
+  const [adding, setAdding] = useState(false);   // เปิดฟอร์มเพิ่มโปรเจกต์ (พรีเซ็ต Type ตามแท็บที่เปิด)
   const PAGE = 20;
 
   // เปิดรายละเอียดสินค้าอัตโนมัติเมื่อมากับ ?pp=<id> (ลิงก์จากหน้า Activities)
@@ -692,12 +730,26 @@ export function DashboardPage() {
     const cm: Record<string, number> = {};
     rows.forEach(r => { const c = r.customer || '(N/A)'; cm[c] = (cm[c] || 0) + 1; });
     const byCustomer = Object.entries(cm).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
-    return { totalOk, totalNg, byStatus, byCustomer };
+    // Total output รายงาน — ชื่องาน + FG/NG (เรียงยอดผลิตมาก→น้อย, เอาเฉพาะงานที่มี output, สูงสุด 10 งาน)
+    const byJob = rows
+      .map(r => ({ name: r.model || r.product_pn || `#${r.id}`, fg: r.total_ok || 0, ng: r.total_ng || 0 }))
+      .filter(j => j.fg + j.ng > 0)
+      .sort((a, b) => (b.fg + b.ng) - (a.fg + a.ng))
+      .slice(0, 10);
+    return { totalOk, totalNg, byStatus, byCustomer, byJob };
   }, [rows]);
 
   async function handleDelete(p: PpProject) {
-    if (!(await confirmDialog(`Delete project "${p.product_pn || p.model}"?\nThis cannot be undone`, { title: 'Delete project' }))) return;
-    del.mutate(p.id, { onSuccess: () => { showToast('Deleted', 'info'); setPage(1); }, onError: (e: any) => showToast(e.message, 'error') });
+    if (!(await confirmDialog(`Delete project "${p.product_pn || p.model}"?`, { title: 'Delete project', confirmText: 'Delete', danger: true }))) return;
+    del.mutate(p.id, {
+      onSuccess: () => {
+        setPage(1);
+        // Undo = สร้าง record คืน (ได้ id ใหม่ · ประวัติเดิมไม่ตามมา)
+        const { id, created_at, updated_at, ...data } = p as any;
+        showToast('Deleted', 'info', { label: 'Undo', onClick: () => create.mutate(data, { onSuccess: () => showToast('Restored', 'success'), onError: (e: any) => showToast(e?.message || 'Restore failed', 'error') }) });
+      },
+      onError: (e: any) => showToast(e.message, 'error'),
+    });
   }
 
   const maxCust = Math.max(1, ...chart.byCustomer.map(x => x.value));
@@ -782,6 +834,7 @@ export function DashboardPage() {
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{rows.length} projects</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {hasFilter && <button type="button" className="btn secondary" style={{ fontSize: '0.82rem' }} onClick={clearAllFilters}>Clear filter</button>}
+            {!isViewer && <button type="button" className="btn" style={{ fontSize: '0.82rem' }} onClick={() => setAdding(true)}>+ Add Project</button>}
             <button type="button" className="btn secondary" title="Download as an Excel file in the FM03 format (logo + colors)" style={{ fontSize: '0.82rem' }} disabled={rows.length === 0} onClick={() => setSaveAs('xlsx')}>⬇️ Export to Excel</button>
           </div>
         </div>
@@ -852,12 +905,11 @@ export function DashboardPage() {
         <ChartCard title="Status breakdown">
           <Donut data={chart.byStatus} />
         </ChartCard>
-        <ChartCard title="Customer (Top 8)">
+        <ChartCard title="Customer">
           {chart.byCustomer.length ? chart.byCustomer.map(c => <BarRow key={c.label} label={c.label} value={c.value} max={maxCust} color="#2e7d4f" />) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</div>}
         </ChartCard>
-        <ChartCard title="Total output (OK vs NG)">
-          <BarRow label="Total OK" value={chart.totalOk} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#16a34a" />
-          <BarRow label="Total NG" value={chart.totalNg} max={Math.max(1, chart.totalOk + chart.totalNg)} color="#dc2626" />
+        <ChartCard title="Total output">
+          <FgNgByJob jobs={chart.byJob} />
         </ChartCard>
       </div>
 
@@ -885,6 +937,7 @@ export function DashboardPage() {
       <FactoryOverview />
 
       {edit && <ProjectFormModal initial={edit} onClose={() => setEdit(null)} />}
+      {adding && <ProjectFormModal initial={null} defaultType={ppTab} onClose={() => setAdding(false)} />}
       {detail && <ProductDetailModal p={detail} onClose={() => setDetail(null)} />}
       {procEdit && <ProcessEventPopup p={procEdit.p} stepKey={procEdit.key} onClose={() => setProcEdit(null)} onSave={(status, date, note) => saveProc(procEdit.p, procEdit.key, status, date, note)} />}
       {colorPick && <StatusColorPopup p={colorPick.p} pos={colorPick} onClose={() => setColorPick(null)} onPick={color => pickStatusColor(colorPick.p, color)} />}

@@ -111,6 +111,13 @@ router.put('/projects/:id', async (req, res) => {
   try {
     // ดึงค่าเก่าไว้เทียบก่อนอัปเดต (สำหรับ audit diff)
     const before = (await db.query(`SELECT ${COLS} FROM pp_projects WHERE id = $1`, [req.params.id])).rows[0] || null;
+    // optimistic lock: ถ้า client ส่ง updated_at มาแล้วไม่ตรงกับใน DB = มีคนแก้ไปก่อน → 409 (กัน stale write ทับกัน)
+    if (before && req.body && req.body.updated_at && before.updated_at) {
+      const a = new Date(req.body.updated_at).getTime(), b = new Date(before.updated_at).getTime();
+      if (!isNaN(a) && !isNaN(b) && a !== b) {
+        return res.status(409).json({ status: 'error', message: 'This record was changed by someone else — please reload and try again' });
+      }
+    }
     const { rows, rowCount } = await db.query(
       `UPDATE pp_projects SET ${sets}, updated_at = NOW() WHERE id = $${vals.length} RETURNING ${COLS}`,
       vals
