@@ -355,6 +355,7 @@ const jigRetests: any[] = [
 // ── Production Plan (pp_projects) ──
 let _ppId = 50;
 const ppBase = {
+  pp_type: 'internal', bom_rec_date: null,
   status_color: '', wk: 0, date_record: null, customer: '', produce: 0, syn_requestor: '', work_order: '', wo_name: '', matl_coming: '',
   chk_man: false, chk_mac: false, chk_med: false, chk_mat: false, chk_env: false,
   pd_pcba: false, pd_bbas: false, pd_test: false, pd_modified: false, pd_rma: false, pd_prep: false, pd_start_date: null, pd_finish_date: null,
@@ -513,6 +514,7 @@ const ppProjects: any[] = [
     const okBase = status === 'CANCEL' ? 0 : produce - (i % 9);
     return {
       ...ppBase, id, status, status_color: color === 'TEAL_PROCESS' ? 'PROCESS' : color,
+      pp_type: i % 3 === 0 ? 'external' : 'internal',   // ~1 ใน 3 เป็นงานภายนอก (เดโมให้แท็บ External มีข้อมูล)
       wk: 22 + (i % 8), date_record: start, product_pn: pn, model, customer, qty, produce,
       work_order: `WO-2026-0${id}`, syn_requestor: ['Ann', 'Beam', 'Mint', 'Run'][i % 4],
       pd_pcba: true, pd_test: true, pd_start_date: start,
@@ -609,6 +611,16 @@ const workflowResults: any[] = [
 function ok(data: unknown) { return HttpResponse.json({ status: 'success', data }); }
 function okSuccess(extra?: object) { return HttpResponse.json({ status: 'success', ...extra }); }
 
+// ประวัติการแก้ไข pp (เดโม) — เก็บ diff ตอน PUT · โชว์ในหน้าแก้ไข
+let _ppAuditId = 0;
+const ppAudit: any[] = [];
+const PP_FIELD_LABELS: Record<string, string> = {
+  pp_type: 'Type', status: 'Status', product_pn: 'Product P/N', model: 'Model', customer: 'Customer', qty: 'Quantity',
+  produce: 'Produced', syn_requestor: 'Owner', work_order: 'WO', date_record: 'Date record', expected_date: 'Expected date',
+  revised_date: 'Revised date', pd_start_date: 'PD Start', pd_finish_date: 'PD Done', total_ok: 'Total FG', total_ng: 'Total NG',
+  pd_pic: 'PIC Name', remark: 'Remark', qa_status: 'QA Status', target_per_day: 'CAP/day',
+};
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 export const handlers = [
@@ -639,9 +651,24 @@ export const handlers = [
     const b: any = await request.json();
     const row = ppProjects.find(r => String(r.id) === String(params.id));
     if (!row) return new HttpResponse(null, { status: 404 });
+    // audit diff (เดโม) — เทียบค่าเก่า/ใหม่เฉพาะ field ที่ label ไว้
+    const changes: string[] = [];
+    for (const k of Object.keys(PP_FIELD_LABELS)) {
+      if (!(k in b)) continue;
+      const oldV = row[k] == null || row[k] === '' ? '—' : String(row[k]).slice(0, 40);
+      const newV = b[k] == null || b[k] === '' ? '—' : String(b[k]).slice(0, 40);
+      if (oldV !== newV) changes.push(`${PP_FIELD_LABELS[k]}: ${oldV} → ${newV}`);
+    }
+    const editNote = typeof b.edit_note === 'string' ? b.edit_note.trim() : '';
     Object.assign(row, b, { updated_at: now() });
+    delete (row as any).edit_note;   // ไม่เก็บลง record (เป็นหมายเหตุของ history)
+    if (changes.length || editNote) {
+      const name = row.product_pn || row.model || `#${row.id}`;
+      ppAudit.unshift({ id: ++_ppAuditId, target_id: String(row.id), actor: 'admin', actor_name: 'Admin', actor_role: 'ADMIN', action: 'UPDATE_PP', detail: `${name}${changes.length ? ` — ${changes.join(', ')}` : ''}`, note: editNote || null, created_at: now() });
+    }
     return ok(row);
   }),
+  http.get('/api/pp/projects/:id/history', ({ params }) => ok(ppAudit.filter(a => a.target_id === String(params.id)))),
   http.delete('/api/pp/projects/:id', ({ params }) => {
     const i = ppProjects.findIndex(r => String(r.id) === String(params.id));
     if (i >= 0) ppProjects.splice(i, 1);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { usePpCreate, usePpUpdate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
+import { usePpCreate, usePpUpdate, usePpHistory, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
 import { showToast } from '../lib/toast';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 
@@ -436,9 +436,8 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
   const dd = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86400000);
   const tasks = rows.map(p => {
     const start = toD(p.pd_start_date);
-    let end = toD(p.pd_finish_date);
-    const exp = toD(p.expected_date);
-    if (exp && (!end || exp.getTime() > end.getTime())) end = exp;
+    // ปลายแท่ง = PD Done ถ้าเสร็จ ไม่งั้นยึด Expected date (เหมือน Gantt บนจอ)
+    let end = toD(p.pd_finish_date) || toD(p.expected_date);
     if (start && end && end.getTime() < start.getTime()) end = start;
     const log = (Array.isArray(p.process_log) ? p.process_log : [])
       .map(e => ({ date: toD(e.date), status: e.status }))
@@ -515,19 +514,20 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
       const n = t.log.length;
       const first = t.log[0].date, last = t.log[n - 1].date;
       const lastStatus = t.log[n - 1].status;
-      const terminal = lastStatus === 'DONE' || lastStatus === 'CANCEL' || t.p.status === 'DONE' || t.p.status === 'CANCEL';
-      // แท่งครอบช่วงจริง: PD start (ถ้ามาก่อน log แรก) → PD finish/log สุดท้าย · ยังไม่จบค่อยลากถึงวันนี้
+      // ปลายแท่ง = t.end (PD Done/Expected) เป็นหลัก · ไม่ยืดตาม log/วันนี้ · log ที่เลย barEnd → clamp
       const barStart = t.start && t.start.getTime() < first.getTime() ? t.start : first;
-      let barEnd = t.end && t.end.getTime() > last.getTime() ? t.end : last;
-      if (!terminal && today.getTime() > barEnd.getTime()) barEnd = today;
+      let barEnd = t.end || last;
+      if (barEnd.getTime() < barStart.getTime()) barEnd = barStart;
+      const kMin = dd(min, barStart), kMax = dd(min, barEnd);
+      const clampK = (d: Date) => Math.min(Math.max(dd(min, d), kMin), kMax);
       const lastCol = lastStatus && STATUS_STYLE[lastStatus] ? argb(STATUS_STYLE[lastStatus].border) : 'FF94A3B8';
-      // เส้นฐานครอบช่วงจริง (สีสถานะล่าสุด) — กัน log กระจุกวันเดียวแล้วแท่งหด
-      for (let k = dd(min, barStart); k <= dd(min, barEnd); k++) dayColor[k] = lastCol;
-      // แต้มสีหลายช่วงจาก log ทับเส้นฐาน
+      // เส้นฐานครอบช่วงจริง (สีสถานะล่าสุด)
+      for (let k = kMin; k <= kMax; k++) dayColor[k] = lastCol;
+      // แต้มสีหลายช่วงจาก log ทับเส้นฐาน (clamp ในช่วงแท่ง)
       t.log.forEach((pt, i) => {
         if (i + 1 >= n) return;
         const col = pt.status && STATUS_STYLE[pt.status] ? argb(STATUS_STYLE[pt.status].border) : 'FF94A3B8';
-        for (let k = dd(min, pt.date); k < dd(min, t.log[i + 1].date); k++) dayColor[k] = col;
+        for (let k = clampK(pt.date); k < clampK(t.log[i + 1].date); k++) dayColor[k] = col;
       });
     } else if (t.start) {
       const isLate = t.p.status === 'DELAY' || (!!t.end && t.end.getTime() < today.getTime() && t.p.status !== 'DONE');
@@ -572,10 +572,8 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   // แต่ละงาน: start/end จาก PD + ประวัติ log (แต่ละ event มีวันที่ → วาด Gantt หลายสี)
   const tasks = rows.map(p => {
     const start = gToDate(p.pd_start_date);
-    // end = วันหลังสุดระหว่าง PD Done กับ Expected date (ให้แก้ expected แล้วแท่งขยับตาม — ไม่ยึด pd_finish อย่างเดียว)
-    let end = gToDate(p.pd_finish_date);
-    const exp = gToDate(p.expected_date);
-    if (exp && (!end || exp.getTime() > end.getTime())) end = exp;
+    // ปลายแท่ง = PD Done (ถ้าเสร็จ) ไม่งั้นยึด Expected date เป็นหลัก → แก้ Expected แล้วแท่งขยับตาม (ทั้งยืด/หด)
+    let end = gToDate(p.pd_finish_date) || gToDate(p.expected_date);
     if (start && end && end.getTime() < start.getTime()) end = start;
     const log = (Array.isArray(p.process_log) ? p.process_log : [])
       .map(e => ({ date: gToDate(e.date), status: e.status, step: e.step, note: e.note || '' }))
@@ -676,33 +674,32 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
                     const n = t.log.length;
                     const first = t.log[0].date, last = t.log[n - 1].date;
                     const lastStatus = t.log[n - 1].status;
-                    // งานจบแล้ว = event สุดท้าย DONE/CANCEL หรือ status งาน DONE/CANCEL
-                    const terminal = lastStatus === 'DONE' || lastStatus === 'CANCEL' || t.p.status === 'DONE' || t.p.status === 'CANCEL';
-                    // แท่งครอบ "ช่วงจริง": เริ่มจาก PD start (ถ้ามาก่อน log แรก) → จบที่ PD finish/log สุดท้าย
-                    // กันกรณี log ลงวันเดียวกันหมดแล้วแท่งหดเหลือจุดเดียว · ยังไม่จบค่อยลากถึงวันนี้
+                    // ปลายแท่ง = t.end (PD Done/Expected) เป็นหลัก · ไม่ยืดตาม log หรือวันนี้ → แก้ Expected แล้วแท่งขยับ (ยืด/หด)
+                    // จุด/เส้นใน log ที่เลยช่วง [barStart, barEnd] จะถูก clamp มาที่ขอบ (process history เลย Expected = ตัดที่ Expected)
                     const barStart = t.start && t.start.getTime() < first.getTime() ? t.start : first;
-                    let barEnd = t.end && t.end.getTime() > last.getTime() ? t.end : last;
-                    if (!terminal && today.getTime() > barEnd.getTime()) barEnd = today;
+                    let barEnd = t.end || last;
+                    if (barEnd.getTime() < barStart.getTime()) barEnd = barStart;
+                    const clampX = (d: Date) => centerX(new Date(Math.min(Math.max(d.getTime(), barStart.getTime()), barEnd.getTime())));
                     const lastCol = stlOf(lastStatus).border;
                     const xs = centerX(barStart), xe = centerX(barEnd);
                     return (
                       <>
                         {/* เส้นฐานครอบช่วงจริง (สีสถานะล่าสุด) */}
                         <div style={{ position: 'absolute', top: '50%', left: xs, width: Math.max(0, xe - xs), height: 3, background: lastCol, transform: 'translateY(-50%)' }} />
-                        {/* เส้นย่อยหลายสีตามช่วง log (แต้มทับเส้นฐาน) */}
+                        {/* เส้นย่อยหลายสีตามช่วง log (แต้มทับเส้นฐาน · clamp ในช่วงแท่ง) */}
                         {t.log.map((pt, i) => {
                           if (i + 1 >= n) return null;
-                          const x1 = centerX(pt.date), x2 = centerX(t.log[i + 1].date);
+                          const x1 = clampX(pt.date), x2 = clampX(t.log[i + 1].date);
                           if (x2 <= x1) return null;
                           return <div key={'s' + i} title={pt.note || ''}
                             style={{ position: 'absolute', top: '50%', left: x1, width: x2 - x1, height: 3, background: stlOf(pt.status).border, transform: 'translateY(-50%)' }} />;
                         })}
-                        {/* จุดปลายแท่ง (barStart / barEnd) ถ้าเลยจากช่วง log — เช่น PD start ก่อนบันทึก หรือ PD finish หลัง log */}
-                        {xs !== centerX(first) && <div style={{ position: 'absolute', top: '50%', left: xs - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stlOf(t.log[0].status).bg, border: `2px solid ${stlOf(t.log[0].status).border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1 }} />}
-                        {xe !== centerX(last) && <div style={{ position: 'absolute', top: '50%', left: xe - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stlOf(lastStatus).bg, border: `2px solid ${lastCol}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1 }} />}
-                        {/* จุดแต่ละ event */}
+                        {/* จุดหัว/ท้ายแท่ง (barStart / barEnd) */}
+                        {xs !== clampX(first) && <div style={{ position: 'absolute', top: '50%', left: xs - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stlOf(t.log[0].status).bg, border: `2px solid ${stlOf(t.log[0].status).border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1 }} />}
+                        {xe !== clampX(last) && <div style={{ position: 'absolute', top: '50%', left: xe - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stlOf(lastStatus).bg, border: `2px solid ${lastCol}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1 }} />}
+                        {/* จุดแต่ละ event (clamp ในช่วงแท่ง) */}
                         {t.log.map((pt, i) => {
-                          const x = centerX(pt.date);
+                          const x = clampX(pt.date);
                           const s = stlOf(pt.status);
                           return <div key={'n' + i} title={pt.note || ''}
                             style={{ position: 'absolute', top: '50%', left: x - R, width: R * 2, height: R * 2, borderRadius: '50%', background: s.bg, border: `2px solid ${s.border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1, cursor: 'help' }} />;
@@ -751,6 +748,43 @@ const EMPTY: Partial<PpProject> = {
 // ฟอร์มเปล่าสำหรับสร้างใหม่ — เติม Date record = วันนี้ + คำนวณ WW ให้อัตโนมัติ
 const blankForm = (): Partial<PpProject> => { const today = new Date().toISOString().slice(0, 10); return { ...EMPTY, date_record: today, wk: isoWeek(today) }; };
 
+// ประวัติการแก้ไขของ record นี้ (ตาราง) — วันเวลา · ใคร · ตำแหน่ง · แก้อะไร (field diff) · หมายเหตุ
+export function EditHistory({ id }: { id: number }) {
+  const { data: rows = [], isLoading } = usePpHistory(id);
+  const fmtDT = (v: string) => { try { return new Date(v).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }); } catch { return v; } };
+  const actLabel = (a: string) => a.startsWith('CREATE') ? 'Created' : a.startsWith('DELETE') ? 'Deleted' : 'Updated';
+  if (isLoading) return <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', padding: '4px 0' }}>Loading history…</div>;
+  if (!rows.length) return <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', padding: '4px 0' }}>No edit history yet</div>;
+  const th: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: '0.72rem', color: '#64748b', fontWeight: 700, background: '#f1f5f9', whiteSpace: 'nowrap', position: 'sticky', top: 0, border: '1px solid var(--border-color)' };
+  const td: React.CSSProperties = { padding: '6px 8px', fontSize: '0.8rem', color: '#334155', verticalAlign: 'top', border: '1px solid var(--border-color)' };
+  return (
+    <div style={{ maxHeight: 300, overflow: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+        <thead>
+          <tr>
+            <th style={th}>Name</th>
+            <th style={th}>Role</th>
+            <th style={th}>Date / Time</th>
+            <th style={th}>Action</th>
+            <th style={th}>Remark</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(h => (
+            <tr key={h.id}>
+              <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>{h.actor_name || h.actor}</td>
+              <td style={{ ...td, whiteSpace: 'nowrap', color: '#64748b' }}>{h.actor_role || '—'}</td>
+              <td style={{ ...td, whiteSpace: 'nowrap', color: '#64748b' }}>{fmtDT(h.created_at)}</td>
+              <td style={{ ...td, wordBreak: 'break-word' }}><span style={{ color: '#2563eb', fontWeight: 600 }}>{actLabel(h.action)}</span>{h.detail ? ` — ${h.detail}` : ''}</td>
+              <td style={{ ...td, wordBreak: 'break-word', color: h.note ? '#334155' : '#cbd5e1' }}>{h.note || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /** ฟอร์มกรอกข้อมูลโปรเจกต์ (ใช้ทั้ง inline ในหน้า Add Project และในป๊อปอัพแก้ไข) */
 // แปลงค่าวันที่จาก API (ISO datetime เช่น 2026-06-03T00:00:00.000Z) → YYYY-MM-DD ให้ <input type="date"> โชว์ค่าเดิมได้
 const DATE_KEYS: (keyof PpProject)[] = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date' as keyof PpProject];
@@ -762,31 +796,38 @@ const initForm = (p: PpProject): Partial<PpProject> => {
 export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject | null; onSaved?: () => void; onCancel?: () => void }) {
   const [f, setF] = useState<Partial<PpProject>>(() => initial ? initForm(initial) : blankForm());
   const [err, setErr] = useState('');
+  const [askRemark, setAskRemark] = useState(false);   // แก้ไข: กด Save → เด้ง popup ให้กรอกหมายเหตุก่อน
   const create = usePpCreate();
   const update = usePpUpdate();
   const editing = !!initial;
   const set = (k: keyof PpProject, v: any) => setF(p => ({ ...p, [k]: v }));
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr('');
-    if (!f.product_pn?.trim() && !f.model?.trim()) return setErr('Product P/N or Model is required');
+  // ยิงบันทึกจริง — editNote = หมายเหตุการแก้ไข (เฉพาะตอนแก้ไข ส่งไปเก็บใน history)
+  function doSave(editNote?: string) {
     const mut = editing ? update : create;
-    // Status = ค่าที่ตั้งในฟอร์ม (ไม่ auto จาก process) · status_color เริ่มต้น = ตามสถานะ (เปลี่ยนสีเองทีหลังในตาราง) · date_record auto วันนี้ถ้าเว้นว่าง
     const today = new Date().toISOString().slice(0, 10);
     const status = f.status || 'ON_PROCESS';
     const status_color = f.status_color || ((PP_STATUS as readonly string[]).includes(status) ? status : '');
     const payload: any = editing
-      ? { ...f, id: initial!.id, status, status_color }
+      ? { ...f, id: initial!.id, status, status_color, ...(editNote ? { edit_note: editNote } : {}) }
       : { ...f, status, status_color, date_record: f.date_record || today, wk: f.wk ?? isoWeek(f.date_record || today) };
     mut.mutate(payload, {
       onSuccess: () => {
         showToast(editing ? 'Updated' : 'Project added', 'success');
         if (!editing) { setF(blankForm()); window.scrollTo({ top: 0, behavior: 'smooth' }); }   // create → เคลียร์ฟอร์ม (วันนี้) + เลื่อนขึ้นบนสุด
+        setAskRemark(false);
         onSaved?.();
       },
-      onError: (e: any) => setErr(e.message),
+      onError: (e: any) => { setErr(e.message); setAskRemark(false); },
     });
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr('');
+    if (!f.product_pn?.trim() && !f.model?.trim()) return setErr('Product P/N or Model is required');
+    if (editing) { setAskRemark(true); return; }   // แก้ไข → ถามหมายเหตุก่อนบันทึก
+    doSave();                                        // สร้างใหม่ → บันทึกเลย
   }
 
   const num = (k: keyof PpProject) => (e: any) => set(k, e.target.value === '' ? 0 : Number(e.target.value));
@@ -801,10 +842,19 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
   );
 
   return (
+      <>
         <form onSubmit={submit} className="stack" style={{ gap: '0.7rem' }}>
           <Section title="Main info" />
-          {/* WO อยู่บนสุด */}
-          <label className="field"><span>WO</span><input value={f.work_order ?? ''} onChange={txt('work_order')} placeholder="WO number" autoFocus /></label>
+          {/* WO + Type (Internal/External) บนสุด */}
+          <div className="grid-3col">
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>WO</span><input value={f.work_order ?? ''} onChange={txt('work_order')} placeholder="WO number" autoFocus /></label>
+            <label className="field"><span>Type</span>
+              <select value={(f as any).pp_type ?? 'internal'} onChange={txt('pp_type' as keyof PpProject)}>
+                <option value="internal">Internal</option>
+                <option value="external">External</option>
+              </select>
+            </label>
+          </div>
           <div className="grid-3col">
             <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." /></label>
             <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." /></label>
@@ -834,7 +884,6 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             <label className="field"><span>PD Start</span><input type="date" value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} /></label>
             <label className="field"><span>PD Done</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} /></label>
             <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} /></label>
-            <label className="field"><span>Actual shipping date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
             <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? 0} onChange={num('target_per_day')} placeholder="e.g. 40" /></label>
           </div>
 
@@ -882,8 +931,13 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             <label className="field"><span>PIC Name</span><input value={f.pd_pic ?? ''} onChange={txt('pd_pic')} placeholder="Noi,Kiert" /></label>
           </div>
 
+          <div className="grid-3col">
+            <label className="field"><span>Revised date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
+          </div>
           <label className="field"><span>Special request</span><textarea value={f.special_request ?? ''} onChange={txt('special_request')} rows={2} placeholder="e.g. urgent, QA first, etc." /></label>
           <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={4} /></label>
+
+          {editing && initial && <><Section title="Edit history" /><EditHistory id={initial.id} /></>}
 
           {err && <div className="notice err">{err}</div>}
           <div className="modal-actions">
@@ -893,6 +947,28 @@ export function ProjectForm({ initial, onSaved, onCancel }: { initial: PpProject
             </button>
           </div>
         </form>
+        {askRemark && <SaveRemarkPopup saving={update.isPending} onCancel={() => setAskRemark(false)} onConfirm={note => doSave(note)} />}
+      </>
+  );
+}
+
+// popup กรอกหมายเหตุตอนกด Save (แก้ไข) — หมายเหตุจะไปอยู่ในประวัติของ record ชิ้นนี้เท่านั้น
+function SaveRemarkPopup({ saving, onCancel, onConfirm }: { saving: boolean; onCancel: () => void; onConfirm: (note: string) => void }) {
+  const [note, setNote] = useState('');
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1200 }} onClick={onCancel}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
+        <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>Save — add a remark</h2>
+        <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Note what/why you changed (kept in this item's edit history). You can leave it blank.</p>
+        <label className="field"><span>Remark (this edit)</span>
+          <textarea autoFocus value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="e.g. moved expected date after customer request" />
+        </label>
+        <div className="modal-actions" style={{ marginTop: '1.2rem' }}>
+          <button type="button" className="btn secondary" onClick={onCancel} disabled={saving}>Cancel</button>
+          <button type="button" className="btn" onClick={() => onConfirm(note.trim())} disabled={saving}>{saving ? 'Saving…' : 'Confirm & Save'}</button>
+        </div>
+      </div>
+    </div>
   );
 }
 

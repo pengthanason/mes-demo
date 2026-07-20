@@ -13,6 +13,7 @@ export interface PpLogEntry { date: string; step: string; status: string; note?:
 
 export interface PpProject {
   id: number;
+  pp_type: string;                 // 'internal' (งานภายใน) | 'external' (งานภายนอก) — แยกแท็บใน Dashboard
   status: string;
   status_color: string;            // สีของช่อง Status — คลิกในตารางเปลี่ยนได้เอง (ไม่กระทบชื่อสถานะ) · ว่าง = ใช้สีตาม status
   wk: number | null;
@@ -116,5 +117,23 @@ export function usePpDelete() {
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+// ประวัติการแก้ไข 1 record (ใคร/ตำแหน่ง/แก้อะไร/เมื่อไหร่) — จาก audit_logs (join app_users)
+export interface PpHistoryEntry {
+  id: number; actor: string; actor_name: string | null; actor_role: string | null;
+  action: string; detail: string; note: string | null; created_at: string;
+}
+export function usePpHistory(id: number | null) {
+  return useQuery({
+    queryKey: ['pp-history', id],
+    enabled: !!id,
+    queryFn: async (): Promise<PpHistoryEntry[]> => {
+      const res = await api.get(`/pp/projects/${id}/history`);
+      if (res.status >= 400 || res.status === 0) return [];   // ไม่มี endpoint (เดโม) → ประวัติว่าง ไม่ throw
+      return ((res.data as any)?.data ?? []);
+    },
+    retry: false,
   });
 }

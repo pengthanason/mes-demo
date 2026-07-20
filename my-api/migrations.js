@@ -540,6 +540,8 @@ async function migrate() {
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS bom_rec_date DATE`);
     // ประเภทงาน: internal (งานภายใน) / external (งานภายนอก) — แยกแท็บใน Dashboard
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pp_type VARCHAR(20) NOT NULL DEFAULT 'internal'`);
+    // audit_logs: note = หมายเหตุ/เหตุผลการแก้ไข (ผู้ใช้กรอกตอนกด Save ในหน้าแก้ไข pp)
+    await client.query(`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS note TEXT`);
 
     // ── Workflow (ลำดับกระบวนการผลิต — Manufacturing Sequence) ──
     await client.query(`

@@ -53,6 +53,7 @@ module.exports = function activityLog(req, res, next) {
       if (res.statusCode < 200 || res.statusCode >= 300) return;
       if (!p.startsWith('/api') || p.startsWith('/api/auth')) return;
       if (p.startsWith('/api/admin/users')) return;   // handler บันทึกเองแล้ว
+      if (/^\/api\/pp\/projects\/[^/]+$/.test(p) && (method === 'PUT' || method === 'PATCH')) return;   // pp update: handler log field-diff เองแล้ว
       if (p.includes('audit-log')) return;
 
       const { label, type } = resourceOf(p);

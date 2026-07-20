@@ -11,7 +11,7 @@ import { FactoryOverview } from '../components/FactoryOverview';
 import { TableState } from '../components/DataStates';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
-  STATUS_STYLE, StatusBadge, statusView, exportXlsx, exportGanttXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal,
+  STATUS_STYLE, StatusBadge, statusView, exportXlsx, exportGanttXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal, EditHistory,
   XLSX_COLUMNS, DASH_COLUMNS, PROCESS_STEPS, PROCESS_KEYS, PROC_STATUS, PROC_STATUS_LABEL, buildHeaderRows, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 
@@ -322,6 +322,8 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
         </div>
         {p.special_request && (<><div style={sectionTitle}>⭐ Special request</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.special_request}</div></>)}
         {p.remark && (<><div style={sectionTitle}>📝 Remark</div><div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap' }}>{p.remark}</div></>)}
+        <div style={sectionTitle}>🕑 Edit history</div>
+        <EditHistory id={p.id} />
         <div style={{ marginTop: 18, paddingTop: 10, borderTop: '1px solid #eef2f7', fontSize: '0.72rem', color: '#94a3b8', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
           {p.created_at && <span>Created: {fmtD(p.created_at)}</span>}
           {p.updated_at && <span>Updated: {fmtD(p.updated_at)}</span>}
@@ -614,10 +616,12 @@ export function DashboardPage() {
     if (proj) { setDetail(proj); const n = new URLSearchParams(params); n.delete('pp'); setParams(n, { replace: true }); }
   }, [ppParam, allRows]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // แยกข้อมูลตามแท็บ Internal/External (pp_type) — ทุกอย่าง (KPI/filter/ตาราง/gantt) คิดจากชุดของแท็บที่เลือก
+  const tabRows = useMemo(() => allRows.filter(r => ((r as any).pp_type || 'internal') === ppTab), [allRows, ppTab]);
   // ตัวเลือกที่มีอยู่จริงในข้อมูล — ใช้เติม dropdown filter ที่หัวตาราง (Status ใช้ PP_STATUS คงที่แทน)
-  const customers = useMemo(() => [...new Set(allRows.map(r => r.customer).filter(Boolean))], [allRows]);
-  const workOrders = useMemo(() => [...new Set(allRows.map(r => r.work_order).filter(Boolean))], [allRows]);
-  const models = useMemo(() => [...new Set(allRows.map(r => r.model).filter(Boolean))], [allRows]);
+  const customers = useMemo(() => [...new Set(tabRows.map(r => r.customer).filter(Boolean))], [tabRows]);
+  const workOrders = useMemo(() => [...new Set(tabRows.map(r => r.work_order).filter(Boolean))], [tabRows]);
+  const models = useMemo(() => [...new Set(tabRows.map(r => r.model).filter(Boolean))], [tabRows]);
 
   // Filter ย่อยของ "On process" — ขยายเลือกได้ว่า process step ไหนบ้างที่กำลัง ON_PROCESS อยู่
   const [procStepFilter, setProcStepFilter] = useState<Set<string>>(new Set());
@@ -631,8 +635,8 @@ export function DashboardPage() {
     toggleFilterValue('status', 'ON_PROCESS');   // toggle สถานะ On process (setPage(1) อยู่ในนี้แล้ว)
   };
 
-  // กรองฝั่ง client จาก allRows ตาม colFilters (เลือกได้หลายค่า) + ช่วงวันที่ + process step ย่อย
-  const rows = useMemo(() => allRows.filter(r => {
+  // กรองจากชุดของแท็บ (tabRows) ตาม colFilters (เลือกได้หลายค่า) + ช่วงวันที่ + process step ย่อย
+  const rows = useMemo(() => tabRows.filter(r => {
     // สถานะ: "On process" = แถวที่มี step ไหนก็ได้กำลัง ON_PROCESS (หรือ status บนสุด = ON_PROCESS) — ไม่ใช่แค่ status ตรงตัว
     // สถานะอื่น (Done/Delay/Cancel) เทียบ status ตรงตัวเหมือนเดิม · หลายสถานะ = OR กัน
     if (colFilters.status?.size) {
@@ -646,7 +650,7 @@ export function DashboardPage() {
     if (dateFrom && (!r.date_record || r.date_record < dateFrom)) return false;
     if (dateTo && (!r.date_record || r.date_record > dateTo)) return false;
     return true;
-  }), [allRows, colFilters, procStepFilter, dateFrom, dateTo]);
+  }), [tabRows, colFilters, procStepFilter, dateFrom, dateTo]);
   // เรียงตามวันที่สร้าง (created_at) — ใหม่สุดขึ้นก่อน
   const sortedRows = useMemo(() => [...rows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))), [rows]);
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE));
@@ -671,13 +675,13 @@ export function DashboardPage() {
     });
   };
 
-  // การ์ด KPI — คิดจาก allRows (ภาพรวมทั้งหมด) เสมอ เพื่อให้ตัวเลขไม่หายตอนกดกรอง · On process = step ใดก็ได้ ON_PROCESS
+  // การ์ด KPI — คิดจากชุดของแท็บ (tabRows ภาพรวมทั้งแท็บ ไม่ขึ้นกับ filter) · On process = step ใดก็ได้ ON_PROCESS
   const agg = useMemo(() => {
-    const by = (s: string) => s === 'ON_PROCESS' ? allRows.filter(rowOnProcessOnly).length : allRows.filter(r => r.status === s).length;
-    const ys = allRows.map(ppYield).filter((v): v is number => v != null);
+    const by = (s: string) => s === 'ON_PROCESS' ? tabRows.filter(rowOnProcessOnly).length : tabRows.filter(r => r.status === s).length;
+    const ys = tabRows.map(ppYield).filter((v): v is number => v != null);
     const avgYield = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : null;
-    return { total: allRows.length, done: by('DONE'), onProc: by('ON_PROCESS'), delay: by('DELAY'), cancel: by('CANCEL'), avgYield };
-  }, [allRows]);
+    return { total: tabRows.length, done: by('DONE'), onProc: by('ON_PROCESS'), delay: by('DELAY'), cancel: by('CANCEL'), avgYield };
+  }, [tabRows]);
 
   // กราฟ — คิดจาก rows (ตามตัวกรองที่เลือก) เพื่อให้กราฟตรงกับสิ่งที่กรองในตาราง · On process = step ใดก็ได้ ON_PROCESS
   const chart = useMemo(() => {

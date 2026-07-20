@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const db     = require('../db');
 
-const COLS = `id, status, status_color, wk, date_record, product_pn, model, customer, qty, produce, syn_requestor,
+const COLS = `id, pp_type, status, status_color, wk, date_record, product_pn, model, customer, qty, produce, syn_requestor,
   work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat, chk_env,
   pd_pcba, pd_bbas, pd_test, pd_modified, pd_rma, pd_prep, pd_start_date, pd_finish_date, target_per_day,
   qa_test_rate, qa_finish_date, qa_status, store_received, expected_date, revised_date, bom_rec_date, done,
@@ -12,7 +12,7 @@ const COLS = `id, status, status_color, wk, date_record, product_pn, model, cust
 
 // field ที่ยอมให้เขียน (กันยิงมั่ว)
 const WRITABLE = [
-  'status', 'status_color', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'produce', 'syn_requestor',
+  'pp_type', 'status', 'status_color', 'wk', 'date_record', 'product_pn', 'model', 'customer', 'qty', 'produce', 'syn_requestor',
   'work_order', 'wo_name', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'chk_env',
   'pd_pcba', 'pd_bbas', 'pd_test', 'pd_modified', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date', 'target_per_day',
   'qa_test_rate', 'qa_finish_date', 'qa_status', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date', 'done',
@@ -21,6 +21,32 @@ const WRITABLE = [
   'st_pr_po', 'st_wait_mat', 'st_incoming', 'st_create_bo', 'st_test', 'st_rework', 'st_smt', 'st_thr', 'st_bbas',
 ];
 const DATE_FIELDS = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date'];
+
+// ── ป้ายชื่อ field (อ่านง่าย) สำหรับ audit diff · field ที่ไม่เอาเข้า diff (ใหญ่/ซ้ำ) อยู่ใน DIFF_SKIP ──
+const FIELD_LABELS = {
+  pp_type: 'Type', status: 'Status', status_color: 'Status color', product_pn: 'Product P/N', model: 'Model', customer: 'Customer',
+  qty: 'Quantity', produce: 'Produced', syn_requestor: 'Owner', work_order: 'WO', date_record: 'Date record', wk: 'WW',
+  pd_start_date: 'PD Start', pd_finish_date: 'PD Done', expected_date: 'Expected date', revised_date: 'Revised date',
+  bom_rec_date: 'Bom Rec', target_per_day: 'CAP/day', qa_test_rate: 'Sampling%', qa_finish_date: 'QA Finish', qa_status: 'QA Status',
+  store_received: 'Store received', pd_pic: 'PIC Name', pic_responsible: 'Responsible', total_ng: 'Total NG', total_ok: 'Total FG',
+  special_request: 'Special request', remark: 'Remark',
+  pc_prpo: 'PR/PO', pc_wait: "Wait Mat'l", pc_incoming: 'In Coming', pc_smt: 'SMT', pc_thr: 'THR', pc_test: 'TEST', pc_bbas: 'BBAS', pc_packing: 'Packing',
+};
+const DIFF_SKIP = new Set(['process_log', 'updated_at', 'created_at']);
+const norm = (k, v) => {
+  if (v === null || v === undefined || v === '') return '—';
+  if (DATE_FIELDS.includes(k)) return String(v instanceof Date ? v.toISOString() : v).slice(0, 10);
+  if (typeof v === 'boolean') return v ? 'yes' : 'no';
+  return String(v);
+};
+// username จาก Bearer token (base64 username:role:ts) — เหมือน activityLog.js
+function actorFromReq(req) {
+  try {
+    const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');
+    if (!m) return 'system';
+    return Buffer.from(m[1], 'base64').toString('utf8').split(':')[0] || 'system';
+  } catch { return 'system'; }
+}
 
 function clean(body) {
   const out = {};
@@ -83,12 +109,53 @@ router.put('/projects/:id', async (req, res) => {
   const vals = keys.map(k => data[k]);
   vals.push(req.params.id);
   try {
+    // ดึงค่าเก่าไว้เทียบก่อนอัปเดต (สำหรับ audit diff)
+    const before = (await db.query(`SELECT ${COLS} FROM pp_projects WHERE id = $1`, [req.params.id])).rows[0] || null;
     const { rows, rowCount } = await db.query(
       `UPDATE pp_projects SET ${sets}, updated_at = NOW() WHERE id = $${vals.length} RETURNING ${COLS}`,
       vals
     );
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
-    res.json({ status: 'success', data: rows[0] });
+    const after = rows[0];
+    // audit: บันทึกเฉพาะ field ที่ค่าเปลี่ยนจริง (จาก → เป็น) + หมายเหตุ (edit_note) ที่ผู้ใช้กรอกตอน Save
+    const editNote = (req.body && typeof req.body.edit_note === 'string') ? req.body.edit_note.trim() : '';
+    if (before) {
+      const changes = [];
+      for (const k of keys) {
+        if (DIFF_SKIP.has(k)) continue;
+        const oldV = norm(k, before[k]);
+        const newV = norm(k, after[k]);
+        if (oldV !== newV) changes.push(`${FIELD_LABELS[k] || k}: ${oldV} → ${newV}`);
+      }
+      if (changes.length || editNote) {
+        const name = after.product_pn || after.model || `#${after.id}`;
+        const detail = `${name}${changes.length ? ` — ${changes.join(', ')}` : ''}`;
+        db.query(
+          `INSERT INTO audit_logs (actor, action, target_type, target_id, detail, note) VALUES ($1,'UPDATE_PP','pp',$2,$3,$4)`,
+          [actorFromReq(req), String(after.id), detail, editNote || null]
+        ).catch(() => {});
+      }
+    }
+    res.json({ status: 'success', data: after });
+  } catch (e) {
+    res.status(500).json({ status: 'error', message: e.message });
+  }
+});
+
+// GET /api/pp/projects/:id/history — ประวัติการแก้ไข record นั้น (join app_users เอาชื่อ+ตำแหน่ง)
+router.get('/projects/:id/history', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT a.id, a.actor, a.action, a.detail, a.note, a.created_at,
+              u.full_name AS actor_name, u.role AS actor_role
+         FROM audit_logs a
+         LEFT JOIN app_users u ON u.username = a.actor
+        WHERE a.target_type = 'pp' AND a.target_id = $1
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT 200`,
+      [String(req.params.id)]
+    );
+    res.json({ status: 'success', data: rows });
   } catch (e) {
     res.status(500).json({ status: 'error', message: e.message });
   }

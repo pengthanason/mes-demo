@@ -194,6 +194,7 @@ CREATE TABLE audit_logs (
   target_type VARCHAR(50),
   target_id   VARCHAR(100),
   detail      TEXT,
+  note        TEXT,                                    -- หมายเหตุ/เหตุผลการแก้ไข (กรอกตอน Save ในหน้าแก้ไข pp)
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
@@ -347,6 +348,7 @@ CREATE TABLE production_scans (
 -- ─────────────────────────────────────────────────────────────────────
 CREATE TABLE pp_projects (
   id              SERIAL PRIMARY KEY,
+  pp_type         VARCHAR(20)  NOT NULL DEFAULT 'internal',  -- internal (งานภายใน) / external (งานภายนอก) — แยกแท็บใน Dashboard
   status          VARCHAR(30)  NOT NULL DEFAULT 'ON_PROCESS',
   status_color    VARCHAR(30)  NOT NULL DEFAULT '',        -- สีของช่อง Status (เปลี่ยนเองในตารางได้ ไม่กระทบชื่อสถานะ)
   wk              INTEGER,
