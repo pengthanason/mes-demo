@@ -15,7 +15,7 @@ export const CR_STATE_STYLE: Record<CrState, { bg: string; text: string; border:
 };
 
 const M_TYPE_ICON: Record<MType, string> = {
-  Man: '👷', Machine: '⚙️', Material: '📦', Method: '📋',
+  Man: '👷', Machine: '⚙️', Material: '📦', Method: '📋', Measurement: '📏', Environment: '🌱',
 };
 
 export function CrStateBadge({ state }: { state: CrState }) {
@@ -72,8 +72,8 @@ export function FourMChangePage() {
       <div className="panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h1 className="panel__title">4M Change Request</h1>
-            <p className="panel__subtitle">Open and track Change Requests — Man / Machine / Material / Method</p>
+            <h1 className="panel__title">5M+1E Change Request</h1>
+            <p className="panel__subtitle">Open and track Change Requests — Man / Machine / Material / Method / Measurement / Environment</p>
           </div>
           {!isViewer && (
             <button type="button" className="btn" onClick={() => setShowForm(v => !v)}
@@ -88,13 +88,15 @@ export function FourMChangePage() {
             <h3 className="panel__title panel__title--sm">Open New Change Request</h3>
             <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem' }}>
               <label className="field">
-                <span>4M Type *</span>
+                <span>5M+1E Type *</span>
                 <select value={mType} onChange={e => setMType(e.target.value as MType)} required>
                   <option value="">-- Select type --</option>
                   <option value="Man">👷 Man (People)</option>
                   <option value="Machine">⚙️ Machine (Machinery)</option>
                   <option value="Material">📦 Material (Raw Material)</option>
                   <option value="Method">📋 Method (Process)</option>
+                  <option value="Measurement">📏 Measurement (Inspection/Metrology)</option>
+                  <option value="Environment">🌱 Environment (Workplace/Conditions)</option>
                 </select>
               </label>
               <label className="field">
@@ -128,6 +130,8 @@ export function FourMChangePage() {
               <option value="Machine">Machine</option>
               <option value="Material">Material</option>
               <option value="Method">Method</option>
+              <option value="Measurement">Measurement</option>
+              <option value="Environment">Environment</option>
             </select>
           </label>
           <label className="field">

@@ -40,7 +40,7 @@ describe('JigTestPage', () => {
   it('API error → แสดง error state ไม่ crash', () => {
     vi.mocked(useJigProjects).mockReturnValue({ data: [], isLoading: false, error: new Error('boom') } as any);
     renderPage();
-    expect(screen.getByText('เกิดข้อผิดพลาด')).toBeInTheDocument();
+    expect(screen.getByText(/Failed to load data/i)).toBeInTheDocument();
     // ไม่ crash → หัวข้อหน้ายังอยู่
     expect(screen.getByText('Jig Test')).toBeInTheDocument();
   });
@@ -48,6 +48,6 @@ describe('JigTestPage', () => {
   it('viewer ไม่เห็นปุ่ม "+ เพิ่มโปรเจกต์"', () => {
     vi.mocked(useIsViewer).mockReturnValue(true);
     renderPage();
-    expect(screen.queryByText('+ เพิ่มโปรเจกต์')).toBeNull();
+    expect(screen.queryByText('+ Add Project')).toBeNull();
   });
 });

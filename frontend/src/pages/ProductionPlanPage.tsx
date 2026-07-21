@@ -6,7 +6,6 @@ import { WorkflowBuilder } from '../components/WorkflowBuilder';
 function AddProjectTab() {
   return (
     <div className="stack" style={{ marginTop: '1.25rem' }}>
-      <p className="panel__subtitle">Enter project details — once saved they appear on the Dashboard (the form clears so you can keep adding)</p>
       <ProjectForm initial={null} />
     </div>
   );
@@ -27,16 +26,19 @@ export function ProductionPlanPage() {
     <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">Production Plan</h1>
-        <p className="panel__subtitle">Add Project · Workflow — view the overview/table on the Dashboard</p>
+        {/* ลบแค่ subtitle คำอธิบายออก (หัวข้อ + แท็บคงเดิม) */}
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
           {TABS.map(t => (
             <button key={t.key} type="button" className={`mes-module-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
           ))}
         </div>
         {tab === 'add' && <AddProjectTab />}
+        {tab === 'workflow' && (
+          <div className="stack" style={{ marginTop: '1.25rem' }}>
+            <WorkflowBuilder />
+          </div>
+        )}
       </div>
-
-      {tab === 'workflow' && <WorkflowBuilder />}
     </section>
   );
 }

@@ -74,7 +74,35 @@ export function useQcCreate() {
       if (res.status >= 400 || res.status === 0) throw new Error('Failed to save QC');
       return res.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: QC_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QC_KEY });
+      qc.invalidateQueries({ queryKey: QC_HISTORY_KEY });   // #51: รีเฟรชตารางสถานะล่าสุดต่อชิ้นด้วย
+    },
+  });
+}
+
+// #51 FE-CONNECT-4: QC Board History — ต่อ endpoint จริง GET /api/qc/history
+//   response: { status:'success', results:[{ sn, wo_id, wo_number, part_no, status, current_station, updated_at }] }
+//   ⚠️ เป็น snapshot "สถานะล่าสุดต่อชิ้น" (unit) ไม่ใช่ timeline ทุกครั้งที่สแกน · status = PASS/NG/REPAIRED
+export interface QcHistoryRow {
+  sn: string; woNumber: string; partNo: string; status: string; station: string; updatedAt: string;
+}
+const QC_HISTORY_KEY = ['qc-history'];
+export function useQcHistory(woId?: string, limit = 100) {
+  return useQuery({
+    queryKey: [...QC_HISTORY_KEY, woId ?? '', limit],
+    queryFn: async (): Promise<QcHistoryRow[]> => {
+      const res = await api.get('/qc/history', { params: { ...(woId ? { wo_id: woId } : {}), limit } });
+      const results = (res.data as any)?.results ?? (res.data as any)?.data ?? [];
+      return results.map((r: any) => ({
+        sn:        r.sn ?? '',
+        woNumber:  r.wo_number ?? r.wo_id ?? '',
+        partNo:    r.part_no ?? '',
+        status:    r.status ?? '',
+        station:   r.current_station ?? '',
+        updatedAt: r.updated_at ?? r.created_at ?? '',
+      }));
+    },
   });
 }
 

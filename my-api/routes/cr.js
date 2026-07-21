@@ -44,8 +44,8 @@ router.get('/:id', async (req, res) => {
 // POST /api/cr (เปิด CR ใหม่)
 router.post('/', async (req, res) => {
   const { m_type, wo_ref, description, impact } = req.body;
-  if (!['Man', 'Machine', 'Material', 'Method'].includes(m_type)) {
-    return res.status(400).json({ status: 'error', message: 'm_type must be Man|Machine|Material|Method' });
+  if (!['Man', 'Machine', 'Material', 'Method', 'Measurement', 'Environment'].includes(m_type)) {
+    return res.status(400).json({ status: 'error', message: 'm_type must be one of 5M+1E: Man|Machine|Material|Method|Measurement|Environment' });
   }
   if (!String(description || '').trim()) {
     return res.status(400).json({ status: 'error', message: 'description required' });

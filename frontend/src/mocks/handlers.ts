@@ -69,6 +69,8 @@ const crList = [
   { id: 3, cr_no: 'CR-2026-003', m_type: 'Method', wo_ref: 'WO-2026-001', description: 'ปรับ reflow profile อุณหภูมิ peak +5°C', impact: 'ลด voiding ใน BGA', state: 'ACTIVE', g1_note: 'OK', g1_at: '2026-06-08T09:00:00Z', g2_note: 'อนุมัติ', g2_at: '2026-06-09T10:00:00Z', g3_note: 'Active ใช้งานได้', g3_at: '2026-06-10T11:00:00Z', created_at: '2026-06-07T08:00:00Z' },
   { id: 4, cr_no: 'CR-2026-004', m_type: 'Man', wo_ref: 'WO-2026-004', description: 'เพิ่มพนักงานสาย SMT กะดึก 2 คน', impact: 'เพิ่มกำลังผลิต ~15%', state: 'DRAFT', g1_note: null, g1_at: null, g2_note: null, g2_at: null, g3_note: null, g3_at: null, created_at: '2026-06-14T08:00:00Z' },
   { id: 5, cr_no: 'CR-2026-005', m_type: 'Machine', wo_ref: 'WO-2026-005', description: 'เพิ่มเครื่อง FCT Tester หัวที่ 5', impact: 'ลดคอขวดที่สถานีเทส', state: 'G2_APPROVED', g1_note: 'ตรวจแล้ว', g1_at: '2026-06-13T10:00:00Z', g2_note: 'อนุมัติงบ', g2_at: '2026-06-14T09:00:00Z', g3_note: null, g3_at: null, created_at: '2026-06-12T08:00:00Z' },
+  { id: 6, cr_no: 'CR-2026-006', m_type: 'Measurement', wo_ref: 'WO-2026-001', description: 'สอบเทียบเครื่องวัด AOI ใหม่ + ปรับ threshold', impact: 'ลด false reject ที่ AOI', state: 'G1_REVIEW', g1_note: null, g1_at: null, g2_note: null, g2_at: null, g3_note: null, g3_at: null, created_at: '2026-06-15T09:30:00Z' },
+  { id: 7, cr_no: 'CR-2026-007', m_type: 'Environment', wo_ref: 'WO-2026-002', description: 'คุมความชื้นห้อง SMT ให้ < 40%RH', impact: 'กัน moisture ที่ MSD component', state: 'DRAFT', g1_note: null, g1_at: null, g2_note: null, g2_at: null, g3_note: null, g3_at: null, created_at: '2026-06-15T13:00:00Z' },
 ];
 
 let _qcId = 10;
@@ -156,7 +158,7 @@ const ACT_RES: [string, string, string][] = [
   ['/api/workflow', 'Workflow', 'workflow'],
   ['/api/wo', 'Work Order', 'wo'],
   ['/api/bom', 'BOM', 'bom'],
-  ['/api/cr', 'Change Request (4M)', 'cr'],
+  ['/api/cr', 'Change Request (5M+1E)', 'cr'],
   ['/api/jig', 'Jig Test', 'jig'],
   ['/api/scm', 'SCM Case', 'scm'],
   ['/api/rework', 'Rework', 'rework'],
@@ -710,6 +712,25 @@ export const handlers = [
 
   // ── WO Board ─────────────────────────────────────────────────────────────
   http.get('/api/wo/board', () => ok(woBoard)),
+  // #54 FE-CONNECT-7: Production Plan — Work Orders Overview (map current_step → status ตาม contract)
+  http.get('/api/planning/wo-overview', () => {
+    const stMap: Record<string, string> = { CLOSED: 'DONE', RUNNING: 'IN_PROGRESS', WAIT_FAI_QA: 'IN_PROGRESS', OPEN: 'PENDING', DRAFT: 'PENDING', CANCELLED: 'CANCELLED' };
+    const work_orders = woBoard.map(w => {
+      const status = stMap[w.current_step] || 'PENDING';
+      const target = w.qty, good = w.qty_good;
+      return {
+        id: w.id, wo_number: w.wo_no, part_no: w.product_name, demand_plan_ref: '',
+        qty_target: target, qty_started: w.actual_qty ?? good, qty_good: good, status,
+        opened_at: w.created_at, closed_at: status === 'DONE' ? w.updated_at : null,
+        yield_pct: target > 0 ? Math.round((good / target) * 1000) / 10 : null,
+        created_at: w.created_at, updated_at: w.updated_at,
+      };
+    });
+    const m: Record<string, number> = {};
+    work_orders.forEach(w => { m[w.status] = (m[w.status] || 0) + 1; });
+    const summary_by_status = Object.entries(m).map(([status, count]) => ({ status, count }));
+    return HttpResponse.json({ status: 'success', work_orders, summary_by_status });
+  }),
   http.patch('/api/wo/board/:woId', async ({ params, request }) => {
     const body: any = await request.json();
     const wo = woBoard.find(w => w.wo_no === params.woId);
@@ -871,6 +892,40 @@ export const handlers = [
     qcRecords.push(r);
     return ok(r);
   }),
+  // #51 FE-CONNECT-4: QC history — snapshot สถานะล่าสุดต่อชิ้น (unit) · { status:'success', results:[...] }
+  http.get('/api/qc/history', ({ request }) => {
+    const url = new URL(request.url);
+    const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
+    // รวมทั้ง seed + ที่สแกนเพิ่ม → เอาสถานะล่าสุดต่อ sn (snapshot) แล้ว map เป็น shape ของ endpoint จริง
+    const latest = new Map<string, any>();
+    for (const r of qcRecords) latest.set(r.sn, r);   // qcRecords เรียงเก่า→ใหม่ ตัวหลังทับ = ล่าสุด
+    const STA: Record<string, string> = { A100: 'ICT', A300: 'QC', M450: 'Jig Test' };
+    const results = Array.from(latest.values()).map((r, i) => {
+      const grp = String(r.sn).split('-')[1] || '';
+      return {
+        sn: r.sn,
+        wo_id: 'WO-2026-001', wo_number: 'WO-2026-001',
+        part_no: grp ? `PCB-${grp}` : '—',
+        status: i === 1 ? 'REPAIRED' : (r.status === 'FAIL' ? 'NG' : r.status),   // โชว์ตัวอย่าง REPAIRED 1 แถว
+        current_station: STA[grp] || 'PACK',
+        updated_at: r.created_at,
+      };
+    }).slice(0, limit);
+    return HttpResponse.json({ status: 'success', results });
+  }),
+  // #52 FE-CONNECT-5: Station Status Live WIP — snapshot ต่อสถานี (เดโม)
+  http.get('/api/mes/stations/monitor', () => {
+    const mins = (m: number) => new Date(Date.now() - m * 60000).toISOString();
+    // ตัวเลข reconcile: units_in_station = pass + rework (นับต่อชิ้น สถานะล่าสุด)
+    const data = [
+      { route_code: 'WO-2026-001', station_name: 'SMT',      units_in_station: 10, units_ready_next: 9,  units_rework_required: 1, units_completed: 9,  scan_in_count: 10, scan_out_pass_count: 9,  scan_out_fail_count: 1, last_scan_at: mins(2) },
+      { route_code: 'WO-2026-001', station_name: 'AOI',      units_in_station: 9,  units_ready_next: 7,  units_rework_required: 2, units_completed: 7,  scan_in_count: 9,  scan_out_pass_count: 7,  scan_out_fail_count: 2, last_scan_at: mins(5) },
+      { route_code: 'WO-2026-001', station_name: 'ICT',      units_in_station: 5,  units_ready_next: 5,  units_rework_required: 0, units_completed: 5,  scan_in_count: 5,  scan_out_pass_count: 5,  scan_out_fail_count: 0, last_scan_at: mins(11) },
+      { route_code: 'WO-2026-002', station_name: 'Assembly', units_in_station: 15, units_ready_next: 12, units_rework_required: 3, units_completed: 12, scan_in_count: 15, scan_out_pass_count: 12, scan_out_fail_count: 3, last_scan_at: mins(1) },
+      { route_code: 'WO-2026-002', station_name: 'PACK',     units_in_station: 20, units_ready_next: 20, units_rework_required: 0, units_completed: 20, scan_in_count: 20, scan_out_pass_count: 20, scan_out_fail_count: 0, last_scan_at: mins(38) },
+    ];
+    return HttpResponse.json({ status: 'success', data });
+  }),
 
   // ── Routing History ───────────────────────────────────────────────────────
   http.get('/api/routing/list', () => ok(routingRecords)),
@@ -971,6 +1026,19 @@ export const handlers = [
     const t = TRACES[params.serial as string];
     if (!t) return HttpResponse.json({ status: 'error', message: `ไม่พบ serial: ${params.serial}` }, { status: 404 });
     return ok(t);
+  }),
+  // #50 FE-CONNECT-3: routing history จริง (mes_draft#5) — เดโมแปลง TRACES เดิม → event shape (SCAN_IN แล้ว SCAN_OUT ต่อ step)
+  http.get('/api/routing/history/:unitSn', ({ params }) => {
+    const t = TRACES[params.unitSn as string];
+    if (!t) return HttpResponse.json({ status: 'error', message: `ไม่พบ serial: ${params.unitSn}` }, { status: 404 });
+    let id = 0;
+    const events: any[] = [];
+    (t.steps || []).forEach((s: any, i: number) => {
+      const base = { wo_id: t.wo, route_id: 1, route_code: t.wo, station_name: s.station || s.step, scanned_by_username: s.operator, note: s.note || null };
+      events.push({ id: ++id, ...base, step_order: i + 1, action: 'SCAN_IN',  status: null,     result_state: 'IN_PROGRESS', scanned_at: s.at });
+      events.push({ id: ++id, ...base, step_order: i + 1, action: 'SCAN_OUT', status: s.status, result_state: s.status === 'PASS' ? 'DONE' : 'NG', scanned_at: s.at });
+    });
+    return ok({ unit_sn: t.serial, events });
   }),
   http.get('/api/jumbo/packing/boxes', () => ok(Object.values(BOXES).map(b => ({ box_id: b.box_id, product: b.product, wo: b.wo, packed_at: b.packed_at, serial_count: b.items.length })))),
   http.get('/api/jumbo/packing/boxes/:boxId', ({ params }) => {

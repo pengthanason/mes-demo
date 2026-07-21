@@ -124,7 +124,7 @@ async function migrate() {
       CREATE TABLE IF NOT EXISTS change_requests (
         id          SERIAL PRIMARY KEY,
         cr_no       VARCHAR(50)  NOT NULL UNIQUE,
-        m_type      VARCHAR(20)  NOT NULL CHECK (m_type IN ('Man','Machine','Material','Method')),
+        m_type      VARCHAR(20)  NOT NULL CHECK (m_type IN ('Man','Machine','Material','Method','Measurement','Environment')),
         wo_ref      VARCHAR(100) NOT NULL DEFAULT '',
         description TEXT         NOT NULL,
         impact      TEXT         NOT NULL DEFAULT '',
@@ -140,6 +140,10 @@ async function migrate() {
         updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
+    // 5M+1E: ขยาย m_type จาก 4M → 6 ค่า (idempotent · สำหรับ DB เดิมที่ constraint ยังเป็น 4M)
+    // ไม่ลบข้อมูล — แค่ผ่อนเงื่อนไข CHECK ให้รับ Measurement/Environment เพิ่ม
+    await client.query(`ALTER TABLE change_requests DROP CONSTRAINT IF EXISTS change_requests_m_type_check`);
+    await client.query(`ALTER TABLE change_requests ADD CONSTRAINT change_requests_m_type_check CHECK (m_type IN ('Man','Machine','Material','Method','Measurement','Environment'))`);
 
     // ── FE-11: Notifications ──
     await client.query(`
@@ -474,6 +478,30 @@ async function migrate() {
         note        TEXT,
         scanned_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
+    `);
+    // seed ตัวอย่าง (dev/เดโม) — ใส่เฉพาะตอนตารางว่าง เพื่อให้หน้า Traceability (#50) มี serial ให้ค้นหาทดสอบบน 5101
+    await client.query(`
+      INSERT INTO production_scans (wo_id, serial, station, result, operator, note, scanned_at)
+      SELECT * FROM (VALUES
+        ('WO-2026-001','SN-A100-0001','SMT','PASS','นิพนธ์',NULL,             TIMESTAMPTZ '2026-06-10 08:00:00+00'),
+        ('WO-2026-001','SN-A100-0001','AOI','PASS','สมศักดิ์',NULL,            TIMESTAMPTZ '2026-06-10 09:30:00+00'),
+        ('WO-2026-001','SN-A100-0001','ICT','PASS','วิชัย',NULL,              TIMESTAMPTZ '2026-06-10 11:00:00+00'),
+        ('WO-2026-001','SN-A100-0001','PACK','PASS','สุดา',NULL,             TIMESTAMPTZ '2026-06-11 08:00:00+00'),
+        ('WO-2026-001','SN-A100-0002','SMT','PASS','นิพนธ์',NULL,             TIMESTAMPTZ '2026-06-10 08:05:00+00'),
+        ('WO-2026-001','SN-A100-0002','AOI','FAIL','สมศักดิ์','solder bridge ที่ C12', TIMESTAMPTZ '2026-06-10 09:35:00+00'),
+        ('WO-2026-001','SN-A100-0002','Rework','PASS','ช่างแมน','ซ่อมเสร็จ',   TIMESTAMPTZ '2026-06-10 10:30:00+00'),
+        ('WO-2026-001','SN-A100-0002','ICT','PASS','วิชัย',NULL,              TIMESTAMPTZ '2026-06-10 11:30:00+00'),
+        ('WO-2026-001','SN-A100-0002','PACK','PASS','สุดา',NULL,             TIMESTAMPTZ '2026-06-11 08:10:00+00'),
+        ('WO-2026-002','SN-A300-0001','Assembly','PASS','สมหมาย',NULL,        TIMESTAMPTZ '2026-06-12 08:00:00+00'),
+        ('WO-2026-002','SN-A300-0001','QC','FAIL','วิชัย','ขันน็อตไม่ครบ',      TIMESTAMPTZ '2026-06-12 10:00:00+00'),
+        ('WO-2026-002','SN-A300-0001','Rework','PASS','ช่างแมน',NULL,         TIMESTAMPTZ '2026-06-12 11:00:00+00'),
+        ('WO-2026-002','SN-A300-0001','QC','PASS','วิชัย','retest ผ่าน',       TIMESTAMPTZ '2026-06-12 12:00:00+00'),
+        ('WO-2026-002','SN-A300-0001','PACK','PASS','สุดา',NULL,             TIMESTAMPTZ '2026-06-12 13:00:00+00'),
+        ('WO-2026-003','SN-M450-0001','Winding','PASS','สุรศักดิ์',NULL,        TIMESTAMPTZ '2026-06-13 08:00:00+00'),
+        ('WO-2026-003','SN-M450-0001','Jig Test','PASS','วิชัย',NULL,         TIMESTAMPTZ '2026-06-13 10:00:00+00'),
+        ('WO-2026-003','SN-M450-0001','PACK','PASS','สุดา',NULL,             TIMESTAMPTZ '2026-06-13 14:00:00+00')
+      ) AS v(wo_id, serial, station, result, operator, note, scanned_at)
+      WHERE NOT EXISTS (SELECT 1 FROM production_scans)
     `);
 
     // ── Production Plan (โมดูลใหม่ตาม Excel จริง — Add Project) ──

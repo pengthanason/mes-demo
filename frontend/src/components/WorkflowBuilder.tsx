@@ -1004,11 +1004,11 @@ function TimeCells({ step, isViewer, setStep }: CellProps) {
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); };
   return (
     <div style={{ display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'center' }} title="Hours : minutes : seconds — finish typing and the system will calculate/carry units for you">
-      <input type="number" min="0" placeholder="Hours" disabled={isViewer} value={h} onChange={e => setH(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
+      <input type="number" min="0" placeholder="hr" disabled={isViewer} value={h} onChange={e => setH(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
       <span style={{ color: '#94a3b8', fontWeight: 700 }}>:</span>
-      <input type="number" min="0" placeholder="Minutes" disabled={isViewer} value={m} onChange={e => setM(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
+      <input type="number" min="0" placeholder="min" disabled={isViewer} value={m} onChange={e => setM(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
       <span style={{ color: '#94a3b8', fontWeight: 700 }}>:</span>
-      <input type="number" min="0" placeholder="Seconds" disabled={isViewer} value={s} onChange={e => setS(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
+      <input type="number" min="0" placeholder="sec" disabled={isViewer} value={s} onChange={e => setS(e.target.value)} onBlur={commit} onKeyDown={onKey} style={TBOX} />
     </div>
   );
 }
@@ -1363,14 +1363,8 @@ export function WorkflowBuilder() {
   }
 
   return (
-    <div className="panel stack-lg">
-      <div className="mes-module-head">
-        <span className="mes-module-code">1.3</span>
-        <div>
-          <h2 className="panel__title">Manufacturing Sequence Builder</h2>
-          <p className="panel__subtitle">Production line structure: incoming → setup → SMT → packing → storage · every step can be selected/dragged/deleted · if you accidentally delete the head/tail steps you can add them back from the dropdown</p>
-        </div>
-      </div>
+    <div className="stack-lg">
+      <h2 className="panel__title">Manufacturing Sequence Builder</h2>
 
       {/* P/N + Customer + Model */}
       <div className="filters-grid" style={{ marginBottom: 15 }}>

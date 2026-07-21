@@ -49,6 +49,34 @@ router.get('/qc/list', async (req, res) => {
   }
 });
 
+// #51 FE-CONNECT-4: QC history — dev stub (endpoint จริงบน backbone mes_draft#5)
+// snapshot "สถานะล่าสุดต่อชิ้น" จาก qc_records (DISTINCT ON sn) map เป็น shape ของ contract
+//   GET /api/qc/history?wo_id=<optional>&limit=<default 100, max 500> → { status:'success', results:[...], request_id }
+router.get('/qc/history', async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    const { rows } = await db.query(
+      `SELECT sn, status, created_at FROM (
+         SELECT DISTINCT ON (sn) sn, status, created_at
+           FROM qc_records ORDER BY sn, created_at DESC
+       ) t ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    );
+    // qc_records ไม่มี wo/part/station → เติมเท่าที่ได้ · FAIL → 'NG' ให้ตรง contract (PASS/NG/REPAIRED)
+    const results = rows.map(r => ({
+      sn: r.sn,
+      wo_id: '', wo_number: '',
+      part_no: '',
+      status: r.status === 'FAIL' ? 'NG' : r.status,
+      current_station: '',
+      updated_at: r.created_at,
+    }));
+    res.json({ status: 'success', results, request_id: `dev-${Date.now()}` });
+  } catch (e) {
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+  }
+});
+
 router.post('/qc', async (req, res) => {
   const { sn, status, error } = req.body;
   if (!sn || !['PASS', 'FAIL'].includes(status)) {

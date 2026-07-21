@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api';
 
-export type MType   = 'Man' | 'Machine' | 'Material' | 'Method';
+// 5M+1E: 4M เดิม + Measurement (M ที่ 5) + Environment (E)
+export const M_TYPES = ['Man', 'Machine', 'Material', 'Method', 'Measurement', 'Environment'] as const;
+export type MType   = typeof M_TYPES[number];
 export type CrState = 'DRAFT' | 'G1_REVIEW' | 'G2_APPROVED' | 'ACTIVE';
 
 export interface ChangeRequest {
@@ -42,9 +44,10 @@ function mapRow(r: any): ChangeRequest {
 
 const CR_KEY = ['change-requests'];
 
-export function useCrList() {
+export function useCrList(opts?: { live?: boolean }) {
   return useQuery({
     queryKey: CR_KEY,
+    refetchInterval: opts?.live ? 15000 : false,   // widget dashboard: poll สดทุก 15 วิ
     queryFn: async (): Promise<ChangeRequest[]> => {
       const res = await api.get('/cr/list');
       return ((res.data as any)?.data ?? []).map(mapRow);

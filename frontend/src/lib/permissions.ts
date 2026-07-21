@@ -13,7 +13,7 @@ export const PERMISSIONS: { key: PermKey; label: string; route: string }[] = [
   { key: 'work_orders',     label: 'Work Orders',         route: '/work-orders' },
   { key: 'jig_test',        label: 'Jig Test',            route: '/jig-test' },
   { key: 'oba',             label: 'OBA',                 route: '/oba' },
-  { key: 'cr',              label: '4M Change',           route: '/4m-change' },
+  { key: 'cr',              label: '5M+1E Change',        route: '/4m-change' },
   { key: 'scm',             label: 'SCM Cases',           route: '/scm-cases' },
   { key: 'qc',              label: 'QC',                  route: '/qc-board' },
   { key: 'equipment',       label: 'Equipment Borrow',    route: '/equipment-borrow' },

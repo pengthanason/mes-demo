@@ -42,6 +42,8 @@ export default defineConfig({
       '/api/production':    { target: 'http://localhost:5099', changeOrigin: true },
       '/api/pp':            { target: 'http://localhost:5099', changeOrigin: true },
       '/api/workflow':      { target: 'http://localhost:5099', changeOrigin: true },
+      '/api/mes':           { target: 'http://localhost:5099', changeOrigin: true },   // #52 dev stub (backbone auth ใช้ my-api token ไม่ได้)
+      '/api/planning':      { target: 'http://localhost:5099', changeOrigin: true },   // #54 dev stub (endpoint จริงยังรอ merge)
       // Everything else → MES backbone (Docker)
       '/api': { target: 'http://localhost:5100', changeOrigin: true },
     },

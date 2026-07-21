@@ -1,14 +1,21 @@
 import { useState } from 'react';
 import { CheckCircle2, XCircle, Scan } from 'lucide-react';
-import { useQcRecords, useQcCreate } from '../../lib/recordsApi';
+import { useQcHistory, useQcCreate } from '../../lib/recordsApi';
 import { useIsViewer } from '../../lib/useMockStore';
 import { showToast } from '../../lib/toast';
+
+// สี badge ตามสถานะ (PASS=เขียว, REPAIRED=เหลืองอำพัน, NG/อื่นๆ=แดง) — #51 status = PASS/NG/REPAIRED
+function badgeStyle(st) {
+  if (st === 'PASS')     return { background: '#dcfce7', color: '#166534', border: '1px solid #16a34a' };
+  if (st === 'REPAIRED') return { background: '#fef3c7', color: '#92400e', border: '1px solid #d97706' };
+  return { background: '#fee2e2', color: '#991b1b', border: '1px solid #dc2626' };   // NG / FAIL
+}
 
 export default function QcBoard() {
   const isViewer = useIsViewer();
 
   const [unitSn, setUnitSn] = useState('');
-  const { data } = useQcRecords();
+  const { data } = useQcHistory();
   const createMut = useQcCreate();
   const history = data ?? [];
   const isLoading = createMut.isPending;
@@ -101,36 +108,41 @@ export default function QcBoard() {
       </div>
 
       <div style={{ marginTop: '3rem' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-muted)' }}>Recent Scans</h3>
+        {/* #51: snapshot สถานะล่าสุดต่อชิ้น (unit) ไม่ใช่ timeline ทุกครั้งที่สแกน */}
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-muted)' }}>Unit Status (latest)</h3>
         <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>Time</th>
+                <th>Updated</th>
                 <th>Unit SN</th>
-                <th>Result</th>
-                <th>Remarks</th>
+                <th>WO No.</th>
+                <th>Part No.</th>
+                <th>Station</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {history.map((h) => (
-                <tr key={h.id}>
-                  <td style={{ color: 'var(--text-muted)' }}>{h.time}</td>
-                  <td style={{ fontWeight: 500 }}>{h.sn}</td>
-                  <td>
-                    <span className={`badge ${h.status === 'PASS' ? 'badge-pass' : 'badge-ng'}`}>
-                      {h.status}
-                    </span>
-                  </td>
-                  <td style={{ color: h.error ? 'var(--danger)' : 'var(--text-muted)' }}>
-                    {h.error || 'Recorded successfully'}
-                  </td>
-                </tr>
-              ))}
+              {history.map((h) => {
+                const st = String(h.status || '').toUpperCase();
+                const when = h.updatedAt ? new Date(h.updatedAt).toLocaleString() : '—';
+                return (
+                  <tr key={h.sn}>
+                    <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{when}</td>
+                    <td style={{ fontWeight: 500 }}>{h.sn}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{h.woNumber || '—'}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{h.partNo || '—'}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{h.station || '—'}</td>
+                    <td>
+                      <span className="badge" style={badgeStyle(st)}>{h.status || '—'}</span>
+                    </td>
+                  </tr>
+                );
+              })}
               {history.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                    No recent scans.
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    No units yet.
                   </td>
                 </tr>
               )}

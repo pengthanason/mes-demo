@@ -14,6 +14,8 @@ import {
   STATUS_STYLE, StatusBadge, statusView, exportXlsx, exportGanttXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal, EditHistory,
   XLSX_COLUMNS, DASH_COLUMNS, PROCESS_STEPS, PROCESS_KEYS, PROC_STATUS, PROC_STATUS_LABEL, buildHeaderRows, todayLocal, type PpCol, type HeaderCell,
 } from '../components/ppParts';
+import { StationMonitorWidget } from '../components/StationMonitorWidget';
+import { WoOverviewWidget } from '../components/WoOverviewWidget';
 
 // หัวคอลัมน์: สีพิเศษ (Expected/Actual shipping/Owner) + จัดกึ่งกลาง · WO No. ไม่ให้ตกบรรทัด
 const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
@@ -401,37 +403,35 @@ function KpiCard({ icon, label, value, accent, onClick, active }: {
   );
 }
 
-// Total output รายงาน — ต่อ 1 แถว = 1 งาน: ชื่องานซ้าย + แท่งยาวตามยอดผลิตรวม (เขียว FG / แดง NG) + ตัวเลขขวา
+// Total output รายงาน — สไตล์แท่งเดียวกับ BarRow (Customer): track กลม สูง 18 · เขียว FG (#2e7d4f) / แดง NG · เลข FG/NG ท้ายแถว
 function FgNgByJob({ jobs }: { jobs: { name: string; fg: number; ng: number }[] }) {
   const max = Math.max(1, ...jobs.map(j => j.fg + j.ng));   // แท่งยาวสุด = งานที่ผลิตมากสุด
-  const seg: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden' };
   if (!jobs.length) return <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>No data</div>;
   return (
-    <div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        {jobs.map(j => {
-          const total = j.fg + j.ng;
-          const barPct = (total / max) * 100;
-          const fgPct = total > 0 ? (j.fg / total) * 100 : 0;
-          const ngPct = 100 - fgPct;
-          return (
-            <div key={j.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div title={j.name} style={{ width: 120, flexShrink: 0, fontSize: '0.76rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.name}</div>
-              <div style={{ flex: 1, display: 'flex', height: 20, borderRadius: 5, overflow: 'hidden', background: '#f1f5f9', border: '1px solid var(--border-color)' }}>
-                <div style={{ width: `${barPct}%`, display: 'flex', height: '100%' }}>
-                  {j.fg > 0 && <div title={`FG ${j.fg}`} style={{ ...seg, width: `${fgPct}%`, background: '#16a34a' }}>{fgPct >= 30 && barPct >= 22 ? j.fg.toLocaleString() : ''}</div>}
-                  {j.ng > 0 && <div title={`NG ${j.ng}`} style={{ ...seg, width: `${ngPct}%`, background: '#dc2626' }}>{ngPct >= 30 && barPct >= 22 ? j.ng.toLocaleString() : ''}</div>}
-                </div>
-              </div>
-              <div style={{ width: 74, flexShrink: 0, fontSize: '0.72rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                <span style={{ color: '#16a34a', fontWeight: 700 }}>{j.fg.toLocaleString()}</span>
-                <span style={{ color: 'var(--text-muted)' }}> / </span>
-                <span style={{ color: '#dc2626', fontWeight: 700 }}>{j.ng.toLocaleString()}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+      {jobs.map(j => {
+        const total = j.fg + j.ng;
+        const barPct = (total / max) * 100;
+        const fgPct = total > 0 ? (j.fg / total) * 100 : 0;
+        const ngPct = 100 - fgPct;
+        return (
+          <div key={j.name} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem' }}>
+            <div title={j.name} style={{ flex: '0 1 130px', minWidth: 64, textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.name}</div>
+            <div style={{ flex: 1, background: 'var(--border-color)', borderRadius: 99, height: 18, overflow: 'hidden' }}>
+              <div style={{ width: `${barPct}%`, height: '100%', display: 'flex', borderRadius: 99, overflow: 'hidden', minWidth: total > 0 ? 6 : 0 }}>
+                {j.fg > 0 && <div title={`FG ${j.fg}`} style={{ width: `${fgPct}%`, height: '100%', background: '#2e7d4f' }} />}
+                {j.ng > 0 && <div title={`NG ${j.ng}`} style={{ width: `${ngPct}%`, height: '100%', background: '#dc2626' }} />}
               </div>
             </div>
-          );
-        })}
-      </div>
+            {/* กล่องเลขกว้างพอให้มีระยะขอบขวาเท่า Customer (เลข FG/NG ยาวกว่าเลขเดี่ยว) */}
+            <div style={{ width: 82, flexShrink: 0, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              <span style={{ color: '#2e7d4f' }}>{j.fg.toLocaleString()}</span>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> / </span>
+              <span style={{ color: '#dc2626' }}>{j.ng.toLocaleString()}</span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -941,6 +941,12 @@ export function DashboardPage() {
 
       {/* สรุปข้ามโมดูล — ใต้ Production Plan */}
       <FactoryOverview />
+
+      {/* #54: Work Orders Overview — ความคืบหน้าใบสั่งผลิต (target/done/yield) จาก /api/planning/wo-overview */}
+      <WoOverviewWidget />
+
+      {/* #52: WIP รายสถานีแบบสด (poll 8 วิ) — ล่างสุดของหน้า */}
+      <StationMonitorWidget />
 
       {edit && <ProjectFormModal initial={edit} onClose={() => setEdit(null)} />}
       {adding && <ProjectFormModal initial={null} defaultType={ppTab} onClose={() => setAdding(false)} />}

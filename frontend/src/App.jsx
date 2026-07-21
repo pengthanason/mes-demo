@@ -52,7 +52,7 @@ const NAV_GROUPS = [
       { tab: 'rework', label: 'Rework' },
     ] },
     { to: '/oba',          label: 'OBA' },
-    { to: '/4m-change',    label: '4M Change' },
+    { to: '/4m-change',    label: '5M+1E Change' },
     { to: '/jig-test',     label: 'Jig Test' },
     { to: '/traceability', label: 'Traceability', perm: 'jig_test' },
   ] },
@@ -690,7 +690,7 @@ function ConfirmContainer() {
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard', '/work-orders': 'Work Orders', '/wo': 'Work Order',
   '/scm-cases': 'SCM Cases', '/jig-test': 'Jig Test', '/production-plan': 'Production Plan',
-  '/oba': 'OBA', '/incoming': 'Incoming & Kitting', '/4m-change': '4M Change',
+  '/oba': 'OBA', '/incoming': 'Incoming & Kitting', '/4m-change': '5M+1E Change',
   '/qc-board': 'QC', '/qc': 'QC Result', '/qa-verify': 'QA Verify', '/fai': 'FAI',
   '/notifications': 'Notifications', '/traceability': 'Traceability', '/drift': 'Drift Viewer',
   '/admin/panel': 'Admin', '/equipment-borrow': 'Equipment Borrow', '/mes-auth': 'Login',
