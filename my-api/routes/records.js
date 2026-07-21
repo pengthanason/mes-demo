@@ -11,7 +11,7 @@ router.get('/oba/list', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -32,7 +32,7 @@ router.post('/oba', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -45,7 +45,7 @@ router.get('/qc/list', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -69,7 +69,7 @@ router.post('/qc', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -90,7 +90,7 @@ router.get('/qc/results', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -111,7 +111,7 @@ router.post('/qc/result', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -130,7 +130,7 @@ router.get('/qc/transfer-verify/:qcResultId', async (req, res) => {
     if (!rows.length) return res.status(404).json({ status: 'error', message: 'ยังไม่มี transfer verify สำหรับ QC result นี้' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -152,7 +152,7 @@ router.post('/qc/transfer-verify', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -166,7 +166,7 @@ router.get('/routing/list', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -184,7 +184,7 @@ router.post('/routing', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -194,7 +194,7 @@ router.delete('/routing/:id', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'record not found' });
     res.json({ status: 'success' });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

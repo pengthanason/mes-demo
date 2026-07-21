@@ -11,7 +11,7 @@ router.get('/list', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -32,7 +32,7 @@ router.post('/repair', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -50,7 +50,7 @@ router.patch('/:id/status', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'ticket not found' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

@@ -9,7 +9,7 @@ router.get('/', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -36,7 +36,7 @@ router.delete('/:id', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
     res.json({ status: 'success' });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -48,7 +48,7 @@ router.get('/results', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -85,7 +85,7 @@ router.post('/results', async (req, res) => {
     }
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -95,7 +95,7 @@ router.delete('/results/:id', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
     res.json({ status: 'success' });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

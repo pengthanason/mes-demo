@@ -15,7 +15,7 @@ router.get('/list', async (req, res) => {
     const { rows } = await db.query(q, params);
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -43,7 +43,7 @@ router.get('/board', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -71,7 +71,7 @@ router.post('/board', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -102,7 +102,7 @@ router.patch('/board/:woNo', async (req, res) => {
     if (!rows.length) return res.status(404).json({ status: 'error', message: 'WO not found' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -119,7 +119,7 @@ router.get('/:woNo/lots', async (req, res) => {
     );
     res.json({ status: 'success', data: rows.map(r => r.lot_no) });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -134,7 +134,7 @@ router.get('/:woId', async (req, res) => {
     if (!rows.length) return res.status(404).json({ status: 'error', message: 'WO not found' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -152,7 +152,7 @@ router.get('/req/list', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -174,7 +174,7 @@ router.post('/req', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -190,7 +190,7 @@ router.patch('/req/:reqId/approve', async (req, res) => {
     if (!rows.length) return res.status(409).json({ status: 'error', message: 'ไม่พบ request หรือ status ไม่ใช่ PENDING' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -245,7 +245,7 @@ router.post('/convert', async (req, res) => {
     res.json({ status: 'success', data: newWo });
   } catch (e) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
     client.release();
   }

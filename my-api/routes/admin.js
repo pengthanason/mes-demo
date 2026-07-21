@@ -11,7 +11,7 @@ router.get('/users', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -39,7 +39,7 @@ router.post('/users', async (req, res) => {
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'username นี้มีอยู่แล้ว' });
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -66,7 +66,7 @@ router.put('/users/:id', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'user not found' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -82,7 +82,7 @@ router.delete('/users/:id', async (req, res) => {
     );
     res.json({ status: 'success' });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -104,7 +104,7 @@ router.get('/audit-log', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

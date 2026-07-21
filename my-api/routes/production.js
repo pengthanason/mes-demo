@@ -28,7 +28,7 @@ router.post('/scan', async (req, res) => {
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
     client.release();
   }
@@ -47,7 +47,7 @@ router.get('/units', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -69,7 +69,7 @@ router.get('/scans', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

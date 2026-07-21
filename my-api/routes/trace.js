@@ -11,7 +11,7 @@ router.get('/serials', async (req, res) => {
     );
     res.json({ status: 'success', data: rows.map(r => r.serial) });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -43,7 +43,7 @@ router.get('/trace/:serial', async (req, res) => {
       },
     });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -70,7 +70,7 @@ router.get('/report/daily', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

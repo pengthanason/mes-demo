@@ -24,7 +24,7 @@ router.get('/list', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -37,7 +37,7 @@ router.get('/:id', async (req, res) => {
     if (!rows.length) return res.status(404).json({ status: 'error', message: 'CR not found' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -52,19 +52,31 @@ router.post('/', async (req, res) => {
   }
   try {
     const yymm = new Date().toISOString().slice(0, 7).replace('-', '');
-    const { rows: seqRows } = await db.query(
-      `SELECT COUNT(*)+1 AS next FROM change_requests WHERE cr_no LIKE 'CR-' || $1 || '-%'`,
-      [yymm]
-    );
-    const crNo = `CR-${yymm}-${String(seqRows[0].next).padStart(3, '0')}`;
-    const { rows } = await db.query(
-      `INSERT INTO change_requests (cr_no, m_type, wo_ref, description, impact)
-       VALUES ($1,$2,$3,$4,$5) RETURNING ${FIELDS}`,
-      [crNo, m_type, wo_ref || '', description, impact || '']
-    );
-    res.status(201).json({ status: 'success', data: rows[0] });
+    // running number จาก MAX(suffix)+1 (ไม่ใช่ COUNT — กันเลขวนซ้ำหลังลบ) + retry เมื่อชน UNIQUE (กัน race เปิดพร้อมกัน)
+    let inserted = null;
+    for (let attempt = 0; attempt < 5 && !inserted; attempt++) {
+      const { rows: seqRows } = await db.query(
+        `SELECT COALESCE(MAX(CAST(split_part(cr_no,'-',3) AS INT)),0)+1 AS next
+           FROM change_requests WHERE cr_no LIKE 'CR-' || $1 || '-%'`,
+        [yymm]
+      );
+      const crNo = `CR-${yymm}-${String(seqRows[0].next).padStart(3, '0')}`;
+      try {
+        const { rows } = await db.query(
+          `INSERT INTO change_requests (cr_no, m_type, wo_ref, description, impact)
+           VALUES ($1,$2,$3,$4,$5) RETURNING ${FIELDS}`,
+          [crNo, m_type, wo_ref || '', description, impact || '']
+        );
+        inserted = rows[0];
+      } catch (err) {
+        if (err && err.code === '23505') continue;   // UNIQUE ชน (มีคนแทรกเลขเดียวกันก่อน) → คำนวณใหม่
+        throw err;
+      }
+    }
+    if (!inserted) return res.status(409).json({ status: 'error', message: 'Could not allocate CR number, please retry' });
+    res.status(201).json({ status: 'success', data: inserted });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -90,7 +102,7 @@ router.put('/:id/gate-:gate', async (req, res) => {
     }
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

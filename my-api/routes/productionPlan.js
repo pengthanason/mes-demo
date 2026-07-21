@@ -60,6 +60,29 @@ function clean(body) {
   return out;
 }
 
+// ตรวจความถูกต้องฝั่ง server (กันยิงตรง/inline ที่ข้าม validate() ฝั่ง frontend) — คืน error string ถ้าผิด, null ถ้าผ่าน
+const NUM_FIELDS = ['qty', 'produce', 'total_ng', 'total_ok', 'team_member', 'target_per_day'];
+const INT4_MAX = 2147483647;   // กันค่าเกิน int4 → 500 overflow
+function validateData(data) {
+  for (const k of NUM_FIELDS) {
+    if (data[k] == null || data[k] === '') continue;
+    const n = Number(data[k]);
+    if (!Number.isFinite(n)) return `${k} must be a number`;
+    if (n < 0) return `${k} cannot be negative`;
+    if (n > INT4_MAX) return `${k} is too large`;
+  }
+  if (data.produce != null && data.qty != null && data.produce !== '' && data.qty !== '' && Number(data.produce) > Number(data.qty)) {
+    return 'produce cannot exceed qty';
+  }
+  // ลำดับวันที่: start ≤ finish/expected, finish ≤ expected (เช็กเมื่อมีค่าครบคู่)
+  const d = (k) => (data[k] ? new Date(data[k]) : null);
+  const [s, f, e] = [d('pd_start_date'), d('pd_finish_date'), d('expected_date')];
+  if (s && f && f < s) return 'PD Done cannot be before PD Start';
+  if (s && e && e < s) return 'Expected date cannot be before PD Start';
+  if (f && e && e < f) return 'Expected date cannot be before PD Done';
+  return null;
+}
+
 // GET /api/pp/projects?status=&customer=&product_pn=&model=&date_from=&date_to=
 router.get('/projects', async (req, res) => {
   try {
@@ -77,7 +100,7 @@ router.get('/projects', async (req, res) => {
     const { rows } = await db.query(`SELECT ${COLS} FROM pp_projects ${where} ORDER BY date_record DESC NULLS LAST, id DESC`, vals);
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -86,6 +109,8 @@ router.post('/projects', async (req, res) => {
   if (!data.product_pn && !data.model) {
     return res.status(400).json({ status: 'error', message: 'ต้องมี Product P/N หรือ Model อย่างน้อย 1' });
   }
+  const verr = validateData(data);
+  if (verr) return res.status(400).json({ status: 'error', message: verr });
   const keys = Object.keys(data);
   if (!keys.length) return res.status(400).json({ status: 'error', message: 'no data' });
   const cols = keys.join(', ');
@@ -97,7 +122,7 @@ router.post('/projects', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -118,6 +143,9 @@ router.put('/projects/:id', async (req, res) => {
         return res.status(409).json({ status: 'error', message: 'This record was changed by someone else — please reload and try again' });
       }
     }
+    // ตรวจความถูกต้องกับค่าที่รวมแล้ว (before + data) เผื่อ update บางส่วน จะได้เช็ก cross-field ครบ
+    const verr = validateData({ ...before, ...data });
+    if (verr) return res.status(400).json({ status: 'error', message: verr });
     const { rows, rowCount } = await db.query(
       `UPDATE pp_projects SET ${sets}, updated_at = NOW() WHERE id = $${vals.length} RETURNING ${COLS}`,
       vals
@@ -145,7 +173,7 @@ router.put('/projects/:id', async (req, res) => {
     }
     res.json({ status: 'success', data: after });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -164,7 +192,7 @@ router.get('/projects/:id/history', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -174,7 +202,7 @@ router.delete('/projects/:id', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
     res.json({ status: 'success' });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

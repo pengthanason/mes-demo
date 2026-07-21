@@ -15,7 +15,7 @@ router.get('/lots', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -33,7 +33,7 @@ router.post('/receive', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -58,7 +58,7 @@ router.post('/lots/:id/review', async (req, res) => {
     if (!rows.length) return res.status(404).json({ status: 'error', message: 'ไม่พบล็อต PENDING นี้ (อาจถูกตรวจไปแล้ว)' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -68,7 +68,7 @@ router.delete('/lots/:id', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'ไม่พบล็อตนี้' });
     res.json({ status: 'success' });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -86,7 +86,7 @@ router.get('/issues', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -103,7 +103,7 @@ router.get('/stock', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -148,7 +148,7 @@ router.post('/issue', async (req, res) => {
     res.status(201).json({ status: 'success', data: issued });
   } catch (e) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
     client.release();
   }

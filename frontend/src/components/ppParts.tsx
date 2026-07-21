@@ -732,7 +732,7 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
             {/* เส้นวันนี้ */}
             {todayOff >= 0 && todayOff < totalDays && (
               <div style={{ position: 'absolute', top: HEAD_H * 2, bottom: 0, left: todayOff * DAY_W + DAY_W / 2, width: 2, background: '#ef4444', zIndex: 2, pointerEvents: 'none' }}>
-                <span style={{ position: 'absolute', top: -1, left: -15, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>Today</span>
+                <span style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', background: '#ef4444', color: '#fff', fontSize: '0.78rem', fontWeight: 700, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>Today</span>
               </div>
             )}
           </div>
@@ -757,8 +757,14 @@ const EMPTY: Partial<PpProject> = {
   special_request: '', remark: '',
 };
 
+// วันที่ "วันนี้" ตามเวลาท้องถิ่น (YYYY-MM-DD) — เลี่ยง toISOString() ที่เป็น UTC ทำให้คนไทย (UTC+7) กรอกตอนดึกได้วันผิด
+export const todayLocal = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // ฟอร์มเปล่าสำหรับสร้างใหม่ — เติม Date record = วันนี้ + คำนวณ WW ให้อัตโนมัติ
-const blankForm = (): Partial<PpProject> => { const today = new Date().toISOString().slice(0, 10); return { ...EMPTY, date_record: today, wk: isoWeek(today) }; };
+const blankForm = (): Partial<PpProject> => { const today = todayLocal(); return { ...EMPTY, date_record: today, wk: isoWeek(today) }; };
 
 // ประวัติการแก้ไขของ record นี้ (ตาราง) — วันเวลา · ใคร · ตำแหน่ง · แก้อะไร (field diff) · หมายเหตุ
 export function EditHistory({ id }: { id: number }) {
@@ -820,7 +826,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
   // ยิงบันทึกจริง — editNote = หมายเหตุการแก้ไข (เฉพาะตอนแก้ไข ส่งไปเก็บใน history)
   function doSave(editNote?: string) {
     const mut = editing ? update : create;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocal();
     const status = f.status || 'ON_PROCESS';
     const status_color = f.status_color || ((PP_STATUS as readonly string[]).includes(status) ? status : '');
     const payload: any = editing
@@ -844,6 +850,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
     const ds = f.pd_start_date || '', df = f.pd_finish_date || '', ex = f.expected_date || '';   // 'YYYY-MM-DD' เทียบ string ได้
     if (ds && df && df < ds) { errs.push('PD Done must be on/after PD Start'); bad.pd_finish_date = true; }
     if (ds && ex && ex < ds) { errs.push('Expected date must be on/after PD Start'); bad.expected_date = true; }
+    if (df && ex && ex < df) { errs.push('Expected date must be on/after PD Done'); bad.expected_date = true; }
     const qty = Number(f.qty) || 0, prod = Number(f.produce) || 0;
     if (qty < 0) { errs.push('Quantity cannot be negative'); bad.qty = true; }
     if (prod < 0) { errs.push('Produced cannot be negative'); bad.produce = true; }
@@ -993,7 +1000,7 @@ function SaveRemarkPopup({ saving, onCancel, onConfirm }: { saving: boolean; onC
   const [note, setNote] = useState('');
   return (
     <div className="modal-overlay" style={{ zIndex: 1200 }} onClick={onCancel}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
+      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>Save — add a remark</h2>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Note what/why you changed (kept in this item's edit history). You can leave it blank.</p>
         <label className="field"><span>Remark (this edit)</span>
@@ -1017,7 +1024,7 @@ export function ProjectFormModal({ initial, onClose, defaultType }: { initial: P
   };
   return (
     <div className="modal-overlay" onClick={guardedClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 860px)', maxHeight: '94vh', overflowY: 'auto' }}>
+      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 860px)', maxHeight: '94vh', overflowY: 'auto' }}>
         <h2 className="panel__title" style={{ marginBottom: '1rem' }}>{initial ? 'Edit Project' : `Add Project${defaultType === 'external' ? ' — External' : ''}`}</h2>
         <ProjectForm initial={initial} defaultType={defaultType} onSaved={onClose} onCancel={guardedClose} onDirtyChange={d => { dirtyRef.current = d; }} />
       </div>

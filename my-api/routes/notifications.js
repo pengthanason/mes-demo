@@ -6,7 +6,7 @@ router.get('/unread-count', async (req, res) => {
     const { rows } = await db.query('SELECT COUNT(*) FROM notifications WHERE is_read=false');
     res.json({ status: 'success', count: Number(rows[0].count) });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -36,7 +36,7 @@ router.post('/:id/read', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'notification not found' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -45,7 +45,7 @@ router.post('/read-all', async (req, res) => {
     await db.query('UPDATE notifications SET is_read=true WHERE is_read=false');
     res.json({ status: 'success' });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

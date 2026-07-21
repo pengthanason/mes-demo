@@ -127,7 +127,9 @@ async function request<T>(
     if (method === 'GET' && res.status >= 500) {
       throw new Error(apiErrorMessage(res.status, data));   // แปลงเป็นข้อความเป็นมิตร กัน raw pg error รั่ว
     }
-    return { data: null as T, status: res.status, headers: res.headers };
+    // คง body ที่ parse แล้วไว้ (เดิมทิ้งเป็น null) → hook อ่าน res.data.message โชว์ข้อความจริงจาก backend ได้
+    // (400/409 เช่น optimistic-lock, validation) แทนที่จะเป็น fallback generic เสมอ · caller ทุกที่เช็ก status ก่อนอยู่แล้ว
+    return { data: data as T, status: res.status, headers: res.headers };
   }
   // แจ้ง mutation ที่สำเร็จ (POST/PUT/PATCH/DELETE) → โหมดเดโมเก็บเป็น Activity (ดักที่ browser.ts)
   try {

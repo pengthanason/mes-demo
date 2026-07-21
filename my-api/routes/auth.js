@@ -30,7 +30,7 @@ router.post('/login', async (req, res) => {
     const permissions = Array.isArray(u.permissions) ? u.permissions : [];
     res.json({ status: 'success', data: { id: u.id, username: u.username, fullName: u.full_name, role: u.role, permissions, token } });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

@@ -16,7 +16,7 @@ router.get('/cases', async (req, res) => {
     );
     res.json({ success: true, cases: rows });
   } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
+    console.error(e); res.status(500).json({ success: false, message: 'Server error, please try again' });
   }
 });
 
@@ -34,7 +34,7 @@ router.post('/cases', async (req, res) => {
     );
     res.status(201).json({ success: true, case: rows[0] });
   } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
+    console.error(e); res.status(500).json({ success: false, message: 'Server error, please try again' });
   }
 });
 
@@ -50,7 +50,7 @@ router.put('/cases/:caseId/resolve', async (req, res) => {
     if (!rowCount) return res.status(404).json({ success: false, message: 'case not found or already closed' });
     res.json({ success: true, case: rows[0] });
   } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
+    console.error(e); res.status(500).json({ success: false, message: 'Server error, please try again' });
   }
 });
 
@@ -67,7 +67,7 @@ router.post('/dispositions', async (req, res) => {
     );
     res.status(201).json({ success: true, disposition: rows[0] });
   } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
+    console.error(e); res.status(500).json({ success: false, message: 'Server error, please try again' });
   }
 });
 
@@ -90,7 +90,7 @@ router.post('/lots/split', async (req, res) => {
     );
     res.status(201).json({ success: true, split: rows[0] });
   } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
+    console.error(e); res.status(500).json({ success: false, message: 'Server error, please try again' });
   }
 });
 

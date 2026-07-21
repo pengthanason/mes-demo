@@ -12,7 +12,7 @@ import { TableState } from '../components/DataStates';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
   STATUS_STYLE, StatusBadge, statusView, exportXlsx, exportGanttXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal, EditHistory,
-  XLSX_COLUMNS, DASH_COLUMNS, PROCESS_STEPS, PROCESS_KEYS, PROC_STATUS, PROC_STATUS_LABEL, buildHeaderRows, type PpCol, type HeaderCell,
+  XLSX_COLUMNS, DASH_COLUMNS, PROCESS_STEPS, PROCESS_KEYS, PROC_STATUS, PROC_STATUS_LABEL, buildHeaderRows, todayLocal, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 
 // หัวคอลัมน์: สีพิเศษ (Expected/Actual shipping/Owner) + จัดกึ่งกลาง · WO No. ไม่ให้ตกบรรทัด
@@ -231,7 +231,7 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
         style={{ padding: 0, minWidth: 44, borderLeft: 'none', borderRight: 'none', cursor: onToggle ? 'pointer' : undefined, userSelect: 'none' }}>
         <div style={{ position: 'relative', height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {showLine && <div style={{ position: 'absolute', left: idx === firstIdx ? '50%' : 0, right: idx === lastIdx ? '50%' : 0, top: '50%', height: 3, background: '#cbd5e1', transform: 'translateY(-50%)' }} />}
-          {stl && <div style={{ position: 'relative', width: 17, height: 17, borderRadius: '50%', background: stl.bg, border: `2px solid ${stl.border}`, zIndex: 1, boxShadow: '0 0 0 2px #fff' }} />}
+          {stl && <div role="img" aria-label={`${c.header}: ${PROC_STATUS_LABEL[v] ?? v}`} style={{ position: 'relative', width: 17, height: 17, borderRadius: '50%', background: stl.bg, border: `2px solid ${stl.border}`, zIndex: 1, boxShadow: '0 0 0 2px #fff' }} />}
           {lastNote && <span title={lastNote} style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', color: '#dc2626', fontWeight: 900, fontSize: '0.95rem', lineHeight: 1, zIndex: 2, pointerEvents: 'none' }}>*</span>}
         </div>
       </td>
@@ -286,7 +286,7 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
   const sectionTitle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 700, color: '#475569', margin: '16px 0 8px' };
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 680px)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 680px)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', wordBreak: 'break-word' }}>{p.product_pn || '—'}</div>
@@ -389,7 +389,10 @@ function KpiCard({ icon, label, value, accent, onClick, active }: {
   icon: string; label: string; value: number | string; accent: string; onClick: () => void; active: boolean;
 }) {
   return (
-    <div onClick={onClick} title="Click to filter the table by this status"
+    <div role="button" tabIndex={0} aria-pressed={active}
+      onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      title="Click to filter the table by this status" aria-label={`Filter by ${label}: ${value}`}
       style={{ cursor: 'pointer', borderRadius: 12, outline: active ? `2px solid ${accent}` : '2px solid transparent', transition: 'transform 0.12s, box-shadow 0.12s' }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.10)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
@@ -470,7 +473,7 @@ function FileNamePromptModal({ title, defaultBase, ext, onConfirm, onCancel }: {
   };
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
+      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>{title}</h2>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Name the file, then click “OK” to download</p>
         <label className="field"><span>File name</span>
@@ -492,13 +495,13 @@ function ProcessEventPopup({ p, stepKey, onClose, onSave }: { p: PpProject; step
   const [status, setStatus] = useState<string>((p as any)[stepKey] || '');
   // วันที่ default = ต่อจาก event ล่าสุดใน log → ถ้าไม่มีใช้ PD Start → ถ้าไม่มีใช้วันนี้ (จะได้ไม่กองที่วันนี้หมด)
   const lastDate = Array.isArray(p.process_log) && p.process_log.length ? p.process_log[p.process_log.length - 1].date : '';
-  const [date, setDate] = useState(lastDate || (p.pd_start_date ? String(p.pd_start_date).slice(0, 10) : '') || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(lastDate || (p.pd_start_date ? String(p.pd_start_date).slice(0, 10) : '') || todayLocal());
   // remark เริ่มต้น = remark ล่าสุดของ step นี้ (จะได้เห็น/แก้ค่าปัจจุบันได้)
   const lastEv = (Array.isArray(p.process_log) ? p.process_log : []).filter(e => e.step === stepKey).slice(-1)[0];
   const [note, setNote] = useState(lastEv?.note || '');
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 380px)' }}>
+      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 380px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>Process: {step?.label ?? stepKey}</h2>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Select a status + the date it happened (saved to history for the Gantt)</p>
         <label className="field"><span>Status</span>
@@ -603,13 +606,14 @@ export function DashboardPage() {
     const change: any = { [key]: !(p as any)[key] };
     const merged = { ...p, ...change };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate({ ...merged, updated_at: undefined }, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    // ส่งเฉพาะ field ที่เปลี่ยน (ไม่ส่งทั้งแถว) → คนละคนแก้คนละช่องบนแถวเดียวกันไม่ทับกัน (กัน lost-update)
+    ppUpdate.mutate({ id: p.id, ...change }, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
   };
   // บันทึกสี Status ที่เลือกจาก palette (ทับ status_color เท่านั้น ชื่อสถานะเดิมไม่เปลี่ยน)
   const pickStatusColor = (p: PpProject, color: string) => {
     const merged = { ...p, status_color: color };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate({ ...merged, updated_at: undefined }, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    ppUpdate.mutate({ id: p.id, status_color: color }, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
     setColorPick(null);
   };
   // คลิกช่อง Process → เปิด popup เลือกสถานะ+วันที่ · คลิกช่อง Status → เปิด palette สีลอยตรงจุดที่คลิก
@@ -627,14 +631,14 @@ export function DashboardPage() {
     log.push({ date, step: key, status, ...(note.trim() ? { note: note.trim() } : {}) });
     const merged = { ...p, [key]: status, process_log: log };
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
-    ppUpdate.mutate({ ...merged, updated_at: undefined }, { onError: (e: any) => { showToast(e?.message || 'Save failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+    ppUpdate.mutate({ id: p.id, [key]: status, process_log: log }, { onError: (e: any) => { showToast(e?.message || 'Save failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
     setProcEdit(null);
   };
   const queryClient = useQueryClient();
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   // รีเฟรชข้อมูลทั้ง dashboard ทุก 10 วินาที + อัปเดตเวลา
   useEffect(() => {
-    const t = setInterval(() => { void queryClient.invalidateQueries(); setUpdatedAt(new Date()); }, 10000);
+    const t = setInterval(() => { void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); setUpdatedAt(new Date()); }, 10000);
     return () => clearInterval(t);
   }, [queryClient]);
   const [edit, setEdit] = useState<PpProject | null>(null);
@@ -692,6 +696,8 @@ export function DashboardPage() {
   // เรียงตามวันที่สร้าง (created_at) — ใหม่สุดขึ้นก่อน
   const sortedRows = useMemo(() => [...rows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))), [rows]);
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE));
+  // กันค้างหน้าเปล่า: ถ้า list หด (auto-refresh/ลบ/กรอง) จนหน้าเกิน ให้ดึงกลับหน้าสุดท้ายอัตโนมัติ
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   const paged = sortedRows.slice((page - 1) * PAGE, page * PAGE);
   const hasFilter = Object.values(colFilters).some(s => s && s.size > 0) || procStepFilter.size > 0 || !!dateFrom || !!dateTo;
   const clearAllFilters = () => { setColFilters({}); setProcStepFilter(new Set()); setDateFrom(''); setDateTo(''); setPage(1); };

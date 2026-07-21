@@ -10,7 +10,7 @@ router.get('/headers', async (req, res) => {
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -31,7 +31,7 @@ router.get('/:bomId/review', async (req, res) => {
     );
     res.json({ status: 'success', data: { ...bom.rows[0], lines: lines.rows } });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -47,7 +47,7 @@ router.put('/:bomId/approve', async (req, res) => {
     if (!rows.length) return res.status(404).json({ status: 'error', message: 'BOM not found' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 
@@ -77,7 +77,7 @@ router.post('/', async (req, res) => {
   } catch (e) {
     await client.query('ROLLBACK');
     if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'BOM ชื่อ+version นี้มีอยู่แล้ว' });
-    res.status(500).json({ status: 'error', message: e.message });
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
     client.release();
   }
