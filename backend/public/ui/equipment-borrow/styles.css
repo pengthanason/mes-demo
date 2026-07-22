@@ -368,7 +368,7 @@ body {
 .dashboard-content {
   flex: 1;
   padding: 32px;
-  max-width: 1440px;
+  max-width: none;   /* เต็มความกว้าง (เดิม 1440px ทำให้มีขอบขาวซ้าย-ขวาบนจอกว้าง) */
   width: 100%;
   margin: 0 auto;
   display: flex;

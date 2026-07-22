@@ -4,7 +4,7 @@ import { useWoOverview } from '../lib/planningApi';
 // #54: Work Orders Overview บน Dashboard — ความคืบหน้าใบสั่งผลิต (target/done/yield/status) จาก /api/planning/wo-overview
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 // หัวข้อ + ช่องค้นหา ให้เป็นชุดเดียวกันทั้ง 2 widget
-const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' };
+const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', userSelect: 'none', cursor: 'default' };
 const SEARCH: React.CSSProperties = { fontSize: '0.85rem', padding: '7px 12px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 200, maxWidth: '45%' };
 const TH: React.CSSProperties = { textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 8px 8px', position: 'sticky', top: 0, background: '#fff' };
 const TD: React.CSSProperties = { textAlign: 'center', fontSize: '0.85rem', padding: '8px', borderTop: '1px solid var(--border-color)', whiteSpace: 'nowrap' };
@@ -85,7 +85,8 @@ export function WoOverviewWidget() {
                   <th style={TH}>Target</th>
                   <th style={TH}>Good</th>
                   <th style={TH}>Yield</th>
-                  <th style={{ ...TH, textAlign: 'left' }}>Status</th>
+                  {/* +10px = padding ซ้ายของ pill → หัว "Status" ตรงกับตัวอักษรใน badge พอดี */}
+                  <th style={{ ...TH, textAlign: 'left', padding: '0 8px 8px 18px' }}>Status</th>
                 </tr>
               </thead>
               <tbody>

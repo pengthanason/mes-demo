@@ -174,7 +174,6 @@ export function DriftViewerPage() {
     <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">Stock Drift — Our Stock vs Odoo</h1>
-        <p className="panel__subtitle">See which items don't match Odoo today — by %: diff ≥10% = red, &lt;10% = yellow</p>
 
         {/* แถบสรุป */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: '1.1rem' }}>

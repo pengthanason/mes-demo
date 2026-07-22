@@ -155,9 +155,9 @@ export function FaiPage() {
           </div>
         </div>
 
-        <button className="btn" type="submit" disabled={!isChecklistComplete || !isDualKeyValid}
+        <button className="btn" type="submit" disabled={!isChecklistComplete || !isDualKeyValid || patchMut.isPending}
           style={{ marginTop: '0.5rem', padding: '1rem', fontSize: '1rem' }}>
-          {isQaStep ? 'Send FAI result to manager' : 'Manager approve FAI'}
+          {patchMut.isPending ? 'Saving…' : isQaStep ? 'Send FAI result to manager' : 'Manager approve FAI'}
         </button>
       </form>
     </div>

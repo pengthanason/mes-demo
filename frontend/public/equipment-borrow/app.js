@@ -136,7 +136,7 @@ function initAuth() {
 
     if (userVal === ADMIN_USERNAME && passVal === ADMIN_PASSWORD) {
       sessionStorage.setItem('admin_logged_in', 'true');
-      showToast('เข้าสู่ระบบสำเร็จ ยินดีต้อนรับครับ!', 'success');
+      showToast('Signed in successfully. Welcome!', 'success');
       
       // Clear inputs
       document.getElementById('username').value = '';
@@ -147,14 +147,14 @@ function initAuth() {
       dashboardScreen.style.display = 'flex';
       renderDashboardData();
     } else {
-      showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง กรุณาลองอีกครั้ง', 'danger');
+      showToast('Incorrect username or password. Please try again.', 'danger');
     }
   });
 
   // Handle Logout
   btnLogout.addEventListener('click', () => {
     sessionStorage.removeItem('admin_logged_in');
-    showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
+    showToast('Logged out successfully', 'info');
     
     dashboardScreen.style.display = 'none';
     loginScreen.style.display = 'flex';
@@ -303,7 +303,7 @@ function renderDashboardData() {
     paginationWrapper.style.display = 'none';
   } else {
     paginationWrapper.style.display = 'flex';
-    pageInfo.textContent = `หน้า ${currentPage} / ${totalPages}`;
+    pageInfo.textContent = `Page ${currentPage} / ${totalPages}`;
     btnPrev.disabled = currentPage <= 1;
     btnNext.disabled = currentPage >= totalPages;
   }
@@ -311,7 +311,7 @@ function renderDashboardData() {
   // Render rows
   if (pageRecords.length === 0) {
     emptyState.style.display = 'flex';
-    recordsCount.textContent = 'แสดงทั้งหมด 0 รายการ';
+    recordsCount.textContent = 'Showing 0 records';
   } else {
     emptyState.style.display = 'none';
 
@@ -321,11 +321,11 @@ function renderDashboardData() {
 
       let badgeHtml = '';
       if (rec.status === 'คืนแล้ว') {
-        badgeHtml = `<span class="badge badge-success"><i class="fa-solid fa-check"></i> คืนแล้ว</span>`;
+        badgeHtml = `<span class="badge badge-success"><i class="fa-solid fa-check"></i> Returned</span>`;
       } else if (isOverdue) {
-        badgeHtml = `<span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation"></i> เกินกำหนด</span>`;
+        badgeHtml = `<span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation"></i> Overdue</span>`;
       } else {
-        badgeHtml = `<span class="badge badge-warning"><i class="fa-solid fa-hourglass-half"></i> กำลังยืม</span>`;
+        badgeHtml = `<span class="badge badge-warning"><i class="fa-solid fa-hourglass-half"></i> Borrowing</span>`;
       }
 
       // Register photos in photoStore
@@ -343,7 +343,7 @@ function renderDashboardData() {
 
       // Name cell — clickable if has selfie
       const nameHtml = rec.selfiePhoto
-        ? `<span class="photo-link" data-photo-key="${rec.id}_selfie" title="กดดูรูปถ่าย"><i class="fa-solid fa-camera" style="font-size:0.7rem;margin-right:3px;opacity:0.7"></i>${rec.name}</span>`
+        ? `<span class="photo-link" data-photo-key="${rec.id}_selfie" title="Click to view photo"><i class="fa-solid fa-camera" style="font-size:0.7rem;margin-right:3px;opacity:0.7"></i>${rec.name}</span>`
         : `<span style="font-weight:500">${rec.name}</span>`;
 
       // Equipment cell — make items clickable if has photo
@@ -353,7 +353,7 @@ function renderDashboardData() {
           const photos = JSON.parse(rec.equipmentPhotos);
           const parts = rec.equipment.split(', ');
           equipHtml = parts.map((part, i) => photos[i]
-            ? `<span class="photo-link" data-photo-key="${rec.id}_eq_${i}" title="กดดูรูปอุปกรณ์">${part}</span>`
+            ? `<span class="photo-link" data-photo-key="${rec.id}_eq_${i}" title="Click to view equipment photo">${part}</span>`
             : part
           ).join(', ');
         } catch(e) {}
@@ -385,11 +385,11 @@ function renderDashboardData() {
         </td>
         <td style="text-align: center;">
           <div class="table-actions">
-            <button class="btn-action-edit" data-id="${rec.id}" title="แก้ไข">
-              <i class="fa-solid fa-pen"></i> แก้ไข
+            <button class="btn-action-edit" data-id="${rec.id}" title="Edit">
+              <i class="fa-solid fa-pen"></i> Edit
             </button>
-            <button class="btn-action-delete" data-id="${rec.id}" title="ลบ">
-              <i class="fa-solid fa-trash-can"></i> ลบ
+            <button class="btn-action-delete" data-id="${rec.id}" title="Delete">
+              <i class="fa-solid fa-trash-can"></i> Delete
             </button>
           </div>
         </td>
@@ -397,7 +397,7 @@ function renderDashboardData() {
       tbody.appendChild(tr);
     });
 
-    recordsCount.textContent = `แสดงทั้งหมด ${totalRecords} รายการ`;
+    recordsCount.textContent = `Showing ${totalRecords} records`;
   }
 
   calculateDailyStats();
@@ -413,7 +413,7 @@ function calculateDailyStats() {
   let overdue = 0;
 
   const isToday = filterDateFrom === filterDateTo && filterDateFrom === currentTodayStr;
-  const periodLabel = isToday ? 'วันนี้' : 'ในช่วงนี้';
+  const periodLabel = isToday ? 'today' : 'this period';
 
   records.forEach(rec => {
     const borrowDateNorm = normalizeDate(rec.borrowDate);
@@ -439,10 +439,10 @@ function calculateDailyStats() {
     }
   });
 
-  document.getElementById('stat-label-borrows').textContent = `รายการยืม${periodLabel}`;
-  document.getElementById('stat-sub-borrows').textContent = `อัปเดต${periodLabel}`;
-  document.getElementById('stat-label-returns').textContent = `ส่งคืนสำเร็จ${periodLabel}`;
-  document.getElementById('stat-sub-returns').textContent = `เช็คอิน${periodLabel}`;
+  document.getElementById('stat-label-borrows').textContent = `Borrowed ${periodLabel}`;
+  document.getElementById('stat-sub-borrows').textContent = `Updated ${periodLabel}`;
+  document.getElementById('stat-label-returns').textContent = `Returned ${periodLabel}`;
+  document.getElementById('stat-sub-returns').textContent = `Checked in ${periodLabel}`;
 
   document.getElementById('stat-borrows-today').textContent = borrowsInPeriod;
   document.getElementById('stat-returns-today').textContent = returnsInPeriod;
@@ -453,7 +453,7 @@ function calculateDailyStats() {
 // Export filtered records to CSV (UTF-8 BOM for Excel)
 function exportToCSV() {
   const rows = lastFilteredRecords.length > 0 ? lastFilteredRecords : records;
-  const headers = ['ลำดับ', 'วันเวลาที่ทำรายการ', 'ชื่อ', 'แผนก', 'อีเมล', 'อุปกรณ์ที่ยืม', 'วันยืม', 'วันคืน', 'สถานะ', 'หมายเหตุ'];
+  const headers = ['No.', 'Timestamp', 'Name', 'Dept', 'Email', 'Equipment', 'Borrow date', 'Return date', 'Status', 'Notes'];
 
   const esc = val => {
     const s = String(val === null || val === undefined ? '' : val);
@@ -492,23 +492,23 @@ async function handleDeleteRecord(id) {
   if (recordIndex === -1) return;
 
   const target = records[recordIndex];
-  const confirmMsg = `คุณต้องการลบบันทึกการยืมของ "${target.name} ${target.surname}" ที่ยืม "${target.equipment}" ใช่หรือไม่?`;
+  const confirmMsg = `Delete the borrow record of "${target.name} ${target.surname}" who borrowed "${target.equipment}"?`;
 
   if (confirm(confirmMsg)) {
     isSaving = true;
     records.splice(recordIndex, 1);
     localStorage.setItem('borrow_records', JSON.stringify(records));
     renderDashboardData();
-    showToast('กำลังลบ...', 'info');
+    showToast('Deleting...', 'info');
     try {
       await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         redirect: 'follow',
         body: JSON.stringify({ action: 'deleteRecord', id })
       });
-      showToast('ลบบันทึกสำเร็จแล้ว', 'success');
+      showToast('Record deleted', 'success');
     } catch(e) {
-      showToast('ลบเฉพาะในเครื่อง (network error)', 'warning');
+      showToast('Deleted locally only (network error)', 'warning');
     }
     isSaving = false;
   }
@@ -618,7 +618,7 @@ async function handleSaveEdit(e) {
 
   closeAllModals();
   renderDashboardData();
-  showToast('บันทึกการเปลี่ยนแปลงข้อมูลเรียบร้อย', 'success');
+  showToast('Changes saved successfully', 'success');
   await saveRecordsToStorage();
 }
 
@@ -674,10 +674,10 @@ function formatThaiDate(dateStr) {
   const parts = normalized.split('-');
   if (parts.length !== 3) return String(dateStr);
   
-  const year = parseInt(parts[0]) + 543;
+  const year = parseInt(parts[0]);
   const months = [
-    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
   const month = months[parseInt(parts[1]) - 1];
   const day = parseInt(parts[2]);
@@ -692,16 +692,16 @@ function formatThaiDateTime(dateTimeStr) {
   const timeStr = parts[1] ? parts[1].substring(0, 5) : '';
   
   const formattedDate = formatThaiDate(dateStr);
-  const formattedTime = timeStr ? `${timeStr} น.` : '';
+  const formattedTime = timeStr ? `${timeStr}` : '';
   
   return `${formattedDate} ${formattedTime}`;
 }
 
 function formatThaiFullDate(date) {
-  const year = date.getFullYear() + 543;
+  const year = date.getFullYear();
   const months = [
-    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
   const month = months[date.getMonth()];
   const day = date.getDate();

@@ -32,6 +32,7 @@ export function useReports() {
     queryKey: REPORT_KEY,
     queryFn: async (): Promise<ReportItem[]> => {
       const res = await api.get('/report/list');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load reports');
       return ((res.data as any)?.data ?? []).map(mapRow);
     },
     refetchOnWindowFocus: false, // กัน refetch มาทับข้อมูลที่กำลังพิมพ์
@@ -43,7 +44,7 @@ export function useReportCreate() {
   return useMutation({
     mutationFn: async (): Promise<ReportItem> => {
       const res = await api.post('/report');
-      if (res.status >= 400 || res.status === 0) throw new Error('Create failed');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Create failed');
       return mapRow((res.data as any)?.data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: REPORT_KEY }),
@@ -63,7 +64,7 @@ export function useReportPatch() {
         delivery:     item.delivery || null,
         is_completed: item.isCompleted,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('Save failed');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Save failed');
       return res.data;
     },
   });
@@ -74,7 +75,7 @@ export function useReportDelete() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.delete(`/report/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('Delete failed');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Delete failed');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: REPORT_KEY }),

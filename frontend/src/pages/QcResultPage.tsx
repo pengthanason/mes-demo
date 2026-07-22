@@ -84,7 +84,7 @@ export function QcResultPage() {
   const { woId: woIdParam } = useParams<{ woId?: string }>();
   const isViewer = useIsViewer();
 
-  const { data, isLoading } = useQcResults();
+  const { data, isLoading, isError, refetch } = useQcResults();
   const createMut = useQcResultCreate();
   const allResults = data ?? [];
 
@@ -273,6 +273,8 @@ export function QcResultPage() {
             <tbody>
               {isLoading ? (
                 <TableState colSpan={10} state="loading" />
+              ) : isError ? (
+                <TableState colSpan={10} state="error" onRetry={() => refetch()} />
               ) : filtered.length === 0 ? (
                 <TableState colSpan={10} state="empty" emptyText={woFilter.trim() ? 'No items match the filter — clear the WO search to see all' : 'No QC Result data yet — click “+ Record QC Result” to start'} />
               ) : pagedList.map(r => (

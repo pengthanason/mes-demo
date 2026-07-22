@@ -101,7 +101,7 @@ export function FourMChangePage() {
               </label>
               <label className="field">
                 <span>Related WO</span>
-                <WoInput value={woRef} onChange={setWoRef} placeholder="Select WO..." asSelect />
+                <WoInput value={woRef} onChange={setWoRef} placeholder="Select or type WO…" />
               </label>
               <label className="field">
                 <span>Change details (what + why) *</span>

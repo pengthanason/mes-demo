@@ -15,6 +15,7 @@ export function useObaRecords() {
     queryKey: OBA_KEY,
     queryFn: async (): Promise<ObaRecord[]> => {
       const res = await api.get('/oba/list');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load OBA records');
       return rowsOf(res).map(r => ({
         id:        String(r.id),
         woId:      r.wo_id,
@@ -39,7 +40,7 @@ export function useObaCreate() {
         result:      rec.result,
         defect_note: rec.defectNote,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('Failed to save OBA');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save OBA');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: OBA_KEY }),
@@ -55,6 +56,7 @@ export function useQcRecords() {
     queryKey: QC_KEY,
     queryFn: async (): Promise<QcRecord[]> => {
       const res = await api.get('/qc/list');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load QC records');
       return rowsOf(res).map(r => ({
         id:     String(r.id),
         sn:     r.sn,
@@ -71,7 +73,7 @@ export function useQcCreate() {
   return useMutation({
     mutationFn: async (rec: { sn: string; status: string; error?: string | null }) => {
       const res = await api.post('/qc', rec);
-      if (res.status >= 400 || res.status === 0) throw new Error('Failed to save QC');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save QC');
       return res.data;
     },
     onSuccess: () => {
@@ -93,6 +95,7 @@ export function useQcHistory(woId?: string, limit = 100) {
     queryKey: [...QC_HISTORY_KEY, woId ?? '', limit],
     queryFn: async (): Promise<QcHistoryRow[]> => {
       const res = await api.get('/qc/history', { params: { ...(woId ? { wo_id: woId } : {}), limit } });
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load QC history');
       const results = (res.data as any)?.results ?? (res.data as any)?.data ?? [];
       return results.map((r: any) => ({
         sn:        r.sn ?? '',
@@ -115,6 +118,7 @@ export function useRoutingRecords() {
     queryKey: ROUTING_KEY,
     queryFn: async (): Promise<RoutingRecord[]> => {
       const res = await api.get('/routing/list');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load routing records');
       return rowsOf(res).map(r => ({
         id:       String(r.id),
         ts:       new Date(r.created_at).toLocaleString(),
@@ -139,7 +143,7 @@ export function useRoutingCreate() {
         total_sec: rec.totalSec,
         wo_id:     rec.woId ?? '',
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('Failed to save Routing');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save Routing');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ROUTING_KEY }),
@@ -151,7 +155,7 @@ export function useRoutingDelete() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.delete(`/routing/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('Failed to delete');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to delete');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ROUTING_KEY }),

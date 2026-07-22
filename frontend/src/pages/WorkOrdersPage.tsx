@@ -107,7 +107,7 @@ export function WorkOrdersPage() {
           </div>
         )}
 
-        <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, marginTop: '1.25rem' }}>
+        <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, marginTop: '0.5rem' }}>
           <table className="table" style={{ minWidth: 760, width: '100%' }}>
             <thead>
               <tr>
@@ -134,7 +134,7 @@ export function WorkOrdersPage() {
                   <td>{w.customer}</td>
                   <td style={{ textAlign: 'center' }}>{w.qty.toLocaleString()}</td>
                   <td style={{ textAlign: 'center', fontWeight: 600, color: '#0369a1' }}>{(w.actualQty ?? w.qtyGood).toLocaleString()}</td>
-                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{w.expectedDate ? new Date(w.expectedDate).toLocaleDateString('en-GB') : '—'}</td>
+                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{w.expectedDate ? new Date(String(w.expectedDate).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-GB') : '—'}</td>
                   <td style={{ textAlign: 'center' }}><StepBadge step={w.currentStep} /></td>
                   <td>{w.station}</td>
                 </tr>

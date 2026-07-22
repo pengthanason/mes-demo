@@ -88,7 +88,7 @@ export function useWoPatch() {
   return useMutation({
     mutationFn: async ({ woId, patch }: { woId: string; patch: WoPatch }) => {
       const res = await api.patch(`/wo/board/${woId}`, toApiPatch(patch));
-      if (res.status >= 400 || res.status === 0) throw new Error('Failed to update WO');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to update WO');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: WO_BOARD_KEY }),
@@ -107,7 +107,7 @@ export function useWoCreate() {
         current_step: wo.currentStep,
         due_date:     wo.expectedDate || null,
       });
-      if (res.status >= 400 || res.status === 0) throw new Error('Failed to create WO');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to create WO');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: WO_BOARD_KEY }),

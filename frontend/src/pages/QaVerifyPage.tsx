@@ -10,7 +10,7 @@ export function QaVerifyPage() {
   const qcResultId = Number(reqId);
   const isViewer = useIsViewer();
 
-  const { data, isLoading } = useQcResults();
+  const { data, isLoading, isError, refetch } = useQcResults();
   const verifyMut = useTransferVerifyCreate();
   const { data: users = [] } = useAdminUsers();
   const qcResult = (data ?? []).find(r => r.id === qcResultId) ?? null;
@@ -21,6 +21,17 @@ export function QaVerifyPage() {
 
   if (isLoading) {
     return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="notice err" style={{ margin: '2rem' }}>
+        Failed to load QC data
+        <div style={{ marginTop: '1rem' }}>
+          <button type="button" className="btn secondary" onClick={() => refetch()}>Retry</button>
+        </div>
+      </div>
+    );
   }
 
   if (!qcResult) {

@@ -263,7 +263,7 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
 /* ── Popup รายละเอียดสินค้า — คลิก Product P/N ในตาราง → รูป (placeholder) + ข้อมูลทั้งหมดของรายการ ── */
 function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void }) {
   const y = ppYield(p);
-  const fmtD = (v: string | null | undefined) => { if (!v) return '—'; const d = new Date(v); return isNaN(+d) ? String(v) : d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }); };
+  const fmtD = (v: string | null | undefined) => { if (!v) return '—'; const d = new Date(String(v).slice(0, 10) + 'T00:00:00'); return isNaN(+d) ? String(v) : d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }); };
   const val = (v: any) => (v === null || v === undefined || v === '' ? '—' : v);
   const groups: { title: string; items: [string, React.ReactNode][] }[] = [
     { title: '📋 Job Info', items: [
@@ -582,7 +582,7 @@ function StatusColorPopup({ p, pos, onClose, onPick }: { p: PpProject; pos: { to
 
 export function DashboardPage() {
   const isViewer = useIsViewer();
-  const { data: allRows = [], isLoading } = usePpProjects({});          // แหล่งข้อมูลเดียว — กรองฝั่ง client ทั้งหมด (dropdown filter ที่หัวตาราง)
+  const { data: allRows = [], isLoading, isError, refetch } = usePpProjects({});          // แหล่งข้อมูลเดียว — กรองฝั่ง client ทั้งหมด (dropdown filter ที่หัวตาราง)
   const [colFilters, setColFilters] = useState<Record<string, Set<string>>>({});   // key: status/customer/work_order/model → ค่าที่เลือก (ว่าง = ไม่กรอง)
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -880,6 +880,8 @@ export function DashboardPage() {
             <tbody>
               {isLoading ? (
                 <TableState colSpan={colCount} state="loading" />
+              ) : isError ? (
+                <TableState colSpan={colCount} state="error" onRetry={() => refetch()} />
               ) : paged.length === 0 ? (
                 <TableState colSpan={colCount} state="empty" emptyText={hasFilter ? 'No matching records — click “Clear filter” to show all' : 'No data yet — click “+ Add Project” to start'} />
               ) : paged.map((p, idx) => {

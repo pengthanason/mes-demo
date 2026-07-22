@@ -96,6 +96,7 @@ export function useQcResults(woId?: string) {
     queryKey: QC_RESULT_KEY(woId),
     queryFn: async (): Promise<QcResult[]> => {
       const res = await api.get('/qc/results', woId ? { params: { wo_id: woId } } : undefined);
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load QC results');
       return ((res.data as any)?.data ?? []).map(mapQcResult);
     },
   });
@@ -133,6 +134,7 @@ export function useReworkList() {
     queryKey: REWORK_KEY,
     queryFn: async (): Promise<ReworkTicket[]> => {
       const res = await api.get('/rework/list');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load rework list');
       return ((res.data as any)?.data ?? []).map(mapRework);
     },
   });

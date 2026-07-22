@@ -8,7 +8,7 @@ import { ResultBadge } from '../components/ResultBadge';
 import { BlockState } from '../components/DataStates';
 
 export function ObaPage() {
-  const { data } = useObaRecords();
+  const { data, isLoading, isError, refetch } = useObaRecords();
   const createMut = useObaCreate();
   const records = data ?? [];
 
@@ -51,7 +51,7 @@ export function ObaPage() {
     <div className="stack-lg">
       {/* ── Form ── */}
       <div className="panel stack">
-        <h2 className="panel__title">Out-of-Box Audit (M08)</h2>
+        <h2 className="panel__title">Out-of-Box Audit</h2>
         <p className="panel__subtitle">Record out-of-box sampling inspection before delivery</p>
 
         {error  && <div className="notice err">{error}</div>}
@@ -62,7 +62,7 @@ export function ObaPage() {
         <form className="stack" onSubmit={handleSubmit}>
           <label className="field">
             <span>Work Order</span>
-            <WoInput value={woId} onChange={setWoId} placeholder="WO-..." required asSelect />
+            <WoInput value={woId} onChange={setWoId} placeholder="Select or type WO…" required />
           </label>
           <label className="field">
             <span>Lot No.</span>
@@ -102,7 +102,11 @@ export function ObaPage() {
         <h3 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>
           OBA History {records.length > 0 && `(${records.length} items)`}
         </h3>
-        {records.length === 0 ? (
+        {isLoading ? (
+          <BlockState state="loading" />
+        ) : isError ? (
+          <BlockState state="error" onRetry={() => refetch()} />
+        ) : records.length === 0 ? (
           <BlockState state="empty" emptyText="No history yet — save an OBA record to add data" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>

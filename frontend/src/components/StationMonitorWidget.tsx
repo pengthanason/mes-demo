@@ -15,7 +15,7 @@ function ago(iso: string | null): string {
 
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 // หัวข้อ + ช่องค้นหา ให้เป็นชุดเดียวกับ Work Orders widget
-const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' };
+const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', userSelect: 'none', cursor: 'default' };
 const SEARCH: React.CSSProperties = { fontSize: '0.85rem', padding: '7px 12px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 200, maxWidth: '45%' };
 const TH: React.CSSProperties = { textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 8px 8px', position: 'sticky', top: 0, background: '#fff' };
 const TD: React.CSSProperties = { textAlign: 'center', fontSize: '0.85rem', padding: '8px', borderTop: '1px solid var(--border-color)', whiteSpace: 'nowrap' };
@@ -62,12 +62,13 @@ export function StationMonitorWidget() {
           <div style={{ maxHeight: 260, overflowY: 'auto', marginTop: 8 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               {/* กำหนดความกว้างคอลัมน์ตายตัว → หัว/ข้อมูลตรงกันเป๊ะ ไม่เยื้องตามชื่อสถานี */}
+              {/* กว้างเป็น % → 4 ช่องหลังเท่ากันช่องละ 12% · Station ที่เหลือ 52% */}
               <colgroup>
-                <col />
-                <col style={{ width: 72 }} />
-                <col style={{ width: 72 }} />
-                <col style={{ width: 60 }} />
-                <col style={{ width: 54 }} />
+                <col style={{ width: '52%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '12%' }} />
               </colgroup>
               <thead>
                 <tr>

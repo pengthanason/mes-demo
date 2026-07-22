@@ -91,7 +91,7 @@ export function KittingPage() {
               <form onSubmit={handleIssue} className="stack" style={{ gap: '0.85rem' }}>
                 <label className="field">
                   <span>WO to issue to *</span>
-                  <WoInput value={woId} onChange={setWoId} required asSelect />
+                  <WoInput value={woId} onChange={setWoId} required placeholder="Select or type WO…" />
                 </label>
                 <label className="field">
                   <span>Part No *</span>

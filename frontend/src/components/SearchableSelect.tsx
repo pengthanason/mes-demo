@@ -8,7 +8,7 @@ export type SelectOption = { value: string; label: string };
  * panel เป็น position:fixed (คำนวณจาก getBoundingClientRect) กันโดน overflow ตัด
  */
 export function SearchableSelect({
-  value, onChange, options, placeholder = '— Select —', disabled, required, searchThreshold = 10, style, ariaLabel,
+  value, onChange, options, placeholder = '— Select —', disabled, required, searchThreshold = 10, style, ariaLabel, allowCustom,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -19,6 +19,7 @@ export function SearchableSelect({
   searchThreshold?: number;
   style?: React.CSSProperties;
   ariaLabel?: string;
+  allowCustom?: boolean;   // true = พิมพ์ค่าเองได้ (combobox) นอกเหนือจากเลือกในลิสต์
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -27,11 +28,13 @@ export function SearchableSelect({
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; width: number; maxH: number } | null>(null);
 
   const current = options.find(o => o.value === value);
-  const showSearch = options.length > searchThreshold;
+  const showSearch = allowCustom || options.length > searchThreshold;
   const needle = q.trim().toLowerCase();
   const filtered = showSearch && needle
     ? options.filter(o => `${o.label} ${o.value}`.toLowerCase().includes(needle))
     : options;
+  const trimmed = q.trim();
+  const showCustom = !!allowCustom && !!trimmed && !options.some(o => o.value === trimmed);   // มีตัวเลือก "ใช้ค่าที่พิมพ์เอง"
 
   // คำนวณตำแหน่ง panel: ถ้าที่ว่างด้านล่างไม่พอ → เปิดขึ้นบน + จำกัดความสูงตามที่ว่างจริง (กันตกขอบจอ/นอนจอ)
   const computePos = () => {
@@ -68,16 +71,21 @@ export function SearchableSelect({
         ref={boxRef} role="button" tabIndex={disabled ? -1 : 0} onClick={toggle}
         onKeyDown={e => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(); } }}
         aria-haspopup="listbox" aria-expanded={open ? 'true' : 'false'} aria-disabled={disabled ? 'true' : 'false'}
-        aria-label={ariaLabel || placeholder} title={current?.label || placeholder}
+        aria-label={ariaLabel || placeholder} title={current?.label || value || placeholder}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-          padding: '0.45rem 0.7rem', border: '1px solid var(--border-color)', borderRadius: 6, boxSizing: 'border-box',
-          background: disabled ? '#f1f5f9' : '#fff', color: current ? 'var(--text-body)' : '#94a3b8',
+          // ให้หน้าตาเหมือน native <select> เป๊ะ: padding เท่ากัน + ลูกศร SVG chevron ชุดเดียวกัน (index.css select)
+          width: '100%', boxSizing: 'border-box',
+          padding: '0.45rem 2rem 0.45rem 0.7rem',
+          border: '1px solid var(--border-color)', borderRadius: 6,
+          backgroundColor: disabled ? '#f1f5f9' : '#fff',
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.6rem center', backgroundSize: '10px 6px',
+          color: (current || value) ? 'var(--text-body)' : '#94a3b8',
           fontFamily: 'inherit', fontSize: '0.875rem', cursor: disabled ? 'default' : 'pointer', textAlign: 'left', userSelect: 'none',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current ? current.label : placeholder}</span>
-        <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>▾</span>
+        {current ? current.label : (value || placeholder)}
       </div>
       {/* input ซ่อนไว้เพื่อให้ required ทำงานกับ form ได้ */}
       {required && <input tabIndex={-1} aria-hidden value={value} required onChange={() => {}} style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />}
@@ -94,14 +102,24 @@ export function SearchableSelect({
               <div style={{ padding: 6, borderBottom: '1px solid var(--border-color)' }}>
                 <input
                   ref={searchRef} value={q} onChange={e => setQ(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
-                  placeholder="🔍 Type to search..." aria-label="Search"
+                  onKeyDown={e => { if (e.key === 'Escape') setOpen(false); else if (e.key === 'Enter' && showCustom) { e.preventDefault(); onChange(trimmed); setOpen(false); } }}
+                  placeholder={allowCustom ? '🔍 Search or type new…' : '🔍 Type to search...'} aria-label="Search"
                   style={{ width: '100%', padding: '0.4rem 0.6rem', border: '1px solid var(--border-color)', borderRadius: 5, fontSize: '0.85rem', fontFamily: 'inherit' }}
                 />
               </div>
             )}
             <div style={{ overflowY: 'auto' }}>
-              {filtered.length === 0 && <div style={{ padding: '0.6rem 0.7rem', color: '#94a3b8', fontSize: '0.85rem' }}>No results for “{q}”</div>}
+              {showCustom && (
+                <div
+                  onClick={() => { onChange(trimmed); setOpen(false); }}
+                  style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', fontSize: '0.85rem', color: '#0369a1', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', borderBottom: filtered.length ? '1px solid var(--border-color)' : undefined }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+                >
+                  ➕ Use “{trimmed}”
+                </div>
+              )}
+              {filtered.length === 0 && !showCustom && <div style={{ padding: '0.6rem 0.7rem', color: '#94a3b8', fontSize: '0.85rem' }}>No results for “{q}”</div>}
               {filtered.map(o => (
                 <div
                   key={o.value} onClick={() => { onChange(o.value); setOpen(false); }}

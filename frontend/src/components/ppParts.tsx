@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePpCreate, usePpUpdate, usePpHistory, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
 import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
+import { WoInput } from './WoInput';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 
 // hex (#rrggbb) → ARGB ('FFRRGGBB') สำหรับ ExcelJS
@@ -589,7 +590,7 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
       .map(e => ({ date: gToDate(e.date), status: e.status, step: e.step, note: e.note || '' }))
       .filter((e): e is { date: Date; status: string; step: string; note: string } => !!e.date)
       .sort((a, b) => a.date.getTime() - b.date.getTime());
-    return { p, start, end: end || start, log };
+    return { p, start, end: end || start, log, rev: gToDate(p.revised_date) };
   }).filter(t => !!t.start || t.log.length > 0);
 
   const skipped = rows.length - tasks.length;
@@ -602,12 +603,15 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
     );
   }
 
-  // ช่วงวันที่ครอบคลุมทุกงาน (รวม start/end + วันใน log + วันนี้ถ้ามี log)
+  // ช่วงวันที่ครอบคลุมทุกงาน (รวม start/end + วันใน log + revised date + วันนี้ถ้ามี log)
   const allDates: Date[] = [];
-  tasks.forEach(t => { if (t.start) allDates.push(t.start); if (t.end) allDates.push(t.end); t.log.forEach(e => allDates.push(e.date)); });
-  if (tasks.some(t => t.log.length > 0)) allDates.push(today);
+  tasks.forEach(t => { if (t.start) allDates.push(t.start); if (t.end) allDates.push(t.end); t.log.forEach(e => allDates.push(e.date)); if (t.rev) allDates.push(t.rev); });
+  allDates.push(today);   // ครอบ "วันนี้" เสมอ → เส้นวันนี้ + เส้น overdue (กำหนด→วันนี้) ไม่หลุดขอบ
   let min = allDates[0], max = allDates[0];
   for (const d of allDates) { if (d < min) min = d; if (d > max) max = d; }
+  // เผื่อวันหน้า-หลังข้างละ 5 วัน (มีที่ว่างก่อนแท่งแรก + หลังแท่งสุดท้าย) · ฟิลเตอร์วันที่ด้านล่างจะ override เป็นช่วงที่เลือกเป๊ะ
+  const PAD_DAYS = 5;
+  if (min && max) { min = new Date(min.getTime() - PAD_DAYS * 86400000); max = new Date(max.getTime() + PAD_DAYS * 86400000); }
   { const f = gToDate(fromStr); if (f) min = f; const tt = gToDate(toStr); if (tt) max = tt; if (min.getTime() > max.getTime()) max = min; }   // ฟิลเตอร์ช่วงวันที่
   const totalDays = gDayDiff(min, max) + 1;
   const days = Array.from({ length: totalDays }, (_, i) => { const d = new Date(min); d.setDate(d.getDate() + i); return d; });
@@ -645,11 +649,17 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
         {/* LEFT — คอลัมน์ชื่อ (เลื่อนแนวตั้ง sync ตาม timeline) */}
         <div ref={leftRef} style={{ width: LEFT_W, minWidth: LEFT_W, flexShrink: 0, overflow: 'hidden', borderRight: '1px solid var(--border-color)', background: '#fff' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 2, height: HEAD_H * 2, background: '#f1f5f9', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 700, color: '#475569', borderBottom: '1px solid var(--border-color)' }}>Name</div>
-          {tasks.map(t => (
-            <div key={t.p.id} style={{ height: ROW_H, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #f1f5f9', overflow: 'hidden' }} title={t.p.model || ''}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.p.model || '—'}</span>
-            </div>
-          ))}
+          {tasks.map(t => {
+            const primary = t.p.model || t.p.product_pn || t.p.work_order || '—';
+            const secondary = [t.p.model ? t.p.product_pn : '', t.p.customer].filter(Boolean).join(' · ');
+            const full = [t.p.model, t.p.product_pn, t.p.customer].filter(Boolean).join(' · ');
+            return (
+              <div key={t.p.id} style={{ height: ROW_H, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 10px', borderBottom: '1px solid #f1f5f9', overflow: 'hidden' }} title={full}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{primary}</span>
+                {secondary && <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{secondary}</span>}
+              </div>
+            );
+          })}
         </div>
 
         {/* RIGHT — timeline (overflow auto → scrollbar อยู่แค่ตรงนี้) */}
@@ -678,10 +688,42 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
 
             {/* แถวงาน — timeline */}
             {tasks.map(t => {
-              const isLate = t.p.status === 'DELAY' || (!!t.end && t.end.getTime() < today.getTime() && t.p.status !== 'DONE');
+              // แดง = ตั้ง status=Delay เอง (manual) หรือ overdue จริง (today เลย revised/expected แล้วยังไม่ Done)
+              const dueDate = t.rev || gToDate(t.p.expected_date) || t.end;
+              const overdue = t.p.status !== 'DONE' && !!dueDate && dueDate.getTime() < today.getTime();
+              const isLate = t.p.status === 'DELAY' || overdue;
               return (
                 <div key={t.p.id} style={{ position: 'relative', height: ROW_H, borderBottom: '1px solid #f1f5f9', zIndex: 1 }}>
                   <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${DAY_W - 1}px, #eef2f7 ${DAY_W - 1}px, #eef2f7 ${DAY_W}px)` }} />
+                  {/* Revised date — เส้นแดงลากต่อจากปลายแท่ง (Expected/PD Done) ไปถึง revised date = ส่วนที่เลื่อนออก
+                      · วงกลาง(ปลายแท่ง) + วงปลาย(revised) เป็นแดง · เส้นเว้นระยะไม่ทับวงทั้งสองข้าง */}
+                  {t.rev && (() => {
+                    const anchor = t.end || t.start || (t.log.length ? t.log[t.log.length - 1].date : null);
+                    if (!anchor) return null;
+                    const xa = centerX(anchor), xr = centerX(t.rev);
+                    if (Math.abs(xr - xa) < 1) return null;   // revised = expected → ไม่มีอะไรให้ลาก
+                    const lo = Math.min(xa, xr), hi = Math.max(xa, xr);
+                    const lineW = Math.max(0, (hi - lo) - 2 * R);   // เว้นรัศมีวง R ทั้งสองด้าน ไม่ให้เส้นทับวง
+                    return (
+                      <>
+                        {lineW > 0 && <div style={{ position: 'absolute', top: '50%', left: lo + R, width: lineW, height: 3, background: '#dc2626', transform: 'translateY(-50%)', zIndex: 2 }} />}
+                        <div title={fmt(anchor)} style={{ position: 'absolute', top: '50%', left: xa - R, width: R * 2, height: R * 2, borderRadius: '50%', background: '#dc2626', border: '2px solid #dc2626', transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 3 }} />
+                        <div title={`Revised date: ${fmt(t.rev)}`} style={{ position: 'absolute', top: '50%', left: xr - R, width: R * 2, height: R * 2, borderRadius: '50%', background: '#dc2626', border: '2px solid #dc2626', transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 3, cursor: 'help' }} />
+                      </>
+                    );
+                  })()}
+                  {/* Overdue — เลยกำหนดจริง (revised/expected) แล้วยังไม่ Done → เส้นแดงลากจากกำหนด → วันนี้ (แนวเดียวกับเส้น revised) */}
+                  {overdue && dueDate && (() => {
+                    const xa = centerX(dueDate), xr = centerX(today);
+                    const w = Math.max(0, xr - xa - R);   // เริ่มหลังวงกำหนด (เว้น R) ลากไปถึงเส้นวันนี้
+                    if (w < 1) return null;
+                    return (
+                      <>
+                        <div style={{ position: 'absolute', top: '50%', left: xa + R, width: w, height: 3, background: '#dc2626', transform: 'translateY(-50%)', zIndex: 2 }} />
+                        <div title={`Overdue since ${fmt(dueDate)}`} style={{ position: 'absolute', top: '50%', left: xa - R, width: R * 2, height: R * 2, borderRadius: '50%', background: '#dc2626', border: '2px solid #dc2626', transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 3, cursor: 'help' }} />
+                      </>
+                    );
+                  })()}
                   {t.log.length > 0 ? (() => {
                     const n = t.log.length;
                     const first = t.log[0].date, last = t.log[n - 1].date;
@@ -694,6 +736,8 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
                     const clampX = (d: Date) => centerX(new Date(Math.min(Math.max(d.getTime(), barStart.getTime()), barEnd.getTime())));
                     const lastCol = stlOf(lastStatus).border;
                     const xs = centerX(barStart), xe = centerX(barEnd);
+                    // จุด = เฉพาะ "เหตุการณ์ที่เปลี่ยนสถานะ" จริง (ยุบ event ที่สถานะซ้ำกับตัวก่อนหน้า → ไม่รกด้วยจุดซ้ำ)
+                    const changes = t.log.filter((e, i) => i === 0 || e.status !== t.log[i - 1].status);
                     return (
                       <>
                         {/* เส้นฐานครอบช่วงจริง (สีสถานะล่าสุด) */}
@@ -709,22 +753,28 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
                         {/* จุดหัว/ท้ายแท่ง (barStart / barEnd) */}
                         {xs !== clampX(first) && <div style={{ position: 'absolute', top: '50%', left: xs - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stlOf(t.log[0].status).bg, border: `2px solid ${stlOf(t.log[0].status).border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1 }} />}
                         {xe !== clampX(last) && <div style={{ position: 'absolute', top: '50%', left: xe - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stlOf(lastStatus).bg, border: `2px solid ${lastCol}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1 }} />}
-                        {/* จุดแต่ละ event (clamp ในช่วงแท่ง) */}
-                        {t.log.map((pt, i) => {
+                        {/* จุด = เฉพาะตอนเปลี่ยนสถานะจริง (มีวันที่จริง) — ไม่ใช่จุดต่อ process */}
+                        {changes.map((pt, i) => {
                           const x = clampX(pt.date);
                           const s = stlOf(pt.status);
-                          return <div key={'n' + i} title={pt.note || ''}
+                          const stepLabel = PROCESS_STEPS.find(st => (st.key as string) === pt.step)?.label ?? pt.step;
+                          return <div key={'n' + i} title={`${stepLabel}: ${PROC_STATUS_LABEL[pt.status] ?? PP_STATUS_LABEL[pt.status] ?? pt.status}${pt.note ? ` — ${pt.note}` : ''}`}
                             style={{ position: 'absolute', top: '50%', left: x - R, width: R * 2, height: R * 2, borderRadius: '50%', background: s.bg, border: `2px solid ${s.border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff', zIndex: 1, cursor: 'help' }} />;
                         })}
                       </>
                     );
-                  })() : t.start ? (
-                    <div title={`${t.p.product_pn || t.p.model || ''} | ${fmt(t.start)} - ${fmt(t.end || t.start)}`} style={{ position: 'absolute', inset: 0 }}>
-                      <div style={{ position: 'absolute', top: '50%', left: centerX(t.start), width: Math.max(0, centerX(t.end || t.start) - centerX(t.start)), height: 3, background: isLate ? '#dc2626' : '#2b5f74', transform: 'translateY(-50%)' }} />
-                      <div style={{ position: 'absolute', top: '50%', left: centerX(t.start) - R, width: R * 2, height: R * 2, borderRadius: '50%', background: isLate ? '#dc2626' : '#2b5f74', transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff' }} />
-                      <div style={{ position: 'absolute', top: '50%', left: centerX(t.end || t.start) - R, width: R * 2, height: R * 2, borderRadius: '50%', background: isLate ? '#dc2626' : '#2b5f74', transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff' }} />
-                    </div>
-                  ) : null}
+                  })() : t.start ? (() => {
+                    // สีแท่งตามสถานะจริง (ให้ตรงกับช่อง Status ในตาราง): เลท=แดง · Done=เขียว · อื่นๆ=ฟ้าสด (On process)
+                    const stl = isLate ? STATUS_STYLE.DELAY : (t.p.status === 'DONE' ? STATUS_STYLE.DONE : STATUS_STYLE.ON_PROCESS);
+                    const xs = centerX(t.start), xe = centerX(t.end || t.start);
+                    return (
+                      <div title={`${t.p.product_pn || t.p.model || ''} | ${fmt(t.start)} - ${fmt(t.end || t.start)}`} style={{ position: 'absolute', inset: 0 }}>
+                        <div style={{ position: 'absolute', top: '50%', left: xs, width: Math.max(0, xe - xs), height: 3, background: stl.border, transform: 'translateY(-50%)' }} />
+                        <div style={{ position: 'absolute', top: '50%', left: xs - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stl.bg, border: `2px solid ${stl.border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff' }} />
+                        <div style={{ position: 'absolute', top: '50%', left: xe - R, width: R * 2, height: R * 2, borderRadius: '50%', background: stl.bg, border: `2px solid ${stl.border}`, transform: 'translateY(-50%)', boxShadow: '0 0 0 2px #fff' }} />
+                      </div>
+                    );
+                  })() : null}
                 </div>
               );
             })}
@@ -881,7 +931,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
     setF(p => ({ ...p, date_record: v, wk: v ? isoWeek(v) : null })); setDirty(true);
   };
   const Section = ({ title }: { title: string }) => (
-    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '0.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>{title}</div>
+    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '0.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: 4, userSelect: 'none', cursor: 'default' }}>{title}</div>
   );
 
   return (
@@ -890,7 +940,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
           <Section title="Main info" />
           {/* WO + Type (Internal/External) บนสุด */}
           <div className="grid-3col">
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>WO</span><input value={f.work_order ?? ''} onChange={txt('work_order')} placeholder="WO number" autoFocus /></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>WO</span><WoInput value={f.work_order ?? ''} onChange={v => set('work_order', v)} placeholder="Select or type WO…" /></label>
             <label className="field"><span>Type</span>
               <select value={(f as any).pp_type ?? 'internal'} onChange={txt('pp_type' as keyof PpProject)}>
                 <option value="internal">Internal</option>

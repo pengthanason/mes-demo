@@ -79,6 +79,8 @@ export function usePpProjects(filters: PpFilters = {}) {
       const params: any = {};
       for (const [k, v] of Object.entries(filters)) if (v) params[k] = v;
       const res = await api.get('/pp/projects', Object.keys(params).length ? { params } : undefined);
+      // เช็ค status เอง (api.ts ไม่ throw) → 401/403/500/เชื่อมต่อไม่ได้ = error จริง ไม่ใช่ "ไม่มีข้อมูล"
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load projects');
       return ((res.data as any)?.data ?? []);
     },
   });
@@ -113,7 +115,7 @@ export function usePpDelete() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await api.delete(`/pp/projects/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error('Delete failed');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Delete failed');
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),

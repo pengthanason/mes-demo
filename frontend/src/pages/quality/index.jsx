@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, Scan } from 'lucide-react';
 import { useQcHistory, useQcCreate } from '../../lib/recordsApi';
 import { useIsViewer } from '../../lib/useMockStore';
 import { showToast } from '../../lib/toast';
+import { TableState } from '../../components/DataStates';
 
 // สี badge ตามสถานะ (PASS=เขียว, REPAIRED=เหลืองอำพัน, NG/อื่นๆ=แดง) — #51 status = PASS/NG/REPAIRED
 function badgeStyle(st) {
@@ -15,7 +16,7 @@ export default function QcBoard() {
   const isViewer = useIsViewer();
 
   const [unitSn, setUnitSn] = useState('');
-  const { data } = useQcHistory();
+  const { data, isLoading: histLoading, isError: histError, refetch: histRefetch } = useQcHistory();
   const createMut = useQcCreate();
   const history = data ?? [];
   const isLoading = createMut.isPending;
@@ -123,7 +124,9 @@ export default function QcBoard() {
               </tr>
             </thead>
             <tbody>
-              {history.map((h) => {
+              {histLoading ? <TableState colSpan={6} state="loading" />
+               : histError ? <TableState colSpan={6} state="error" onRetry={() => histRefetch()} />
+               : history.map((h) => {
                 const st = String(h.status || '').toUpperCase();
                 const when = h.updatedAt ? new Date(h.updatedAt).toLocaleString() : '—';
                 return (
@@ -139,7 +142,7 @@ export default function QcBoard() {
                   </tr>
                 );
               })}
-              {history.length === 0 && (
+              {!histLoading && !histError && history.length === 0 && (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                     No units yet.

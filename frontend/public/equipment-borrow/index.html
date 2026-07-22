@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบยืม-คืนอุปกรณ์ - Admin Dashboard</title>
+  <title>Equipment Borrow-Return - Admin Dashboard</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- CSS Styles -->
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
   <!-- FontAwesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Hide login screen immediately if in iframe or already logged in (prevents flash) -->
@@ -31,20 +31,20 @@
         <div class="auth-icon-circle">
           <i class="fa-solid fa-shield-halved"></i>
         </div>
-        <h2>แอดมินเข้าสู่ระบบ</h2>
-        <p>ระบบจัดการข้อมูลการยืม-คืนอุปกรณ์</p>
+        <h2>Admin Login</h2>
+        <p>Equipment borrow-return management system</p>
       </div>
       
       <form id="login-form" autocomplete="off">
         <div class="form-group">
-          <label for="username"><i class="fa-regular fa-user"></i> ชื่อผู้ใช้</label>
-          <input type="text" id="username" placeholder="ชื่อผู้ใช้" required>
+          <label for="username"><i class="fa-regular fa-user"></i> Username</label>
+          <input type="text" id="username" placeholder="Username" required>
         </div>
         
         <div class="form-group">
-          <label for="password"><i class="fa-solid fa-lock"></i> รหัสผ่าน</label>
+          <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
           <div class="password-input-wrapper">
-            <input type="password" id="password" placeholder="รหัสผ่าน" required>
+            <input type="password" id="password" placeholder="Password" required>
             <button type="button" id="toggle-password" class="btn-icon">
               <i class="fa-regular fa-eye"></i>
             </button>
@@ -52,12 +52,12 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">
-          <span>เข้าสู่ระบบ</span>
+          <span>Sign in</span>
           <i class="fa-solid fa-arrow-right-to-bracket"></i>
         </button>
       </form>
       <div class="auth-footer">
-        <p><i class="fa-solid fa-info-circle"></i> บันทึกข้อมูลการยืมจะรับเข้าจาก Google Form</p>
+        <p><i class="fa-solid fa-info-circle"></i> Borrow records are received from Google Form</p>
       </div>
     </div>
   </div>
@@ -72,17 +72,17 @@
           <i class="fa-solid fa-boxes-stacked"></i>
         </div>
         <div class="brand-text">
-          <h1>ระบบยืม-คืนอุปกรณ์</h1>
-          <span>แผงควบคุมผู้ดูแลระบบ (Admin)</span>
+          <h1>Equipment Borrow-Return System</h1>
+          <span>Admin Dashboard</span>
         </div>
       </div>
       <div class="navbar-actions">
         <span class="user-badge">
-          <i class="fa-solid fa-user-gear"></i> ผู้ดูแลระบบ
+          <i class="fa-solid fa-user-gear"></i> Administrator
         </span>
         <button id="btn-logout" class="btn btn-outline-danger">
           <i class="fa-solid fa-arrow-right-from-bracket"></i>
-          <span>ออกจากระบบ</span>
+          <span>Logout</span>
         </button>
       </div>
     </header>
@@ -94,16 +94,36 @@
           <i class="fa-solid fa-circle-info"></i>
         </div>
         <div class="banner-text">
-          <h3>ยินดีต้อนรับสู่ระบบจัดการข้อมูลยืม-คืน</h3>
-          <p>ข้อมูลในตารางซิงค์จาก Google Sheets อัตโนมัติทุก 10 วินาที</p>
+          <h3>Welcome to the Borrow-Return Management System</h3>
+          <p>Table data syncs from Google Sheets automatically every 10 seconds</p>
         </div>
         <button class="banner-close-btn" onclick="this.parentElement.remove()">&times;</button>
       </div>
 
       <!-- ==================== DAILY SUMMARY ==================== -->
       <section class="summary-section">
-        <div class="section-header">
-          <h2><i class="fa-solid fa-chart-pie"></i> สรุปความเคลื่อนไหว</h2>
+        <div class="section-header" style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+          <h2><i class="fa-solid fa-chart-pie"></i> Activity Summary</h2>
+          <!-- Button to open the QR/link popup for the borrow form (same size as Export Excel) -->
+          <button type="button" class="btn btn-outline" onclick="document.getElementById('borrowQrModal').style.display='flex'">
+            <i class="fa-solid fa-qrcode"></i> Equipment Borrow Form
+          </button>
+        </div>
+
+        <!-- Popup: QR + equipment borrow form link (tap the button above to open; tap the backdrop/✕ to close) -->
+        <div id="borrowQrModal" onclick="if(event.target===this)this.style.display='none'"
+             style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+          <div style="background:#fff; border-radius:16px; padding:24px 24px 20px; max-width:320px; width:100%; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.3); position:relative;">
+            <button type="button" aria-label="Close" onclick="document.getElementById('borrowQrModal').style.display='none'"
+              style="position:absolute; top:12px; right:12px; border:none; background:#f1f5f9; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:15px; color:#475569; line-height:1;">✕</button>
+            <h3 style="margin:0 0 4px; font-size:1.1rem; color:#1e293b;">Equipment Borrow Form</h3>
+            <p style="margin:0 0 16px; font-size:0.82rem; color:#64748b;">Scan the QR or tap the link below to open the form</p>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" shape-rendering="crispEdges" style="width:230px; height:230px; display:block; margin:0 auto; border:1px solid #e2e8f0; border-radius:8px;"><path fill="#ffffff" d="M0 0h41v41H0z"/><path stroke="#000000" d="M4 4.5h7m1 0h1m2 0h1m1 0h1m2 0h5m2 0h1m2 0h7M4 5.5h1m5 0h1m1 0h6m2 0h1m1 0h1m1 0h1m2 0h1m2 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m3 0h2m4 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h2m4 0h1m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m3 0h5m2 0h3m1 0h1m2 0h1m1 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m2 0h2m1 0h1m1 0h1m1 0h4m2 0h1m1 0h1m1 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h5m3 0h4M4 12.5h1m1 0h2m1 0h3m2 0h1m1 0h1m2 0h5m1 0h1m2 0h1m1 0h1m2 0h1m1 0h2M5 13.5h1m3 0h1m4 0h2m4 0h1m1 0h2m1 0h1m1 0h1m2 0h2m1 0h4M4 14.5h1m1 0h5m4 0h2m1 0h1m5 0h2m1 0h3m1 0h3m1 0h2M4 15.5h3m1 0h1m4 0h2m1 0h4m4 0h1m1 0h6m1 0h1M7 16.5h6m1 0h2m5 0h1m1 0h1m2 0h1m2 0h1m1 0h3M4 17.5h4m3 0h1m2 0h1m2 0h1m1 0h2m2 0h1m4 0h2m1 0h1m3 0h1M7 18.5h1m1 0h5m3 0h2m4 0h2m1 0h1m1 0h1m1 0h4M5 19.5h1m2 0h1m3 0h1m1 0h1m1 0h2m1 0h2m2 0h4m1 0h3m2 0h2M5 20.5h3m2 0h4m1 0h1m3 0h1m2 0h6m1 0h2m1 0h3M5 21.5h2m2 0h1m1 0h2m1 0h2m2 0h5m1 0h5m1 0h1m1 0h2m2 0h1M4 22.5h3m1 0h1m1 0h1m1 0h2m1 0h2m2 0h1m4 0h1m1 0h1m1 0h2m1 0h2m1 0h2M4 23.5h1m2 0h3m1 0h1m2 0h1m2 0h1m1 0h1m1 0h3m2 0h1m1 0h1m1 0h1m1 0h1m2 0h2M4 24.5h1m1 0h1m1 0h3m1 0h1m2 0h1m2 0h1m1 0h2m3 0h1m1 0h1m1 0h1m3 0h2M4 25.5h1m6 0h2m3 0h3m1 0h1m1 0h2m3 0h1m2 0h1m5 0h1M9 26.5h2m2 0h1m1 0h1m2 0h1m2 0h2m1 0h4m2 0h2m3 0h2M5 27.5h2m2 0h1m1 0h2m2 0h3m5 0h2m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1M4 28.5h1m3 0h1m1 0h2m1 0h2m4 0h1m1 0h1m4 0h1m1 0h6m1 0h2M12 29.5h3m2 0h1m1 0h2m2 0h1m3 0h2m3 0h2M4 30.5h7m1 0h1m2 0h4m2 0h4m1 0h3m1 0h1m1 0h1M4 31.5h1m5 0h1m1 0h2m2 0h1m2 0h2m1 0h2m1 0h4m3 0h5M4 32.5h1m1 0h3m1 0h1m2 0h3m1 0h1m2 0h1m1 0h1m1 0h9m1 0h2M4 33.5h1m1 0h3m1 0h1m1 0h1m1 0h2m3 0h1m1 0h1m2 0h1m2 0h1m3 0h1m4 0h1M4 34.5h1m1 0h3m1 0h1m1 0h1m1 0h2m2 0h2m2 0h1m2 0h1m1 0h2m1 0h2m2 0h1M4 35.5h1m5 0h1m2 0h4m4 0h1m1 0h2m1 0h4m1 0h2m3 0h1M4 36.5h7m1 0h1m1 0h1m3 0h2m1 0h5m1 0h1m4 0h1m1 0h1"/></svg>
+            <a href="https://pengthanason.github.io/equipment-dashboard/form.html" target="_blank" rel="noopener noreferrer"
+               style="display:inline-block; margin-top:16px; color:#2563eb; font-size:0.82rem; word-break:break-all; text-decoration:underline;">
+              https://pengthanason.github.io/equipment-dashboard/form.html
+            </a>
+          </div>
         </div>
         
         <div class="stats-grid">
@@ -113,9 +133,9 @@
               <i class="fa-solid fa-calendar-plus text-blue"></i>
             </div>
             <div class="stat-info">
-              <span class="stat-label" id="stat-label-borrows">รายการยืมวันนี้</span>
+              <span class="stat-label" id="stat-label-borrows">Borrowed today</span>
               <h3 id="stat-borrows-today" class="stat-number">0</h3>
-              <span class="stat-subtext" id="stat-sub-borrows">อัปเดตวันนี้</span>
+              <span class="stat-subtext" id="stat-sub-borrows">Updated today</span>
             </div>
           </div>
 
@@ -125,9 +145,9 @@
               <i class="fa-solid fa-calendar-check text-green"></i>
             </div>
             <div class="stat-info">
-              <span class="stat-label" id="stat-label-returns">ส่งคืนสำเร็จวันนี้</span>
+              <span class="stat-label" id="stat-label-returns">Returned today</span>
               <h3 id="stat-returns-today" class="stat-number">0</h3>
-              <span class="stat-subtext" id="stat-sub-returns">เช็คอินวันนี้</span>
+              <span class="stat-subtext" id="stat-sub-returns">Checked in today</span>
             </div>
           </div>
 
@@ -137,9 +157,9 @@
               <i class="fa-solid fa-hourglass-half text-yellow"></i>
             </div>
             <div class="stat-info">
-              <span class="stat-label">กำลังยืมอยู่ตอนนี้</span>
+              <span class="stat-label">Currently borrowed</span>
               <h3 id="stat-currently-borrowed" class="stat-number">0</h3>
-              <span class="stat-subtext">ค้างส่งคืน</span>
+              <span class="stat-subtext">Pending return</span>
             </div>
           </div>
 
@@ -149,9 +169,9 @@
               <i class="fa-solid fa-triangle-exclamation text-red"></i>
             </div>
             <div class="stat-info">
-              <span class="stat-label">เกินกำหนดส่งคืน</span>
+              <span class="stat-label">Overdue</span>
               <h3 id="stat-overdue" class="stat-number">0</h3>
-              <span class="stat-subtext">รายการที่เลยกำหนด</span>
+              <span class="stat-subtext">Past due items</span>
             </div>
           </div>
         </div>
@@ -163,16 +183,16 @@
           <div class="controls-left">
             <div class="search-wrapper">
               <i class="fa-solid fa-magnifying-glass search-icon"></i>
-              <input type="text" id="search-input" placeholder="ค้นหาด้วย ชื่อ, แผนก, อุปกรณ์...">
+              <input type="text" id="search-input" placeholder="Search by name, department, equipment...">
             </div>
             
             <div class="filter-wrapper">
               <i class="fa-solid fa-filter filter-icon"></i>
               <select id="status-filter">
-                <option value="all">สถานะทั้งหมด</option>
-                <option value="borrowing">กำลังยืม</option>
-                <option value="returned">คืนแล้ว</option>
-                <option value="overdue">เกินกำหนดส่งคืน</option>
+                <option value="all">All statuses</option>
+                <option value="borrowing">Borrowing</option>
+                <option value="returned">Returned</option>
+                <option value="overdue">Overdue</option>
               </select>
             </div>
           </div>
@@ -180,9 +200,9 @@
           <div class="controls-right">
             <div class="date-filter-group">
               <input type="date" id="filter-date-from" class="date-filter-input">
-              <span class="date-filter-sep">ถึง</span>
+              <span class="date-filter-sep">to</span>
               <input type="date" id="filter-date-to" class="date-filter-input">
-              <button type="button" id="btn-today" class="btn-today">วันนี้</button>
+              <button type="button" id="btn-today" class="btn-today">Today</button>
             </div>
             <button type="button" id="btn-export-csv" class="btn btn-outline">
               <i class="fa-solid fa-file-csv"></i> Export Excel
@@ -196,17 +216,17 @@
             <table id="records-table">
               <thead>
                 <tr>
-                  <th style="width: 60px;">ลำดับ</th>
-                  <th style="width: 160px;">วันเวลาที่ทำรายการ</th>
-                  <th class="col-name">ชื่อ</th>
-                  <th style="width: 90px;">แผนก</th>
-                  <th style="width: 160px;">อีเมล</th>
-                  <th>อุปกรณ์ที่ยืม</th>
-                  <th style="width: 140px;">วันยืม</th>
-                  <th style="width: 140px;">วันคืน</th>
-                  <th style="width: 110px; text-align: center;">สถานะ</th>
-                  <th>หมายเหตุ</th>
-                  <th style="width: 130px; text-align: center;">จัดการ</th>
+                  <th style="width: 60px;">No.</th>
+                  <th style="width: 160px;">Timestamp</th>
+                  <th class="col-name">Name</th>
+                  <th style="width: 90px;">Dept</th>
+                  <th style="width: 160px;">Email</th>
+                  <th>Equipment</th>
+                  <th style="width: 140px;">Borrow date</th>
+                  <th style="width: 140px;">Return date</th>
+                  <th style="width: 110px; text-align: center;">Status</th>
+                  <th>Notes</th>
+                  <th style="width: 130px; text-align: center;">Actions</th>
                 </tr>
               </thead>
               <tbody id="records-tbody">
@@ -220,24 +240,24 @@
             <div class="empty-state-icon">
               <i class="fa-regular fa-folder-open"></i>
             </div>
-            <h3>ไม่พบข้อมูลบันทึกการยืม</h3>
-            <p>กรุณาลองเปลี่ยนคำค้นหา หรือรอข้อมูลจาก Google Form</p>
+            <h3>No borrow records found</h3>
+            <p>Try a different search, or wait for data from Google Form</p>
           </div>
           
           <!-- Table Footer -->
           <div class="table-footer">
-            <span id="records-count">แสดงทั้งหมด 0 รายการ</span>
-            <span class="auto-save-tag"><i class="fa-solid fa-cloud-arrow-up"></i> ซิงค์กับ Google Sheets อัตโนมัติ</span>
+            <span id="records-count">Showing 0 records</span>
+            <span class="auto-save-tag"><i class="fa-solid fa-cloud-arrow-up"></i> Auto-synced with Google Sheets</span>
           </div>
 
           <!-- Pagination -->
           <div id="pagination-wrapper" class="pagination-wrapper">
             <button type="button" id="btn-prev-page" class="btn-page">
-              <i class="fa-solid fa-chevron-left"></i> ก่อนหน้า
+              <i class="fa-solid fa-chevron-left"></i> Prev
             </button>
-            <span id="page-info" class="page-info">หน้า 1 / 1</span>
+            <span id="page-info" class="page-info">Page 1 / 1</span>
             <button type="button" id="btn-next-page" class="btn-page">
-              ถัดไป <i class="fa-solid fa-chevron-right"></i>
+              Next <i class="fa-solid fa-chevron-right"></i>
             </button>
           </div>
         </div>
@@ -252,7 +272,7 @@
   <div id="edit-modal" class="modal-backdrop">
     <div class="modal-card">
       <div class="modal-header">
-        <h3><i class="fa-solid fa-pen-to-square text-blue"></i> แก้ไขข้อมูลบันทึกการยืม</h3>
+        <h3><i class="fa-solid fa-pen-to-square text-blue"></i> Edit Borrow Record</h3>
         <button class="modal-close-btn">&times;</button>
       </div>
       <form id="edit-form">
@@ -261,59 +281,59 @@
         <div class="modal-body">
           <div class="form-row">
             <div class="form-group col-6">
-              <label>ชื่อ</label>
+              <label>Name</label>
               <div id="edit-name" class="field-readonly"></div>
             </div>
             <div class="form-group col-6">
-              <label>แผนก</label>
+              <label>Dept</label>
               <div id="edit-surname" class="field-readonly"></div>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="edit-email">อีเมล</label>
+            <label for="edit-email">Email</label>
             <input type="email" id="edit-email">
           </div>
 
           <div class="form-group">
-            <label for="edit-equipment">อุปกรณ์ที่ยืม</label>
+            <label for="edit-equipment">Equipment</label>
             <input type="text" id="edit-equipment" required>
           </div>
 
           <div class="form-row">
             <div class="form-group col-6">
-              <label>วันยืม</label>
+              <label>Borrow date</label>
               <div id="edit-borrow-date" class="field-readonly"></div>
             </div>
             <div class="form-group col-6">
-              <label for="edit-return-date">วันคืน</label>
+              <label for="edit-return-date">Return date</label>
               <input type="date" id="edit-return-date" required>
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group col-6">
-              <label for="edit-status">สถานะ</label>
+              <label for="edit-status">Status</label>
               <select id="edit-status" class="status-select">
-                <option value="กำลังยืม">กำลังยืม</option>
-                <option value="คืนแล้ว">คืนแล้ว</option>
+                <option value="กำลังยืม">Borrowing</option>
+                <option value="คืนแล้ว">Returned</option>
               </select>
             </div>
             <div class="form-group col-6">
-              <label>วันเวลาที่ทำรายการ</label>
+              <label>Timestamp</label>
               <div id="edit-timestamp" class="field-readonly"></div>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="edit-notes">หมายเหตุ</label>
-            <textarea id="edit-notes" rows="2" placeholder="ใส่หมายเหตุ..."></textarea>
+            <label for="edit-notes">Notes</label>
+            <textarea id="edit-notes" rows="2" placeholder="Add a note..."></textarea>
           </div>
         </div>
         
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline modal-close-btn">ยกเลิก</button>
-          <button type="submit" class="btn btn-primary">บันทึกการเปลี่ยนแปลง</button>
+          <button type="button" class="btn btn-outline modal-close-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save changes</button>
         </div>
       </form>
     </div>

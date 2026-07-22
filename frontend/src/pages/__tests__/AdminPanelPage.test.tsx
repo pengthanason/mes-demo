@@ -81,7 +81,7 @@ describe('AdminPanelPage', () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(screen.getByRole('button', { name: 'Delete' }));
-    await vi.waitFor(() => expect(mocks.deleteMock.mutate).toHaveBeenCalledWith(1));
+    await vi.waitFor(() => expect(mocks.deleteMock.mutate).toHaveBeenCalledWith(1, expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) })));
     expect(confirmDialog).toHaveBeenCalled();
   });
 });

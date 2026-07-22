@@ -171,7 +171,7 @@ body {
 .panel__subtitle {
   color: var(--text-muted);
   font-size: 0.875rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.25rem;
   line-height: 1.6;
 }
 
@@ -256,6 +256,28 @@ input[readonly],
 textarea[readonly] {
   cursor: default;
   caret-color: transparent;
+}
+
+/* ─── ข้อความ UI (ป้าย/หัวข้อ/คำอธิบาย) ไม่ใช่ข้อมูล ───────────────────
+   คลิกแล้วไม่ติด text caret · ลากคลุมไม่ได้ · เคอร์เซอร์ปกติ (ไม่ใช่ I-beam)
+   → เวลากดปิด dropdown/นอกกล่อง จะไม่เผลอไปเลือก/โฟกัสป้ายพวกนี้
+   (ข้อมูลใน <td>/<div> ยังเลือก-ก็อปได้ตามปกติ) */
+label,
+.field > span,
+.panel__title,
+.panel__subtitle,
+h1, h2, h3, h4, h5, h6,
+th {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+/* input/textarea ยังพิมพ์และเลือกข้อความได้ตามปกติ (กัน user-select:none จาก <label> หล่นมาทับ) */
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: auto;
 }
 
 /* ─── ช่องเสิร์ชใน dropdown filter — บางเบา ไม่มีกรอบเต็มกล่อง (แทน input ปกติที่กรอบหนา + focus-visible เขียวหนา) ─── */

@@ -8,6 +8,7 @@ import {
 } from '../lib/adminApi';
 import { PERMISSIONS, ROLE_DEFAULT_PERMS } from '../lib/permissions';
 import { Paginator } from '../components/Paginator';
+import { showToast } from '../lib/toast';
 
 const ROLES: AppRole[] = ['ADMIN', 'MEMBER', 'VIEWER'];
 const ROLE_BADGE: Record<AppRole, string> = { ADMIN: '#ef4444', MEMBER: '#3b82f6', VIEWER: '#6b7280' };
@@ -229,11 +230,17 @@ function UsersTab() {
 
   async function handleToggle(u: AppUser) {
     if (!(await confirmDialog(`${u.isActive ? 'Disable' : 'Enable'} user ${u.username}?`, { danger: u.isActive, confirmText: u.isActive ? 'Disable' : 'Enable' }))) return;
-    updateUser.mutate({ id: u.id, isActive: !u.isActive });
+    updateUser.mutate({ id: u.id, isActive: !u.isActive }, {
+      onSuccess: () => showToast(`User ${u.username} ${u.isActive ? 'disabled' : 'enabled'}`, 'success'),
+      onError: (e: any) => showToast(e?.message || 'Update failed', 'error'),
+    });
   }
   async function handleDelete(u: AppUser) {
     if (!(await confirmDialog(`Delete user "${u.username}" from the system?`, { title: 'Delete User' }))) return;
-    deleteUser.mutate(u.id);
+    deleteUser.mutate(u.id, {
+      onSuccess: () => showToast(`User "${u.username}" deleted`, 'success'),
+      onError: (e: any) => showToast(e?.message || 'Delete failed', 'error'),
+    });
   }
 
   return (

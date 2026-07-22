@@ -45,7 +45,7 @@ export function useMarkRead() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await api.post(`/notifications/${id}/read`);
-      if (res.status >= 400 || res.status === 0) throw new Error('mark read failed');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Mark read failed');
       return res.data;
     },
     onSuccess: () => {
@@ -59,7 +59,9 @@ export function useMarkAllRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      await api.post('/notifications/read-all');
+      const res = await api.post('/notifications/read-all');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Mark all read failed');
+      return res.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: NOTIF_KEY });

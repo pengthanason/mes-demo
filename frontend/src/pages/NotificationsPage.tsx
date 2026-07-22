@@ -4,6 +4,7 @@ import { useNotifications, useMarkRead, useMarkAllRead } from '../lib/notificati
 import { Paginator } from '../components/Paginator';
 import { BlockState } from '../components/DataStates';
 import { timeAgo } from '../lib/format';
+import { showToast } from '../lib/toast';
 
 const TYPE_ICON: Record<string, string> = {
   WO_OPEN: '🔧', QC_FAIL: '❌', CR_APPROVED: '✅', WO_CLOSED: '✔️', REWORK: '🔨',
@@ -35,7 +36,11 @@ export function NotificationsPage() {
             <h1 className="panel__title">Notifications</h1>
             <p className="panel__subtitle">Notifications from the MES system</p>
           </div>
-          <button type="button" className="btn secondary" onClick={() => markAll.mutate()} disabled={markAll.isPending}>
+          <button type="button" className="btn secondary" disabled={markAll.isPending}
+            onClick={() => markAll.mutate(undefined, {
+              onSuccess: () => showToast('All notifications marked as read', 'success'),
+              onError: (e: any) => showToast(e?.message || 'Failed to mark all read', 'error'),
+            })}>
             {markAll.isPending ? 'Working...' : 'Mark All Read'}
           </button>
         </div>
