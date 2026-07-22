@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TraceabilityPage } from '../TraceabilityPage';
-import { useSerialTrace, useSerialList, useBoxList, useBoxDetail, useDailyReport } from '../../lib/traceApi';
+import { useSerialTrace } from '../../lib/traceApi';
 
 // #50 #37: mock hooks → คุม state · หน้า Routing/Scan history ต่อ /api/routing/history/:sn
 vi.mock('../../lib/traceApi', () => ({

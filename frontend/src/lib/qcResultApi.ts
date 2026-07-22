@@ -174,18 +174,6 @@ export function useReworkStatus() {
   });
 }
 
-export function useTransferVerify(qcResultId: number | null) {
-  return useQuery({
-    queryKey: ['transfer-verify', qcResultId],
-    enabled: qcResultId !== null,
-    queryFn: async (): Promise<TransferVerification | null> => {
-      const res = await api.get(`/qc/transfer-verify/${qcResultId}`);
-      if (res.status === 404) return null;
-      return (res.data as any)?.data ?? null;
-    },
-  });
-}
-
 export function useTransferVerifyCreate() {
   const qc = useQueryClient();
   return useMutation({

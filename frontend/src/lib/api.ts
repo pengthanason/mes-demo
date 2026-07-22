@@ -53,10 +53,6 @@ export function clearAuthTokens() {
   setAuthTokens(null, null);
 }
 
-export function getRefreshToken(): string | null {
-  return getStoredToken(REFRESH_TOKEN_KEYS);
-}
-
 import { API_BASE_URL } from './config';
 import { apiErrorMessage } from './errorMessage';
 const API_ORIGIN: string = API_BASE_URL;

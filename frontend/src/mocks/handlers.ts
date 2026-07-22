@@ -2,7 +2,6 @@ import { http, HttpResponse } from 'msw';
 
 // ── In-memory mutable state ──────────────────────────────────────────────────
 
-let _notifId = 10;
 const notifications = [
   { id: 1, type: 'WO_OPEN',     title: 'Work Order เปิดใหม่',       message: 'WO-2026-003 สำหรับ MOT-4500 เปิดแล้ว', link: '/wo-dashboard', is_read: false, created_at: '2026-06-14T08:00:00Z' },
   { id: 2, type: 'QC_FAIL',     title: 'QC ไม่ผ่าน',                 message: 'WO-2026-002 lot LOT-002 พบ defect 3 ชิ้น', link: '/qc-result', is_read: false, created_at: '2026-06-14T09:15:00Z' },

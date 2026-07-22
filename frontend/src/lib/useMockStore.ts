@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getAuth, getWoList, getObaRecords, getRoutingHistory } from './mockStore';
-import type { AuthState, MockWO, ObaRecord, RoutingRecord } from './mockStore';
+import { getAuth } from './mockStore';
+import type { AuthState } from './mockStore';
 
 function useStoreValue<T>(getter: () => T): T {
   const [value, setValue] = useState<T>(() => getter());
@@ -19,18 +19,6 @@ function useStoreValue<T>(getter: () => T): T {
 
 export function useMockAuth(): AuthState {
   return useStoreValue(getAuth);
-}
-
-export function useMockWoList(): MockWO[] {
-  return useStoreValue(getWoList);
-}
-
-export function useMockObaRecords(): ObaRecord[] {
-  return useStoreValue(getObaRecords);
-}
-
-export function useRoutingHistory(): RoutingRecord[] {
-  return useStoreValue(getRoutingHistory);
 }
 
 export function useIsViewer(): boolean {

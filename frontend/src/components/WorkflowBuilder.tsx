@@ -193,14 +193,6 @@ function PresetSelect({ workflows, onLoad, onDelete, canDelete }: {
   );
 }
 
-// สีตาม role สำหรับ flowchart (stroke + fill อ่อน)
-const ROLE_VIS: Record<Role, { stroke: string; fill: string }> = {
-  incoming: { stroke: '#0891b2', fill: '#ecfeff' },
-  setup:    { stroke: '#7c3aed', fill: '#f5f3ff' },
-  smt:      { stroke: '#d97706', fill: '#fffbeb' },
-  packing:  { stroke: '#16a34a', fill: '#f0fdf4' },
-  store:    { stroke: '#64748b', fill: '#f8fafc' },
-};
 // ป้าย disposition เมื่อ fail (ใช้ทั้ง flowchart + dropdown)
 const FAIL_OPTS: { value: FailAction; label: string }[] = [
   { value: 'rework', label: '🛠️ Rework (loop back to repair)' },

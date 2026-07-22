@@ -81,26 +81,6 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
   );
 }
 
-// Status หน้า = ดึงจาก Process อัตโนมัติ — รองรับทั้ง checkbox (ติ๊ก=DONE) และ click-cycle 4 สถานะในตาราง
-// ลำดับความสำคัญ: Delay > On process > (ครบทุก step = Done) > ทำบางส่วน (step ถัดไป = On process) > Cancel > status ที่เก็บไว้
-export function deriveStatus(p: Partial<PpProject>): { key: string; label: string } {
-  const vals = PROCESS_STEPS.map(s => ({ label: s.label, v: (p as any)[s.key] as string }));
-  const fallback = () => { const s = p.status || 'ON_PROCESS'; return { key: s, label: PP_STATUS_LABEL[s] ?? s }; };
-  if (!vals.some(x => x.v)) return fallback();
-  const delay = vals.find(x => x.v === 'DELAY');
-  if (delay) return { key: 'DELAY', label: delay.label };
-  const onproc = vals.find(x => x.v === 'ON_PROCESS');
-  if (onproc) return { key: 'ON_PROCESS', label: onproc.label };
-  if (vals.every(x => x.v === 'DONE')) return { key: 'DONE', label: 'Done' };
-  if (vals.some(x => x.v === 'DONE')) {                     // ทำบางส่วน → step ถัดไปที่ยังไม่เสร็จ = กำลังทำ
-    const next = vals.find(x => x.v !== 'DONE');
-    return { key: 'ON_PROCESS', label: next ? next.label : 'On process' };
-  }
-  const cancel = vals.find(x => x.v === 'CANCEL');
-  if (cancel) return { key: 'CANCEL', label: cancel.label };
-  return fallback();
-}
-
 // แสดงผลช่อง Status — status เก็บได้ทั้ง 4 สถานะ (DONE/ON_PROCESS/DELAY/CANCEL) หรือชื่อ process step (เช่น "SMT")
 // · ถ้าเป็น process step → โชว์ชื่อ step + สีเหลือง (เหมือน Delay) · status_color = สีที่กดเปลี่ยนเองในตาราง (ทับได้)
 export function statusView(p: Partial<PpProject>): { label: string; colorKey: string } {
@@ -116,19 +96,6 @@ export function statusView(p: Partial<PpProject>): { label: string; colorKey: st
    ใช้ร่วมกันทั้ง Dashboard table / Excel / PDF เพื่อให้ลำดับตรงกันเสมอ
    headerColor = สีหัวคอลัมน์พิเศษ (hex 6 หลัก ไม่มี #) · center = จัดกึ่งกลาง */
 export type PpCol = { key: string; header: string; w: number; center?: boolean; headerColor?: string; group?: string; excelOnly?: boolean; value: (p: PpProject) => string };
-
-/* STATUS pipeline (ขั้นตอนการผลิต) — ลำดับ + ป้าย · ใช้ทั้งฟอร์มและ Excel (ไม่โชว์ตาราง Dashboard) */
-export const PP_PIPELINE: { key: keyof PpProject; label: string }[] = [
-  { key: 'st_pr_po',     label: 'PR/PO' },
-  { key: 'st_wait_mat',  label: "Wait Mat'l" },
-  { key: 'st_incoming',  label: 'Incoming' },
-  { key: 'st_create_bo', label: 'Create BOM' },
-  { key: 'st_test',      label: 'Test' },
-  { key: 'st_rework',    label: 'Rework' },
-  { key: 'st_smt',       label: 'SMT' },
-  { key: 'st_thr',       label: 'THR' },
-  { key: 'st_bbas',      label: 'BBAS' },
-];
 
 /* ── นิยามคอลัมน์ชุดเดียว — กลุ่ม WO/Type/PD PLAN/PIC (หัวบน + ย่อยล่าง) ──
    ใช้ร่วมกัน: Dashboard table (กรอง excelOnly ออก) · Excel/PDF (ครบทุกคอลัมน์)

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api';
-import type { ObaRecord, QcRecord, RoutingRecord } from './mockStore';
+import type { ObaRecord } from './mockStore';
 
 function rowsOf(res: { data: unknown }): any[] {
   return (res.data as any)?.data ?? [];
@@ -51,23 +51,6 @@ export function useObaCreate() {
 
 const QC_KEY = ['qc-records'];
 
-export function useQcRecords() {
-  return useQuery({
-    queryKey: QC_KEY,
-    queryFn: async (): Promise<QcRecord[]> => {
-      const res = await api.get('/qc/list');
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load QC records');
-      return rowsOf(res).map(r => ({
-        id:     String(r.id),
-        sn:     r.sn,
-        status: r.status,
-        time:   new Date(r.created_at).toLocaleTimeString(),
-        error:  r.error ?? null,
-      }));
-    },
-  });
-}
-
 export function useQcCreate() {
   const qc = useQueryClient();
   return useMutation({
@@ -109,55 +92,4 @@ export function useQcHistory(woId?: string, limit = 100) {
   });
 }
 
-// ── Routing History ────────────────────────────────────────────────
-
-const ROUTING_KEY = ['routing-records'];
-
-export function useRoutingRecords() {
-  return useQuery({
-    queryKey: ROUTING_KEY,
-    queryFn: async (): Promise<RoutingRecord[]> => {
-      const res = await api.get('/routing/list');
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load routing records');
-      return rowsOf(res).map(r => ({
-        id:       String(r.id),
-        ts:       new Date(r.created_at).toLocaleString(),
-        woId:     r.wo_id ?? '',
-        serial:   r.serial,
-        sequence: r.sequence,
-        result:   r.result,
-        totalSec: Number(r.total_sec),
-      }));
-    },
-  });
-}
-
-export function useRoutingCreate() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (rec: { serial: string; sequence: string; result: string; totalSec: number; woId?: string }) => {
-      const res = await api.post('/routing', {
-        serial:    rec.serial,
-        sequence:  rec.sequence,
-        result:    rec.result,
-        total_sec: rec.totalSec,
-        wo_id:     rec.woId ?? '',
-      });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save Routing');
-      return res.data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ROUTING_KEY }),
-  });
-}
-
-export function useRoutingDelete() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await api.delete(`/routing/${id}`);
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to delete');
-      return res.data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ROUTING_KEY }),
-  });
-}
+// ── Routing History (removed — feature deprecated) ──
