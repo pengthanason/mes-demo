@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useWoOverview } from '../lib/planningApi';
 
 // #54: Work Orders Overview บน Dashboard — ความคืบหน้าใบสั่งผลิต (target/done/yield/status) จาก /api/planning/wo-overview
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
+// หัวข้อ + ช่องค้นหา ให้เป็นชุดเดียวกันทั้ง 2 widget
+const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' };
+const SEARCH: React.CSSProperties = { fontSize: '0.85rem', padding: '7px 12px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 200, maxWidth: '45%' };
 const TH: React.CSSProperties = { textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 8px 8px', position: 'sticky', top: 0, background: '#fff' };
 const TD: React.CSSProperties = { textAlign: 'center', fontSize: '0.85rem', padding: '8px', borderTop: '1px solid var(--border-color)', whiteSpace: 'nowrap' };
 
@@ -20,12 +23,15 @@ function StatusPill({ status }: { status: string }) {
 export function WoOverviewWidget() {
   const { data, isLoading, isError } = useWoOverview();
   const workOrders = data?.workOrders ?? [];
+  const [q, setQ] = useState('');
 
-  // เรียง: กำลังผลิตก่อน แล้วใหม่สุด
+  // เรียง: กำลังผลิตก่อน แล้วใหม่สุด · แล้วกรองด้วยคำค้น (WO / product)
   const rows = useMemo(() => {
     const rank: Record<string, number> = { IN_PROGRESS: 0, PENDING: 1, DONE: 2, CANCELLED: 3 };
-    return [...workOrders].sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || new Date(b.openedAt || 0).getTime() - new Date(a.openedAt || 0).getTime());
-  }, [workOrders]);
+    const sorted = [...workOrders].sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || new Date(b.openedAt || 0).getTime() - new Date(a.openedAt || 0).getTime());
+    const kw = q.trim().toLowerCase();
+    return kw ? sorted.filter(w => `${w.woNumber} ${w.partNo}`.toLowerCase().includes(kw)) : sorted;
+  }, [workOrders, q]);
 
   // summary จาก backend ถ้ามี ไม่งั้นนับเอง
   const summary = useMemo(() => {
@@ -37,7 +43,12 @@ export function WoOverviewWidget() {
 
   return (
     <div style={CARD}>
-      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1e293b' }}>Work Orders</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <span style={TITLE}>Work Orders</span>
+        {!isLoading && !isError && workOrders.length > 0 && (
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search WO / product…" style={SEARCH} />
+        )}
+      </div>
 
       {isLoading ? (
         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 12 }}>Loading…</div>
@@ -88,6 +99,9 @@ export function WoOverviewWidget() {
                     <td style={{ ...TD, textAlign: 'left' }}><StatusPill status={w.status} /></td>
                   </tr>
                 ))}
+                {rows.length === 0 && (
+                  <tr><td colSpan={6} style={{ ...TD, textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem 0' }}>No work order matches “{q}”.</td></tr>
+                )}
               </tbody>
             </table>
           </div>

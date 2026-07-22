@@ -14,8 +14,11 @@ function ago(iso: string | null): string {
 }
 
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
-const TH: React.CSSProperties = { textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 0 8px', position: 'sticky', top: 0, background: '#fff' };
-const TD: React.CSSProperties = { textAlign: 'center', fontSize: '0.85rem', padding: '7px 0', borderTop: '1px solid var(--border-color)', whiteSpace: 'nowrap' };
+// หัวข้อ + ช่องค้นหา ให้เป็นชุดเดียวกับ Work Orders widget
+const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' };
+const SEARCH: React.CSSProperties = { fontSize: '0.85rem', padding: '7px 12px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 200, maxWidth: '45%' };
+const TH: React.CSSProperties = { textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 8px 8px', position: 'sticky', top: 0, background: '#fff' };
+const TD: React.CSSProperties = { textAlign: 'center', fontSize: '0.85rem', padding: '8px', borderTop: '1px solid var(--border-color)', whiteSpace: 'nowrap' };
 
 export function StationMonitorWidget() {
   const { data = [], isLoading, isError } = useStationMonitor();
@@ -34,8 +37,13 @@ export function StationMonitorWidget() {
 
   return (
     <div style={CARD}>
-      {/* หัว */}
-      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1e293b' }}>Station Status</div>
+      {/* หัว: title ใหญ่ + search (ชุดเดียวกับ Work Orders) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <span style={TITLE}>Station Status</span>
+        {!isLoading && !isError && data.length > 0 && (
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search station…" style={SEARCH} />
+        )}
+      </div>
 
       {isLoading ? (
         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 12 }}>Loading…</div>
@@ -46,12 +54,8 @@ export function StationMonitorWidget() {
       ) : (
         <>
           {/* สรุปบรรทัดเดียว */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              <b style={{ color: '#1e293b' }}>{data.length}</b> stations · <b style={{ color: 'var(--brand)' }}>{summary.inWip.toLocaleString()}</b> in WIP · <b style={{ color: summary.rework ? '#ea580c' : '#1e293b' }}>{summary.rework.toLocaleString()}</b> rework · <b style={{ color: '#16a34a' }}>{summary.pass.toLocaleString()}</b> pass
-            </div>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search station…"
-              style={{ fontSize: '0.78rem', padding: '5px 10px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 150 }} />
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 10 }}>
+            <b style={{ color: '#1e293b' }}>{data.length}</b> stations · <b style={{ color: 'var(--brand)' }}>{summary.inWip.toLocaleString()}</b> in WIP · <b style={{ color: summary.rework ? '#ea580c' : '#1e293b' }}>{summary.rework.toLocaleString()}</b> rework · <b style={{ color: '#16a34a' }}>{summary.pass.toLocaleString()}</b> pass
           </div>
 
           {/* ตารางสะอาด — สูงจำกัด + เลื่อนในตัว */}
