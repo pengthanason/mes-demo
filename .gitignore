@@ -1,8 +1,10 @@
 node_modules/
 __pycache__/
 *.pyc
+# env files — never commit (contain DB password / JWT secret)
 .env
-.env.local
+.env.*
+!.env.example
 dist/
 build/
 .next/
