@@ -137,6 +137,8 @@ const fmtTime = (sec: number) => {
   return p.join(' ');
 };
 
+const ROLE_DOT: Record<string, string> = { incoming: '#0891b2', setup: '#7c3aed', smt: '#d97706', packing: '#16a34a', store: '#64748b' };   // #7 สีจุด dumbbell ตาม role
+
 const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
 
 /* ── โหลด preset ── */
@@ -1561,6 +1563,32 @@ export function WorkflowBuilder() {
           </div>
         </div>
       </div>
+
+      {/* #7 Dumbbell — ลำดับสถานีทั้งหมดเป็นเส้นเดียว จุด=สถานี hover=standard time */}
+      {steps.length > 0 && (
+        <div style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: 8, background: '#fff' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: 10 }}>Station sequence <span style={{ fontWeight: 400, color: '#94a3b8' }}>— hover a dot for its standard time</span></div>
+          <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 'min-content', padding: '2px 6px' }}>
+              {steps.map((s, i) => {
+                const secN = Number(s.seconds) || 0;
+                const c = ROLE_DOT[s.role] ?? '#64748b';
+                return (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    {i > 0 && <div style={{ width: 34, height: 2, background: '#cbd5e1', marginTop: 7, flexShrink: 0 }} />}
+                    <div title={`${i + 1}. ${s.process}${s.kind === 'checkpoint' ? ' (checkpoint)' : ''}\nStandard time: ${secN ? fmtTime(secN) : 'not set'}`}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 72, flexShrink: 0, cursor: 'help' }}>
+                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.62rem', color: '#475569', marginTop: 6, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 70, fontWeight: 600 }}>{s.process}</span>
+                      <span style={{ fontSize: '0.6rem', color: secN ? '#0369a1' : '#cbd5e1', fontWeight: 600 }}>{secN ? fmtTime(secN) : '—'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* เวลามาตรฐาน (ประมาณการ) */}
       <div style={{ padding: 16, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>

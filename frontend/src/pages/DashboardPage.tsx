@@ -17,6 +17,9 @@ import {
 import { StationMonitorWidget } from '../components/StationMonitorWidget';
 import { WoOverviewWidget } from '../components/WoOverviewWidget';
 
+// #3: pd_pic อาจเก็บหลายคนในช่องเดียว ("Run,Ice,Nile") — แตกเป็นรายคน เพื่อฟิลเตอร์ "ตามคน"
+const splitPics = (v: any): string[] => String(v ?? '').split(/[,/;]/).map(s => s.trim()).filter(Boolean);
+
 // หัวคอลัมน์: สีพิเศษ (Expected/Actual shipping/Owner) + จัดกึ่งกลาง · WO No. ไม่ให้ตกบรรทัด
 const hdrStyle = (h: HeaderCell): React.CSSProperties => ({
   textAlign: 'center',
@@ -664,6 +667,12 @@ export function DashboardPage() {
   const customers = useMemo(() => [...new Set(tabRows.map(r => r.customer).filter(Boolean))], [tabRows]);
   const workOrders = useMemo(() => [...new Set(tabRows.map(r => r.work_order).filter(Boolean))], [tabRows]);
   const models = useMemo(() => [...new Set(tabRows.map(r => r.model).filter(Boolean))], [tabRows]);
+  // #3: รายชื่อคน (รายบุคคล) — แตกช่องที่มีหลายคน + รวมชื่อซ้ำแบบไม่สนตัวพิมพ์ (Kiert/kiert = คนเดียว)
+  const pics = useMemo(() => {
+    const seen = new Map<string, string>();   // lowercase key → display แรกที่เจอ
+    tabRows.forEach(r => splitPics(r.pd_pic).forEach(n => { const k = n.toLowerCase(); if (!seen.has(k)) seen.set(k, n); }));
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }, [tabRows]);
 
   // Filter ย่อยของ "On process" — ขยายเลือกได้ว่า process step ไหนบ้างที่กำลัง ON_PROCESS อยู่
   const [procStepFilter, setProcStepFilter] = useState<Set<string>>(new Set());
@@ -688,6 +697,11 @@ export function DashboardPage() {
     if (colFilters.customer?.size && !colFilters.customer.has(r.customer)) return false;
     if (colFilters.work_order?.size && !colFilters.work_order.has(r.work_order)) return false;
     if (colFilters.model?.size && !colFilters.model.has(r.model)) return false;
+    if (colFilters.pd_pic?.size) {
+      // ฟิลเตอร์ตามคน: แถวที่มี "คนที่เลือก" อยู่ในช่อง (แม้ช่องนั้นมีหลายคน) ก็ติด · เทียบแบบไม่สนตัวพิมพ์
+      const sel = new Set([...colFilters.pd_pic].map(s => s.toLowerCase()));
+      if (!splitPics(r.pd_pic).some(n => sel.has(n.toLowerCase()))) return false;
+    }
     if (procStepFilter.size && ![...procStepFilter].some(k => (r as any)[k] === 'ON_PROCESS')) return false;
     if (dateFrom && (!r.date_record || r.date_record < dateFrom)) return false;
     if (dateTo && (!r.date_record || r.date_record > dateTo)) return false;
@@ -832,6 +846,9 @@ export function DashboardPage() {
           <ColumnFilterField label="Model" options={models}
             selected={colFilters.model ?? new Set()} onToggle={v => toggleFilterValue('model', v)} onClear={() => clearFilterCol('model')}
             colKey="model" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
+          <ColumnFilterField label="PIC" options={pics}
+            selected={colFilters.pd_pic ?? new Set()} onToggle={v => toggleFilterValue('pd_pic', v)} onClear={() => clearFilterCol('pd_pic')}
+            colKey="pd_pic" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
           <label className="field"><span>From date</span><input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} /></label>
           <label className="field"><span>To date</span><input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} /></label>
         </div>

@@ -8,7 +8,7 @@ vi.mock('../../lib/planningApi', () => ({ useWoOverview: vi.fn() }));
 
 const WO = {
   id: 1, woNumber: 'WO-2026-001', partNo: 'PCB-A100', qtyTarget: 500, qtyStarted: 480,
-  qtyGood: 470, status: 'IN_PROGRESS', yieldPct: 94, openedAt: '2026-07-01T08:00:00Z', closedAt: null,
+  qtyGood: 450, status: 'IN_PROGRESS', yieldPct: 94, openedAt: '2026-07-01T08:00:00Z', closedAt: null,
 };
 
 beforeEach(() => {
@@ -24,7 +24,7 @@ describe('WoOverviewWidget (#54)', () => {
     expect(screen.getByText('Work Orders')).toBeInTheDocument();
     expect(screen.getByText('WO-2026-001')).toBeInTheDocument();
     expect(screen.getByText('PCB-A100')).toBeInTheDocument();
-    expect(screen.getByText('94.0%')).toBeInTheDocument();
+    expect(screen.getByText('94%')).toBeInTheDocument();
   });
 
   it('fail-soft: API error → โชว์ error ไม่ crash', () => {

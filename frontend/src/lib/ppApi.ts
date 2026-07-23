@@ -86,6 +86,24 @@ export function usePpProjects(filters: PpFilters = {}) {
   });
 }
 
+// รายชื่อคนทั้งหมดที่เคยมีในระบบ (รายบุคคล) — รวมจากทุกฟิลด์ที่เป็น "คน" (pd_pic + pic_responsible)
+// แตกช่องที่มีหลายคน + รวมชื่อซ้ำแบบไม่สนตัวพิมพ์ → ใช้เติม dropdown ตอนสร้าง/แก้ไข
+export function usePicNames() {
+  return useQuery({
+    queryKey: [...KEY, 'pic-names'],
+    queryFn: async (): Promise<string[]> => {
+      const res = await api.get('/pp/projects');
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load PIC names');
+      const rows: any[] = (res.data as any)?.data ?? [];
+      const seen = new Map<string, string>();   // lowercase → display แรกที่เจอ
+      const collect = (v: any) => String(v ?? '').split(/[,/;]/).map((s: string) => s.trim()).filter(Boolean)
+        .forEach((n: string) => { const k = n.toLowerCase(); if (!seen.has(k)) seen.set(k, n); });
+      rows.forEach(r => { collect(r.pd_pic); collect(r.pic_responsible); });
+      return [...seen.values()].sort((a, b) => a.localeCompare(b));
+    },
+  });
+}
+
 export function usePpCreate() {
   const qc = useQueryClient();
   return useMutation({

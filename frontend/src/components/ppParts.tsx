@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { usePpCreate, usePpUpdate, usePpHistory, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
+import { usePpCreate, usePpUpdate, usePpHistory, usePicNames, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
 import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
 import { WoInput } from './WoInput';
+import { MultiPicInput } from './MultiPicInput';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 
 // hex (#rrggbb) → ARGB ('FFRRGGBB') สำหรับ ExcelJS
@@ -536,6 +537,8 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const [fromStr, setFromStr] = useState('');   // ฟิลเตอร์ช่วงวันที่ที่แสดง (ว่าง = อัตโนมัติทั้งหมด)
   const [toStr, setToStr] = useState('');
+  const [showHeatmap, setShowHeatmap] = useState(false);   // #4: popup "จำนวนงาน active ต่อวัน"
+  const [heatTip, setHeatTip] = useState<{ x: number; y: number; label: string; n: number } | null>(null);   // #4: tooltip เซลล์ heatmap
   const leftRef = useRef<HTMLDivElement>(null);   // แผงชื่อ (sync เลื่อนแนวตั้งกับ timeline)
   const timelineRef = useRef<HTMLDivElement>(null);   // แผง timeline (เลื่อนแนวนอน) — auto-scroll ไปวันนี้ตอนเข้าหน้า
   const didScrollToday = useRef(false);           // scroll ไปวันนี้ครั้งเดียวตอนข้อมูลพร้อม
@@ -583,6 +586,15 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   const totalDays = gDayDiff(min, max) + 1;
   const days = Array.from({ length: totalDays }, (_, i) => { const d = new Date(min); d.setDate(d.getDate() + i); return d; });
 
+  // #4 heatmap: นับงานที่ active (ช่วง [start,end] ครอบวันนั้น) ต่อวัน + สเกลสี 5 ระดับ
+  const dayActive = days.map(d => tasks.filter(t => t.start && t.end && t.start.getTime() <= d.getTime() && d.getTime() <= t.end.getTime()).length);
+  const maxActive = Math.max(1, ...dayActive);
+  // สเกล YlOrRd (ColorBrewer) เหลือง→ส้ม→แดง — หลายสีชัด แยกระดับง่าย แต่ยังเป็นมาตรฐาน data-viz
+  const HEAT = ['#eef2f7', '#ffe08a', '#fdbf5c', '#fd8d3c', '#f03b20', '#bd0026'];
+  const heatBucket = (n: number) => n <= 0 ? 0 : Math.min(5, Math.ceil((n / maxActive) * 5));
+  const heat = (n: number) => HEAT[heatBucket(n)];
+  const heatTx = (n: number) => heatBucket(n) >= 4 ? 'rgba(255,255,255,0.82)' : 'rgba(124,45,18,0.55)';   // ตัวเลขในช่อง: โทนอ่อนลง (ขาวจาง / น้ำตาลจาง)
+
   const months: { label: string; span: number }[] = [];
   days.forEach(d => {
     const key = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
@@ -609,7 +621,120 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
         <span>to</span>
         <input type="date" value={toStr} onChange={e => setToStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
         {(fromStr || toStr) && <button type="button" onClick={() => { setFromStr(''); setToStr(''); }} style={{ padding: '3px 10px', fontSize: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>Clear date range</button>}
+        <button type="button" className="btn secondary" onClick={() => setShowHeatmap(true)} title="เปิด Heat map จำนวนงาน active ต่อวัน"
+          style={{ marginLeft: 'auto', fontSize: '0.82rem' }}>🔥 Heatmap</button>
       </div>
+
+      {/* #4 Heat map — popup "Active jobs / day" (enterprise calendar heatmap) */}
+      {showHeatmap && (() => {
+        const totalJD = dayActive.reduce((a, b) => a + b, 0);
+        const activeDays = dayActive.filter(n => n > 0).length;
+        const avgActive = activeDays ? (totalJD / activeDays).toFixed(1) : '0';
+        let bi = 0; dayActive.forEach((n, i) => { if (n > dayActive[bi]) bi = i; });
+
+        // จัด grid: 7 แถว (จ.–อา.) × คอลัมน์ = สัปดาห์
+        const CELL = 26, GAP = 5, MONTH_H = 18;
+        // เพิ่มวันหน้า/หลังของ heatmap (ไม่กระทบ timeline gantt) — เติมวันไว้ให้ปฏิทินดูเต็ม/มีที่หายใจ
+        const HEAT_PAD = 14;
+        const countByKey = new Map<string, number>(); days.forEach((d, i) => countByKey.set(d.toDateString(), dayActive[i]));
+        const hStart = new Date(days[0]); hStart.setDate(hStart.getDate() - HEAT_PAD);
+        const hEnd = new Date(days[days.length - 1]); hEnd.setDate(hEnd.getDate() + HEAT_PAD);
+        const heatDays: { d: Date; n: number }[] = [];
+        for (let t = hStart.getTime(); t <= hEnd.getTime(); t += 86400000) { const d = new Date(t); d.setHours(0, 0, 0, 0); heatDays.push({ d, n: countByKey.get(d.toDateString()) ?? 0 }); }
+        const firstDow = (heatDays[0].d.getDay() + 6) % 7;
+        const gridCells: (null | { d: Date; n: number })[] = [...Array(firstDow).fill(null), ...heatDays];
+        const weeks: (null | { d: Date; n: number })[][] = [];
+        for (let k = 0; k < gridCells.length; k += 7) weeks.push(gridCells.slice(k, k + 7));
+        if (weeks.length) { const lw = weeks[weeks.length - 1]; while (lw.length < 7) lw.push(null); }
+        let prevM = -1;
+        const monthLabels = weeks.map(w => {
+          const r = w.find(c => !!c) as { d: Date; n: number } | undefined;
+          if (!r) return '';
+          const m = r.d.getMonth();
+          if (m !== prevM) { prevM = m; return r.d.toLocaleDateString('en-GB', { month: 'short' }); }
+          return '';
+        });
+
+        const close = () => { setShowHeatmap(false); setHeatTip(null); };
+        const metrics: { label: string; value: string; sub: string }[] = [
+          { label: 'Peak load', value: String(maxActive), sub: 'jobs / day' },
+          { label: 'Busiest day', value: maxActive > 0 ? fmt(days[bi]) : '—', sub: maxActive > 0 ? `${dayActive[bi]} jobs` : '' },
+          { label: 'Avg / active day', value: avgActive, sub: 'jobs' },
+          { label: 'Active days', value: String(activeDays), sub: `of ${days.length} days` },
+        ];
+
+        return (
+          <div className="modal-overlay" onClick={close}>
+            <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 840px)', maxHeight: '92vh', overflowY: 'auto' }}>
+              {/* header */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
+                <div>
+                  <h2 className="panel__title" style={{ margin: 0 }}>Active jobs / day</h2>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>Jobs in progress (start–end covering each day) · darker = busier</p>
+                </div>
+                <button type="button" className="btn secondary" aria-label="Close" style={{ padding: '4px 12px', flexShrink: 0 }} onClick={close}>✕</button>
+              </div>
+
+              {/* KPI metric bar */}
+              <div style={{ display: 'flex', border: '1px solid var(--border-color)', borderRadius: 12, background: '#f8fafc', overflow: 'hidden', marginBottom: 20 }}>
+                {metrics.map((m, i) => (
+                  <div key={m.label} style={{ flex: 1, minWidth: 0, padding: '12px 16px', borderLeft: i ? '1px solid var(--border-color)' : 'none' }}>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.value}</div>
+                    <div style={{ fontSize: '0.64rem', fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 3 }}>{m.label}</div>
+                    {m.sub && <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 1 }}>{m.sub}</div>}
+                  </div>
+                ))}
+              </div>
+
+              {/* heatmap card */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: 12, padding: '18px 20px', background: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>Daily activity calendar</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                    <span>Less</span>
+                    {[0, 1, 2, 3, 4, 5].map(l => <span key={l} style={{ width: 16, height: 16, borderRadius: 4, background: HEAT[l], border: '1px solid rgba(27,31,36,0.06)' }} />)}
+                    <span>More</span>
+                  </div>
+                </div>
+                <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+                  <div style={{ display: 'flex', gap: GAP, width: 'fit-content', margin: '0 auto' }}>
+                    {/* ป้ายวันในสัปดาห์ */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: GAP, paddingTop: MONTH_H + GAP, flexShrink: 0 }}>
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((w, idx) => <div key={idx} style={{ height: CELL, fontSize: '0.66rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', paddingRight: 4 }}>{w}</div>)}
+                    </div>
+                    {/* คอลัมน์ = สัปดาห์ */}
+                    <div>
+                      <div style={{ display: 'flex', gap: GAP, height: MONTH_H, marginBottom: GAP }}>
+                        {weeks.map((_, wi) => <div key={wi} style={{ width: CELL, fontSize: '0.66rem', fontWeight: 700, color: '#8592a3', whiteSpace: 'nowrap', overflow: 'visible' }}>{monthLabels[wi]}</div>)}
+                      </div>
+                      <div style={{ display: 'flex', gap: GAP }}>
+                        {weeks.map((w, wi) => (
+                          <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: GAP }}>
+                            {w.map((c, ci) => c ? (
+                              <div key={ci}
+                                onMouseEnter={e => { const r = e.currentTarget.getBoundingClientRect(); setHeatTip({ x: r.left + r.width / 2, y: r.top, label: c.d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), n: c.n }); }}
+                                onMouseLeave={() => setHeatTip(null)}
+                                style={{ width: CELL, height: CELL, borderRadius: 5, background: heat(c.n), border: c.n === 0 ? '1px solid rgba(27,31,36,0.05)' : 'none', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.66rem', fontWeight: 600, color: heatTx(c.n) }}>{c.n || ''}</div>
+                            ) : <div key={ci} style={{ width: CELL, height: CELL }} />)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* styled tooltip */}
+            {heatTip && (
+              <div style={{ position: 'fixed', left: heatTip.x, top: heatTip.y - 10, transform: 'translate(-50%, -100%)', background: '#0f172a', color: '#fff', padding: '6px 10px', borderRadius: 8, fontSize: '0.72rem', lineHeight: 1.35, whiteSpace: 'nowrap', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', pointerEvents: 'none', zIndex: 1100 }}>
+                <div style={{ fontWeight: 700 }}>{heatTip.label}</div>
+                <div style={{ color: '#cbd5e1' }}>Active tasks: <b style={{ color: '#fff' }}>{heatTip.n}</b></div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 2 แผง: คอลัมน์ชื่อ (ตรึง) + timeline (เลื่อน x/y เอง → scrollbar อยู่แค่ใต้ timeline) */}
       <div style={{ display: 'flex', border: '1px solid var(--border-color)', borderRadius: 8, maxHeight: 640, overflow: 'hidden' }}>
@@ -837,6 +962,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   const create = usePpCreate();
   const update = usePpUpdate();
+  const { data: picNames = [] } = usePicNames();   // รายชื่อ PIC ที่มีอยู่ → เติม dropdown (เพิ่มชื่อใหม่เองได้)
   const editing = !!initial;
   const set = (k: keyof PpProject, v: any) => { setF(p => ({ ...p, [k]: v })); setDirty(true); };
 
@@ -988,7 +1114,9 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
           <Section title="PIC" />
           <div className="grid-3col">
-            <label className="field"><span>PIC Name</span><input value={f.pd_pic ?? ''} onChange={txt('pd_pic')} placeholder="Noi,Kiert" /></label>
+            <label className="field"><span>PIC Name</span>
+              <MultiPicInput value={f.pd_pic ?? ''} onChange={v => set('pd_pic', v)} options={picNames} placeholder="Select or add people…" />
+            </label>
           </div>
 
           <div className="grid-3col">

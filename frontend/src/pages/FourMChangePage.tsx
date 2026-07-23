@@ -86,7 +86,7 @@ export function FourMChangePage() {
         {showForm && (
           <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
             <h3 className="panel__title panel__title--sm">Open New Change Request</h3>
-            <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem' }}>
+            <form onSubmit={handleSubmit} className="stack" style={{ marginTop: '0.75rem' }}>
               <div className="grid-2col">
                 <label className="field">
                   <span>5M+1E Type *</span>
@@ -104,17 +104,17 @@ export function FourMChangePage() {
                   <span>Related WO</span>
                   <WoInput value={woRef} onChange={setWoRef} placeholder="Select or type WO…" />
                 </label>
+                <label className="field">
+                  <span>Change details (what + why) *</span>
+                  <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+                    placeholder="What is changing and why..." required />
+                </label>
+                <label className="field">
+                  <span>Expected impact</span>
+                  <textarea value={impact} onChange={e => setImpact(e.target.value)} rows={3}
+                    placeholder="Which line is affected; impact on quality / time / cost..." />
+                </label>
               </div>
-              <label className="field">
-                <span>Change details (what + why) *</span>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-                  placeholder="What is changing and why..." required />
-              </label>
-              <label className="field">
-                <span>Expected impact</span>
-                <textarea value={impact} onChange={e => setImpact(e.target.value)} rows={2}
-                  placeholder="Which line is affected; impact on quality / time / cost..." />
-              </label>
               <button type="submit" className="btn" disabled={!mType || !description.trim() || createMut.isPending}
                 style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff', fontWeight: 600, padding: '0.75rem' }}>
                 {createMut.isPending ? 'Opening CR...' : 'Confirm Open CR'}
@@ -125,7 +125,7 @@ export function FourMChangePage() {
 
         <div className="filters-grid" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
           <label className="field">
-            <span>Filter 4M Type</span>
+            <span>Filter 5M+1E Type</span>
             <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}>
               <option value="">All Types</option>
               <option value="Man">Man</option>
