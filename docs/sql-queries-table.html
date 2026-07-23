@@ -1,0 +1,880 @@
+<title>คำสั่ง SQL ที่ใช้ทดสอบ DB — 22 กรกฎาคม 2569</title>
+<style>
+:root {
+  --bg:#0d1117;--surf:#161b22;--surf2:#1c2128;--border:#30363d;
+  --txt:#e6edf3;--txt2:#8b949e;--txt3:#6e7681;
+  --green:#3fb950;--green-bg:#0d2818;--green-border:#196c2e;
+  --orange:#f0883e;--orange-bg:#1e1200;--orange-border:#5a2c00;
+  --red:#ff7b72;--red-bg:#2a0f0d;--red-border:#6b1a16;
+  --blue:#79c0ff;--blue-bg:#0c1a29;--blue-border:#1a4571;
+  --yellow:#e3b341;--yellow-bg:#1a1400;--yellow-border:#4a3800;
+  --kw:#ff7b72;--fn:#d2a8ff;--str:#a5d6ff;--cmt:#4a5568;
+  --num:#79c0ff;--tbl:#f0883e;--col:#c9d1d9;
+}
+@media(prefers-color-scheme:light){:root{
+  --bg:#f6f8fa;--surf:#fff;--surf2:#f0f2f4;--border:#d0d7de;
+  --txt:#1f2328;--txt2:#57606a;--txt3:#8c959f;
+  --green:#1a7f37;--green-bg:#dafbe1;--green-border:#95d8a2;
+  --orange:#bc4c00;--orange-bg:#fff1e5;--orange-border:#f9b97a;
+  --red:#cf222e;--red-bg:#ffebe9;--red-border:#ffaba8;
+  --blue:#0550ae;--blue-bg:#ddf4ff;--blue-border:#80ccff;
+  --yellow:#9a6700;--yellow-bg:#fff8c5;--yellow-border:#f2cc60;
+  --kw:#cf222e;--fn:#6639ba;--str:#0a3069;--cmt:#8c959f;--num:#0550ae;--tbl:#bc4c00;--col:#24292f;
+}}
+:root[data-theme="dark"]{--bg:#0d1117;--surf:#161b22;--surf2:#1c2128;--border:#30363d;--txt:#e6edf3;--txt2:#8b949e;--txt3:#6e7681;--kw:#ff7b72;--fn:#d2a8ff;--str:#a5d6ff;--cmt:#4a5568;--num:#79c0ff;--tbl:#f0883e;--col:#c9d1d9;}
+:root[data-theme="light"]{--bg:#f6f8fa;--surf:#fff;--surf2:#f0f2f4;--border:#d0d7de;--txt:#1f2328;--txt2:#57606a;--txt3:#8c959f;--kw:#cf222e;--fn:#6639ba;--str:#0a3069;--cmt:#8c959f;--num:#0550ae;--tbl:#bc4c00;--col:#24292f;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;font-size:13px;line-height:1.5;padding:24px 20px 60px;max-width:1100px;margin:0 auto;}
+.hdr{margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:16px;}
+.hdr h1{font-size:18px;font-weight:700;margin-bottom:4px;}
+.hdr .sub{color:var(--txt2);font-size:12px;}
+.hdr .sub span{margin-right:14px;}
+.sec{margin-bottom:32px;}
+.sec-hdr{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:6px 0 8px;border-bottom:2px solid var(--border);margin-bottom:0;display:flex;align-items:center;gap:8px;}
+.sec-hdr.green{color:var(--green);border-color:var(--green-border);}
+.sec-hdr.red{color:var(--red);border-color:var(--red-border);}
+.sec-hdr.orange{color:var(--orange);border-color:var(--orange-border);}
+.sec-hdr.yellow{color:var(--yellow);border-color:var(--yellow-border);}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:var(--surf2);}
+th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--txt3);padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;}
+tr.data-row:hover td{background:var(--surf2);}
+.id-cell{white-space:nowrap;}
+.id-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:4px;white-space:nowrap;}
+.id-badge.green{background:var(--green-border);color:var(--green);}
+.id-badge.red{background:var(--red-border);color:var(--red);}
+.id-badge.orange{background:var(--orange-border);color:var(--orange);}
+.id-badge.yellow{background:var(--yellow-border);color:var(--yellow);}
+.id-badge.blue{background:var(--blue-border);color:var(--blue);}
+.desc{font-size:12px;color:var(--txt2);line-height:1.5;min-width:130px;}
+.desc strong{color:var(--txt);}
+pre{background:#010409;border:1px solid var(--border);border-radius:6px;padding:10px 12px;overflow-x:auto;font-size:11.5px;line-height:1.55;font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;white-space:pre;color:var(--col);min-width:340px;}
+@media(prefers-color-scheme:light){pre{background:#f6f8fa;}}
+:root[data-theme="light"] pre{background:#f6f8fa;}
+.kw{color:var(--kw);font-weight:600;}.fn{color:var(--fn);}.str{color:var(--str);}.cmt{color:var(--cmt);font-style:italic;}.num{color:var(--num);}.tbl{color:var(--tbl);}.op{color:var(--txt3);}
+.result-cell{min-width:180px;font-size:12px;}
+.r{display:flex;justify-content:space-between;gap:8px;padding:2px 0;}
+.rk{color:var(--txt3);font-size:11px;}
+.rv{font-weight:700;font-variant-numeric:tabular-nums;font-family:"SFMono-Regular",Consolas,monospace;white-space:nowrap;}
+.rv.ok{color:var(--green);}.rv.bad{color:var(--red);}.rv.warn{color:var(--orange);}
+.note{font-size:10px;font-style:italic;color:var(--txt3);margin-top:4px;}
+.note.bad{color:var(--red);}
+/* why/fix panel */
+.wf-row td{padding:0;border-bottom:1px solid var(--border);}
+.wf-wrap{display:grid;grid-template-columns:1fr 1fr;border-top:1px dashed var(--border);}
+.wf-block{padding:8px 14px 10px;font-size:12px;color:var(--txt2);line-height:1.55;}
+.wf-block.why{background:rgba(240,136,62,.06);border-right:1px dashed var(--border);}
+.wf-block.fix{background:rgba(63,185,80,.05);}
+.wf-block.todo{background:rgba(121,192,255,.05);}
+.wf-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.wf-lbl.why{color:var(--orange);}.wf-lbl.fix{color:var(--green);}.wf-lbl.todo{color:var(--blue);}
+.wf-txt .hi{color:var(--txt);font-weight:600;}
+.foot{margin-top:32px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--txt3);}
+</style>
+
+<div class="hdr">
+  <h1>คำสั่ง SQL ที่ใช้ทดสอบ — productiondb_20260721</h1>
+  <div class="sub">
+    <span>📅 22 กรกฎาคม 2569</span>
+    <span>🖥 PostgreSQL 18 · localhost:5432 · user=postgres</span>
+    <span>🔒 read-only · ห้ามแชร์</span>
+  </div>
+</div>
+
+<!-- ========== RESOLVED ========== -->
+<div class="sec">
+  <div class="sec-hdr green">✅ แก้แล้ว</div>
+  <table>
+    <thead><tr><th>ID</th><th>ทดสอบอะไร</th><th>คำสั่ง SQL ที่ใช้จริง</th><th>ผลลัพท์จริง</th></tr></thead>
+    <tbody>
+
+<!-- D02 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge green">D02</span></td>
+  <td class="desc"><strong>MO เชื่อม m_items</strong><br>นับว่า MO join กับ m_items ได้ครบหรือยัง</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D02'</span>, <span class="str">'MO total'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.manufacturing_orders</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D02'</span>, <span class="str">'match m_items'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.manufacturing_orders</span> mo
+  <span class="kw">JOIN</span> <span class="tbl">public.m_items</span> mi <span class="kw">ON</span> mo.product_code <span class="op">=</span> mi.sku
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D02'</span>, <span class="str">'miss m_items'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.manufacturing_orders</span> mo
+  <span class="kw">LEFT JOIN</span> <span class="tbl">public.m_items</span> mi <span class="kw">ON</span> mo.product_code <span class="op">=</span> mi.sku
+  <span class="kw">WHERE</span> mi.sku <span class="kw">IS NULL</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">MO total</span><span class="rv">23</span></div>
+    <div class="r"><span class="rk">match m_items</span><span class="rv ok">23</span></div>
+    <div class="r"><span class="rk">miss m_items</span><span class="rv ok">0</span></div>
+    <div class="note">✓ match 100%</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุที่เคยเกิด</div><div class="wf-txt">ตอนพัฒนาระบบช่วงแรก ทีมใช้ตาราง <span class="hi">item_master เก่า</span> เก็บข้อมูลสินค้า แต่ภายหลังย้ายมาใช้ตาราง m_items แทน ช่วงที่ใช้ทั้งสองตารางพร้อมกัน รหัสสินค้าบางตัวมีใน item_master เก่าแต่ยังไม่ได้เพิ่มเข้า m_items ใหม่ เมื่อ MO พยายาม join ก็หาสินค้าไม่เจอ</div></div>
+  <div class="wf-block fix"><div class="wf-lbl fix">✅ แก้อย่างไร</div><div class="wf-txt">ลบ item_master เก่าออกทั้งหมด แล้วโอนข้อมูลสินค้าทุกรายการมารวมไว้ใน <span class="hi">m_items ตารางเดียว</span> ตอนนี้ MO ทุกงาน (23 งาน) สามารถหาสินค้าเจอได้ 100% ไม่มี miss เลย</div></div>
+</div></td></tr>
+
+<!-- D06 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge green">D06</span></td>
+  <td class="desc"><strong>BOM lines เชื่อม m_items</strong><br>นับ bom_line ที่ join กับ m_items ได้</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D06'</span>, <span class="str">'mrp.bom_lines total'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.bom_lines</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D06'</span>, <span class="str">'miss m_items'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.bom_lines</span> bl
+  <span class="kw">LEFT JOIN</span> <span class="tbl">public.m_items</span> mi <span class="kw">ON</span> bl.item_code <span class="op">=</span> mi.sku
+  <span class="kw">WHERE</span> mi.sku <span class="kw">IS NULL</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">bom_lines total</span><span class="rv">3,626</span></div>
+    <div class="r"><span class="rk">miss m_items</span><span class="rv ok">0</span></div>
+    <div class="note">✓ match 100%</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุที่เคยเกิด</div><div class="wf-txt">เดิมมีตาราง BOM อยู่หลายที่พร้อมกัน ทั้งใน schema public, mrp และ bom ตาราง public.bom_lines เก่าใช้รหัสสินค้าชุดเก่าที่ไม่ตรงกับ m_items ใหม่ ทำให้เมื่อ join ผ่าน item_code หาสินค้าไม่เจอ</div></div>
+  <div class="wf-block fix"><div class="wf-lbl fix">✅ แก้อย่างไร</div><div class="wf-txt">ลบ public.bom_lines ทิ้ง แล้วใช้ <span class="hi">mrp.bom_lines เป็นหลัก</span> ซึ่งรหัสสินค้าตรงกับ m_items ทั้งหมด ตอนนี้ bom_lines 3,626 รายการ join ได้ครบ 100%</div></div>
+</div></td></tr>
+
+<!-- D07 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge green">D07</span></td>
+  <td class="desc"><strong>actor_id orphan check</strong><br>ตรวจว่า actor_id ใน stock card ชี้ไปหา user ที่ไม่มีในระบบไหม</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D07'</span>, <span class="str">'has actor_id'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+  <span class="kw">WHERE</span> actor_id <span class="kw">IS NOT NULL</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D07'</span>, <span class="str">'actor_id orphan'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span> sc
+  <span class="kw">WHERE</span> actor_id <span class="kw">IS NOT NULL</span>
+    <span class="kw">AND</span> actor_id::text <span class="kw">NOT IN</span> (
+      <span class="kw">SELECT</span> id::text <span class="kw">FROM</span> <span class="tbl">public.wms_users</span>
+    );</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">has actor_id</span><span class="rv">13</span></div>
+    <div class="r"><span class="rk">orphan</span><span class="rv ok">0</span></div>
+    <div class="note">✓ ทุก actor_id มีเจ้าของ</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุที่เคยเกิด</div><div class="wf-txt">ช่อง actor_id ใน stock card ชี้ไปหา user ใน wms_users แต่ตอนนั้น wms_users ยังว่างอยู่ มี 0 rows เลย actor_id ทั้ง 13 รายการจึงชี้ไปหาคนที่ไม่มีอยู่จริง เรียกว่า orphan หรือ "ไม่มีเจ้าของ"</div></div>
+  <div class="wf-block fix"><div class="wf-lbl fix">✅ แก้อย่างไร</div><div class="wf-txt">เพิ่ม user เข้า wms_users ครบ <span class="hi">23 คน</span> ทำให้ actor_id ทั้ง 13 รายการมีเจ้าของแล้ว ไม่มี orphan เหลือ</div></div>
+</div></td></tr>
+
+<!-- D13 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge green">D13</span></td>
+  <td class="desc"><strong>rfq.customers join WMS</strong><br>ตรวจนับลูกค้า RFQ ที่มีช่อง code เชื่อม WMS ได้</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D13'</span>, <span class="str">'rfq total'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">rfq.customers</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D13'</span>, <span class="str">'code filled'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">rfq.customers</span>
+  <span class="kw">WHERE</span> code <span class="kw">IS NOT NULL AND</span> code <span class="op">&lt;&gt;</span> <span class="str">''</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D13'</span>, <span class="str">'public.customers'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">public.customers</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">rfq.customers</span><span class="rv">322</span></div>
+    <div class="r"><span class="rk">code filled (joinable)</span><span class="rv warn">69 (21.4%)</span></div>
+    <div class="r"><span class="rk">public.customers</span><span class="rv">534</span></div>
+    <div class="note">253 รายการยังไม่มี code</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุที่เคยเกิด</div><div class="wf-txt">ทีม RFQ สร้างตารางลูกค้า (rfq.customers) ขึ้นมาเองโดยไม่ได้วางแผนเชื่อมกับระบบ WMS ตารางมีช่อง code ไว้สำหรับเชื่อม แต่ไม่เคยใส่ข้อมูล นอกจากนี้ยังมีลูกค้าซ้ำกัน 337 ราย เพราะไม่มีการตรวจก่อน insert</div></div>
+  <div class="wf-block fix"><div class="wf-lbl fix">✅ แก้อย่างไร</div><div class="wf-txt">ลบข้อมูลซ้ำออก เหลือ 322 ราย แล้วดึงรหัสลูกค้ามาจาก <span class="hi">Odoo ผ่าน bridge</span> ใส่ในช่อง code ได้ 69 ราย ตอนนี้ join กับ WMS ได้แล้ว 21.4% ที่เหลือรอ Odoo populate เพิ่ม</div></div>
+</div></td></tr>
+
+<!-- D14/D15/D17/D20 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge green">D14<br>D15<br>D17<br>D20</span></td>
+  <td class="desc"><strong>Schema cleanliness</strong><br>ตรวจว่า schema / ตารางเก่า / test ถูกลบออกแล้วหรือยัง</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D14'</span>, <span class="str">'odora schema'</span>,
+  <span class="kw">CASE WHEN EXISTS</span>(<span class="kw">SELECT</span> <span class="num">1</span> <span class="kw">FROM</span>
+    information_schema.schemata
+    <span class="kw">WHERE</span> schema_name<span class="op">=</span><span class="str">'odora'</span>)
+  <span class="kw">THEN</span> <span class="str">'ยังอยู่'</span> <span class="kw">ELSE</span> <span class="str">'หายแล้ว ✓'</span> <span class="kw">END</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D15'</span>, <span class="str">'inventory_balance'</span>,
+  <span class="kw">CASE WHEN EXISTS</span>(<span class="kw">SELECT</span> <span class="num">1</span> <span class="kw">FROM</span>
+    information_schema.tables
+    <span class="kw">WHERE</span> table_name<span class="op">=</span><span class="str">'inventory_balance'</span>)
+  <span class="kw">THEN</span> <span class="str">'ยังอยู่'</span> <span class="kw">ELSE</span> <span class="str">'หายแล้ว ✓'</span> <span class="kw">END</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D17'</span>, <span class="str">'test tables'</span>,
+  <span class="fn">COALESCE</span>(<span class="fn">STRING_AGG</span>(table_schema<span class="op">||</span><span class="str">'.'</span><span class="op">||</span>table_name,
+    <span class="str">', '</span>), <span class="str">'ไม่มี ✓'</span>)
+  <span class="kw">FROM</span> information_schema.tables
+  <span class="kw">WHERE</span> table_name <span class="kw">LIKE</span> <span class="str">'test%'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D20'</span>, <span class="str">'schema count'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> information_schema.schemata
+  <span class="kw">WHERE</span> schema_name <span class="kw">NOT IN</span>(
+    <span class="str">'information_schema'</span>,<span class="str">'pg_catalog'</span>,<span class="str">'pg_toast'</span>);</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">odora schema</span><span class="rv ok">หายแล้ว ✓</span></div>
+    <div class="r"><span class="rk">inventory_balance</span><span class="rv ok">หายแล้ว ✓</span></div>
+    <div class="r"><span class="rk">stock_movement_ledger</span><span class="rv ok">หายแล้ว ✓</span></div>
+    <div class="r"><span class="rk">test tables (IoT)</span><span class="rv warn">test_records ยังอยู่</span></div>
+    <div class="r"><span class="rk">schema count</span><span class="rv ok">5 ตัว</span></div>
+    <div class="note">(public, rfq, mrp, mes_core, bom)</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุที่เคยเกิด</div><div class="wf-txt">schema "odora" และตาราง inventory_balance, stock_movement_ledger เป็นของเก่าที่ไม่ได้ใช้แล้ว ปัญหาเกิดจาก script ที่ควรจะลบออกหลัง test (teardown script ของ QABOT) ทำงานไม่ครบ และนักพัฒนาลืม DROP ตารางเก่าออกก่อน merge โค้ดเข้า production</div></div>
+  <div class="wf-block fix"><div class="wf-lbl fix">✅ แก้อย่างไร</div><div class="wf-txt">DROP SCHEMA odora ทิ้ง · DROP TABLE สองตารางที่ไม่ใช้แล้ว · ตอนนี้เหลือแค่ <span class="hi">5 schema ที่ใช้งานจริง</span> (public, rfq, mrp, mes_core, bom) · test_records ยังเหลืออยู่เพราะระบบ IoT ยังใช้อยู่ ไม่ใช่ขยะ</div></div>
+</div></td></tr>
+
+<!-- D21 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge green">D21</span></td>
+  <td class="desc"><strong>Supplier join rate</strong><br>ตรวจว่า supplier_master เชื่อม public.suppliers ได้กี่ % หลัง migration 18/7</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D21'</span>, <span class="str">'sm total'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.supplier_master</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D21'</span>, <span class="str">'join match'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.supplier_master</span> sm
+  <span class="kw">JOIN</span> <span class="tbl">public.suppliers</span> sp
+    <span class="kw">ON</span> sm.supplier_code <span class="op">=</span> sp.id
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D21'</span>, <span class="str">'unmatched'</span>, <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.supplier_master</span> sm
+  <span class="kw">LEFT JOIN</span> <span class="tbl">public.suppliers</span> sp
+    <span class="kw">ON</span> sm.supplier_code <span class="op">=</span> sp.id
+  <span class="kw">WHERE</span> sp.id <span class="kw">IS NULL</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D21'</span>, <span class="str">'join rate'</span>,
+  <span class="fn">ROUND</span>(<span class="fn">COUNT</span>(sp.*)<span class="op">*</span><span class="num">100.0</span><span class="op">/</span><span class="fn">COUNT</span>(*),<span class="num">2</span>)::text<span class="op">||</span><span class="str">'%'</span>
+  <span class="kw">FROM</span> <span class="tbl">mrp.supplier_master</span> sm
+  <span class="kw">LEFT JOIN</span> <span class="tbl">public.suppliers</span> sp
+    <span class="kw">ON</span> sm.supplier_code <span class="op">=</span> sp.id;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">sm total</span><span class="rv">771</span></div>
+    <div class="r"><span class="rk">join match</span><span class="rv ok">762</span></div>
+    <div class="r"><span class="rk">unmatched</span><span class="rv warn">9</span></div>
+    <div class="r"><span class="rk">join rate</span><span class="rv ok">98.83%</span></div>
+    <div class="note">(ก่อน migration 18/7 อยู่ที่ ~84%)</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุที่เคยเกิด</div><div class="wf-txt">ระบบ MES ตั้งรหัส supplier เองแบบ SUP-0001, SUP-0002, ... ส่วน Odoo (ระบบบัญชีของบริษัท) ใช้รหัสแบบ APD-0001, APD-0002, ... คนละชุดกัน เมื่อ MES พยายาม join supplier_master กับ public.suppliers ของ Odoo รหัสไม่ตรงกันเลย join rate จึงต่ำถึง 84%</div></div>
+  <div class="wf-block fix"><div class="wf-lbl fix">✅ แก้อย่างไร</div><div class="wf-txt">รัน reconcile script เมื่อ 18/7 เปลี่ยนรหัส <span class="hi">SUP-* จำนวน 144 รายการให้กลายเป็น APD-*</span> แบบ UPDATE ตรงๆ ในตาราง join rate เพิ่มจาก 84% → 98.83% ยังเหลือ 9 รายการที่ match ไม่ได้ อยู่ระหว่างแก้</div></div>
+</div></td></tr>
+
+<!-- A5 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge green">A5</span></td>
+  <td class="desc"><strong>EXPIRED reservations</strong><br>ตรวจว่า cleanup 17/7 ล้าง EXPIRED reservation ออกหมดหรือยัง</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'A5'</span>, <span class="str">'EXPIRED reservations'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">public.ots_reservations</span>
+  <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'EXPIRED'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'A5'</span>, <span class="str">'orphan_bak rows'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span>
+  <span class="tbl">public.ots_reservations_orphan_bak_20260717</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">EXPIRED (live)</span><span class="rv ok">0 ✓</span></div>
+    <div class="r"><span class="rk">orphan_bak (archive)</span><span class="rv">732 rows</span></div>
+    <div class="note">✓ ล้างออกครบ · bak เก็บไว้ 30 วัน</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุที่เคยเกิด</div><div class="wf-txt">เมื่อ reservation หมดอายุ ระบบแค่เปลี่ยน status เป็น EXPIRED ไว้ แต่ไม่ได้ "คืน" stock กลับให้ใช้ได้ ทำให้สินค้าถูกนับว่าถูกจองอยู่ทั้งที่ไม่มีใครจองจริงแล้ว ยอด available stock จึงต่ำกว่าของจริง</div></div>
+  <div class="wf-block fix"><div class="wf-lbl fix">✅ แก้อย่างไร</div><div class="wf-txt">รัน cleanup script เมื่อ 17/7 ย้าย <span class="hi">732 rows</span> ที่ EXPIRED ทั้งหมดออกไปเก็บใน bak table ตอนนี้ไม่มี EXPIRED ค้างอยู่แล้ว · ต้องตรวจว่า job นี้จะรันอัตโนมัติทุกวันไหม ไม่งั้นจะสะสมใหม่อีก</div></div>
+</div></td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+<!-- ========== HIGH ========== -->
+<div class="sec">
+  <div class="sec-hdr red">🔴 HIGH — ยังไม่แก้</div>
+  <table>
+    <thead><tr><th>ID</th><th>ทดสอบอะไร</th><th>คำสั่ง SQL ที่ใช้จริง</th><th>ผลลัพท์จริง</th></tr></thead>
+    <tbody>
+
+<!-- A2+A7 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">A2+A7</span></td>
+  <td class="desc"><strong>RELEASED reservation ค้าง</strong><br>นับ reservation ที่ยัง RELEASED หลัง MO ปิด</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'A2A7'</span>, <span class="str">'RELEASED count'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">public.ots_reservations</span>
+  <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'RELEASED'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'A2A7'</span>, <span class="str">'qty_reserved'</span>,
+  <span class="fn">SUM</span>(qty_reserved)::text
+  <span class="kw">FROM</span> <span class="tbl">public.ots_reservations</span>
+  <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'RELEASED'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'A2A7'</span>, <span class="str">'work_order_ref'</span>,
+  <span class="fn">STRING_AGG</span>(<span class="kw">DISTINCT</span> work_order_ref, <span class="str">', '</span>)
+  <span class="kw">FROM</span> <span class="tbl">public.ots_reservations</span>
+  <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'RELEASED'</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">RELEASED count</span><span class="rv bad">24 รายการ</span></div>
+    <div class="r"><span class="rk">qty ค้างจอง</span><span class="rv bad">30,000 ชิ้น</span></div>
+    <div class="r"><span class="rk">งานที่ค้าง</span><span class="rv bad">MO-2026-005</span></div>
+    <div class="note bad">⚠ stock ถูกล็อคอยู่ 30,000 ชิ้น</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">เมื่อ MO-2026-005 ถูกปิดหรือข้ามบรรทัดงาน ระบบ MO และระบบ WMS ทำงานแยกกัน ไม่มีการเชื่อมต่อกัน ดังนั้นการปิด MO ไม่ได้ส่งคำสั่งให้ WMS ปลดจอง stock อัตโนมัติ ผลคือ stock <span class="hi">30,000 ชิ้น</span> ถูกล็อคไว้โดยไม่มีใครใช้จริง ยอดคงคลังที่หน้าจอแสดงต่ำกว่าความเป็นจริง</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">ระยะสั้น: ปลดจอง MO-2026-005 ด้วยมือ 24 รายการ เพื่อคืน stock 30,000 ชิ้นก่อน · ระยะยาว: เพิ่ม logic ในโค้ดส่วน close/skip MO ให้ส่งคำสั่ง release reservation ไปยัง WMS ด้วยทุกครั้ง</div></div>
+</div></td></tr>
+
+<!-- D03 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">D03</span></td>
+  <td class="desc"><strong>avg_cost NULL check</strong><br>นับว่า m_items มีกี่รายการที่ avg_cost ว่าง</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D03'</span>, <span class="str">'m_items total'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">public.m_items</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D03'</span>, <span class="str">'avg_cost NULL'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">public.m_items</span>
+  <span class="kw">WHERE</span> avg_cost <span class="kw">IS NULL</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D03'</span>, <span class="str">'avg_cost zero'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">public.m_items</span>
+  <span class="kw">WHERE</span> avg_cost <span class="op">=</span> <span class="num">0</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">m_items total</span><span class="rv">8,627</span></div>
+    <div class="r"><span class="rk">avg_cost NULL</span><span class="rv bad">8,627 (100%)</span></div>
+    <div class="r"><span class="rk">avg_cost zero</span><span class="rv ok">0</span></div>
+    <div class="note bad">⚠ ทุก SKU ไม่มีต้นทุนเลย</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">DB ชุดนี้เป็น <span class="hi">สำเนาที่ปิดบังข้อมูลสำคัญ (masked copy)</span> ก่อนส่งให้ intern วิเคราะห์ ทีมจงใจเปลี่ยนราคาต้นทุนทุกตัวเป็น NULL เพื่อไม่ให้เห็นข้อมูลธุรกิจจริง ดังนั้น avg_cost ที่ NULL 100% อาจไม่ใช่ปัญหาจริงใน production ต้องตรวจสอบก่อน</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องทำอะไร</div><div class="wf-txt">ถามทีม production ว่าใน DB จริงมีราคาต้นทุนอยู่ไหม · ถ้าไม่มี = ต้องออกแบบกระบวนการนำเข้าต้นทุนสินค้าทั้ง 8,627 SKU</div></div>
+</div></td></tr>
+
+<!-- D04 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">D04</span></td>
+  <td class="desc"><strong>datecode NULL check</strong><br>นับ iqc_records ที่ไม่มีวันผลิต</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D04'</span>, <span class="str">'iqc total'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">public.iqc_records</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D04'</span>, <span class="str">'has datecode'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">public.iqc_records</span>
+  <span class="kw">WHERE</span> datecode <span class="kw">IS NOT NULL</span>
+    <span class="kw">AND</span> datecode <span class="op">&lt;&gt;</span> <span class="str">''</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D04'</span>, <span class="str">'null datecode'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">public.iqc_records</span>
+  <span class="kw">WHERE</span> datecode <span class="kw">IS NULL</span>
+    <span class="kw">OR</span> datecode <span class="op">=</span> <span class="str">''</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">iqc total</span><span class="rv">427</span></div>
+    <div class="r"><span class="rk">has datecode</span><span class="rv warn">257 (60.2%)</span></div>
+    <div class="r"><span class="rk">NULL / empty</span><span class="rv bad">170 (39.8%)</span></div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">datecode คือวันผลิตของชิ้นส่วน ปกติควรถูกกรอกอัตโนมัติตอนที่พนักงานสแกน barcode / QR code ในขั้นตอน QC แต่บางรายการถูกเพิ่มเข้าระบบโดยตรง (bypass สแกน) ทำให้ไม่มี datecode · DB ก็ไม่มีกฎบังคับ ใส่หรือไม่ใส่ก็บันทึกได้</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">1) เพิ่ม NOT NULL constraint ใน DB ไม่ให้บันทึกโดยไม่มี datecode ได้ · 2) แก้ app ให้บังคับกรอก datecode ก่อน save ทุกครั้ง · 3) backfill 170 แถวเก่าที่ว่างอยู่ โดยติดต่อ supplier เพื่อขอวันผลิตย้อนหลัง</div></div>
+</div></td></tr>
+
+<!-- D05 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">D05</span></td>
+  <td class="desc"><strong>bak tables count</strong><br>นับตารางที่ชื่อมี "bak" ในทุก schema</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D05'</span>, <span class="str">'bak all schemas'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> information_schema.tables
+  <span class="kw">WHERE</span> table_name <span class="kw">LIKE</span> <span class="str">'%bak%'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D05'</span>, <span class="str">'bak in public'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> information_schema.tables
+  <span class="kw">WHERE</span> table_schema<span class="op">=</span><span class="str">'public'</span>
+    <span class="kw">AND</span> table_name <span class="kw">LIKE</span> <span class="str">'%bak%'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D05'</span>, <span class="str">'bak in mrp'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> information_schema.tables
+  <span class="kw">WHERE</span> table_schema<span class="op">=</span><span class="str">'mrp'</span>
+    <span class="kw">AND</span> table_name <span class="kw">LIKE</span> <span class="str">'%bak%'</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">รวมทุก schema</span><span class="rv bad">8 ตาราง</span></div>
+    <div class="r"><span class="rk">public</span><span class="rv bad">4 ตาราง</span></div>
+    <div class="r"><span class="rk">mrp</span><span class="rv bad">4 ตาราง</span></div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ก่อนจะแก้ไขข้อมูลชุดใหญ่ นักพัฒนาสำรองข้อมูลเก่าไว้ก่อนโดยการสร้างตาราง _bak ใหม่ เป็นเรื่องปกติและดี แต่ไม่มีกฎว่าต้องลบออกภายในกี่วัน ทำให้ตาราง bak สะสมเรื่อยๆ ตอนนี้มีแล้ว 8 ตาราง ทั้งใน public และ mrp</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">กำหนด policy ให้ชัดเจน เช่น ตาราง bak ต้องลบออกภายใน <span class="hi">14 วัน</span> หลัง migration สำเร็จ · หรือย้ายไปเก็บใน schema ชื่อ "_archive" แยกต่างหาก เพื่อให้ schema หลักดูสะอาด</div></div>
+</div></td></tr>
+
+<!-- D08 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">D08</span></td>
+  <td class="desc"><strong>trxType camelCase</strong><br>ดูค่าทั้งหมดใน column "trxType" (ต้องใส่ double-quote)</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D08'</span>,
+  <span class="str">"trxType"</span>, <span class="fn">COUNT</span>(*)::text
+<span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+<span class="kw">GROUP BY</span> <span class="str">"trxType"</span>
+<span class="kw">ORDER BY</span> <span class="fn">COUNT</span>(*) <span class="kw">DESC</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">INT (รับของเข้า)</span><span class="rv bad">13,990</span></div>
+    <div class="r"><span class="rk">ADJ (ปรับยอด)</span><span class="rv">6,274</span></div>
+    <div class="r"><span class="rk">REC (รับจาก PO)</span><span class="rv">4,055</span></div>
+    <div class="r"><span class="rk">ISS (เบิกจ่าย)</span><span class="rv">2,779</span></div>
+    <div class="r"><span class="rk">MO_ISSUE</span><span class="rv">118</span></div>
+    <div class="r"><span class="rk">MO_RETURN</span><span class="rv">113</span></div>
+    <div class="r"><span class="rk">TRN (โอนย้าย)</span><span class="rv">43</span></div>
+    <div class="r"><span class="rk">FG_IN (FG รับ)</span><span class="rv">5</span></div>
+    <div class="note">รวม 8 ประเภท · 27,377 rows</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ระบบเดิมพัฒนาด้วย JavaScript ซึ่งนิยมตั้งชื่อแบบ camelCase (ตัวอักษรกลางคำเป็นตัวพิมพ์ใหญ่) เมื่อย้ายข้อมูลมา PostgreSQL ชื่อ column ยังคง "trxType" แบบเดิม PostgreSQL ถ้าไม่ใส่ double-quote จะแปลงเป็น lowercase ทำให้ query หา column ไม่เจอ · ไม่มีใครกล้าเปลี่ยนเพราะโค้ดทุกที่อ้างอิงชื่อนี้อยู่</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">ทำ migration <span class="hi">RENAME "trxType" → trx_type</span> (snake_case แบบ PostgreSQL มาตรฐาน) พร้อมกับอัพเดต code ทุกจุดที่อ้างอิงชื่อเดิมในครั้งเดียว ต้องทำเป็น atomic ไม่ให้ระบบล่มครึ่งทาง</div></div>
+</div></td></tr>
+
+<!-- D09 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">D09</span></td>
+  <td class="desc"><strong>unit_price breakdown</strong><br>แบ่งกลุ่ม: มีราคา / NULL / empty / zero</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D09'</span>,
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> unit_price <span class="kw">IS NULL</span>  <span class="kw">THEN</span> <span class="str">'NULL'</span>
+    <span class="kw">WHEN</span> unit_price <span class="op">=</span> <span class="str">''</span>    <span class="kw">THEN</span> <span class="str">'empty'</span>
+    <span class="kw">WHEN</span> unit_price <span class="op">=</span> <span class="str">'0'</span>   <span class="kw">THEN</span> <span class="str">'zero'</span>
+    <span class="kw">ELSE</span> <span class="str">'has_value'</span>
+  <span class="kw">END</span>, <span class="fn">COUNT</span>(*)::text
+<span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+<span class="kw">GROUP BY</span> <span class="num">1</span>, <span class="num">2</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D09'</span>, <span class="str">'% มีราคา'</span>,
+  <span class="fn">ROUND</span>(<span class="fn">COUNT</span>(*)<span class="op">*</span><span class="num">100.0</span><span class="op">/</span>(
+    <span class="kw">SELECT</span> <span class="fn">COUNT</span>(*) <span class="kw">FROM</span>
+      <span class="tbl">public.t_stock_cards</span>),<span class="num">1</span>)::text<span class="op">||</span><span class="str">'%'</span>
+  <span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+  <span class="kw">WHERE</span> unit_price <span class="kw">IS NOT NULL</span>
+    <span class="kw">AND</span> unit_price <span class="op">&lt;&gt;</span> <span class="str">''</span>
+    <span class="kw">AND</span> unit_price <span class="op">&lt;&gt;</span> <span class="str">'0'</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">has_value</span><span class="rv ok">15,567</span></div>
+    <div class="r"><span class="rk">NULL</span><span class="rv bad">11,764</span></div>
+    <div class="r"><span class="rk">zero ('0')</span><span class="rv warn">46</span></div>
+    <div class="r"><span class="rk">empty ('')</span><span class="rv ok">0</span></div>
+    <div class="r"><span class="rk">% มีราคา</span><span class="rv warn">56.9%</span></div>
+    <div class="note bad">⚠ 43.1% ของ stock card ไม่มีราคา</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ออกแบบ column unit_price เป็น VARCHAR (ข้อความ) ตั้งแต่ระบบเก่า แทนที่จะเป็น NUMERIC (ตัวเลข) เพราะบาง transaction ไม่มีราคา ก็ปล่อยว่างได้ VARCHAR รับค่าว่างโดยไม่ error ทำให้ 11,764 rows ไม่มีราคา คิดเป็น 43% ซึ่งคำนวณต้นทุนไม่ได้</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">เปลี่ยน type เป็น <span class="hi">NUMERIC</span> ด้วย ALTER COLUMN · กำหนด default = 0 · แล้วระบุให้ชัดว่า transaction ประเภทไหนไม่ต้องมีราคา (optional) และประเภทไหนต้องมีเสมอ (required)</div></div>
+</div></td></tr>
+
+<!-- D10 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">D10</span></td>
+  <td class="desc"><strong>user tables — 4 ชุด</strong><br>นับจำนวน user ในทุกตารางผู้ใช้</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D10'</span>,<span class="str">'wms_users'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">public.wms_users</span>
+<span class="kw">UNION ALL SELECT</span> <span class="str">'D10'</span>,<span class="str">'mrp_users'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">mrp.mrp_users</span>
+<span class="kw">UNION ALL SELECT</span> <span class="str">'D10'</span>,<span class="str">'mes_core.users'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">mes_core.users</span>
+<span class="kw">UNION ALL SELECT</span> <span class="str">'D10'</span>,<span class="str">'public.users'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">public.users</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">wms_users</span><span class="rv bad">23</span></div>
+    <div class="r"><span class="rk">mrp_users</span><span class="rv bad">9</span></div>
+    <div class="r"><span class="rk">mes_core.users</span><span class="rv bad">9</span></div>
+    <div class="r"><span class="rk">public.users</span><span class="rv bad">5</span></div>
+    <div class="note bad">⚠ มี 4 ตารางคนละชุด ไม่ sync กัน</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ทีม WMS, MRP, MES Core และ Admin พัฒนาในเวลาต่างกัน ต่างคนต่างสร้างตารางผู้ใช้ของตัวเอง โดยไม่มีการวางแผนร่วมกัน ผลคือตอนนี้มีตาราง user อยู่ 4 ที่ (23 / 9 / 9 / 5 คน) และไม่ sync กัน คนคนเดียวอาจมีข้อมูลอยู่หลายที่พร้อมกัน</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">ออกแบบ <span class="hi">ตาราง user กลาง 1 ตาราง</span> แล้วให้ทุก module อ้างอิง (FK) มาที่นี่แทน · เป็นงาน architecture ใหญ่ที่ต้องวางแผนและทำพร้อมกันทุก module เพื่อไม่ให้ระบบพัง</div></div>
+</div></td></tr>
+
+<!-- L1 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">L1</span></td>
+  <td class="desc"><strong>SYN01/STOCK typo</strong><br>นับ rows ที่พิมพ์ชื่อ location ผิดตัวพิมพ์ใหญ่</td>
+  <td><pre><span class="kw">SELECT</span> location,
+  <span class="fn">COUNT</span>(*)::text
+<span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+<span class="kw">WHERE</span> location <span class="kw">IN</span> (
+  <span class="str">'SYN01/Stock'</span>,
+  <span class="str">'SYN01/STOCK'</span>,
+  <span class="str">'SYN01/stock'</span>
+)
+<span class="kw">GROUP BY</span> location;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">SYN01/Stock (ถูก)</span><span class="rv ok">14,899</span></div>
+    <div class="r"><span class="rk">SYN01/STOCK (ผิด)</span><span class="rv bad">11</span></div>
+    <div class="r"><span class="rk">SYN01/stock (ผิด)</span><span class="rv ok">0</span></div>
+    <div class="note bad">⚠ 11 rows ใช้ชื่อผิด GROUP BY แยกตาราง</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ไม่มีตาราง master กำหนดว่า "ชื่อ location ที่ถูกต้องคืออะไร" ใครจะพิมพ์แบบไหนก็บันทึกได้ ทำให้ "SYN01/Stock" (ตัว S ตัวพิมพ์เล็ก) กับ "SYN01/STOCK" (ตัวพิมพ์ใหญ่ทั้งหมด) ถูกระบบนับเป็น 2 ที่คนละแห่ง ทั้งที่คือคลังเดียวกัน เคยแก้ 11 rows ไปแล้วครั้งหนึ่งแต่ยังมีใหม่กลับเข้ามาอีก</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">1) แก้ 11 rows ที่พิมพ์ผิดอยู่ก่อน · 2) สร้างตาราง <span class="hi">location master</span> เก็บชื่อ location ที่ถูกต้องทุกแห่ง · 3) บังคับให้ทุกการบันทึก stock ต้องเลือกจาก master เท่านั้น พิมพ์เองไม่ได้</div></div>
+</div></td></tr>
+
+<!-- L5 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge red">L5</span></td>
+  <td class="desc"><strong>QA zone variants</strong><br>นับชื่อโซน QA ทั้งหมดใน 2 ตาราง</td>
+  <td><pre><span class="kw">SELECT</span> location, <span class="fn">COUNT</span>(*)
+<span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+<span class="kw">WHERE</span> location <span class="kw">LIKE</span> <span class="str">'%QA%'</span>
+<span class="kw">GROUP BY</span> location <span class="kw">ORDER BY</span> <span class="fn">COUNT</span>(*) <span class="kw">DESC</span>;
+<span class="cmt">-- ทำซ้ำสำหรับ t_inventory_uids</span></pre></td>
+  <td class="result-cell">
+    <div style="font-size:10px;color:var(--txt3);margin-bottom:3px">t_stock_cards (7 แบบ)</div>
+    <div class="r"><span class="rk">SYN01/QA - SAMPLE</span><span class="rv bad">215</span></div>
+    <div class="r"><span class="rk">SYN01/QA - REJECTED</span><span class="rv bad">106</span></div>
+    <div class="r"><span class="rk">SYN01/QA-SAM</span><span class="rv warn">99</span></div>
+    <div class="r"><span class="rk">SYN01/QA-REJ</span><span class="rv warn">56</span></div>
+    <div class="r"><span class="rk">SYN01/QA - SCRAP</span><span class="rv">12</span></div>
+    <div class="r"><span class="rk">SYN01/Stock → QA-REJ</span><span class="rv">2</span></div>
+    <div class="r"><span class="rk">SYN01/Stock → QA-SAM</span><span class="rv">1</span></div>
+    <div style="font-size:10px;color:var(--txt3);margin-top:5px;margin-bottom:3px">t_inventory_uids (6 แบบ)</div>
+    <div class="r"><span class="rk">SYN01/QA - SAMPLE</span><span class="rv">49</span></div>
+    <div class="r"><span class="rk">SYN01/QA-REJ</span><span class="rv">31</span></div>
+    <div class="r"><span class="rk">SYN01/QA - REJECTED</span><span class="rv">15</span></div>
+    <div class="r"><span class="rk">SYN01/QA-SAM</span><span class="rv">11</span></div>
+    <div class="r"><span class="rk">SYN01/QA-SAMP</span><span class="rv">3</span></div>
+    <div class="r"><span class="rk">SYN01/QA - SCRAP</span><span class="rv">3</span></div>
+    <div class="note bad">⚠ มี 2 โซนแต่ใช้ชื่อ 7+6 แบบ</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">รากปัญหาเดียวกับ L1 คือไม่มี location master · แต่ละ module ตั้งชื่อโซน QA เองโดยอิสระ บางที่ใช้ "QA - SAMPLE" บางที่ใช้ "QA-SAM" หรือ "QA-SAMP" ทำให้จริงๆ มีแค่ 2 โซน (ตัวอย่าง กับ ของเสีย) แต่ระบบเห็นเป็น 7+6 = 13 สถานที่แยกกัน ยอด stock ใน QA จึงกระจายไปอยู่หลายที่</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">1) ประชุมตกลงชื่อ canonical ว่า 2 โซนนี้จะใช้ชื่ออะไรเป็นมาตรฐาน · 2) UPDATE ทุก variant ให้เป็นชื่อเดียวกัน · 3) เพิ่มใน location master แล้วบังคับ FK เหมือน L1</div></div>
+</div></td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+<!-- ========== MEDIUM ========== -->
+<div class="sec">
+  <div class="sec-hdr orange">🟠 MEDIUM — ยังไม่แก้</div>
+  <table>
+    <thead><tr><th>ID</th><th>ทดสอบอะไร</th><th>คำสั่ง SQL ที่ใช้จริง</th><th>ผลลัพท์จริง</th></tr></thead>
+    <tbody>
+
+<!-- A1 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge orange">A1</span></td>
+  <td class="desc"><strong>MO ปิดแต่ผลิตไม่ครบ</strong><br>หา DONE MO ที่ qty_produced &lt; qty_planned</td>
+  <td><pre><span class="kw">SELECT</span> mo_no,
+  qty_planned::int,
+  qty_produced::int,
+  (qty_planned<span class="op">-</span>qty_produced)::int <span class="kw">AS</span> missing
+<span class="kw">FROM</span> <span class="tbl">mrp.manufacturing_orders</span>
+<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'DONE'</span>
+  <span class="kw">AND</span> qty_produced <span class="op">&lt;</span> qty_planned
+<span class="kw">ORDER BY</span> mo_no;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">MO-2026-036</span><span class="rv warn">10/20 (miss 10)</span></div>
+    <div class="r"><span class="rk">MO-2026-038</span><span class="rv warn">10/20 (miss 10)</span></div>
+    <div class="r"><span class="rk">MO-2026-042</span><span class="rv warn">956/958 (miss 2)</span></div>
+    <div class="note bad">⚠ 3 MO ปิดโดยไม่มีเหตุผลบันทึก</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ระบบไม่มีการตรวจสอบก่อนปิด MO ว่าผลิตครบตามแผนหรือยัง ผู้ควบคุมสามารถกดปิดได้เลยโดยไม่ต้องกรอกเหตุผล ทำให้ MO-2026-036 และ 038 ที่ผลิตแค่ 10 จาก 20 ชิ้น ก็ถูกปิดไปโดยไม่รู้สาเหตุ</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">แก้ app ให้เมื่อกด close MO ถ้า qty_produced น้อยกว่า qty_planned ต้องขึ้น popup <span class="hi">บังคับกรอกเหตุผล</span> ก่อนยืนยัน · ติดต่อผู้เกี่ยวข้องเพื่อ backfill เหตุผลของ 3 MO ที่ปิดไปแล้ว</div></div>
+</div></td></tr>
+
+<!-- A3 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge orange">A3</span></td>
+  <td class="desc"><strong>last_event_at NULL</strong><br>นับ MO lines ที่ไม่มีบันทึกเวลาเลย</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'A3'</span>, <span class="str">'MOL total'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.manufacturing_order_lines</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'A3'</span>, <span class="str">'last_event_at NULL'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.manufacturing_order_lines</span>
+  <span class="kw">WHERE</span> last_event_at <span class="kw">IS NULL</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">MOL total</span><span class="rv">441</span></div>
+    <div class="r"><span class="rk">last_event_at NULL</span><span class="rv bad">441 (100%)</span></div>
+    <div class="note bad">⚠ ไม่มีบันทึกเวลาเลยสักแถว</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ทีมออกแบบ column last_event_at ไว้เพื่อบันทึกเวลาล่าสุดที่มีการเปลี่ยนสถานะ MO line แต่โค้ดส่วนที่จะเขียนค่าลง column นี้ยังไม่ได้พัฒนา มีแค่โครงสร้างตาราง ผลคือ MO line 441 แถวทุกแถวว่างหมด รายงานทุกอย่างที่ใช้ last_event_at จึงคำนวณไม่ได้</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">เพิ่มโค้ดในทุกจุดที่เปลี่ยนสถานะ MO line ให้ <span class="hi">UPDATE last_event_at = NOW()</span> ไปด้วย · หรือสร้าง DB trigger ให้ทำอัตโนมัติทุกครั้งที่ row เปลี่ยน</div></div>
+</div></td></tr>
+
+<!-- D12 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge orange">D12</span></td>
+  <td class="desc"><strong>BOM dual-set</strong><br>นับ bom_lines ทั้ง 2 schema เพื่อดูว่าต่างกันเท่าไหร่</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D12'</span>, <span class="str">'mrp.bom_lines'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">mrp.bom_lines</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D12'</span>, <span class="str">'bom.bom_lines'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">bom.bom_lines</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">mrp.bom_lines</span><span class="rv">3,626</span></div>
+    <div class="r"><span class="rk">bom.bom_lines</span><span class="rv">2,994</span></div>
+    <div class="r"><span class="rk">ต่างกัน</span><span class="rv bad">632 แถว</span></div>
+    <div class="note bad">⚠ 2 ชุดต่างกัน 17.4%</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ทีม Engineering (schema bom) กับทีม MRP (schema mrp) ต่างคนต่างเก็บ BOM ของตัวเอง โดยไม่มีการ sync กัน ยิ่งเวลาผ่านไปทั้งสองชุดยิ่งต่างกันมากขึ้น ตอนนี้ต่างกันอยู่ 632 แถว (17.4%) ถ้าใช้ข้อมูลผิดชุด สูตรการผลิตจะผิดตาม</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">ประชุม 2 ทีมตัดสินใจว่าจะใช้ <span class="hi">ชุดไหนเป็นข้อมูลหลัก</span> · ชุดที่ไม่ใช้เปลี่ยนเป็น view ที่ดึงข้อมูลจากชุดหลัก หรือลบออก เพื่อไม่ให้มีสองชุดต่างกันต่อไป</div></div>
+</div></td></tr>
+
+<!-- D19 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge orange">D19</span></td>
+  <td class="desc"><strong>audit_log coverage</strong><br>นับว่า mrp vs mes_core มี audit log กี่ rows</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'D19'</span>, <span class="str">'mrp.audit_log'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">mrp.audit_log</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'D19'</span>, <span class="str">'mes_core.audit_log'</span>,
+  <span class="fn">COUNT</span>(*)::text <span class="kw">FROM</span> <span class="tbl">mes_core.audit_log</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">mrp.audit_log</span><span class="rv ok">1,130</span></div>
+    <div class="r"><span class="rk">mes_core.audit_log</span><span class="rv bad">0 (ว่างเปล่า)</span></div>
+    <div class="note bad">⚠ mes_core ไม่มีการบันทึกเลย</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ทีม mes_core ออกแบบตาราง audit_log ไว้แล้ว แต่โค้ดที่จะเขียน log ลงตารางนั้นยังไม่ได้พัฒนา มีแค่โครงสร้างตาราง ทำให้ตอนนี้ไม่มีประวัติการทำงานใดๆ ใน mes_core เลย ต่างจาก mrp ที่ทำระบบ log เสร็จแล้ว มีบันทึก 1,130 รายการ</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">เพิ่ม audit logging ใน mes_core โดยใช้ pattern เดียวกับ mrp · เริ่มจากจุดสำคัญก่อน ได้แก่ <span class="hi">work order close, approval และ deduction</span> เพราะเป็นขั้นตอนที่มีผลต่อ stock และการเงิน</div></div>
+</div></td></tr>
+
+<!-- DB-15 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge orange">DB-15</span></td>
+  <td class="desc"><strong>9 APD unmatched detail</strong><br>หารายละเอียดแต่ละ APD ที่ join ไม่ได้ว่ามีข้อมูลอะไรผูกอยู่</td>
+  <td><pre><span class="kw">SELECT</span> sm.supplier_code,
+  (SELECT COUNT(*) FROM <span class="tbl">mrp.purchase_orders</span>
+    WHERE supplier_id<span class="op">=</span>sm.id)::text <span class="kw">AS</span> po,
+  (SELECT COUNT(*) FROM <span class="tbl">mrp.item_lead_times</span>
+    WHERE supplier_id<span class="op">=</span>sm.id)::text <span class="kw">AS</span> lt,
+  (SELECT COUNT(*) FROM <span class="tbl">public.srm_evaluations</span>
+    WHERE supplier_ref<span class="op">=</span>sm.supplier_code)::text <span class="kw">AS</span> srm
+<span class="kw">FROM</span> <span class="tbl">mrp.supplier_master</span> sm
+<span class="kw">LEFT JOIN</span> <span class="tbl">public.suppliers</span> sp
+  <span class="kw">ON</span> sm.supplier_code <span class="op">=</span> sp.id
+<span class="kw">WHERE</span> sp.id <span class="kw">IS NULL</span>
+<span class="kw">ORDER BY</span> sm.id;</pre></td>
+  <td class="result-cell">
+    <div style="font-size:10px;color:var(--txt3);margin-bottom:3px">supplier_code → po / lt / srm</div>
+    <div class="r"><span class="rk">APD-0235</span><span class="rv">po=0 lt=0 srm=1</span></div>
+    <div class="r"><span class="rk">APD-0238</span><span class="rv">po=0 lt=0 srm=0</span></div>
+    <div class="r"><span class="rk">APD-0356</span><span class="rv">po=0 lt=0 srm=0</span></div>
+    <div class="r"><span class="rk">APD-0377</span><span class="rv warn">po=1 lt=5 srm=1</span></div>
+    <div class="r"><span class="rk">APD-0477</span><span class="rv">po=0 lt=0 srm=1</span></div>
+    <div class="r"><span class="rk">APD-0570</span><span class="rv">po=0 lt=1 srm=0</span></div>
+    <div class="r"><span class="rk">APD-0625</span><span class="rv">po=0 lt=1 srm=1</span></div>
+    <div class="r"><span class="rk">​APD-0690 (ZWS)</span><span class="rv bad">po=1 lt=1 srm=0</span></div>
+    <div class="r"><span class="rk">APD-0693</span><span class="rv">po=0 lt=0 srm=0</span></div>
+    <div class="note bad">⚠ APD-0690 มีอักขระล่องหน (ZWS) นำหน้า</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">9 รายการนี้เกิดจาก migration 18/7 ที่ยังไม่สมบูรณ์ · โดยเฉพาะ APD-0690 มีปัญหาพิเศษคือมี <span class="hi">อักขระล่องหน ZWS (Zero-Width Space U+200B)</span> ติดอยู่หน้ารหัส ตาเปล่ามองไม่เห็น แต่ DB เห็น ทำให้รหัส "​APD-0690" กับ "APD-0690" ไม่เหมือนกัน join ไม่ผ่าน · บาง APD มี PO หรือ lead time ผูกอยู่ ทิ้งไปไม่ได้</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">APD-0690: ใช้ regexp_replace ลบ ZWS ออก · 8 รายการที่เหลือ: รอให้ Odoo sync เพิ่ม supplier เข้า public.suppliers หรือ INSERT ด้วยมือ · APD-0377 สำคัญที่สุดเพราะมี PO 1 ใบและ lead time 5 รายการผูกอยู่</div></div>
+</div></td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+<!-- ========== LOW ========== -->
+<div class="sec">
+  <div class="sec-hdr yellow">🟡 LOW — F-series &amp; location audit</div>
+  <table>
+    <thead><tr><th>ID</th><th>ทดสอบอะไร</th><th>คำสั่ง SQL ที่ใช้จริง</th><th>ผลลัพท์จริง</th></tr></thead>
+    <tbody>
+
+<!-- A8 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge yellow">A8</span></td>
+  <td class="desc"><strong>CANCELLED reservations</strong><br>นับ reservation ที่ถูก cancel ค้างอยู่</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'A8'</span>, <span class="str">'CANCELLED count'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">public.ots_reservations</span>
+  <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'CANCELLED'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'A8'</span>, <span class="str">'qty'</span>,
+  <span class="fn">SUM</span>(qty_reserved)::text
+  <span class="kw">FROM</span> <span class="tbl">public.ots_reservations</span>
+  <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'CANCELLED'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'A8'</span>, <span class="str">'oldest'</span>,
+  <span class="fn">MIN</span>(created_at)::date::text
+  <span class="kw">FROM</span> <span class="tbl">public.ots_reservations</span>
+  <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'CANCELLED'</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">count</span><span class="rv warn">96 รายการ</span></div>
+    <div class="r"><span class="rk">qty ค้างอยู่</span><span class="rv warn">18,876 ชิ้น</span></div>
+    <div class="r"><span class="rk">เก่าสุด</span><span class="rv">11 พ.ค. 2569</span></div>
+    <div class="note">ค้างมาแล้ว 72 วัน</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">เมื่อยกเลิก MO ระบบ MO และ WMS ทำงานแยกกัน การยกเลิก MO ไม่ได้บอก WMS ให้ยกเลิก reservation ที่ผูกอยู่ด้วย ทำให้ reservation 96 รายการค้างอยู่นานสุดตั้งแต่ <span class="hi">11 พ.ค. 2569</span> (72 วัน) คิดเป็น stock ที่ถูกล็อคอยู่เกือบ 19,000 ชิ้น</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">ระยะสั้น: ย้าย 96 รายการไป bak table เพื่อปลดล็อค stock คืน · ระยะยาว: เพิ่ม logic ในโค้ดส่วนยกเลิก MO ให้ส่งคำสั่งยกเลิก reservation ที่เกี่ยวข้องไปยัง WMS ด้วยอัตโนมัติ</div></div>
+</div></td></tr>
+
+<!-- L3 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge yellow">L3</span></td>
+  <td class="desc"><strong>"→" location pattern</strong><br>หา rows ที่เก็บ "จาก → ไป" ไว้ในช่อง location เดียว</td>
+  <td><pre><span class="kw">SELECT</span> location, <span class="fn">COUNT</span>(*)
+<span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+<span class="kw">WHERE</span> location <span class="kw">LIKE</span> <span class="str">'%->%'</span>
+<span class="kw">GROUP BY</span> location
+<span class="kw">ORDER BY</span> <span class="fn">COUNT</span>(*) <span class="kw">DESC</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">SYN01/Stock → FORTH/Stock</span><span class="rv warn">16</span></div>
+    <div class="r"><span class="rk">SYN01/Stock → WH-RD/Stock</span><span class="rv warn">9</span></div>
+    <div class="r"><span class="rk">SYN01/Stock → SYN01/Stock</span><span class="rv">4</span></div>
+    <div class="r"><span class="rk">SYN01/Stock → WH-RD</span><span class="rv">2</span></div>
+    <div class="r"><span class="rk">WH-RD/Stock → SYN01/Stock</span><span class="rv">2</span></div>
+    <div class="r"><span class="rk">อื่นๆ อีก 7 แบบ</span><span class="rv">8</span></div>
+    <div class="note bad">⚠ รวม 12 pattern · 41 rows</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ตอนออกแบบตาราง t_stock_cards ไม่มี column แยก "ต้นทาง" กับ "ปลายทาง" สำหรับ transaction โอนย้าย ผู้ใช้จึงเขียน "SYN01/Stock -> FORTH/Stock" ยัดในช่อง location ช่องเดียว ทำให้เวลา GROUP BY location ค่าเหล่านี้ถูกนับเป็น "ที่แยกต่างหาก" ไม่รวมกับ FORTH/Stock จริง</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">เพิ่ม column <span class="hi">from_location</span> และ <span class="hi">to_location</span> แยกกัน · parse 41 rows เก่าที่มี "->" แล้วแตกออกเป็น 2 column · แก้ app ให้ใช้ 2 column ใหม่แทน</div></div>
+</div></td></tr>
+
+<!-- F1 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge yellow">F1</span></td>
+  <td class="desc"><strong>type mismatch</strong><br>ตรวจ data type ของ created_by vs mrp_users.id</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'F1'</span>,
+  <span class="str">'demand_plan.created_by'</span>,
+  data_type
+  <span class="kw">FROM</span> information_schema.columns
+  <span class="kw">WHERE</span> table_schema<span class="op">=</span><span class="str">'mrp'</span>
+    <span class="kw">AND</span> table_name<span class="op">=</span><span class="str">'demand_plan'</span>
+    <span class="kw">AND</span> column_name<span class="op">=</span><span class="str">'created_by'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'F1'</span>, <span class="str">'mrp_users.id'</span>,
+  data_type
+  <span class="kw">FROM</span> information_schema.columns
+  <span class="kw">WHERE</span> table_schema<span class="op">=</span><span class="str">'mrp'</span>
+    <span class="kw">AND</span> table_name<span class="op">=</span><span class="str">'mrp_users'</span>
+    <span class="kw">AND</span> column_name<span class="op">=</span><span class="str">'id'</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">created_by type</span><span class="rv bad">integer</span></div>
+    <div class="r"><span class="rk">mrp_users.id type</span><span class="rv bad">uuid</span></div>
+    <div class="note bad">⚠ type ต่างกัน join ตรงๆ ไม่ได้</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ทีม demand_plan ออกแบบ column created_by เป็น <span class="hi">INTEGER</span> (เลขธรรมดา เช่น 1, 2, 3) แต่ทีม mrp_users ออกแบบ id เป็น <span class="hi">UUID</span> (รหัสยาว เช่น a1b2c3d4-...) ทั้งสองทีมทำงานแยกกันและไม่ได้ตรวจสอบว่าอีกฝั่งใช้รูปแบบอะไร ผลคือ join ตรงๆ ไม่ได้เพราะ type ไม่ตรงกัน</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">วิธีที่ 1: <span class="hi">ALTER COLUMN created_by TYPE UUID</span> แล้ว migrate ข้อมูลเก่า · วิธีที่ 2: เพิ่ม column created_by_uuid ใหม่ขึ้นมา populate ค่าใหม่ก่อน แล้วค่อย drop อันเก่าทีหลัง (ปลอดภัยกว่า)</div></div>
+</div></td></tr>
+
+<!-- F2 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge yellow">F2</span></td>
+  <td class="desc"><strong>user_id top 10</strong><br>ดู 10 อันดับ user_id — ทุกอันดับเป็นชื่อ script ไม่มี user คนจริงเลย</td>
+  <td><pre><span class="kw">SELECT</span> user_id, <span class="fn">COUNT</span>(*) cnt
+<span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+<span class="kw">GROUP BY</span> user_id
+<span class="kw">ORDER BY</span> <span class="fn">COUNT</span>(*) <span class="kw">DESC</span>
+<span class="kw">LIMIT</span> <span class="num">10</span>;</pre></td>
+  <td class="result-cell" style="min-width:220px">
+    <div class="r"><span class="rk">odoo-int-import-20260507</span><span class="rv bad">13,990</span></div>
+    <div class="r"><span class="rk">THEMIS-BACKFILL-OPENING-20260520</span><span class="rv warn">2,223</span></div>
+    <div class="r"><span class="rk">system_snapshot</span><span class="rv warn">2,143</span></div>
+    <div class="r"><span class="rk">gi3-backfill</span><span class="rv warn">1,626</span></div>
+    <div class="r"><span class="rk">odoo-mo-watcher</span><span class="rv">1,278</span></div>
+    <div class="r"><span class="rk">ODC-TRANSFER</span><span class="rv">799</span></div>
+    <div class="r"><span class="rk">odoo-gr-watcher</span><span class="rv">588</span></div>
+    <div class="r"><span class="rk">odoo-overwrite</span><span class="rv">554</span></div>
+    <div class="r"><span class="rk">themis-recon-20260507</span><span class="rv">511</span></div>
+    <div class="r"><span class="rk">claudy-bulk-align-2026-05-05</span><span class="rv">502</span></div>
+    <div class="note bad">⚠ ทั้ง 10 อันดับ = script — คน 23 คนจมอยู่ด้านล่าง</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ระบบไม่มีช่อง <span class="hi">is_system_actor</span> แยก จึงใส่ชื่อ script เต็มๆ ลงใน user_id · ทำให้ top 10 เป็นชื่อ script ทั้งหมด — คน 23 คนที่ใช้งานจริงจมอยู่ข้างล่าง ไม่เห็นในสถิติ</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">เพิ่มคอลัมน์ <span class="hi">is_system_actor BOOLEAN DEFAULT false</span> · ตั้งเป็น true สำหรับ rows ที่ user_id เป็นชื่อ script · แล้วกรองออกก่อน GROUP BY</div></div>
+</div></td></tr>
+
+<!-- F4/F5 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge yellow">F4<br>F5</span></td>
+  <td class="desc"><strong>created_by audit</strong><br>ตรวจว่า MO และ demand_plan มีผู้สร้างจริงหรือเปล่า</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'F4'</span>, <span class="str">'MO admin count'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.manufacturing_orders</span>
+  <span class="kw">WHERE</span> created_by <span class="op">=</span> <span class="str">'admin'</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'F5'</span>, <span class="str">'dp created_by NULL'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.demand_plan</span>
+  <span class="kw">WHERE</span> created_by <span class="kw">IS NULL</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'F5'</span>, <span class="str">'dp last_edited_by NULL'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">mrp.demand_plan</span>
+  <span class="kw">WHERE</span> last_edited_by <span class="kw">IS NULL</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">MO total</span><span class="rv">23</span></div>
+    <div class="r"><span class="rk">MO created_by='admin'</span><span class="rv bad">23/23 (100%)</span></div>
+    <div class="r"><span class="rk">dp total</span><span class="rv">165</span></div>
+    <div class="r"><span class="rk">dp created_by NULL</span><span class="rv bad">165/165 (100%)</span></div>
+    <div class="r"><span class="rk">dp last_edited_by NULL</span><span class="rv bad">165/165 (100%)</span></div>
+    <div class="note bad">⚠ ไม่รู้เลยว่าใครสร้างอะไร</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">MO 23 งานถูก import เข้าระบบผ่าน script ที่ใส่คำว่า "admin" แบบ hardcode ในช่อง created_by ไม่มีใครรู้ว่าใครสร้างจริง · ส่วน demand_plan มีปัญหาซ้อน 2 ชั้น: ชั้นแรก type ไม่ตรง (F1 integer ≠ uuid) ทำให้ app ส่ง user ID ไม่ได้ตั้งแต่แรก ชั้นที่สอง แม้แก้ type แล้ว app ก็ยังไม่ได้ส่ง user ID มาด้วย</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">แก้ F1 ก่อน (เปลี่ยน type เป็น UUID) · แล้วแก้ app ให้ดึง user ที่ login อยู่มาใส่ใน created_by ทุกครั้งที่ save · สำหรับ MO 23 งาน ต้องถามว่าใครเป็นคนสร้างจริงแล้ว UPDATE ด้วยมือ</div></div>
+</div></td></tr>
+
+<!-- F6 -->
+<tr class="data-row">
+  <td class="id-cell"><span class="id-badge yellow">F6</span></td>
+  <td class="desc"><strong>actor_id fill rate</strong><br>นับ stock card ที่มี / ไม่มี actor_id</td>
+  <td><pre><span class="kw">SELECT</span> <span class="str">'F6'</span>, <span class="str">'actor_id NULL'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+  <span class="kw">WHERE</span> actor_id <span class="kw">IS NULL</span>
+<span class="kw">UNION ALL</span>
+<span class="kw">SELECT</span> <span class="str">'F6'</span>, <span class="str">'actor_id filled'</span>,
+  <span class="fn">COUNT</span>(*)::text
+  <span class="kw">FROM</span> <span class="tbl">public.t_stock_cards</span>
+  <span class="kw">WHERE</span> actor_id <span class="kw">IS NOT NULL</span>;</pre></td>
+  <td class="result-cell">
+    <div class="r"><span class="rk">actor_id NULL</span><span class="rv bad">27,364 (99.95%)</span></div>
+    <div class="r"><span class="rk">actor_id filled</span><span class="rv warn">13 (0.05%)</span></div>
+    <div class="note bad">⚠ แทบทุก transaction ไม่รู้ว่า script หรือคนทำ</div>
+  </td>
+</tr>
+<tr class="wf-row"><td colspan="4"><div class="wf-wrap">
+  <div class="wf-block why"><div class="wf-lbl why">⚠ สาเหตุ</div><div class="wf-txt">ทีมออกแบบ column actor_id ไว้เพื่อแยกว่า "transaction นี้ระบบ (script) ทำ" หรือ "คนทำ" แต่โค้ดที่จะเขียนค่าลงมายังไม่ได้พัฒนา ผลคือ 99.95% ของ stock transaction ไม่รู้ว่าใครทำ สรุปพฤติกรรมพนักงานรายคนไม่ได้เลย · 13 rows ที่มีค่าน่าจะเป็นการทดสอบ</div></div>
+  <div class="wf-block todo"><div class="wf-lbl todo">🔧 ต้องแก้อย่างไร</div><div class="wf-txt">พัฒนา feature ให้ populate <span class="hi">actor_id</span> จากข้อมูล logged-in user หรือ system script ทุกครั้งที่สร้าง stock transaction ทำงานร่วมกับ is_system_actor (F2) เพื่อแยกประเภทได้ครบ</div></div>
+</div></td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+<div class="foot">
+  productiondb_20260721 · psql -U postgres · 22 กรกฎาคม 2569 · อ่านอย่างเดียว · ห้ามแชร์
+</div>
