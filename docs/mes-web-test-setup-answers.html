@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="th">
 <head>
 <meta charset="utf-8">
@@ -95,18 +95,20 @@ h3.step{font-size:13px;color:var(--txt);margin:16px 0 4px;}
 
 <!-- ================= START HERE ================= -->
 <div class="callout green" style="margin-bottom:22px">
-  <div class="cl-t" style="font-size:14px">✅ DONE — Issue #7 ครบ DoD แล้ว (23 ก.ค. 2569)</div>
+  <div class="cl-t" style="font-size:14px">🚦 เริ่มตรงนี้ — น้องทำตามลำดับนี้ได้เลย</div>
   <ol style="margin-left:20px;line-height:1.8">
-    <li><span class="ok">✅</span> Backup env + security fix รับแล้ว (commit <code>0af7ca3</code>)</li>
-    <li><span class="ok">✅</span> <code>backend/envs/.env.mes_web_test</code> + <code>.env.webtest</code> สร้างแล้ว (ถูก ignore)</li>
-    <li><span class="ok">✅</span> <code>CREATE SCHEMA IF NOT EXISTS mes_web_test</code> — schema มีแล้ว</li>
-    <li><span class="ok">✅</span> apply <code>backend/schema.sql</code> ด้วย <code>PGOPTIONS="-c search_path=mes_web_test"</code></li>
-    <li><span class="ok">✅</span> <code>knex migrate:latest</code> → <b>45 ตาราง</b> ใน mes_web_test</li>
-    <li><span class="ok">✅</span> Seed users: <code>admin/ADMIN</code> · <code>member1/PD</code> · <code>viewer1/QC</code></li>
-    <li><span class="ok">✅</span> <code>/api/mes/health</code> → 200 OK</li>
-    <li><span class="ok">✅</span> Login ผ่าน · Frontend <code>localhost:5101</code> เปิดได้ · CORS ไม่มี error</li>
+    <li><b>Backup env ก่อนทุกครั้ง</b> (สำคัญ — เพิ่งมีเคส crm.db หายตอน pull 23/7 ท่าเดียวกัน):
+      <pre style="margin:4px 0"><span class="kw">cp</span> -a backend/envs backend/envs.bak</pre></li>
+    <li><b>รับ security fix ของทีม</b> — ถ้าทำงานบน server เครื่องนี้ (repo <code>~/syntech_mes_draft</code>) = ได้อยู่แล้ว ข้ามได้ · ถ้า clone แยกไปเครื่องตัวเอง → รอทีม push แล้ว <code>git pull</code> (หลัง backup ข้อ 1)</li>
+    <li><b>ตอบ checklist #1 + #2 เอง</b> — 2 ข้อนี้เท่านั้นที่ทีมเช็คแทนไม่ได้ (ไม่มี postgres pw ของ masked DB). รัน:
+      <pre style="margin:4px 0">psql -U postgres -d productiondb_20260721 -c <span class="str">'\dn mes_web_test'</span>   <span class="cmt"># มี schema ยัง</span>
+psql -U postgres -c <span class="str">'\du'</span>                                             <span class="cmt"># มีสิทธิ์ CREATE ยัง</span></pre>
+      ถ้าเป็น <code>postgres</code> อยู่แล้ว = ผ่านทั้ง 2 เดินหน้าต่อได้เลย</li>
+    <li><b>สร้าง <code>backend/envs/.env.webtest</code></b> (ตอนนี้ถูก ignore อัตโนมัติแล้ว) — ดู template + 3 ค่าห้ามพลาด (<code>DB_PORT=5432</code>, <code>DB_SCHEMA=mes_web_test</code>, CORS=5101) ที่หัวข้อ ③ ข้างล่าง</li>
+    <li><b>Build ตามหัวข้อ ③ step 2→5</b> — <span class="bad">ห้ามลืม</span> <code>PGOPTIONS="-c search_path=mes_web_test"</code> ตอน apply schema.sql (กับดัก #1)</li>
+    <li><b>เช็ค Definition of Done</b> — ตาราง &gt;30 ตัวต้องอยู่ใน <b>mes_web_test</b> ไม่ใช่ public · health 200 · CORS ผ่าน</li>
   </ol>
-  <div style="margin-top:8px;color:var(--green)"><b>Definition of Done: ผ่านทุกข้อ</b> — ปิด issue #7 ได้เลย</div>
+  <div style="margin-top:8px">ติดตรงไหน ping ทีมได้เลย · finding ที่เจอใน audit → ดูหัวข้อ ④ ว่าตัวไหนต้องแก้ ตัวไหนแค่ผลจาก masked DB</div>
 </div>
 
 <!-- ================= SECURITY (done) ================= -->
@@ -258,11 +260,11 @@ psql -U postgres -d productiondb_20260721 \
   <div class="callout" style="margin-bottom:6px;border-color:var(--orange-border)">
     <div class="cl-t"><span class="pill debt">DEBT</span>&nbsp; หนี้ architecture จริง — ให้ทำให้ถูก<b>ตั้งแต่ต้น</b>ใน build ใหม่ (นี่คือคุณค่าหลักของ MES ใหม่)</div>
     <ul>
-      <li><span class="ok">✅ แก้แล้วใน mes_db</span> <b>D10 user 4 ตาราง</b> → <code>mes_db</code> ใช้ <code>app_users</code> เป็น central user table เดียว ทุก module FK มาที่นี่ (role: ADMIN/MEMBER/VIEWER)</li>
-      <li><span class="warn">⚠️ ต้องตรวจเพิ่ม</span> <b>D12 BOM 2 ชุด</b> → <code>mes_db</code> มี <code>boms</code> + <code>bom_lines</code> แล้ว แต่ยังไม่ได้ verify ว่า join กับ <code>mrp.bom_lines</code> ใน productiondb ครบ 100% — <b>canonical ยังคือ <code>mrp.bom_lines</code></b></li>
-      <li><span class="ok">✅ แก้แล้วใน mes_db</span> <b>D08 trxType camelCase / F1 type mismatch</b> → <code>my-api/database_schema.sql</code> ใช้ snake_case ทั้งหมดตั้งแต่ต้น</li>
-      <li><span class="warn">⚠️ ยังต้องทำ</span> <b>A3 / D19 / F2/F6 / F4/F5</b> → <code>mes_db</code> มี <code>audit_logs</code> + <code>actor_id</code> + <code>created_at</code> ครบแล้ว แต่ยังไม่มีใครเขียน writer จาก logged-in user — ต้อง wire ใน module code</li>
-      <li><span class="warn">⚠️ ยังต้องทำ</span> <b>A1 MO ปิดทั้งผลิตไม่ครบ · D04 datecode · D05 bak retention</b> → เพิ่ม guard/constraint ในระบบใหม่ (บังคับกรอกเหตุผล / NOT NULL / policy ลบ bak 14 วัน)</li>
+      <li><b>D10 user 4 ตาราง</b> → ออกแบบ <b>central user table เดียว</b> ให้ทุก module FK มาที่นี่ (วันนี้ <code>wms_users</code> 23 ใกล้ headcount จริงสุด)</li>
+      <li><b>D12 BOM 2 ชุด</b> → <b>canonical = <code>mrp.bom_lines</code></b> (join m_items 100% + MO ใช้ตัวนี้). <code>bom.*</code> เป็นของเก่า ให้ทำเป็น view หรือลบ อย่าเก็บ 2 ชุด</li>
+      <li><b>D08 trxType camelCase / F1 type mismatch (int vs uuid)</b> → schema ใหม่ใช้ <b>snake_case + uuid</b> ให้เหมือนกันหมดตั้งแต่วันแรก. <b>อย่าไป rename ตารางใน WMS live</b> — โค้ดอ้างเยอะ เสี่ยงล่ม</li>
+      <li><b>A3 last_event_at · D19 mes_core.audit_log · F2/F6 actor_id · F4/F5 created_by</b> → column มีแต่ยังไม่มีคนเขียนค่า. build ใหม่ให้ wire writer (audit / actor_id / timestamp / created_by จาก logged-in user) ครบ<b>ตั้งแต่ day 1</b></li>
+      <li><b>A1 MO ปิดทั้งผลิตไม่ครบ · D04 datecode · D05 bak retention</b> → เพิ่ม guard/constraint ในระบบใหม่ (บังคับกรอกเหตุผล / NOT NULL / policy ลบ bak 14 วัน)</li>
     </ul>
   </div>
 </div>
