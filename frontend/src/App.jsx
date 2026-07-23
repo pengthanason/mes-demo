@@ -818,7 +818,7 @@ function Shell({ children }) {
         </header>
 
         <main className="app-main" style={{ maxWidth: 1380, margin: '0 auto', flex: 1, width: '100%', boxSizing: 'border-box' }}>
-          <div key={location.pathname} className="page-fade">{children}</div>
+          <div key={location.pathname + (new URLSearchParams(location.search).get('tab') || '')} className="page-fade">{children}</div>
         </main>
 
         <footer className="app-footer" style={{ marginBottom: '5px', borderTop: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', flexShrink: 0 }}>

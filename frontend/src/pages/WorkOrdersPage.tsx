@@ -79,8 +79,8 @@ export function WorkOrdersPage() {
         {showForm && !isViewer && (
           <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
             <h3 className="panel__title panel__title--sm">Open New Work Order</h3>
-            <form onSubmit={submit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem', gap: '0.85rem' }}>
-              <div className="grid-2col">
+            <form onSubmit={submit} className="stack" style={{ marginTop: '0.75rem', gap: '0.85rem' }}>
+              <div className="grid-4col">
                 <label className="field"><span>Product Code *</span>
                   <input value={productCode} onChange={e => { setProductCode(e.target.value); if (fErr.productCode) setFErr(p => ({ ...p, productCode: undefined })); }} placeholder="e.g. PCB-A100" autoFocus aria-required="true" aria-invalid={!!fErr.productCode} style={fErr.productCode ? { borderColor: '#dc2626' } : undefined} />
                   {fErr.productCode && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.productCode}</span>}
@@ -88,8 +88,6 @@ export function WorkOrdersPage() {
                 <label className="field"><span>Customer</span>
                   <input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="e.g. Toyota TH" />
                 </label>
-              </div>
-              <div className="grid-2col">
                 <label className="field"><span>Qty *</span>
                   <input type="number" value={qty} onChange={e => { setQty(e.target.value); if (fErr.qty) setFErr(p => ({ ...p, qty: undefined })); }} placeholder="e.g. 200" aria-required="true" aria-invalid={!!fErr.qty} style={fErr.qty ? { borderColor: '#dc2626' } : undefined} />
                   {fErr.qty && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.qty}</span>}

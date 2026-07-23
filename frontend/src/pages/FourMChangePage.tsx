@@ -87,22 +87,24 @@ export function FourMChangePage() {
           <div className="panel" style={{ borderLeft: '4px solid var(--brand)', marginTop: '1.25rem' }}>
             <h3 className="panel__title panel__title--sm">Open New Change Request</h3>
             <form onSubmit={handleSubmit} className="stack" style={{ maxWidth: 560, marginTop: '0.75rem' }}>
-              <label className="field">
-                <span>5M+1E Type *</span>
-                <select value={mType} onChange={e => setMType(e.target.value as MType)} required>
-                  <option value="">-- Select type --</option>
-                  <option value="Man">👷 Man (People)</option>
-                  <option value="Machine">⚙️ Machine (Machinery)</option>
-                  <option value="Material">📦 Material (Raw Material)</option>
-                  <option value="Method">📋 Method (Process)</option>
-                  <option value="Measurement">📏 Measurement (Inspection/Metrology)</option>
-                  <option value="Environment">🌱 Environment (Workplace/Conditions)</option>
-                </select>
-              </label>
-              <label className="field">
-                <span>Related WO</span>
-                <WoInput value={woRef} onChange={setWoRef} placeholder="Select or type WO…" />
-              </label>
+              <div className="grid-2col">
+                <label className="field">
+                  <span>5M+1E Type *</span>
+                  <select value={mType} onChange={e => setMType(e.target.value as MType)} required>
+                    <option value="">-- Select type --</option>
+                    <option value="Man">👷 Man (People)</option>
+                    <option value="Machine">⚙️ Machine (Machinery)</option>
+                    <option value="Material">📦 Material (Raw Material)</option>
+                    <option value="Method">📋 Method (Process)</option>
+                    <option value="Measurement">📏 Measurement (Inspection/Metrology)</option>
+                    <option value="Environment">🌱 Environment (Workplace/Conditions)</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Related WO</span>
+                  <WoInput value={woRef} onChange={setWoRef} placeholder="Select or type WO…" />
+                </label>
+              </div>
               <label className="field">
                 <span>Change details (what + why) *</span>
                 <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}

@@ -198,7 +198,7 @@ export function ScmCasesPage() {
         {notice ? <div className={`notice ${notice.kind}`}>{notice.message}</div> : null}
 
         <form className="stack" onSubmit={submitOpenCase}>
-          <div className="filters-grid">
+          <div className="grid-3col">
             <label className="field">
               <span>Case ID (optional)</span>
               <input

@@ -688,6 +688,7 @@ tr:hover td { background: #f8fafc; }
 
 .grid-2col      { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .grid-3col      { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+.grid-4col      { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
 .grid-sidebar   { display: grid; grid-template-columns: 260px 1fr; gap: 1.5rem; align-items: start; }
 
 /* ─── Responsive ─────────────────────────────────────────────────── */
@@ -716,7 +717,7 @@ tr:hover td { background: #f8fafc; }
   .panel { padding: 1rem; border-radius: 10px; margin-bottom: 1rem; }
   .panel__title { font-size: 1.1rem; }
   .mes-light-card { padding: 1rem; }
-  .grid-3col { grid-template-columns: 1fr 1fr; }
+  .grid-3col, .grid-4col { grid-template-columns: 1fr 1fr; }
   /* tables: tighter cells + smaller font so more fits before horizontal scroll */
   .table th, .table td { padding: 0.5rem 0.5rem; font-size: 0.82rem; }
   /* ลด padding ของพื้นที่เนื้อหา ให้จอเล็กมีที่มากขึ้น */
@@ -729,7 +730,7 @@ tr:hover td { background: #f8fafc; }
 }
 
 @media (max-width: 420px) {
-  .grid-2col, .grid-3col { grid-template-columns: 1fr; }
+  .grid-2col, .grid-3col, .grid-4col { grid-template-columns: 1fr; }
 }
 
 /* ─── Mobile phones (≤480px) — FE-18: tap target ใหญ่ขึ้น, ตารางแน่นขึ้น, หัวเล็กลง ─── */
