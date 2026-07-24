@@ -1017,8 +1017,13 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
     if (qty < 0) { errs.push('Quantity cannot be negative'); bad.qty = true; }
     if (prod < 0) { errs.push('Produced cannot be negative'); bad.produce = true; }
     if (prod > qty) { errs.push('Produced cannot exceed Quantity'); bad.produce = true; }
-    if ((Number(f.total_ng) || 0) < 0) { errs.push('Total NG cannot be negative'); bad.total_ng = true; }
-    if ((Number(f.total_ok) || 0) < 0) { errs.push('Total FG cannot be negative'); bad.total_ok = true; }
+    const fg = Number(f.total_ok) || 0, ng = Number(f.total_ng) || 0;
+    if (ng < 0) { errs.push('Total NG cannot be negative'); bad.total_ng = true; }
+    if (fg < 0) { errs.push('Total FG cannot be negative'); bad.total_ok = true; }
+    if (fg > prod) { errs.push('Total FG cannot exceed Produced'); bad.total_ok = true; }   // FG ≤ Produced
+    if (ng > prod) { errs.push('Total NG cannot exceed Produced'); bad.total_ng = true; }   // NG ≤ Produced
+    // ปิดงาน (status DONE หรือมี PD Done) ได้ต่อเมื่อผลิตครบ
+    if ((f.status === 'DONE' || !!f.pd_finish_date) && prod < qty) { errs.push('Produced must be complete (= Quantity) before marking Done'); bad.produce = true; }
     return { errs, bad };
   }
 

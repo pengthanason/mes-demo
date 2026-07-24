@@ -781,6 +781,10 @@ export function DashboardPage() {
     }
     // ใส่ PD Done (วันเสร็จจริง) → งานเสร็จ: status=DONE + process ที่กำลังทำ/มีข้อมูล → DONE + เพิ่ม event DONE ลง log ให้ Gantt เขียวถึงปลายแท่ง
     if (field === 'pd_finish_date' && value) {
+      if (Number(p.produce || 0) < Number(p.qty || 0)) {   // ต้องผลิตครบก่อน ค่อยปิดงาน
+        showToast('ต้องผลิตให้ครบ (Produced = Quantity) ก่อนจึงจะปิดงาน (PD Done) ได้', 'error');
+        return;
+      }
       patch.status = 'DONE'; patch.status_color = 'DONE';
       PROCESS_STEPS.forEach(s => { const cur = (p as any)[s.key]; if (cur && cur !== 'DONE' && cur !== 'CANCEL') patch[s.key as string] = 'DONE'; });
       const log = Array.isArray(p.process_log) ? [...p.process_log] : [];

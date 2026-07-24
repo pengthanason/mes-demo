@@ -169,55 +169,6 @@ async function migrate() {
       `);
     }
 
-    // ── FE-12: SCM Cases ──
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS scm_cases (
-        id              SERIAL PRIMARY KEY,
-        case_id         VARCHAR(50)  NOT NULL UNIQUE,
-        case_type       VARCHAR(50)  NOT NULL,
-        status          VARCHAR(20)  NOT NULL DEFAULT 'OPEN',
-        ref_po          VARCHAR(100) NOT NULL DEFAULT '',
-        ref_inv         VARCHAR(100) NOT NULL DEFAULT '',
-        part_no         VARCHAR(100) NOT NULL DEFAULT '',
-        due_date        DATE,
-        resolution_note TEXT         NOT NULL DEFAULT '',
-        resolved_at     TIMESTAMPTZ,
-        created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-        updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-      )
-    `);
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS scm_dispositions (
-        id         SERIAL PRIMARY KEY,
-        case_id    VARCHAR(50)   NOT NULL REFERENCES scm_cases(case_id) ON DELETE CASCADE,
-        action     VARCHAR(50)   NOT NULL,
-        rma_no     VARCHAR(100)  NOT NULL DEFAULT '',
-        return_qty NUMERIC(10,3) NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ   NOT NULL DEFAULT NOW()
-      )
-    `);
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS scm_lot_splits (
-        id           SERIAL PRIMARY KEY,
-        original_uid VARCHAR(100)  NOT NULL,
-        ok_uid       VARCHAR(100)  NOT NULL,
-        ng_uid       VARCHAR(100)  NOT NULL,
-        original_qty NUMERIC(10,3) NOT NULL,
-        ok_qty       NUMERIC(10,3) NOT NULL,
-        ng_qty       NUMERIC(10,3) NOT NULL,
-        reason       TEXT          NOT NULL DEFAULT '',
-        created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
-      )
-    `);
-    const scmCount = await client.query('SELECT COUNT(*) FROM scm_cases');
-    if (SEED_DEMO && Number(scmCount.rows[0].count) === 0) {
-      await client.query(`
-        INSERT INTO scm_cases (case_id, case_type, status, ref_po, ref_inv, part_no, due_date, resolution_note, resolved_at) VALUES
-          ('SCM-202606-001', 'QTY_SHORT', 'OPEN',   'PO-10234', 'INV-5501', 'R-100K', '2026-06-20', '', NULL),
-          ('SCM-202606-002', 'DAMAGED',   'CLOSED',  'PO-10235', 'INV-5502', 'IC-555', '2026-06-15', 'Supplier ส่งของมาทดแทนครบ', NOW())
-      `);
-    }
-
     // ── FE-13: Admin Users + Audit Logs ──
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_users (

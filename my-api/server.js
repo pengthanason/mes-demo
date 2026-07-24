@@ -32,7 +32,6 @@ app.use('/api/report',        require('./routes/report'));
 app.use('/api/cr',            require('./routes/cr'));
 app.use('/api/rework',        require('./routes/rework'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/scm',           require('./routes/scm'));
 app.use('/api/admin',         require('./routes/admin'));
 app.use('/api/jumbo',         require('./routes/trace'));
 app.use('/api/routing',       require('./routes/routing'));

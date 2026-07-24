@@ -20,7 +20,6 @@ import { NotificationsPage } from './pages/NotificationsPage.tsx';
 import { AdminPanelPage } from './pages/AdminPanelPage.tsx';
 import { JigProjectPage } from './pages/JigProjectPage.tsx';
 import { JigTestPage } from './pages/JigTestPage.tsx';
-import { ScmCasesPage } from './pages/ScmCasesPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
 import { IncomingKittingPage } from './pages/IncomingKittingPage.tsx';
 import { WorkOrdersPage } from './pages/WorkOrdersPage.tsx';
@@ -58,7 +57,6 @@ const NAV_GROUPS = [
   ] },
   { title: 'Inventory & Supply', items: [
     { to: '/drift',     label: 'Stock vs Odoo' },
-    { to: '/scm-cases', label: 'SCM Cases' },
   ] },
   { title: 'System', items: [
     { to: '/equipment-borrow', label: 'Equipment Borrow' },
@@ -689,7 +687,7 @@ function ConfirmContainer() {
 // ชื่อหน้าแสดงบน header (map จาก route) — longest-prefix match
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard', '/work-orders': 'Work Orders', '/wo': 'Work Order',
-  '/scm-cases': 'SCM Cases', '/jig-test': 'Jig Test', '/production-plan': 'Production Plan',
+  '/jig-test': 'Jig Test', '/production-plan': 'Production Plan',
   '/oba': 'OBA', '/incoming': 'Incoming & Kitting', '/4m-change': '5M+1E Change',
   '/qc-board': 'QC', '/qc': 'QC Result', '/qa-verify': 'QA Verify', '/fai': 'FAI',
   '/notifications': 'Notifications', '/traceability': 'Traceability', '/drift': 'Drift Viewer',
@@ -897,7 +895,6 @@ export default function App() {
               <Route path="/wo-dashboard"      element={<Navigate to="/work-orders" replace />} />
               <Route path="/production-report" element={<Navigate to="/dashboard" replace />} />
               <Route path="/routing-history"   element={<Navigate to="/dashboard" replace />} />
-              <Route path="/scm-cases"         element={<PermGuard perm="scm"><ScmCasesPage /></PermGuard>} />
               <Route path="/jig-test"          element={<PermGuard perm="jig_test"><JigTestPage /></PermGuard>} />
               {/* active routes */}
               <Route path="/production-plan"   element={<PermGuard perm="production_plan"><ProductionPlanPage /></PermGuard>} />

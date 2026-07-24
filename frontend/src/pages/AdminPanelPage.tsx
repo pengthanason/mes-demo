@@ -284,7 +284,6 @@ function targetLink(targetType: string | null, targetId: string | null): string 
     case 'workflow':      return '/production-plan?tab=workflow';
     case 'pp':            return targetId ? `/dashboard?pp=${targetId}` : '/dashboard';   // เปิดรายละเอียดรายการนั้นบน Dashboard
     case 'jig':           return targetId ? `/jig-test/${targetId}` : '/jig-test';
-    case 'scm':           return '/scm-cases';
     case 'rework':        return '/qc-board?tab=rework';
     case 'inventory':     return '/incoming';
     case 'notifications': return '/notifications';
