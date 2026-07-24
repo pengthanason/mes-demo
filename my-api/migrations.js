@@ -559,6 +559,7 @@ async function migrate() {
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS qa_status       VARCHAR(30) NOT NULL DEFAULT ''`);
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS status_color    VARCHAR(30) NOT NULL DEFAULT ''`);
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pd_modified     BOOLEAN     NOT NULL DEFAULT false`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS product_image   TEXT`);   // รูปสินค้า (data URL) — แนบจาก popup · แยก endpoint /image ไม่รวมใน list
     for (const c of ['pc_prpo', 'pc_wait', 'pc_incoming', 'pc_smt', 'pc_thr', 'pc_test', 'pc_bbas', 'pc_packing']) {
       await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS ${c} VARCHAR(30) NOT NULL DEFAULT ''`);   // สถานะต่อ step ('' | PP_STATUS)
     }

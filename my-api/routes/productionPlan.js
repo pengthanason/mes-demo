@@ -74,12 +74,14 @@ function validateData(data) {
   if (data.produce != null && data.qty != null && data.produce !== '' && data.qty !== '' && Number(data.produce) > Number(data.qty)) {
     return 'produce cannot exceed qty';
   }
-  // ลำดับวันที่: start ≤ finish/expected, finish ≤ expected (เช็กเมื่อมีค่าครบคู่)
+  // ลำดับวันที่: ต้องไม่เสร็จ/คาดว่าเสร็จ ก่อนเริ่มผลิต (PD Done หลัง Expected ได้ = ดีเลย์ ระบบรองรับอยู่แล้ว)
   const d = (k) => (data[k] ? new Date(data[k]) : null);
   const [s, f, e] = [d('pd_start_date'), d('pd_finish_date'), d('expected_date')];
   if (s && f && f < s) return 'PD Done cannot be before PD Start';
   if (s && e && e < s) return 'Expected date cannot be before PD Start';
-  if (f && e && e < f) return 'Expected date cannot be before PD Done';
+  // PD Done = วันเสร็จจริง → ห้ามเป็นวันในอนาคต (เทียบวันที่เขตไทย +7)
+  const todayStr = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+  if (data.pd_finish_date && String(data.pd_finish_date).slice(0, 10) > todayStr) return 'PD Done cannot be a future date';
   return null;
 }
 
@@ -199,6 +201,36 @@ router.get('/projects/:id/history', async (req, res) => {
 router.delete('/projects/:id', async (req, res) => {
   try {
     const { rowCount } = await db.query('DELETE FROM pp_projects WHERE id = $1', [req.params.id]);
+    if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
+    res.json({ status: 'success' });
+  } catch (e) {
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+  }
+});
+
+// ── รูปสินค้า — แยก endpoint (ไม่รวมใน /projects list กัน payload ใหญ่/dashboard อืด) ──
+router.get('/projects/:id/image', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT product_image FROM pp_projects WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ status: 'error', message: 'not found' });
+    res.json({ status: 'success', data: { image: rows[0].product_image || null } });
+  } catch (e) {
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+  }
+});
+
+router.put('/projects/:id/image', async (req, res) => {
+  try {
+    let img = req.body?.image;
+    if (img != null) {
+      if (typeof img !== 'string' || !/^data:image\/(png|jpe?g|webp|gif);base64,/.test(img)) {
+        return res.status(400).json({ status: 'error', message: 'Invalid image' });
+      }
+      if (img.length > 8 * 1024 * 1024) return res.status(413).json({ status: 'error', message: 'Image too large' });
+    } else {
+      img = null;   // ลบรูป
+    }
+    const { rowCount } = await db.query('UPDATE pp_projects SET product_image = $1, updated_at = NOW() WHERE id = $2', [img, req.params.id]);
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
     res.json({ status: 'success' });
   } catch (e) {

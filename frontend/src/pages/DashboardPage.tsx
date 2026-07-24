@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { usePpProjects, usePpDelete, usePpUpdate, usePpCreate, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
+import { usePpProjects, usePpDelete, usePpUpdate, usePpCreate, usePpImage, usePpImageSave, PP_STATUS, PP_STATUS_LABEL, ppYield, type PpProject } from '../lib/ppApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
@@ -200,8 +200,59 @@ const rowOnProcessOnly = (r: PpProject) => !PP_TERMINAL.includes(r.status);
 // แถว "ดีเลย์" = status = DELAY หรือมี process step ใดก็ได้ที่ DELAY (แม้ภาพรวมยังเป็น On process) → พื้นหลังเหลืองส้มเตือน
 const rowHasDelay = (r: PpProject) => r.status === 'DELAY' || PROCESS_STEPS.some(s => (r as any)[s.key as string] === 'DELAY');
 
+// ── Inline quick-edit cells — คลิกแก้ในตารางเลย ไม่ต้องเปิด modal · save ทันทีตอน Enter/blur + ไฮไลต์เขียว ✓ ──
+function InlineNumberCell({ value, color, onSave }: { value: number; color?: string; onSave: (n: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState('');
+  const [ok, setOk] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing) { ref.current?.focus(); ref.current?.select(); } }, [editing]);
+  const start = () => { setVal(String(value ?? 0)); setEditing(true); };
+  const commit = () => {
+    setEditing(false);
+    const n = Math.max(0, Math.floor(Number(val)) || 0);
+    if (n !== (value ?? 0)) { onSave(n); setOk(true); setTimeout(() => setOk(false), 1000); }
+  };
+  if (editing) return (
+    <td style={{ padding: 2, textAlign: 'center' }}>
+      <input ref={ref} type="number" min="0" value={val}
+        onChange={e => setVal(e.target.value)} onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape') setEditing(false); }}
+        style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', padding: '2px 4px', fontSize: '0.82rem', border: '1px solid var(--brand)', borderRadius: 4, outline: 'none' }} />
+    </td>
+  );
+  return (
+    <td onClick={start} title="Click to edit" style={{ textAlign: 'center', cursor: 'pointer', color, background: ok ? '#dcfce7' : undefined, transition: 'background 0.5s' }}>
+      {(value ?? 0).toLocaleString()}{ok && <span style={{ color: '#16a34a', marginLeft: 3 }}>✓</span>}
+    </td>
+  );
+}
+
+function InlineDateCell({ value, green, onSave }: { value: string | null | undefined; green?: boolean; onSave: (iso: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [ok, setOk] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  const iso = value ? String(value).slice(0, 10) : '';
+  useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
+  const display = iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
+  if (editing) return (
+    <td style={{ padding: 2, textAlign: 'center' }}>
+      <input ref={ref} type="date" value={iso}
+        onChange={e => { onSave(e.target.value); setEditing(false); setOk(true); setTimeout(() => setOk(false), 1000); }}
+        onBlur={() => setEditing(false)}
+        style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.76rem', padding: '2px', border: '1px solid var(--brand)', borderRadius: 4, outline: 'none' }} />
+    </td>
+  );
+  return (
+    <td onClick={() => setEditing(true)} title="Click to edit date"
+      style={{ textAlign: 'center', cursor: 'pointer', whiteSpace: 'nowrap', background: ok ? '#dcfce7' : (green && iso ? '#dcfce7' : undefined), color: green && iso ? '#166534' : (iso ? undefined : '#cbd5e1'), fontWeight: green && iso ? 600 : undefined }}>
+      {display || '—'}{ok && <span style={{ color: '#16a34a', marginLeft: 3 }}>✓</span>}
+    </td>
+  );
+}
+
 // เรนเดอร์ 1 เซลล์ตาราง Dashboard ตามนิยามคอลัมน์ (ลำดับ/หัว = แหล่งเดียวกับ Excel)
-function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string, e?: React.MouseEvent<HTMLElement>) => void) {
+function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => void, onToggle?: (key: string, e?: React.MouseEvent<HTMLElement>) => void, onInline?: (key: string, value: number | string) => void) {
   // Status (คอลัมน์แรก) — ชื่อสถานะสีล้วน (ไม่มีกรอบ) · คลิกในตารางเพื่อวนสี/สถานะ
   if (c.key === 'status') { const sv = statusView(p); const s = STATUS_STYLE[sv.colorKey] ?? STATUS_STYLE.ON_PROCESS; return (
     <td key={c.key} onClick={onToggle ? (e) => onToggle('status', e) : undefined} title={onToggle ? 'Click to change the status color (label stays the same)' : undefined}
@@ -219,6 +270,15 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
         {ww && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{ww}</div>}
       </td>
     );
+  }
+  // Inline quick-edit (เฉพาะโหมดแก้ไข = มี onInline) — ตัวเลข produce/total_ng · วันที่ pd_finish/expected/revised
+  if (onInline && (c.key === 'produce' || c.key === 'total_ng' || c.key === 'total_ok')) {
+    const col = c.key === 'total_ng' ? '#dc2626' : c.key === 'total_ok' ? '#16a34a' : undefined;
+    return <InlineNumberCell key={c.key} value={(p as any)[c.key] || 0} color={col} onSave={n => onInline(c.key, n)} />;
+  }
+  if (onInline && (c.key === 'pd_finish' || c.key === 'expected' || c.key === 'revised')) {
+    const field = c.key === 'pd_finish' ? 'pd_finish_date' : c.key === 'expected' ? 'expected_date' : 'revised_date';
+    return <InlineDateCell key={c.key} value={(p as any)[field]} green={c.key === 'pd_finish'} onSave={iso => onInline(c.key, iso)} />;
   }
   // Process — ช่องสีล้วนตามสถานะ · คลิกวนสี (ว่าง=ขาวโล่ง → On process → Done → Delay → Cancel → ว่าง)
   if (PROCESS_KEYS.has(c.key)) {
@@ -263,7 +323,86 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
   return <td key={c.key} title={v.replace(/\n/g, ' ')} style={DONE_KEYS.has(c.key) ? { ...base, ...GREEN_CELL } : base}>{v}</td>;
 }
 
-/* ── Popup รายละเอียดสินค้า — คลิก Product P/N ในตาราง → รูป (placeholder) + ข้อมูลทั้งหมดของรายการ ── */
+// ย่อรูปก่อนเก็บ (max 1000px, JPEG 0.85) → ไฟล์เล็ก เก็บ DB/โหลดเร็ว ไม่ว่าไฟล์ต้นทางใหญ่แค่ไหน
+function downscaleImage(file: File, maxSize: number, quality: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('decode failed'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) { const s = maxSize / Math.max(width, height); width = Math.round(width * s); height = Math.round(height * s); }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('no ctx'));
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height);   // กันพื้นโปร่งใส (PNG) กลายเป็นดำตอนแปลง JPEG
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// กล่องรูปสินค้าใน popup — คลิกเพื่อแนบไฟล์ · โหลด/บันทึกผ่าน endpoint /image (optimistic)
+function ProductImageBox({ p }: { p: PpProject }) {
+  const { data: image, isLoading } = usePpImage(p.id);
+  const save = usePpImageSave();
+  const qc = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const setLocal = (img: string | null) => qc.setQueryData(['pp-image', p.id], img);   // optimistic
+  const pick = async (file: File) => {
+    if (!file.type.startsWith('image/')) { showToast('Please choose an image file', 'error'); return; }
+    setBusy(true);
+    try {
+      const dataUrl = await downscaleImage(file, 1000, 0.85);
+      setLocal(dataUrl);
+      save.mutate({ id: p.id, image: dataUrl }, {
+        onSuccess: () => showToast('Image attached', 'success'),
+        onError: (e: any) => { showToast(e?.message || 'Save failed', 'error'); void qc.invalidateQueries({ queryKey: ['pp-image', p.id] }); },
+      });
+    } catch { showToast('Cannot read this image', 'error'); }
+    finally { setBusy(false); }
+  };
+  const remove = () => {
+    setLocal(null);
+    save.mutate({ id: p.id, image: null }, { onSuccess: () => showToast('Image removed', 'info'), onError: (e: any) => { showToast(e?.message || 'Failed', 'error'); void qc.invalidateQueries({ queryKey: ['pp-image', p.id] }); } });
+  };
+  return (
+    <div style={{ marginTop: 14 }}>
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
+      {image ? (
+        <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-color)', background: '#f8fafc' }}>
+          <img src={image} alt={p.product_pn || 'product'} style={{ display: 'block', width: '100%', maxHeight: 340, objectFit: 'contain' }} />
+          <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
+            <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.75rem' }} disabled={busy} onClick={() => inputRef.current?.click()}>Change</button>
+            <button type="button" className="btn danger" style={{ padding: '3px 10px', fontSize: '0.75rem' }} disabled={busy} onClick={remove}>Remove</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => inputRef.current?.click()} disabled={busy || isLoading}
+          onMouseEnter={e => { if (busy || isLoading) return; e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.color = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(46,125,79,0.14)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = 'linear-gradient(135deg,#f8fafc,#eef2f7)'; e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
+          style={{ width: '100%', height: 190, borderRadius: 10, border: '2px dashed #cbd5e1', background: 'linear-gradient(135deg,#f8fafc,#eef2f7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9, color: '#94a3b8', cursor: 'pointer', font: 'inherit', transition: 'all 0.15s' }}>
+          <span style={{ fontSize: 38, lineHeight: 1 }}>{busy ? '⏳' : '🖼️'}</span>
+          <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>{busy ? 'Uploading…' : isLoading ? 'Loading…' : 'Attach a product image'}</span>
+          {!busy && !isLoading && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 999, background: 'var(--brand)', color: '#fff', fontSize: '0.82rem', fontWeight: 700, boxShadow: '0 2px 6px rgba(46,125,79,0.25)' }}>📎 Choose file</span>
+          )}
+          <span style={{ fontSize: '0.72rem' }}>or click anywhere in this box · PNG / JPG · auto-resized</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Popup รายละเอียดสินค้า — คลิก Product P/N ในตาราง → รูป (แนบไฟล์ได้) + ข้อมูลทั้งหมดของรายการ ── */
 function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void }) {
   const y = ppYield(p);
   const fmtD = (v: string | null | undefined) => { if (!v) return '—'; const d = new Date(String(v).slice(0, 10) + 'T00:00:00'); return isNaN(+d) ? String(v) : d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }); };
@@ -300,12 +439,8 @@ function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void 
           <button type="button" aria-label="Close" className="btn secondary" style={{ padding: '4px 12px', flexShrink: 0 }} onClick={onClose}>✕</button>
         </div>
         <div style={{ marginTop: 10 }}><StatusBadge status={statusView(p).colorKey} label={statusView(p).label} /></div>
-        {/* รูปสินค้า (placeholder — ของจริงจะแนบภายหลัง) */}
-        <div style={{ marginTop: 14, height: 180, borderRadius: 10, border: '2px dashed #cbd5e1', background: 'linear-gradient(135deg,#f8fafc,#eef2f7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#94a3b8' }}>
-          <span style={{ fontSize: 40, lineHeight: 1 }}>🖼️</span>
-          <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>No product image yet</span>
-          <span style={{ fontSize: '0.75rem' }}>The actual product image will be attached later</span>
-        </div>
+        {/* รูปสินค้า — คลิกเพื่อแนบไฟล์ (เก็บถาวรผ่าน endpoint /image) */}
+        <ProductImageBox p={p} />
         {groups.map(g => (
           <div key={g.title}>
             <div style={sectionTitle}>{g.title}</div>
@@ -619,6 +754,44 @@ export function DashboardPage() {
     ppUpdate.mutate({ id: p.id, status_color: color }, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
     setColorPick(null);
   };
+  // ── Inline quick-edit — patch เฉพาะ field ที่เปลี่ยน (optimistic เหมือน toggleCheck) ──
+  const applyPatch = (p: PpProject, patch: Record<string, any>) => {
+    const merged = { ...p, ...patch };
+    queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
+    ppUpdate.mutate({ id: p.id, ...patch } as any, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
+  };
+  const INLINE_FIELD: Record<string, string> = { pd_finish: 'pd_finish_date', expected: 'expected_date', revised: 'revised_date' };
+  const inlineSave = (p: PpProject, key: string, value: number | string) => {
+    const field = INLINE_FIELD[key] || key;
+    const patch: Record<string, any> = { [field]: value };
+    // NG = Produced − FG อัตโนมัติ เมื่อแก้ Produced หรือ Total FG (เสีย = ที่ทำ − ที่ดี, ต่ำสุด 0) → yield ปรับตาม
+    // FG/NG ≤ Produced ≤ Qty (ห้ามเกินเด็ดขาด) · แก้อันนึง อีกอันคิดให้ (รวม = Produced)
+    if (field === 'produce') {
+      const produce = Math.min(Math.max(0, Number(value)), Number(p.qty || 0));   // Produced ≤ Qty
+      const fg = Math.min(Number(p.total_ok || 0), produce);                      // FG หดตามถ้า Produced ลด
+      patch.produce = produce; patch.total_ok = fg; patch.total_ng = Math.max(0, produce - fg);
+    } else if (field === 'total_ok') {
+      const produce = Number(p.produce || 0);
+      const fg = Math.min(Math.max(0, Number(value)), produce);                   // FG ≤ Produced
+      patch.total_ok = fg; patch.total_ng = Math.max(0, produce - fg);
+    } else if (field === 'total_ng') {
+      const produce = Number(p.produce || 0);
+      const ng = Math.min(Math.max(0, Number(value)), produce);                   // NG ≤ Produced
+      patch.total_ng = ng; patch.total_ok = Math.max(0, produce - ng);
+    }
+    // ใส่ PD Done (วันเสร็จจริง) → งานเสร็จ: status=DONE + process ที่กำลังทำ/มีข้อมูล → DONE + เพิ่ม event DONE ลง log ให้ Gantt เขียวถึงปลายแท่ง
+    if (field === 'pd_finish_date' && value) {
+      patch.status = 'DONE'; patch.status_color = 'DONE';
+      PROCESS_STEPS.forEach(s => { const cur = (p as any)[s.key]; if (cur && cur !== 'DONE' && cur !== 'CANCEL') patch[s.key as string] = 'DONE'; });
+      const log = Array.isArray(p.process_log) ? [...p.process_log] : [];
+      if (!log.length || log[log.length - 1].status !== 'DONE') {
+        const lastStep = ([...PROCESS_STEPS].reverse().find(s => (p as any)[s.key])?.key as string) || 'pc_packing';
+        log.push({ date: String(value).slice(0, 10), step: lastStep, status: 'DONE', note: 'PD Done' });
+        patch.process_log = log;
+      }
+    }
+    applyPatch(p, patch);
+  };
   // คลิกช่อง Process → เปิด popup เลือกสถานะ+วันที่ · คลิกช่อง Status → เปิด palette สีลอยตรงจุดที่คลิก
   const onCellClick = (p: PpProject, key: string, e?: React.MouseEvent<HTMLElement>) => {
     if (PROCESS_KEYS.has(key)) setProcEdit({ p, key });
@@ -907,7 +1080,7 @@ export function DashboardPage() {
                 return (
                   <tr key={p.id} style={rowHasDelay(p) ? { background: '#fff7ed', boxShadow: 'inset 3px 0 0 #ea580c' } : undefined}>
                     <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
-                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key, e) => onCellClick(p, key, e)))}
+                    {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key, e) => onCellClick(p, key, e), isViewer ? undefined : (key, value) => inlineSave(p, key, value)))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
