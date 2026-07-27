@@ -35,6 +35,7 @@ const pmRoutes = require('./modules/11_pm_flow/pm.routes');
 const scmRoutes = require('./modules/12_scm_cases/scm.routes');
 const recallRoutes = require('./modules/12_scm_cases/recall.routes');
 const jumboRoutes = require('./modules/13_jumbo/jumbo.routes');
+const adminRoutes = require('./modules/15_admin/admin.routes');
 const outboxWorker = require('./common/outbox_worker');
 
 const APP_HOST = process.env.APP_HOST || '0.0.0.0';
@@ -851,6 +852,7 @@ function createApp() {
   app.use('/api/scm', scmRoutes);
   app.use(recallRoutes);
   app.use(jumboRoutes);
+  app.use(adminRoutes);
 
   app.use((err, req, res, next) => {
     if (res.headersSent) return next(err);

@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { query } = require('../../db'); // อ้างอิงไปยัง db.js หลักของโปรเจกต์
+const bcrypt = require('bcryptjs');
+const { query } = require('../../db');
 
-// Middleware ตรวจสอบ Role (อนุญาตเฉพาะ PM และ ADMIN)
 function requireAdminOrPM(req, res, next) {
-  // รองรับทั้งระบบ JWT (req.user) และ Header Fallback (X-User-Role) ตามที่ระบุใน README
-  const role = req.user?.role || req.headers['x-user-role'];
-  
+  // SECURITY 2026-07-24 (Claudy): removed x-user-role header fallback — in jwt auth mode an
+  // unauthenticated request could forge X-User-Role:ADMIN and gain full user-admin CRUD.
+  // Trust ONLY the authenticated req.user set by attachAuthContext.
+  const role = String(req.user?.role || '').toUpperCase();
   if (role === 'PM' || role === 'ADMIN') {
     return next();
   }
-  
   return res.status(403).json({ 
     status: 'error', 
     code: 'FORBIDDEN', 
@@ -18,113 +18,177 @@ function requireAdminOrPM(req, res, next) {
   });
 }
 
-// apply middleware กับทุกเส้นในนี้
-router.use(requireAdminOrPM);
+const VALID_ROLES = new Set(['ADMIN', 'PM', 'STORE', 'QA', 'PD', 'TECH', 'QC']);
 
-/**
- * GET /api/admin/sync-log
- * Query params: direction, status, wo_id, from, to, limit, page
- */
-router.get('/sync-log', async (req, res) => {
+router.get('/api/admin/users', requireAdminOrPM, async (req, res) => {
   try {
-    const { direction, status, wo_id, from, to, limit = 50, page = 1 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { role, search, page = 1, limit = 50 } = req.query;
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
     const conditions = [];
     const params = [];
     let pIdx = 1;
 
-    // ใส่ Filters ตามเงื่อนไขที่มีการส่งมา
-    if (direction) {
-      conditions.push(`direction = $${pIdx++}`);
-      params.push(direction);
+    if (role && VALID_ROLES.has(role.toUpperCase())) {
+      conditions.push(`role = $${pIdx++}::mes_core.user_role`);
+      params.push(role.toUpperCase());
     }
-    if (status) {
-      conditions.push(`status = $${pIdx++}`);
-      params.push(status);
-    }
-    if (wo_id) {
-      conditions.push(`wo_id = $${pIdx++}`);
-      params.push(wo_id);
-    }
-    if (from) {
-      conditions.push(`created_at >= $${pIdx++}`);
-      params.push(from);
-    }
-    if (to) {
-      conditions.push(`created_at <= $${pIdx++}`);
-      params.push(to);
+    if (search) {
+      conditions.push(`username ILIKE $${pIdx++}`);
+      params.push(`%${search.trim()}%`);
     }
 
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
-    const countResult = await query(`SELECT COUNT(*) as total FROM mes_core.mes_sync_log ${whereClause}`, params);
+    const countResult = await query(`SELECT COUNT(*) as total FROM mes_core.users ${whereClause}`, params);
     const total = parseInt(countResult.rows[0]?.total || 0, 10);
 
     const dataResult = await query(
-      `SELECT * FROM mes_core.mes_sync_log ${whereClause} ORDER BY created_at DESC LIMIT $${pIdx++} OFFSET $${pIdx++}`,
-      [...params, parseInt(limit), offset]
+      `SELECT id, username, role, created_at, updated_at FROM mes_core.users ${whereClause} ORDER BY id ASC LIMIT $${pIdx++} OFFSET $${pIdx++}`,
+      [...params, parseInt(limit, 10), offset]
     );
 
-    return res.json({ data: dataResult.rows, total });
+    return res.json({ status: 'success', data: dataResult.rows, total });
   } catch (error) {
-    console.error('Error fetching sync log:', error);
-    return res.status(500).json({ error: 'Internal Server Error', detail: error.message });
+    console.error('Error fetching users:', error);
+    return res.status(500).json({ status: 'error', code: 'SERVER_ERROR', detail: error.message });
   }
 });
 
-/**
- * GET /api/admin/jig-results
- * Query params: test_type, result_status, wo_id, unit_sn, from, to, limit, page
- */
-router.get('/jig-results', async (req, res) => {
+router.post('/api/admin/users', requireAdminOrPM, async (req, res) => {
   try {
-    const { test_type, result_status, wo_id, unit_sn, from, to, limit = 50, page = 1 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { username, password, role } = req.body || {};
+    const uName = String(username || '').trim().toLowerCase();
+    const uRole = String(role || '').trim().toUpperCase();
+    const uPass = String(password || '');
 
-    const conditions = [];
+    if (!uName || uName.length < 3) {
+      return res.status(400).json({ status: 'error', code: 'INVALID_INPUT', message: 'Username must be at least 3 characters long' });
+    }
+    if (!uPass || uPass.length < 6) {
+      return res.status(400).json({ status: 'error', code: 'INVALID_INPUT', message: 'Password must be at least 6 characters long' });
+    }
+    if (!VALID_ROLES.has(uRole)) {
+      return res.status(400).json({ status: 'error', code: 'INVALID_ROLE', message: `Role must be one of: ${Array.from(VALID_ROLES).join(', ')}` });
+    }
+
+    const passHash = await bcrypt.hash(uPass, 10);
+    const result = await query(
+      `INSERT INTO mes_core.users (username, password_hash, role) VALUES ($1, $2, $3::mes_core.user_role) RETURNING id, username, role, created_at`,
+      [uName, passHash, uRole]
+    );
+
+    return res.status(201).json({ status: 'success', data: result.rows[0] });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ status: 'error', code: 'DUPLICATE_USERNAME', message: 'Username is already taken' });
+    }
+    console.error('Error creating user:', error);
+    return res.status(500).json({ status: 'error', code: 'SERVER_ERROR', detail: error.message });
+  }
+});
+
+router.put('/api/admin/users/:id', requireAdminOrPM, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (!userId || userId <= 0) {
+      return res.status(400).json({ status: 'error', code: 'INVALID_ID', message: 'Invalid user ID' });
+    }
+
+    const { role, username } = req.body || {};
+    const updates = [];
     const params = [];
     let pIdx = 1;
 
-    if (test_type) {
-      conditions.push(`test_type = $${pIdx++}`);
-      params.push(test_type);
+    if (role) {
+      const uRole = String(role).trim().toUpperCase();
+      if (!VALID_ROLES.has(uRole)) {
+        return res.status(400).json({ status: 'error', code: 'INVALID_ROLE', message: `Invalid role: ${role}` });
+      }
+      updates.push(`role = $${pIdx++}::mes_core.user_role`);
+      params.push(uRole);
     }
-    if (result_status) {
-      conditions.push(`result_status = $${pIdx++}`);
-      params.push(result_status);
-    }
-    if (wo_id) {
-      conditions.push(`wo_id = $${pIdx++}`);
-      params.push(wo_id);
-    }
-    if (unit_sn) {
-      conditions.push(`unit_sn ILIKE $${pIdx++}`);
-      params.push(`%${unit_sn}%`);
-    }
-    if (from) {
-      conditions.push(`tested_at >= $${pIdx++}`);
-      params.push(from);
-    }
-    if (to) {
-      conditions.push(`tested_at <= $${pIdx++}`);
-      params.push(to);
+    if (username) {
+      const uName = String(username).trim().toLowerCase();
+      if (uName.length < 3) {
+        return res.status(400).json({ status: 'error', code: 'INVALID_INPUT', message: 'Username too short' });
+      }
+      updates.push(`username = $${pIdx++}`);
+      params.push(uName);
     }
 
-    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    if (updates.length === 0) {
+      return res.status(400).json({ status: 'error', code: 'NO_UPDATES', message: 'No fields to update' });
+    }
 
-    const countResult = await query(`SELECT COUNT(*) as total FROM mes_core.jig_test_results ${whereClause}`, params);
-    const total = parseInt(countResult.rows[0]?.total || 0, 10);
-
-    const dataResult = await query(
-      `SELECT * FROM mes_core.jig_test_results ${whereClause} ORDER BY tested_at DESC LIMIT $${pIdx++} OFFSET $${pIdx++}`,
-      [...params, parseInt(limit), offset]
+    params.push(userId);
+    const result = await query(
+      `UPDATE mes_core.users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${pIdx} RETURNING id, username, role, updated_at`,
+      params
     );
 
-    return res.json({ data: dataResult.rows, total });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ status: 'error', code: 'NOT_FOUND', message: 'User not found' });
+    }
+
+    return res.json({ status: 'success', data: result.rows[0] });
   } catch (error) {
-    console.error('Error fetching jig results:', error);
-    return res.status(500).json({ error: 'Internal Server Error', detail: error.message });
+    console.error('Error updating user:', error);
+    return res.status(500).json({ status: 'error', code: 'SERVER_ERROR', detail: error.message });
+  }
+});
+
+router.post('/api/admin/users/:id/reset-password', requireAdminOrPM, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const { password } = req.body || {};
+    const uPass = String(password || '');
+
+    if (!userId || userId <= 0) {
+      return res.status(400).json({ status: 'error', code: 'INVALID_ID', message: 'Invalid user ID' });
+    }
+    if (!uPass || uPass.length < 6) {
+      return res.status(400).json({ status: 'error', code: 'INVALID_INPUT', message: 'Password must be at least 6 characters long' });
+    }
+
+    const passHash = await bcrypt.hash(uPass, 10);
+    const result = await query(
+      `UPDATE mes_core.users SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username, role`,
+      [passHash, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ status: 'error', code: 'NOT_FOUND', message: 'User not found' });
+    }
+
+    return res.json({ status: 'success', message: 'Password reset successfully', data: result.rows[0] });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return res.status(500).json({ status: 'error', code: 'SERVER_ERROR', detail: error.message });
+  }
+});
+
+router.delete('/api/admin/users/:id', requireAdminOrPM, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (!userId || userId <= 0) {
+      return res.status(400).json({ status: 'error', code: 'INVALID_ID', message: 'Invalid user ID' });
+    }
+
+    const checkUser = await query(`SELECT username FROM mes_core.users WHERE id = $1`, [userId]);
+    if (!checkUser.rows.length) {
+      return res.status(404).json({ status: 'error', code: 'NOT_FOUND', message: 'User not found' });
+    }
+
+    if (checkUser.rows[0].username === 'admin' || checkUser.rows[0].username === 'admin_web') {
+      return res.status(403).json({ status: 'error', code: 'FORBIDDEN', message: 'Cannot delete primary admin account' });
+    }
+
+    await query(`DELETE FROM mes_core.users WHERE id = $1`, [userId]);
+    return res.json({ status: 'success', message: `User ${userId} deleted successfully` });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return res.status(500).json({ status: 'error', code: 'SERVER_ERROR', detail: error.message });
   }
 });
 
