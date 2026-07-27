@@ -1,5 +1,7 @@
 const { withTransaction, query } = require('../db');
 const { normalizeCode, validateUid } = require('../utils/validator');
+const wmsClient = require('../common/wms_client');
+const { safeCreateNotifications } = require('../common/notifications');
 
 const MACHINE_EVENT_TYPES = new Set(['SETUP_START', 'SETUP_END', 'RUN_START', 'PAUSE', 'RESUME', 'STOP']);
 
@@ -462,6 +464,8 @@ async function postReworkRepair(req, res) {
 async function postQcResult(req, res) {
   const unitSn = String(req.body?.unit_sn || '').trim();
   const result = normalizeCode(req.body?.result);
+  const scrapped = Boolean(req.body?.scrapped);
+
   if (!unitSn) {
     return sendValidationError(res, 'unit_sn is required');
   }
@@ -505,11 +509,12 @@ async function postQcResult(req, res) {
           [row.wo_id]
         );
       } else {
+        const nextStation = scrapped ? 'SCRAPPED' : 'REWORK';
         await client.query(
           `UPDATE production_units
-           SET status='NG', current_station='REWORK'
+           SET status='NG', current_station=$2
            WHERE sn=$1`,
-          [unitSn]
+          [unitSn, nextStation]
         );
       }
 
@@ -523,7 +528,65 @@ async function postQcResult(req, res) {
       return res.status(409).json({ status: 'error', code: 'QC_RESULT_BLOCKED', message: payload.conflict, request_id: reqId(res) });
     }
 
-    return res.json({ status: 'success', unit_sn: unitSn, result, request_id: reqId(res) });
+    // Task C: Scrap ADJ flow when QC FAIL + scrapped=true
+    if (result === 'FAIL' && scrapped && payload.wo_id) {
+      try {
+        const bomResult = await query(
+          `SELECT part_no, qty_required FROM wo_bom_snapshot WHERE wo_id=$1`,
+          [payload.wo_id]
+        );
+        const items = bomResult.rows.map((line) => ({
+          part_no: line.part_no,
+          qty: Number(line.qty_required) || 1,
+          remarks: `MES QC Scrap Unit: ${unitSn}`,
+        }));
+
+        let syncStatus = 'FAILED';
+        let errorMsg = '';
+        let wmsResponse = null;
+
+        if (wmsClient.isConfigured() && items.length > 0) {
+          const adjRes = await wmsClient.postADJ(items, 'qc-scrap');
+          wmsResponse = adjRes;
+          syncStatus = adjRes.ok ? 'OK' : 'FAILED';
+          if (!adjRes.ok) {
+            errorMsg = JSON.stringify(adjRes.errors || []);
+          }
+        } else if (!wmsClient.isConfigured()) {
+          errorMsg = 'WMS client not configured';
+        }
+
+        await query(
+          `INSERT INTO mes_sync_log (direction, event_type, wo_id, payload, status, error_msg, created_at, completed_at)
+           VALUES ('MES->WMS', 'SCRAP_ADJ', $1, $2, $3, $4, NOW(), NOW())`,
+          [
+            payload.wo_id,
+            JSON.stringify({ unit_sn: unitSn, items, wms_response: wmsResponse }),
+            syncStatus,
+            errorMsg,
+          ]
+        );
+
+        const user = getUserFromRequest(req);
+        await safeCreateNotifications([
+          {
+            notice_type: 'QC_UNIT_SCRAPPED',
+            severity: 'WARN',
+            audience_key: 'PM',
+            title: `Unit ${unitSn} Scrapped`,
+            message: `Unit ${unitSn} failed QC and was scrapped. Stock adjustment recorded.`,
+            entity_type: 'PRODUCTION_UNIT',
+            entity_id: unitSn,
+            wo_id: payload.wo_id,
+            created_by: user.id || null,
+          },
+        ]);
+      } catch (scrapErr) {
+        console.error('[postQcResult] Scrap ADJ flow error:', scrapErr.message);
+      }
+    }
+
+    return res.json({ status: 'success', unit_sn: unitSn, result, scrapped: result === 'FAIL' && scrapped, request_id: reqId(res) });
   } catch (error) {
     return res.status(500).json({ status: 'error', code: 'QC_RESULT_FAILED', message: error.message, request_id: reqId(res) });
   }

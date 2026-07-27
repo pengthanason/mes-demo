@@ -203,6 +203,7 @@ const rowHasDelay = (r: PpProject) => r.status === 'DELAY' || PROCESS_STEPS.some
 // ── Inline quick-edit cells — คลิกแก้ในตารางเลย ไม่ต้องเปิด modal · save ทันทีตอน Enter/blur + ไฮไลต์เขียว ✓ ──
 function InlineNumberCell({ value, color, onSave }: { value: number; color?: string; onSave: (n: number) => void }) {
   const [editing, setEditing] = useState(false);
+  const [hovering, setHovering] = useState(false);
   const [val, setVal] = useState('');
   const [ok, setOk] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
@@ -218,18 +219,34 @@ function InlineNumberCell({ value, color, onSave }: { value: number; color?: str
       <input ref={ref} type="number" min="0" value={val}
         onChange={e => setVal(e.target.value)} onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape') setEditing(false); }}
-        style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', padding: '2px 4px', fontSize: '0.82rem', border: '1px solid var(--brand)', borderRadius: 4, outline: 'none' }} />
+        style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', padding: '2px 4px', fontSize: '0.82rem', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none' }} />
     </td>
   );
   return (
-    <td onClick={start} title="Click to edit" style={{ textAlign: 'center', cursor: 'pointer', color, background: ok ? '#dcfce7' : undefined, transition: 'background 0.5s' }}>
-      {(value ?? 0).toLocaleString()}{ok && <span style={{ color: '#16a34a', marginLeft: 3 }}>✓</span>}
+    <td onClick={start}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      title="Click to quick-edit this value"
+      style={{
+        textAlign: 'center', cursor: 'pointer', color,
+        background: ok ? '#dcfce7' : hovering ? '#f0fdf4' : undefined,
+        outline: hovering ? '1px dashed var(--brand)' : 'none',
+        borderRadius: 4, transition: 'all 0.15s ease',
+        position: 'relative'
+      }}>
+      <span>{(value ?? 0).toLocaleString()}</span>
+      {ok ? (
+        <span style={{ color: '#16a34a', marginLeft: 3, fontWeight: 700 }}>✓</span>
+      ) : hovering ? (
+        <span style={{ color: 'var(--brand)', marginLeft: 4, fontSize: '0.75rem', opacity: 0.85 }}>✏️</span>
+      ) : null}
     </td>
   );
 }
 
 function InlineDateCell({ value, green, onSave }: { value: string | null | undefined; green?: boolean; onSave: (iso: string) => void }) {
   const [editing, setEditing] = useState(false);
+  const [hovering, setHovering] = useState(false);
   const [ok, setOk] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
   const iso = value ? String(value).slice(0, 10) : '';
@@ -240,13 +257,28 @@ function InlineDateCell({ value, green, onSave }: { value: string | null | undef
       <input ref={ref} type="date" value={iso}
         onChange={e => { onSave(e.target.value); setEditing(false); setOk(true); setTimeout(() => setOk(false), 1000); }}
         onBlur={() => setEditing(false)}
-        style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.76rem', padding: '2px', border: '1px solid var(--brand)', borderRadius: 4, outline: 'none' }} />
+        style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.76rem', padding: '2px', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none' }} />
     </td>
   );
   return (
-    <td onClick={() => setEditing(true)} title="Click to edit date"
-      style={{ textAlign: 'center', cursor: 'pointer', whiteSpace: 'nowrap', background: ok ? '#dcfce7' : (green && iso ? '#dcfce7' : undefined), color: green && iso ? '#166534' : (iso ? undefined : '#cbd5e1'), fontWeight: green && iso ? 600 : undefined }}>
-      {display || '—'}{ok && <span style={{ color: '#16a34a', marginLeft: 3 }}>✓</span>}
+    <td onClick={() => setEditing(true)}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      title="Click to quick-edit date"
+      style={{
+        textAlign: 'center', cursor: 'pointer', whiteSpace: 'nowrap',
+        background: ok ? '#dcfce7' : hovering ? '#f0fdf4' : (green && iso ? '#dcfce7' : undefined),
+        outline: hovering ? '1px dashed var(--brand)' : 'none',
+        borderRadius: 4, transition: 'all 0.15s ease',
+        color: green && iso ? '#166534' : (iso ? undefined : '#cbd5e1'),
+        fontWeight: green && iso ? 600 : undefined
+      }}>
+      <span>{display || '—'}</span>
+      {ok ? (
+        <span style={{ color: '#16a34a', marginLeft: 3, fontWeight: 700 }}>✓</span>
+      ) : hovering ? (
+        <span style={{ color: 'var(--brand)', marginLeft: 4, fontSize: '0.72rem', opacity: 0.85 }}>✏️</span>
+      ) : null}
     </td>
   );
 }
@@ -271,8 +303,8 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
       </td>
     );
   }
-  // Inline quick-edit (เฉพาะโหมดแก้ไข = มี onInline) — ตัวเลข produce/total_ng · วันที่ pd_finish/expected/revised
-  if (onInline && (c.key === 'produce' || c.key === 'total_ng' || c.key === 'total_ok')) {
+  // Inline quick-edit (เฉพาะโหมดแก้ไข = มี onInline) — ตัวเลข produce/total_ng/total_ok/target_per_day
+  if (onInline && (c.key === 'produce' || c.key === 'total_ng' || c.key === 'total_ok' || c.key === 'target_per_day')) {
     const col = c.key === 'total_ng' ? '#dc2626' : c.key === 'total_ok' ? '#16a34a' : undefined;
     return <InlineNumberCell key={c.key} value={(p as any)[c.key] || 0} color={col} onSave={n => onInline(c.key, n)} />;
   }
@@ -348,6 +380,205 @@ function downscaleImage(file: File, maxSize: number, quality: number): Promise<s
   });
 }
 
+// ป๊อปอัพขยายรูปใหญ่ (Lightbox Modal) — สามารถซูมเข้า/ออก (+/-), ลากย้ายตำแหน่ง (Pan/Drag), และ Reset ได้
+function ImageLightboxModal({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const posStartRef = useRef({ x: 0, y: 0 });
+
+  const zoomIn = () => setScale(s => Math.min(10, Number((s + 0.5).toFixed(1))));
+  const zoomOut = () => setScale(s => {
+    const next = Math.max(1, Number((s - 0.5).toFixed(1)));
+    if (next === 1) setPosition({ x: 0, y: 0 });
+    return next;
+  });
+  const resetZoom = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale <= 1) return;
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    posStartRef.current = { ...position };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setPosition({
+      x: posStartRef.current.x + dx,
+      y: posStartRef.current.y + dy,
+    });
+  };
+
+  const handleMouseUp = () => setIsDragging(false);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.deltaY < 0) {
+      zoomIn();
+    } else {
+      zoomOut();
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 2000,
+        background: 'rgba(15, 23, 42, 0.88)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+      }}
+    >
+      <div
+        style={{
+          position: 'relative',
+          width: '90vw',
+          height: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* Header Toolbar — แถบเครื่องมือซูม/ควบคุม */}
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: 10,
+            zIndex: 2010,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            background: 'rgba(15, 23, 42, 0.85)',
+            padding: '8px 16px',
+            borderRadius: 999,
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+            cursor: 'default',
+          }}
+        >
+          <span style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 700, minWidth: 85 }}>
+            🔍 {Math.round(scale * 100)}%
+          </span>
+          <div style={{ height: 16, width: 1, background: 'rgba(255,255,255,0.2)' }} />
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={zoomOut}
+            disabled={scale <= 1}
+            title="Zoom Out (-)"
+            style={{ padding: '4px 12px', fontSize: '0.9rem', fontWeight: 800, minWidth: 36 }}
+          >
+            -
+          </button>
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={zoomIn}
+            disabled={scale >= 10}
+            title="Zoom In (+)"
+            style={{ padding: '4px 12px', fontSize: '0.9rem', fontWeight: 800, minWidth: 36 }}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={resetZoom}
+            title="Reset Zoom"
+            style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+          >
+            🔄 Reset
+          </button>
+          <div style={{ height: 16, width: 1, background: 'rgba(255,255,255,0.2)' }} />
+          <button
+            type="button"
+            className="btn danger"
+            onClick={onClose}
+            title="Close (Esc)"
+            style={{ padding: '4px 14px', fontSize: '0.85rem' }}
+          >
+            ✕ ปิด
+          </button>
+        </div>
+
+        {/* Viewing Window — พื้นที่แสดงรูปที่ซูมและจับลากย้ายได้ */}
+        <div
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+            userSelect: 'none',
+          }}
+        >
+          <img
+            src={src}
+            alt={alt}
+            draggable={false}
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxHeight: '100%',
+              maxWidth: '100%',
+              objectFit: 'contain',
+              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              transition: isDragging ? 'none' : 'transform 0.15s ease-out',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+              borderRadius: 8,
+              cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 12,
+            color: 'rgba(255,255,255,0.7)',
+            fontSize: '0.78rem',
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          💡 กดปุ่ม +/- หรือเลื่อนลูกกลิ้งเมาส์เพื่อซูม · เมื่อซูมสามารถคลิกจับแล้วลากขยับภาพได้
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // กล่องรูปสินค้าใน popup — คลิกเพื่อแนบไฟล์ · โหลด/บันทึกผ่าน endpoint /image (optimistic)
 function ProductImageBox({ p }: { p: PpProject }) {
   const { data: image, isLoading } = usePpImage(p.id);
@@ -355,6 +586,8 @@ function ProductImageBox({ p }: { p: PpProject }) {
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
+
   const setLocal = (img: string | null) => qc.setQueryData(['pp-image', p.id], img);   // optimistic
   const pick = async (file: File) => {
     if (!file.type.startsWith('image/')) { showToast('Please choose an image file', 'error'); return; }
@@ -378,12 +611,53 @@ function ProductImageBox({ p }: { p: PpProject }) {
       <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }}
         onChange={e => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
       {image ? (
-        <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-color)', background: '#f8fafc' }}>
-          <img src={image} alt={p.product_pn || 'product'} style={{ display: 'block', width: '100%', maxHeight: 340, objectFit: 'contain' }} />
-          <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
+        <div style={{ position: 'relative' }}>
+          <div
+            onClick={() => setShowLightbox(true)}
+            title="คลิกเพื่อขยายภาพขนาดใหญ่"
+            style={{
+              position: 'relative',
+              cursor: 'pointer',
+              borderRadius: 10,
+              overflow: 'hidden',
+              border: '1px solid var(--border-color)',
+              background: '#f8fafc',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <img src={image} alt={p.product_pn || 'product'} style={{ display: 'block', width: '100%', maxHeight: 340, objectFit: 'contain' }} />
+            <span
+              style={{
+                position: 'absolute',
+                bottom: 10,
+                left: 10,
+                background: 'rgba(15, 23, 42, 0.75)',
+                color: '#fff',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                padding: '4px 12px',
+                borderRadius: 999,
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              🔍 คลิกเพื่อขยายภาพเต็มจอ & ซูม
+            </span>
+          </div>
+
+          <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6, zIndex: 12 }}>
             <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.75rem' }} disabled={busy} onClick={() => inputRef.current?.click()}>Change</button>
             <button type="button" className="btn danger" style={{ padding: '3px 10px', fontSize: '0.75rem' }} disabled={busy} onClick={remove}>Remove</button>
           </div>
+
+          {showLightbox && (
+            <ImageLightboxModal
+              src={image}
+              alt={p.product_pn || 'product'}
+              onClose={() => setShowLightbox(false)}
+            />
+          )}
         </div>
       ) : (
         <button type="button" onClick={() => inputRef.current?.click()} disabled={busy || isLoading}
@@ -986,7 +1260,7 @@ export function DashboardPage() {
           <StatCard icon="🎯" label="Avg Yield Good" value={agg.avgYield == null ? '—' : `${agg.avgYield.toFixed(1)}%`} accent="#b58100" />
         </div>
       </div>
-
+    
       {/* ตาราง + filter + export */}
       <div className="panel" ref={tableRef} style={{ scrollMarginTop: 'calc(var(--topbar-h) + 12px)' }}>
         {/* Production Plan + แท็บ Internal / External (segmented control) — ตอนนี้ External ใช้ข้อมูลชุดเดียวกับ Internal ไปก่อน */}

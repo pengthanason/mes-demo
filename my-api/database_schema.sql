@@ -396,44 +396,6 @@ CREATE TABLE transfer_verifications (
     CONSTRAINT transfer_verifications_verdict_check CHECK (verdict IN ('APPROVED','REJECTED'))
 );
 
--- ── SCM (cases / dispositions / lot split) ──────────────────────────────────
-CREATE TABLE scm_cases (
-    id              SERIAL PRIMARY KEY,
-    case_id         VARCHAR(50)  NOT NULL UNIQUE,
-    case_type       VARCHAR(50)  NOT NULL,
-    status          VARCHAR(20)  NOT NULL DEFAULT 'OPEN',
-    ref_po          VARCHAR(100) NOT NULL DEFAULT '',
-    ref_inv         VARCHAR(100) NOT NULL DEFAULT '',
-    part_no         VARCHAR(100) NOT NULL DEFAULT '',
-    due_date        DATE,
-    resolution_note TEXT         NOT NULL DEFAULT '',
-    resolved_at     TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
-
-CREATE TABLE scm_dispositions (
-    id         SERIAL PRIMARY KEY,
-    case_id    VARCHAR(50)   NOT NULL REFERENCES scm_cases(case_id) ON DELETE CASCADE,
-    action     VARCHAR(50)   NOT NULL,
-    rma_no     VARCHAR(100)  NOT NULL DEFAULT '',
-    return_qty NUMERIC(10,3) NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ   NOT NULL DEFAULT now()
-);
-
-CREATE TABLE scm_lot_splits (
-    id           SERIAL PRIMARY KEY,
-    original_uid VARCHAR(100)  NOT NULL REFERENCES inventory_lots(uid) ON DELETE RESTRICT,
-    ok_uid       VARCHAR(100)  NOT NULL REFERENCES inventory_lots(uid) ON DELETE RESTRICT,
-    ng_uid       VARCHAR(100)  NOT NULL REFERENCES inventory_lots(uid) ON DELETE RESTRICT,
-    original_qty NUMERIC(10,3) NOT NULL,
-    ok_qty       NUMERIC(10,3) NOT NULL,
-    ng_qty       NUMERIC(10,3) NOT NULL,
-    reason       TEXT          NOT NULL DEFAULT '',
-    created_at   TIMESTAMPTZ   NOT NULL DEFAULT now(),
-    CONSTRAINT split_qty_balance CHECK ((ok_qty + ng_qty) = original_qty),
-    CONSTRAINT split_qty_nonneg CHECK (ok_qty >= 0 AND ng_qty >= 0 AND original_qty > 0)
-);
 
 -- ── Change Request (5M+1E) ───────────────────────────────────────────────────
 CREATE TABLE change_requests (

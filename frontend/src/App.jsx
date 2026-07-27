@@ -26,6 +26,7 @@ import { WorkOrdersPage } from './pages/WorkOrdersPage.tsx';
 import { QcPage } from './pages/QcPage.tsx';
 import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
 import { DriftViewerPage } from './pages/DriftViewerPage.tsx';
+import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -845,16 +846,9 @@ function OfflineBanner() {
   );
 }
 
-// ─── 404 — ไม่พบหน้า (แทนการเด้งเงียบ) ───
+// ─── 404 — ไม่พบหน้า ───
 function NotFound() {
-  return (
-    <div className="panel" style={{ textAlign: 'center', padding: '3rem 1.5rem', maxWidth: 480, margin: '2rem auto' }}>
-      <div style={{ fontSize: '3rem', marginBottom: 8, lineHeight: 1 }}>🔍</div>
-      <h1 className="panel__title" style={{ marginBottom: 6 }}>Page not found</h1>
-      <p className="panel__subtitle">The link may be wrong, or this page was moved/deleted</p>
-      <Link to="/dashboard" className="btn" style={{ marginTop: 12, display: 'inline-flex' }}>← Back to Dashboard</Link>
-    </div>
-  );
+  return <NotFoundPage />;
 }
 
 // ─── Session watcher — 401 (token หมดอายุ) → เคลียร์ auth + แจ้ง + AuthGuard เด้ง login ───
