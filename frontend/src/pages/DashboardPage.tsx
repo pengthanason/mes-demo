@@ -201,7 +201,50 @@ const rowOnProcessOnly = (r: PpProject) => !PP_TERMINAL.includes(r.status);
 const rowHasDelay = (r: PpProject) => r.status === 'DELAY' || PROCESS_STEPS.some(s => (r as any)[s.key as string] === 'DELAY');
 
 // ── Inline quick-edit cells — คลิกแก้ในตารางเลย ไม่ต้องเปิด modal · save ทันทีตอน Enter/blur + ไฮไลต์เขียว ✓ ──
-function InlineNumberCell({ value, color, onSave }: { value: number; color?: string; onSave: (n: number) => void }) {
+function InlineTextCell({ value, placeholder = '—', title = 'Click to quick-edit', onSave }: { value: string | null | undefined; placeholder?: string; title?: string; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const [val, setVal] = useState('');
+  const [ok, setOk] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
+  const start = () => { setVal(String(value ?? '')); setEditing(true); };
+  const commit = () => {
+    setEditing(false);
+    const trimmed = val.trim();
+    if (trimmed !== String(value ?? '').trim()) { onSave(trimmed); setOk(true); setTimeout(() => setOk(false), 1000); }
+  };
+  if (editing) return (
+    <td style={{ padding: 2, textAlign: 'center' }}>
+      <input ref={ref} type="text" value={val}
+        onChange={e => setVal(e.target.value)} onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape') setEditing(false); }}
+        style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', padding: '2px 4px', fontSize: '0.82rem', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none', background: '#fff' }} />
+    </td>
+  );
+  return (
+    <td onClick={start}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      title={title}
+      style={{
+        textAlign: 'center', cursor: 'pointer',
+        background: ok ? '#dcfce7' : hovering ? '#f1f5f9' : undefined,
+        color: value ? undefined : '#cbd5e1',
+        borderRadius: 4, transition: 'all 0.15s ease',
+        userSelect: 'none',
+      }}>
+      <span>{value || placeholder}</span>
+      {ok ? (
+        <span style={{ color: '#16a34a', marginLeft: 3, fontWeight: 700 }}>✓</span>
+      ) : (
+        <span style={{ color: hovering ? 'var(--brand)' : '#cbd5e1', opacity: hovering ? 1 : 0.75, marginLeft: 4, fontSize: '0.7rem', transition: 'all 0.15s' }}>✎</span>
+      )}
+    </td>
+  );
+}
+
+function InlineNumberCell({ value, color, title = 'Click to quick-edit', onSave }: { value: number; color?: string; title?: string; onSave: (n: number) => void }) {
   const [editing, setEditing] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [val, setVal] = useState('');
@@ -219,32 +262,31 @@ function InlineNumberCell({ value, color, onSave }: { value: number; color?: str
       <input ref={ref} type="number" min="0" value={val}
         onChange={e => setVal(e.target.value)} onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape') setEditing(false); }}
-        style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', padding: '2px 4px', fontSize: '0.82rem', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none' }} />
+        style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', padding: '2px 4px', fontSize: '0.82rem', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none', background: '#fff' }} />
     </td>
   );
   return (
     <td onClick={start}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
-      title="Click to quick-edit this value"
+      title={title}
       style={{
         textAlign: 'center', cursor: 'pointer', color,
-        background: ok ? '#dcfce7' : hovering ? '#f0fdf4' : undefined,
-        outline: hovering ? '1px dashed var(--brand)' : 'none',
+        background: ok ? '#dcfce7' : hovering ? '#f1f5f9' : undefined,
         borderRadius: 4, transition: 'all 0.15s ease',
-        position: 'relative'
+        userSelect: 'none',
       }}>
       <span>{(value ?? 0).toLocaleString()}</span>
       {ok ? (
         <span style={{ color: '#16a34a', marginLeft: 3, fontWeight: 700 }}>✓</span>
-      ) : hovering ? (
-        <span style={{ color: 'var(--brand)', marginLeft: 4, fontSize: '0.75rem', opacity: 0.85 }}>✏️</span>
-      ) : null}
+      ) : (
+        <span style={{ color: hovering ? 'var(--brand)' : '#cbd5e1', opacity: hovering ? 1 : 0.75, marginLeft: 4, fontSize: '0.7rem', transition: 'all 0.15s' }}>✎</span>
+      )}
     </td>
   );
 }
 
-function InlineDateCell({ value, green, onSave }: { value: string | null | undefined; green?: boolean; onSave: (iso: string) => void }) {
+function InlineDateCell({ value, green, title = 'Click to quick-edit date', onSave }: { value: string | null | undefined; green?: boolean; title?: string; onSave: (iso: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [ok, setOk] = useState(false);
@@ -257,28 +299,28 @@ function InlineDateCell({ value, green, onSave }: { value: string | null | undef
       <input ref={ref} type="date" value={iso}
         onChange={e => { onSave(e.target.value); setEditing(false); setOk(true); setTimeout(() => setOk(false), 1000); }}
         onBlur={() => setEditing(false)}
-        style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.76rem', padding: '2px', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none' }} />
+        style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.76rem', padding: '2px', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none', background: '#fff' }} />
     </td>
   );
   return (
     <td onClick={() => setEditing(true)}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
-      title="Click to quick-edit date"
+      title={title}
       style={{
         textAlign: 'center', cursor: 'pointer', whiteSpace: 'nowrap',
-        background: ok ? '#dcfce7' : hovering ? '#f0fdf4' : (green && iso ? '#dcfce7' : undefined),
-        outline: hovering ? '1px dashed var(--brand)' : 'none',
-        borderRadius: 4, transition: 'all 0.15s ease',
+        background: ok ? '#dcfce7' : hovering ? '#f1f5f9' : (green && iso ? '#dcfce7' : undefined),
         color: green && iso ? '#166534' : (iso ? undefined : '#cbd5e1'),
-        fontWeight: green && iso ? 600 : undefined
+        fontWeight: green && iso ? 600 : undefined,
+        borderRadius: 4, transition: 'all 0.15s ease',
+        userSelect: 'none',
       }}>
       <span>{display || '—'}</span>
       {ok ? (
         <span style={{ color: '#16a34a', marginLeft: 3, fontWeight: 700 }}>✓</span>
-      ) : hovering ? (
-        <span style={{ color: 'var(--brand)', marginLeft: 4, fontSize: '0.72rem', opacity: 0.85 }}>✏️</span>
-      ) : null}
+      ) : (
+        <span style={{ color: hovering ? 'var(--brand)' : '#cbd5e1', opacity: hovering ? 1 : 0.75, marginLeft: 4, fontSize: '0.7rem', transition: 'all 0.15s' }}>✎</span>
+      )}
     </td>
   );
 }
@@ -303,14 +345,17 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
       </td>
     );
   }
-  // Inline quick-edit (เฉพาะโหมดแก้ไข = มี onInline) — ตัวเลข produce/total_ng/total_ok/target_per_day
+  // Inline quick-edit (เฉพาะโหมดแก้ไข = มี onInline) — ดึงหัวข้อคอลัมน์ (c.header) มาตั้งเป็น tooltip ตรงตามหัวตาราง 100%
   if (onInline && (c.key === 'produce' || c.key === 'total_ng' || c.key === 'total_ok' || c.key === 'target_per_day')) {
     const col = c.key === 'total_ng' ? '#dc2626' : c.key === 'total_ok' ? '#16a34a' : undefined;
-    return <InlineNumberCell key={c.key} value={(p as any)[c.key] || 0} color={col} onSave={n => onInline(c.key, n)} />;
+    return <InlineNumberCell key={c.key} value={(p as any)[c.key] || 0} color={col} title={`Click to edit ${c.header}`} onSave={n => onInline(c.key, n)} />;
   }
-  if (onInline && (c.key === 'pd_finish' || c.key === 'expected' || c.key === 'revised')) {
-    const field = c.key === 'pd_finish' ? 'pd_finish_date' : c.key === 'expected' ? 'expected_date' : 'revised_date';
-    return <InlineDateCell key={c.key} value={(p as any)[field]} green={c.key === 'pd_finish'} onSave={iso => onInline(c.key, iso)} />;
+  if (onInline && (c.key === 'pd_finish' || c.key === 'expected' || c.key === 'revised' || c.key === 'store' || c.key === 'store_received')) {
+    const field = c.key === 'pd_finish' ? 'pd_finish_date' : c.key === 'expected' ? 'expected_date' : c.key === 'revised' ? 'revised_date' : 'store_received';
+    return <InlineDateCell key={c.key} value={(p as any)[field]} green={c.key === 'pd_finish'} title={`Click to edit ${c.header}`} onSave={iso => onInline(c.key, iso)} />;
+  }
+  if (onInline && (c.key === 'remark' || c.key === 'qa_test_rate')) {
+    return <InlineTextCell key={c.key} value={(p as any)[c.key]} title={`Click to edit ${c.header}`} onSave={txt => onInline(c.key, txt)} />;
   }
   // Process — ช่องสีล้วนตามสถานะ · คลิกวนสี (ว่าง=ขาวโล่ง → On process → Done → Delay → Cancel → ว่าง)
   if (PROCESS_KEYS.has(c.key)) {
@@ -1034,16 +1079,31 @@ export function DashboardPage() {
     queryClient.setQueriesData({ queryKey: ['pp-projects'] }, (old: any) => Array.isArray(old) ? old.map((r: any) => r.id === p.id ? merged : r) : old);
     ppUpdate.mutate({ id: p.id, ...patch } as any, { onError: (e: any) => { showToast(e?.message || 'Update failed', 'error'); void queryClient.invalidateQueries({ queryKey: ['pp-projects'] }); } });
   };
-  const INLINE_FIELD: Record<string, string> = { pd_finish: 'pd_finish_date', expected: 'expected_date', revised: 'revised_date' };
+  const INLINE_FIELD: Record<string, string> = { pd_finish: 'pd_finish_date', expected: 'expected_date', revised: 'revised_date', target_per_day: 'target_per_day', store: 'store_received', store_received: 'store_received', qa_test_rate: 'qa_test_rate', remark: 'remark' };
   const inlineSave = (p: PpProject, key: string, value: number | string) => {
     const field = INLINE_FIELD[key] || key;
     const patch: Record<string, any> = { [field]: value };
-    // NG = Produced − FG อัตโนมัติ เมื่อแก้ Produced หรือ Total FG (เสีย = ที่ทำ − ที่ดี, ต่ำสุด 0) → yield ปรับตาม
-    // FG/NG ≤ Produced ≤ Qty (ห้ามเกินเด็ดขาด) · แก้อันนึง อีกอันคิดให้ (รวม = Produced)
-    if (field === 'produce') {
-      const produce = Math.min(Math.max(0, Number(value)), Number(p.qty || 0));   // Produced ≤ Qty
-      const fg = Math.min(Number(p.total_ok || 0), produce);                      // FG หดตามถ้า Produced ลด
+
+    // CAP/Day (กำลังผลิตต่อวัน) — เซฟตามที่ทีมกำหนด (ไม่คำนวณ Expected Date อัตโนมัติ ปล่อยให้เป็นดุลพินิจทีม)
+    if (field === 'target_per_day') {
+      patch.target_per_day = Math.max(0, Number(value));
+    }
+    // คำนวณจำนวนคงเหลือ FG/NG + Auto-Done เมื่อผลิตครบ Qty
+    else if (field === 'produce') {
+      const qty = Number(p.qty || 0);
+      const produce = Math.min(Math.max(0, Number(value)), qty > 0 ? qty : Infinity);   // Produced ≤ Qty
+      const currentOk = Number(p.total_ok || 0);
+      const fg = currentOk === 0 ? produce : Math.min(currentOk, produce);              // Auto-fill FG
       patch.produce = produce; patch.total_ok = fg; patch.total_ng = Math.max(0, produce - fg);
+
+      // ถ้าผลิตครบตามเป้า Qty → ปิดงาน (DONE) + เติมวันเสร็จให้อัตโนมัติทันที!
+      if (produce > 0 && qty > 0 && produce === qty && !p.pd_finish_date) {
+        const today = todayLocal();
+        patch.pd_finish_date = today;
+        patch.status = 'DONE'; patch.status_color = 'DONE';
+        PROCESS_STEPS.forEach(s => { const cur = (p as any)[s.key]; if (cur && cur !== 'DONE' && cur !== 'CANCEL') patch[s.key as string] = 'DONE'; });
+        showToast('🎉 ผลิตครบเป้าหมายแล้ว! ปรับสถานะเป็น DONE ให้อัตโนมัติ', 'success');
+      }
     } else if (field === 'total_ok') {
       const produce = Number(p.produce || 0);
       const fg = Math.min(Math.max(0, Number(value)), produce);                   // FG ≤ Produced
