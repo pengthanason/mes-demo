@@ -1,12 +1,9 @@
 const db = require('./db');
 
-// ผู้ทำ (actor) จาก Bearer token — token = base64(username:role:ts)
+// ผู้ทำ (actor) — เอาจาก req.user ที่ authz.js ตั้งไว้หลัง verify JWT + อ่านจาก DB แล้ว
+// (ของเดิมถอด base64 จาก header ตรงๆ ซึ่งไม่ verify → ใครก็เขียน audit log ในนามคนอื่นได้)
 function actorFromReq(req) {
-  try {
-    const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');
-    if (!m) return 'system';
-    return Buffer.from(m[1], 'base64').toString('utf8').split(':')[0] || 'system';
-  } catch { return 'system'; }
+  return (req.user && req.user.username) || 'system';
 }
 
 const RES = [

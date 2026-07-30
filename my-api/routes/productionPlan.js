@@ -39,13 +39,9 @@ const norm = (k, v) => {
   if (typeof v === 'boolean') return v ? 'yes' : 'no';
   return String(v);
 };
-// username จาก Bearer token (base64 username:role:ts) — เหมือน activityLog.js
+// username จาก req.user ที่ authz.js ตั้งไว้ (verify JWT + อ่านจาก DB แล้ว) — ปลอมไม่ได้
 function actorFromReq(req) {
-  try {
-    const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');
-    if (!m) return 'system';
-    return Buffer.from(m[1], 'base64').toString('utf8').split(':')[0] || 'system';
-  } catch { return 'system'; }
+  return (req.user && req.user.username) || 'system';
 }
 
 function clean(body) {
@@ -54,14 +50,26 @@ function clean(body) {
     if (!(k in body)) continue;
     let v = body[k];
     if (DATE_FIELDS.includes(k)) v = (v === '' || v == null) ? null : v;
-    if (k === 'process_log' && v != null && typeof v !== 'string') v = JSON.stringify(v);   // JSONB ต้อง stringify ก่อน
+    // process_log ต้องเป็น array เท่านั้น — ของเดิมสมมติว่า "string = JSON อยู่แล้ว" ซึ่งไม่จริง:
+    //   "ยังไม่เริ่ม" → ส่งดิบเข้า JSONB → 500 · 5 → stringify ได้ '5' (valid JSON) → เก็บเป็น scalar → หน้า Gantt crash
+    if (k === 'process_log' && v != null) {
+      let arr = v;
+      if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch { arr = undefined; } }
+      if (!Array.isArray(arr)) { out.__bad_process_log = true; continue; }
+      v = JSON.stringify(arr);
+    }
     out[k] = v;
   }
   return out;
 }
 
 // ตรวจความถูกต้องฝั่ง server (กันยิงตรง/inline ที่ข้าม validate() ฝั่ง frontend) — คืน error string ถ้าผิด, null ถ้าผ่าน
-const NUM_FIELDS = ['qty', 'produce', 'total_ng', 'total_ok', 'team_member', 'target_per_day'];
+// คอลัมน์ INTEGER ทั้งหมดของ pp_projects — เดิมตก wk/ok_per_day ทำให้ {"wk":99999999999} → 500 out of range
+const NUM_FIELDS = ['qty', 'produce', 'total_ng', 'total_ok', 'team_member', 'target_per_day', 'wk', 'ok_per_day'];
+// คอลัมน์ BOOLEAN — ถ้าไม่เช็ก {"done":"maybe"} → invalid input syntax for type boolean → 500
+const BOOL_FIELDS = ['chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'chk_env',
+  'pd_pcba', 'pd_bbas', 'pd_test', 'pd_modified', 'pd_rma', 'pd_prep', 'done',
+  'st_pr_po', 'st_wait_mat', 'st_incoming', 'st_create_bo', 'st_test', 'st_rework', 'st_smt', 'st_thr', 'st_bbas'];
 const INT4_MAX = 2147483647;   // กันค่าเกิน int4 → 500 overflow
 function validateData(data, changed = data) {   // data = ค่ารวม (before+body) · changed = เฉพาะ field ที่แก้รอบนี้ (body)
   for (const k of NUM_FIELDS) {
@@ -70,6 +78,15 @@ function validateData(data, changed = data) {   // data = ค่ารวม (be
     if (!Number.isFinite(n)) return `${k} must be a number`;
     if (n < 0) return `${k} cannot be negative`;
     if (n > INT4_MAX) return `${k} is too large`;
+  }
+  for (const k of BOOL_FIELDS) {
+    if (k in changed && changed[k] != null && typeof changed[k] !== 'boolean') return `${k} ต้องเป็น true/false`;
+  }
+  // วันที่: ต้อง parse ได้จริง — ของเดิม '31/02/2026' ได้ Invalid Date แล้วเทียบ < ได้ false ทุกครั้ง → ผ่าน validate → DB reject → 500
+  for (const k of DATE_FIELDS) {
+    if (k in changed && changed[k] != null && changed[k] !== '' && isNaN(Date.parse(changed[k]))) {
+      return `${k} ไม่ใช่วันที่ที่ถูกต้อง (YYYY-MM-DD)`;
+    }
   }
   if (data.produce != null && data.qty != null && data.produce !== '' && data.qty !== '' && Number(data.produce) > Number(data.qty)) {
     return 'produce cannot exceed qty';
@@ -126,6 +143,7 @@ router.get('/projects', async (req, res) => {
 
 router.post('/projects', async (req, res) => {
   const data = clean(req.body);
+  if (data.__bad_process_log) return res.status(400).json({ status: 'error', message: 'process_log ต้องเป็น array' });
   if (!data.product_pn && !data.model) {
     return res.status(400).json({ status: 'error', message: 'ต้องมี Product P/N หรือ Model อย่างน้อย 1' });
   }
@@ -148,29 +166,44 @@ router.post('/projects', async (req, res) => {
 
 router.put('/projects/:id', async (req, res) => {
   const data = clean(req.body);
+  if (data.__bad_process_log) return res.status(400).json({ status: 'error', message: 'process_log ต้องเป็น array' });
   const keys = Object.keys(data);
   if (!keys.length) return res.status(400).json({ status: 'error', message: 'no data' });
   const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
   const vals = keys.map(k => data[k]);
   vals.push(req.params.id);
+  // ทำใน transaction + SELECT ... FOR UPDATE ล็อกแถวก่อน validate
+  // เหตุผล: ของเดิมเป็น read → validate → write แบบไม่ล็อก (TOCTOU) → A ส่ง {produce:100} กับ B ส่ง {qty:50}
+  //         พร้อมกัน ทั้งคู่อ่าน before ชุดเดียวกันจึงผ่าน validate ทั้งคู่ → ได้ qty=50 produce=100
+  //         ซึ่งละเมิดกฎ 'produce cannot exceed qty' ที่ validateData มีไว้กันเรื่องนี้พอดี โดยไม่มี error ให้เห็น
+  let client;
   try {
-    // ดึงค่าเก่าไว้เทียบก่อนอัปเดต (สำหรับ audit diff)
-    const before = (await db.query(`SELECT ${COLS} FROM pp_projects WHERE id = $1`, [req.params.id])).rows[0] || null;
+    client = await db.connect();
+    await client.query('BEGIN');
+    const before = (await client.query(`SELECT ${COLS} FROM pp_projects WHERE id = $1 FOR UPDATE`, [req.params.id])).rows[0] || null;
+    if (!before) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ status: 'error', message: 'not found' });
+    }
     // optimistic lock: ถ้า client ส่ง updated_at มาแล้วไม่ตรงกับใน DB = มีคนแก้ไปก่อน → 409 (กัน stale write ทับกัน)
-    if (before && req.body && req.body.updated_at && before.updated_at) {
+    if (req.body && req.body.updated_at && before.updated_at) {
       const a = new Date(req.body.updated_at).getTime(), b = new Date(before.updated_at).getTime();
       if (!isNaN(a) && !isNaN(b) && a !== b) {
+        await client.query('ROLLBACK');
         return res.status(409).json({ status: 'error', message: 'This record was changed by someone else — please reload and try again' });
       }
     }
     // ตรวจความถูกต้องกับค่าที่รวมแล้ว (before + data) เผื่อ update บางส่วน จะได้เช็ก cross-field ครบ
     const verr = validateData({ ...before, ...data }, data);
-    if (verr) return res.status(400).json({ status: 'error', message: verr });
-    const { rows, rowCount } = await db.query(
+    if (verr) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ status: 'error', message: verr });
+    }
+    const { rows } = await client.query(
       `UPDATE pp_projects SET ${sets}, updated_at = NOW() WHERE id = $${vals.length} RETURNING ${COLS}`,
       vals
     );
-    if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
+    await client.query('COMMIT');
     const after = rows[0];
     // audit: บันทึกเฉพาะ field ที่ค่าเปลี่ยนจริง (จาก → เป็น) + หมายเหตุ (edit_note) ที่ผู้ใช้กรอกตอน Save
     const editNote = (req.body && typeof req.body.edit_note === 'string') ? req.body.edit_note.trim() : '';
@@ -193,7 +226,10 @@ router.put('/projects/:id', async (req, res) => {
     }
     res.json({ status: 'success', data: after });
   } catch (e) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (e2) { console.error('[rollback failed]', e2?.message); } }
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+  } finally {
+    if (client) client.release();
   }
 });
 

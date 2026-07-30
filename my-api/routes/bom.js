@@ -56,8 +56,9 @@ router.post('/', async (req, res) => {
   const { name, version = '1.0', lines = [] } = req.body;
   if (!name) return res.status(400).json({ status: 'error', message: 'name is required' });
 
-  const client = await db.connect();
+  let client;
   try {
+    client = await db.connect();
     await client.query('BEGIN');
     const bom = await client.query(
       `INSERT INTO boms (name, version) VALUES ($1, $2) RETURNING id AS bom_id, name, version, approved`,
@@ -75,11 +76,11 @@ router.post('/', async (req, res) => {
     await client.query('COMMIT');
     res.status(201).json({ status: 'success', data: bom.rows[0] });
   } catch (e) {
-    await client.query('ROLLBACK');
+    if (client) { try { await client.query('ROLLBACK'); } catch (e2) { console.error('[rollback failed]', e2?.message); } }
     if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'BOM ชื่อ+version นี้มีอยู่แล้ว' });
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

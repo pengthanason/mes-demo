@@ -7,8 +7,9 @@ router.post('/scan', async (req, res) => {
   if (!wo_id || !serial || !station || !['PASS', 'FAIL'].includes(result)) {
     return res.status(400).json({ status: 'error', message: 'wo_id, serial, station, result(PASS|FAIL) required' });
   }
-  const client = await db.connect();
+  let client;
   try {
+    client = await db.connect();
     await client.query('BEGIN');
     await client.query(
       `INSERT INTO production_scans (wo_id, serial, station, result, operator, note)
@@ -27,10 +28,10 @@ router.post('/scan', async (req, res) => {
     await client.query('COMMIT');
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    await client.query('ROLLBACK');
+    if (client) { try { await client.query('ROLLBACK'); } catch (e2) { console.error('[rollback failed]', e2?.message); } }
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

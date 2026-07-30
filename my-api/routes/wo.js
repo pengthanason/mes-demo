@@ -1,6 +1,31 @@
 const router = require('express').Router();
 const db     = require('../db');
 
+const INT4_MAX = 2147483647;
+// ตรวจจำนวนเต็มก่อนยิงลง DB — คอลัมน์เป็น INTEGER + มี CHECK (qty > 0) ถ้าไม่ดักที่นี่จะกลายเป็น 500 ดิบ
+// (เช่น qty=-5 ผ่าน truthy → CHECK violation · qty="1000 pcs" → invalid input syntax · qty=3e9 → out of range)
+function intErr(name, v, { min = 0, allowNull = false } = {}) {
+  if (v == null || v === '') return allowNull ? null : `${name} required`;
+  const n = Number(v);
+  if (!Number.isInteger(n)) return `${name} ต้องเป็นจำนวนเต็ม`;
+  if (n < min) return `${name} ต้องไม่น้อยกว่า ${min}`;
+  if (n > INT4_MAX) return `${name} มีค่ามากเกินไป`;
+  return null;
+}
+
+// ออกเลข WO ถัดไปของเดือนนี้ — ใช้ MAX(suffix)+1 ไม่ใช่ COUNT (COUNT จะให้เลขซ้ำหลังมีการลบแถว)
+// ใช้ NOW() ของ DB เป็นนาฬิกาแหล่งเดียว กัน yymm เพี้ยนข้ามเดือนจากการผสม UTC ของ Node กับ tz ของ DB
+async function nextWoNo(runner) {
+  const { rows } = await runner.query(
+    `SELECT TO_CHAR(NOW(),'YYYYMM') AS yymm,
+            COALESCE(MAX(NULLIF(split_part(wo_no,'-',3),'')::int), 0) + 1 AS next
+       FROM work_orders
+      WHERE wo_no LIKE 'WO-' || TO_CHAR(NOW(),'YYYYMM') || '-%'`
+  );
+  const { yymm, next } = rows[0];
+  return `WO-${yymm}-${String(next).padStart(3, '0')}`;
+}
+
 // ── Work Orders ────────────────────────────────────────────────────
 
 // GET /api/wo/list
@@ -56,22 +81,27 @@ router.post('/board', async (req, res) => {
   if (!LIFECYCLE_STEPS.includes(current_step)) {
     return res.status(400).json({ status: 'error', message: `current_step must be one of ${LIFECYCLE_STEPS.join(', ')}` });
   }
-  try {
-    const yymm = new Date().toISOString().slice(0, 7).replace('-', '');
-    const { rows: seqRows } = await db.query(
-      `SELECT COUNT(*)+1 AS next FROM work_orders WHERE wo_no LIKE 'WO-' || $1 || '-%'`,
-      [yymm]
-    );
-    const woNo = `WO-${yymm}-${String(seqRows[0].next).padStart(3, '0')}`;
-    const { rows } = await db.query(
-      `INSERT INTO work_orders (wo_no, product_name, customer, qty, due_date, station, current_step, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       RETURNING ${BOARD_FIELDS}`,
-      [woNo, product_name, customer || null, qty, due_date || null, station || null, current_step, stepToStatus(current_step)]
-    );
-    res.status(201).json({ status: 'success', data: rows[0] });
-  } catch (e) {
-    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+  const qtyErr = intErr('qty', qty, { min: 1 });
+  if (qtyErr) return res.status(400).json({ status: 'error', message: qtyErr });
+  if (due_date && isNaN(Date.parse(due_date))) {
+    return res.status(400).json({ status: 'error', message: 'due_date ไม่ใช่วันที่ที่ถูกต้อง' });
+  }
+  // retry เมื่อชน UNIQUE(wo_no) — 2 คนกด Create พร้อมกันจะได้เลขเดียวกัน ถ้าไม่ retry คนที่ 2 จะเจอ 500
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      const woNo = await nextWoNo(db);
+      const { rows } = await db.query(
+        `INSERT INTO work_orders (wo_no, product_name, customer, qty, due_date, station, current_step, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         RETURNING ${BOARD_FIELDS}`,
+        [woNo, product_name, customer || null, Number(qty), due_date || null, station || null, current_step, stepToStatus(current_step)]
+      );
+      return res.status(201).json({ status: 'success', data: rows[0] });
+    } catch (e) {
+      if (e.code === '23505' && attempt < 5) continue;   // เลขชน → วนขอเลขใหม่
+      console.error(e);
+      return res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+    }
   }
 });
 
@@ -87,6 +117,17 @@ router.patch('/board/:woNo', async (req, res) => {
   }
   if (patch.current_step && !LIFECYCLE_STEPS.includes(patch.current_step)) {
     return res.status(400).json({ status: 'error', message: `current_step must be one of ${LIFECYCLE_STEPS.join(', ')}` });
+  }
+  // ตรวจชนิดข้อมูลก่อนเขียน — ไม่ดักที่นี่: qty_good="abc" → 500 · fai_passed="maybe" → boolean cast fail → 500
+  for (const k of ['qty_good', 'actual_qty']) {
+    if (k in patch) {
+      const err = intErr(k, patch[k], { min: 0, allowNull: k === 'actual_qty' });
+      if (err) return res.status(400).json({ status: 'error', message: err });
+      if (patch[k] != null && patch[k] !== '') patch[k] = Number(patch[k]);
+    }
+  }
+  if ('fai_passed' in patch && typeof patch.fai_passed !== 'boolean') {
+    return res.status(400).json({ status: 'error', message: 'fai_passed ต้องเป็น true/false' });
   }
   if (patch.current_step) patch.status = stepToStatus(patch.current_step);
 
@@ -199,8 +240,9 @@ router.post('/convert', async (req, res) => {
   const { req_id } = req.body;
   if (!req_id) return res.status(400).json({ status: 'error', message: 'req_id required' });
 
-  const client = await db.connect();
+  let client;
   try {
+    client = await db.connect();
     await client.query('BEGIN');
 
     const reqRes = await client.query(
@@ -219,14 +261,8 @@ router.post('/convert', async (req, res) => {
       return res.status(409).json({ status: 'error', message: 'Pre-WO ต้อง APPROVED ก่อน convert' });
     }
 
-    // สร้าง WO number
-    const { rows: seqRows } = await client.query(
-      `SELECT COUNT(*)+1 AS next FROM work_orders
-       WHERE wo_no LIKE 'WO-' || TO_CHAR(NOW(),'YYYYMM') || '-%'`
-    );
-    const seq = String(seqRows[0].next).padStart(3, '0');
-    const yymm = new Date().toISOString().slice(0, 7).replace('-', '');
-    const woNo = `WO-${yymm}-${seq}`;
+    // สร้าง WO number (MAX+1 · นาฬิกาเดียวจาก DB — ดู nextWoNo() ด้านบนไฟล์)
+    const woNo = await nextWoNo(client);
 
     const woRes = await client.query(
       `INSERT INTO work_orders (wo_no, product_name, qty, status, due_date)
@@ -244,10 +280,11 @@ router.post('/convert', async (req, res) => {
     await client.query('COMMIT');
     res.json({ status: 'success', data: newWo });
   } catch (e) {
-    await client.query('ROLLBACK');
+    if (client) { try { await client.query('ROLLBACK'); } catch (e2) { console.error('[rollback failed]', e2?.message); } }
+    if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'เลข WO ชนกัน กรุณากดใหม่อีกครั้ง' });
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
