@@ -4,6 +4,7 @@ import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
 import { WoInput } from './WoInput';
 import { MultiPicInput } from './MultiPicInput';
+import { useWoBoard } from '../lib/woApi';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 
 // hex (#rrggbb) → ARGB ('FFRRGGBB') สำหรับ ExcelJS
@@ -963,8 +964,25 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
   const create = usePpCreate();
   const update = usePpUpdate();
   const { data: picNames = [] } = usePicNames();   // รายชื่อ PIC ที่มีอยู่ → เติม dropdown (เพิ่มชื่อใหม่เองได้)
+  const { data: woBoard = [] } = useWoBoard();     // WO ที่มีอยู่ → เลือกแล้ว autofill ข้อมูลลงฟอร์ม
   const editing = !!initial;
   const set = (k: keyof PpProject, v: any) => { setF(p => ({ ...p, [k]: v })); setDirty(true); };
+  // เลือก WO ที่มีอยู่ → ดึง product/customer/qty/expected จาก WO นั้นมาเติมให้อัตโนมัติ (พิมพ์เอง/WO ใหม่ = ไม่ autofill)
+  const applyWoFrom = (v: string) => {
+    const wo = woBoard.find(w => w.woId === v);
+    setF(prev => {
+      const next: Partial<PpProject> = { ...prev, work_order: v };
+      if (wo) {
+        if (wo.productCode) { next.product_pn = wo.productCode; next.wo_name = wo.productCode; }
+        if (wo.customer && wo.customer !== '—') next.customer = wo.customer;
+        if (wo.qty != null) next.qty = wo.qty;
+        if (wo.expectedDate) next.expected_date = String(wo.expectedDate).slice(0, 10);
+      }
+      return next;
+    });
+    setDirty(true);
+    if (wo) showToast(`Autofilled from ${v}`, 'info');
+  };
 
   // ยิงบันทึกจริง — editNote = หมายเหตุการแก้ไข (เฉพาะตอนแก้ไข ส่งไปเก็บใน history)
   function doSave(editNote?: string) {
@@ -993,13 +1011,19 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
     const ds = f.pd_start_date || '', df = f.pd_finish_date || '', ex = f.expected_date || '';   // 'YYYY-MM-DD' เทียบ string ได้
     if (ds && df && df < ds) { errs.push('PD Done must be on/after PD Start'); bad.pd_finish_date = true; }
     if (ds && ex && ex < ds) { errs.push('Expected date must be on/after PD Start'); bad.expected_date = true; }
-    if (df && ex && ex < df) { errs.push('Expected date must be on/after PD Done'); bad.expected_date = true; }
+    // (เอาออก) PD Done หลัง Expected ได้ = ดีเลย์ — ไม่บล็อก
+    if (df && df > todayLocal()) { errs.push('PD Done cannot be a future date'); bad.pd_finish_date = true; }   // วันเสร็จจริง ห้ามอนาคต
     const qty = Number(f.qty) || 0, prod = Number(f.produce) || 0;
     if (qty < 0) { errs.push('Quantity cannot be negative'); bad.qty = true; }
     if (prod < 0) { errs.push('Produced cannot be negative'); bad.produce = true; }
     if (prod > qty) { errs.push('Produced cannot exceed Quantity'); bad.produce = true; }
-    if ((Number(f.total_ng) || 0) < 0) { errs.push('Total NG cannot be negative'); bad.total_ng = true; }
-    if ((Number(f.total_ok) || 0) < 0) { errs.push('Total FG cannot be negative'); bad.total_ok = true; }
+    const fg = Number(f.total_ok) || 0, ng = Number(f.total_ng) || 0;
+    if (ng < 0) { errs.push('Total NG cannot be negative'); bad.total_ng = true; }
+    if (fg < 0) { errs.push('Total FG cannot be negative'); bad.total_ok = true; }
+    if (fg > prod) { errs.push('Total FG cannot exceed Produced'); bad.total_ok = true; }   // FG ≤ Produced
+    if (ng > prod) { errs.push('Total NG cannot exceed Produced'); bad.total_ng = true; }   // NG ≤ Produced
+    // ปิดงาน (status DONE หรือมี PD Done) ได้ต่อเมื่อผลิตครบ
+    if ((f.status === 'DONE' || !!f.pd_finish_date) && prod < qty) { errs.push('Produced must be complete (= Quantity) before marking Done'); bad.produce = true; }
     return { errs, bad };
   }
 
@@ -1033,7 +1057,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
           <Section title="Main info" />
           {/* WO + Type (Internal/External) บนสุด */}
           <div className="grid-3col">
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>WO</span><WoInput value={f.work_order ?? ''} onChange={v => set('work_order', v)} placeholder="Select or type WO…" /></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>WO</span><WoInput value={f.work_order ?? ''} onChange={applyWoFrom} placeholder="Select or type WO…" /></label>
             <label className="field"><span>Type</span>
               <select value={(f as any).pp_type ?? 'internal'} onChange={txt('pp_type' as keyof PpProject)}>
                 <option value="internal">Internal</option>

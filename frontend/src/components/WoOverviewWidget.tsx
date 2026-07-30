@@ -5,7 +5,7 @@ import { useWoOverview } from '../lib/planningApi';
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', userSelect: 'none', cursor: 'default' };
 const SEARCH: React.CSSProperties = { fontSize: '0.85rem', padding: '7px 12px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 200, maxWidth: '45%' };
-const COLS = '1.5fr 2fr 66px 108px';   // Work order | Progress | Yield | Status
+const COLS = '160px 1fr 90px 140px';   // Work order | Progress | Yield | Status
 
 const ST_STYLE: Record<string, { bg: string; text: string; border: string; bar: string; label: string }> = {
   PENDING:     { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', bar: '#94a3b8', label: 'Pending' },
@@ -83,7 +83,7 @@ export function WoOverviewWidget() {
               <span>Work order</span>
               <span>Progress</span>
               <span style={{ textAlign: 'center' }}>Yield</span>
-              <span style={{ textAlign: 'right' }}>Status</span>
+              <span style={{ textAlign: 'center' }}>Status</span>
             </div>
             {rows.map(w => {
               const pct = w.qtyTarget > 0 ? Math.min(100, Math.round((w.qtyGood / w.qtyTarget) * 100)) : 0;
@@ -120,7 +120,7 @@ export function WoOverviewWidget() {
                     <span style={{ display: 'inline-block', padding: '2px 9px', borderRadius: 6, background: yBg, color: yCol, fontSize: '0.72rem', fontWeight: 700 }}>{w.yieldPct == null ? '—' : `${w.yieldPct.toFixed(0)}%`}</span>
                   </div>
                   {/* status */}
-                  <div style={{ textAlign: 'right' }}><StatusPill status={w.status} /></div>
+                  <div style={{ textAlign: 'center' }}><StatusPill status={w.status} /></div>
                 </div>
               );
             })}

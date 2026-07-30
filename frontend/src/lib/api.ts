@@ -88,20 +88,27 @@ async function request<T>(
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     payload = typeof body === 'string' ? body : JSON.stringify(body);
   }
+  const timeoutMs = 15000;
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+  const signal = config?.signal || timeoutController.signal;
+
   let res: globalThis.Response;
   try {
     res = await fetch(url, {
       method,
       headers,
       body: payload,
-      signal: config?.signal,
+      signal,
       credentials: API_ORIGIN ? 'omit' : 'include',
     });
+    clearTimeout(timeoutId);
   } catch (e: any) {
-    // Network error — backend not reachable.
-    // GET: throw → useQuery เข้า isError → หน้าโชว์ error+Retry (ไม่ใช่ "No data" เงียบๆ)
-    // อื่นๆ (mutation): คืน status 0 ให้ hook เดิมจัดการ throw เอง (คงพฤติกรรม/ข้อความเดิม)
-    if (e?.name === 'AbortError') throw e;
+    clearTimeout(timeoutId);
+    if (e?.name === 'AbortError') {
+      if (method === 'GET') throw new Error('การเชื่อมต่อหมดเวลา (Request Timeout)');
+      return { data: null as T, status: 0, headers: new Headers() };
+    }
     if (method === 'GET') throw new Error('Connection failed — cannot reach the server');
     return { data: null as T, status: 0, headers: new Headers() };
   }

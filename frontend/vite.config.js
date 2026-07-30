@@ -34,7 +34,6 @@ export default defineConfig({
       '/api/cr':      { target: 'http://localhost:5099', changeOrigin: true },
       '/api/rework':        { target: 'http://localhost:5099', changeOrigin: true },
       '/api/notifications': { target: 'http://localhost:5099', changeOrigin: true },
-      '/api/scm':           { target: 'http://localhost:5099', changeOrigin: true },
       '/api/admin':         { target: 'http://localhost:5099', changeOrigin: true },
       '/api/jumbo':         { target: 'http://localhost:5099', changeOrigin: true },
       '/api/jig':           { target: 'http://localhost:5099', changeOrigin: true },

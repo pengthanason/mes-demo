@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import api from '../lib/api';
 import { StatCard, BarRow, ChartCard } from './ppParts';
 import { useWorkflowResults } from '../lib/workflowApi';
 import { useInventoryLots } from '../lib/inventoryApi';
@@ -39,13 +37,6 @@ export function FactoryOverview() {
   const { data: rework = [] } = useReworkList();
   const { data: oba = [] } = useObaRecords();
   const { data: wfResults = [] } = useWorkflowResults();
-  const { data: scm = [] } = useQuery({
-    queryKey: ['scm-cases-overview'],
-    queryFn: async () => {
-      const res = await api.get('/scm/cases');
-      return ((res.data as any)?.cases ?? []) as { status: string }[];
-    },
-  });
 
   const m = useMemo(() => {
     // production (trace daily)
@@ -70,10 +61,6 @@ export function FactoryOverview() {
     const crStates = ['DRAFT', 'G1_REVIEW', 'G2_APPROVED', 'ACTIVE'] as const;
     const crLabel: Record<string, string> = { DRAFT: 'Draft', G1_REVIEW: 'Awaiting G1', G2_APPROVED: 'G2 Approved', ACTIVE: 'Active' };
 
-    // scm
-    const scmOpen = scm.filter(s => s.status === 'OPEN').length;
-    const scmClosed = scm.filter(s => s.status === 'CLOSED').length;
-
     // rework
     const reworkOpen = rework.filter(r => r.status !== 'DONE').length;
     const rwBy = (s: string) => rework.filter(r => r.status === s).length;
@@ -91,11 +78,10 @@ export function FactoryOverview() {
       jigRate, jigTop, jigPass, jigFail,
       lotPending, lotBy,
       crPending, crStates, crLabel,
-      scmOpen, scmClosed,
       reworkOpen, rwBy,
       obaRate, wfRate, wfCount: wfResults.length,
     };
-  }, [daily, jig, lots, cr, rework, oba, wfResults, scm]);
+  }, [daily, jig, lots, cr, rework, oba, wfResults]);
 
   const maxCr = Math.max(1, ...m.crStates.map(s => cr.filter(c => c.state === s).length));
   const maxRw = Math.max(1, m.rwBy('OPEN'), m.rwBy('IN_PROGRESS'), m.rwBy('DONE'));
@@ -105,7 +91,7 @@ export function FactoryOverview() {
     <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">🏭 Factory Overview</h1>
-        <p className="panel__subtitle">Real-time summary of all modules — Production · QC · Jig · Inventory · 4M · SCM</p>
+        <p className="panel__subtitle">Real-time summary of all modules — Production · QC · Jig · Inventory · 4M</p>
 
         {/* KPI ข้ามโมดูล */}
         <div className="dash-grid-4" style={{ marginTop: '1.5rem' }}>
@@ -115,7 +101,6 @@ export function FactoryOverview() {
           <ClickCard to="/production-plan" icon="🔀" label="Line Pass Rate" value={pct(m.wfRate)} accent={rateColor(m.wfRate)} />
           <ClickCard to="/incoming" icon="📦" label="Lots awaiting QA" value={m.lotPending} accent="#d97706" />
           <ClickCard to="/4m-change" icon="🔧" label="4M awaiting approval" value={m.crPending} accent="#2563eb" />
-          <ClickCard to="/scm-cases" icon="📋" label="SCM open" value={m.scmOpen} accent="#dc2626" />
           <ClickCard to="/qc-result" icon="🛠️" label="Rework pending" value={m.reworkOpen} accent="#7c3aed" />
         </div>
       </div>
@@ -142,11 +127,6 @@ export function FactoryOverview() {
           <BarRow label="Pending (PENDING)" value={m.lotBy('PENDING')} max={maxLot} color="#d97706" />
           <BarRow label="Approved (APPROVED)" value={m.lotBy('APPROVED')} max={maxLot} color="#16a34a" />
           <BarRow label="Rejected (REJECTED)" value={m.lotBy('REJECTED')} max={maxLot} color="#dc2626" />
-        </ChartCard>
-
-        <ChartCard title="📋 SCM Cases">
-          <BarRow label="Open (OPEN)" value={m.scmOpen} max={Math.max(1, m.scmOpen + m.scmClosed)} color="#dc2626" />
-          <BarRow label="Closed (CLOSED)" value={m.scmClosed} max={Math.max(1, m.scmOpen + m.scmClosed)} color="#16a34a" />
         </ChartCard>
 
         <ChartCard title="🛠️ Rework by status">

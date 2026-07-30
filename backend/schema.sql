@@ -621,45 +621,7 @@ CREATE TABLE IF NOT EXISTS pm_contracts (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- ==========================================
--- NEW SCM & QA Cases Tables (Module 12)
--- ==========================================
-CREATE TABLE IF NOT EXISTS scm_cases (
-    case_id TEXT PRIMARY KEY,
-    case_type scm_case_type NOT NULL,
-    status TEXT NOT NULL DEFAULT 'OPEN',
-    ref_po TEXT NOT NULL DEFAULT '',
-    ref_inv TEXT NOT NULL DEFAULT '',
-    part_no CHAR(12) NOT NULL DEFAULT '',
-    owner_id BIGINT REFERENCES users(id),
-    opened_by BIGINT REFERENCES users(id),
-    opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    due_date TIMESTAMPTZ,
-    resolved_at TIMESTAMPTZ,
-    resolution_note TEXT NOT NULL DEFAULT ''
-);
 
-CREATE TABLE IF NOT EXISTS scm_split_lots (
-    split_id BIGSERIAL PRIMARY KEY,
-    original_uid TEXT NOT NULL REFERENCES inventory_uids(uid),
-    ok_uid TEXT NOT NULL REFERENCES inventory_uids(uid),
-    ng_uid TEXT NOT NULL REFERENCES inventory_uids(uid),
-    reason TEXT NOT NULL DEFAULT '',
-    approved_by BIGINT REFERENCES users(id),
-    split_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS scm_supplier_dispositions (
-    disp_id BIGSERIAL PRIMARY KEY,
-    case_id TEXT NOT NULL REFERENCES scm_cases(case_id) ON DELETE CASCADE,
-    action scm_disposition_action NOT NULL,
-    status TEXT NOT NULL DEFAULT 'PENDING_SUPPLIER',
-    rma_no TEXT NOT NULL DEFAULT '',
-    return_qty NUMERIC(18, 3) NOT NULL DEFAULT 0,
-    created_by BIGINT REFERENCES users(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
 
 CREATE INDEX IF NOT EXISTS idx_work_orders_status ON work_orders(status);
 CREATE INDEX IF NOT EXISTS idx_work_orders_wo_number ON work_orders(wo_number);

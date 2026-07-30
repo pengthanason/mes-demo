@@ -20,7 +20,7 @@ const C = {
   pass: '#10b981', passBg: '#d1fae5', passFg: '#047857',
   muteBg: '#f1f5f9', muteFg: '#94a3b8',
 };
-const COLS = '1.4fr 2fr 198px 46px';   // Station | Breakdown | WIP·RW·Pass | Updated
+const COLS = '160px 1fr 200px 52px';   // Station | Breakdown | WIP·RW·Pass | Updated
 
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', userSelect: 'none', cursor: 'default' };
@@ -98,7 +98,7 @@ export function StationMonitorWidget() {
               <span>Station</span>
               <span>Load breakdown</span>
               <span style={{ textAlign: 'center' }}>WIP · Rework · Pass</span>
-              <span style={{ textAlign: 'right' }}>Upd.</span>
+              <span style={{ textAlign: 'center' }}>Upd.</span>
             </div>
             {rows.map(s => {
               const wip = s.unitsInStation, rw = s.unitsReworkRequired, pass = s.scanOutPassCount;
@@ -136,7 +136,7 @@ export function StationMonitorWidget() {
                     <Chip label="PASS" n={pass} bg={C.passBg} fg={C.passFg} />
                   </div>
                   {/* เวลาอัปเดตล่าสุด */}
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>{ago(s.lastScanAt)}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', whiteSpace: 'nowrap' }}>{ago(s.lastScanAt)}</div>
                 </div>
               );
             })}

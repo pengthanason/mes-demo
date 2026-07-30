@@ -1,5 +1,53 @@
 # Syntech MES -- Status & Handoff
-> อัปเดต: **2026-04-24** Session 89-CTO | Server: 172.16.10.87 | Container: syntech_mes_draft-mes_backbone-1
+> อัปเดต: **2026-07-17** (intern repo `syntech-intern-2026`, branch `develop`) · ประวัติ deploy server (172.16.10.87) อยู่ด้านล่าง
+
+## 2026-07-17 Frontend Track — UI polish + tests + dashboard widgets
+
+- **Dashboard widgets**: WO Overview + Station Monitor widget (เริ่ม)
+- **Quality**: fail-soft states (loading/error/retry) ทุก query · unit tests (Vitest) · cleanup ไฟล์ตาย · CI `.github/workflows/ci.yml` (typecheck + test + build)
+
+## 2026-07-10 Frontend Track — Workflow + Stock Drift + 5M+1E
+
+- **Workflow dashboard**: `WorkflowBuilder` + charts
+- **Stock Drift**: filter stock vs Odoo (`DriftViewer`)
+- **5M+1E**: Production Plan filter/label เปลี่ยน 4M → 5M+1E
+
+## 2026-07-03 Frontend Track — PP iterations + Workflow start
+
+- **Production Plan**: Gantt / dashboard iterations
+- **Workflow**: เริ่ม workflow dashboard
+
+## 2026-06-26 Frontend Track — Production Plan (PP)
+
+- **PP export**: Excel-form-style export + Gantt
+- **Single source**: sync Dashboard/PDF ให้มาจาก column source เดียวกัน
+
+## 2026-06-19 Frontend Track — real auth + Equipment Borrow
+
+- **Auth/data**: real auth + BOM/WO flow + dropdowns + jig manual entry
+- **Equipment Borrow**: หน้า static เข้า topnav/sidebar (iframe → full-bleed)
+- **Demo**: MSW handlers เพิ่ม (PP / Workflow / jig delete)
+
+## 2026-06-12 Frontend Track — my-api backend + FE pages + demo mode
+
+- **`my-api` backend (ใหม่ · Express + `pg` · :5099)**: data API ให้ admin UI (WO/BOM/OBA/QC/rework/routing/production/planning(PP)/workflow/SCM/notifications/admin/jumbo/jig/inventory/report/auth) · เพิ่มใน `docker-compose.yml` (`mes-my-api`)
+- **Frontend**: หน้า FE-08→FE-15 (รวมทั้งหมด 24 หน้าภายหลัง) + components ทำมือ (`ppParts` Gantt/Donut/BarRow, `WoInput`, `ComboBoxInput`, ฯลฯ)
+- **Deploy/demo**: `vercel.json` (SPA) + MSW demo mode (mock ครบทุกหน้า · เปิดเฉพาะ hostname `mes-demo`)
+- **Node-RED**: starter + FE-7 "apply to real MES" guide
+
+## 2026-06-05 Frontend Track — Kickoff
+
+- **Repo init**: โครง repo + daily report template
+- **Docs**: MES overview / dev-setup / api-reference · integration contracts (UI↔MES)
+- **Plan**: task briefs A–D · Frontend track (port prototype → React) + Node-RED track (PR #7)
+
+## สถานะปัจจุบัน — Intern Frontend Track (local dev)
+
+- **รัน**: `docker compose up -d --build` (postgres `:5432` + backbone `:5100` + my-api `:5099`) + `cd frontend && npm run dev` (`:5101`)
+- **Frontend**: Vite + React 18 + TS · 24 หน้า + widget/มินิชาร์ตทำมือ (ไม่มี chart lib) · demo mode (MSW) เปิดเฉพาะ hostname `mes-demo`
+- **Still OPEN**: mes_web_test apply DB (issue #7) · planning(PP)/mes endpoint จริงบน backbone รอ merge (ตอนนี้ dev proxy stub ที่ my-api)
+
+---
 
 ## 2026-04-24 Session 89-CTO (Cross-Squad Data Flow Validation) — CLAUDY orchestrate 4 squads
 

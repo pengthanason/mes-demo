@@ -63,7 +63,7 @@ function clean(body) {
 // ตรวจความถูกต้องฝั่ง server (กันยิงตรง/inline ที่ข้าม validate() ฝั่ง frontend) — คืน error string ถ้าผิด, null ถ้าผ่าน
 const NUM_FIELDS = ['qty', 'produce', 'total_ng', 'total_ok', 'team_member', 'target_per_day'];
 const INT4_MAX = 2147483647;   // กันค่าเกิน int4 → 500 overflow
-function validateData(data) {
+function validateData(data, changed = data) {   // data = ค่ารวม (before+body) · changed = เฉพาะ field ที่แก้รอบนี้ (body)
   for (const k of NUM_FIELDS) {
     if (data[k] == null || data[k] === '') continue;
     const n = Number(data[k]);
@@ -74,12 +74,32 @@ function validateData(data) {
   if (data.produce != null && data.qty != null && data.produce !== '' && data.qty !== '' && Number(data.produce) > Number(data.qty)) {
     return 'produce cannot exceed qty';
   }
-  // ลำดับวันที่: start ≤ finish/expected, finish ≤ expected (เช็กเมื่อมีค่าครบคู่)
-  const d = (k) => (data[k] ? new Date(data[k]) : null);
-  const [s, f, e] = [d('pd_start_date'), d('pd_finish_date'), d('expected_date')];
-  if (s && f && f < s) return 'PD Done cannot be before PD Start';
-  if (s && e && e < s) return 'Expected date cannot be before PD Start';
-  if (f && e && e < f) return 'Expected date cannot be before PD Done';
+  // FG/NG ห้ามเกิน Produced และ Qty (เช็คเมื่อมี field ที่เทียบได้ในบอดี้ · inline clamp ฝั่ง client อีกชั้น)
+  const num = (k) => (data[k] != null && data[k] !== '' ? Number(data[k]) : null);
+  const prod = num('produce'), q = num('qty'), ok = num('total_ok'), ng = num('total_ng');
+  if (prod != null && ok != null && ok > prod) return 'Total FG cannot exceed Produced';
+  if (prod != null && ng != null && ng > prod) return 'Total NG cannot exceed Produced';
+  if (q != null && ok != null && ok > q) return 'Total FG cannot exceed Quantity';
+  if (q != null && ng != null && ng > q) return 'Total NG cannot exceed Quantity';
+  // ปิดงานได้ต่อเมื่อผลิตครบ — เช็คเฉพาะตอน "กำลังเปลี่ยนเป็น done รอบนี้" (body ส่ง pd_finish/status มา) ไม่บล็อกการแก้แถวที่ done อยู่แล้ว
+  const settingDone = (changed.pd_finish_date != null && changed.pd_finish_date !== '') || changed.status === 'DONE';
+  if (settingDone && prod != null && q != null && prod < q) {
+    return 'Produced must be complete (= Quantity) before marking Done';
+  }
+  // เช็ควันที่เฉพาะเมื่อรอบนี้แก้ field วันที่ (แก้ตัวเลข/สถานะไม่ควรโดนบล็อกด้วยวันเดิมที่มีอยู่แล้ว)
+  const touchesDate = ['pd_start_date', 'pd_finish_date', 'expected_date'].some(k => k in changed);
+  if (touchesDate) {
+    // ลำดับวันที่: ต้องไม่เสร็จ/คาดว่าเสร็จ ก่อนเริ่มผลิต (PD Done หลัง Expected ได้ = ดีเลย์ ระบบรองรับ)
+    const d = (k) => (data[k] ? new Date(data[k]) : null);
+    const [s, f, e] = [d('pd_start_date'), d('pd_finish_date'), d('expected_date')];
+    if (s && f && f < s) return 'PD Done cannot be before PD Start';
+    if (s && e && e < s) return 'Expected date cannot be before PD Start';
+  }
+  // PD Done ห้ามอนาคต — เฉพาะตอนตั้ง pd_finish รอบนี้ (ไม่บล็อกการแก้แถวที่มี pd_finish เดิมอยู่)
+  if (changed.pd_finish_date != null && changed.pd_finish_date !== '') {
+    const todayStr = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+    if (String(changed.pd_finish_date).slice(0, 10) > todayStr) return 'PD Done cannot be a future date';
+  }
   return null;
 }
 
@@ -144,7 +164,7 @@ router.put('/projects/:id', async (req, res) => {
       }
     }
     // ตรวจความถูกต้องกับค่าที่รวมแล้ว (before + data) เผื่อ update บางส่วน จะได้เช็ก cross-field ครบ
-    const verr = validateData({ ...before, ...data });
+    const verr = validateData({ ...before, ...data }, data);
     if (verr) return res.status(400).json({ status: 'error', message: verr });
     const { rows, rowCount } = await db.query(
       `UPDATE pp_projects SET ${sets}, updated_at = NOW() WHERE id = $${vals.length} RETURNING ${COLS}`,
@@ -199,6 +219,36 @@ router.get('/projects/:id/history', async (req, res) => {
 router.delete('/projects/:id', async (req, res) => {
   try {
     const { rowCount } = await db.query('DELETE FROM pp_projects WHERE id = $1', [req.params.id]);
+    if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
+    res.json({ status: 'success' });
+  } catch (e) {
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+  }
+});
+
+// ── รูปสินค้า — แยก endpoint (ไม่รวมใน /projects list กัน payload ใหญ่/dashboard อืด) ──
+router.get('/projects/:id/image', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT product_image FROM pp_projects WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ status: 'error', message: 'not found' });
+    res.json({ status: 'success', data: { image: rows[0].product_image || null } });
+  } catch (e) {
+    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+  }
+});
+
+router.put('/projects/:id/image', async (req, res) => {
+  try {
+    let img = req.body?.image;
+    if (img != null) {
+      if (typeof img !== 'string' || !/^data:image\/(png|jpe?g|webp|gif);base64,/.test(img)) {
+        return res.status(400).json({ status: 'error', message: 'Invalid image' });
+      }
+      if (img.length > 8 * 1024 * 1024) return res.status(413).json({ status: 'error', message: 'Image too large' });
+    } else {
+      img = null;   // ลบรูป
+    }
+    const { rowCount } = await db.query('UPDATE pp_projects SET product_image = $1, updated_at = NOW() WHERE id = $2', [img, req.params.id]);
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'not found' });
     res.json({ status: 'success' });
   } catch (e) {

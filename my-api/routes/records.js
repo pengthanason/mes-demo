@@ -78,7 +78,7 @@ router.get('/qc/history', async (req, res) => {
 });
 
 router.post('/qc', async (req, res) => {
-  const { sn, status, error } = req.body;
+  const { sn, status, error, scrapped } = req.body;
   if (!sn || !['PASS', 'FAIL'].includes(status)) {
     return res.status(400).json({ status: 'error', message: 'sn, status(PASS|FAIL) required' });
   }
@@ -89,13 +89,13 @@ router.post('/qc', async (req, res) => {
        RETURNING id, sn, status, error, created_at`,
       [sn, status, error || null]
     );
-    // ป้อนเข้า traceability: ผล QC = 1 จุดในไทม์ไลน์ของ serial
+    const noteText = scrapped ? `QC Scrap (WMS ADJ): ${error || 'scrapped'}` : (error ? `QC fail: ${error}` : 'QC scan');
     await db.query(
       `INSERT INTO production_scans (wo_id, serial, station, result, operator, note)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      ['QC', sn, 'QC', status, '', error ? `QC fail: ${error}` : 'QC scan']
+      ['QC', sn, scrapped ? 'SCRAPPED' : 'QC', status, '', noteText]
     );
-    res.status(201).json({ status: 'success', data: rows[0] });
+    res.status(201).json({ status: 'success', data: { ...rows[0], scrapped: Boolean(scrapped) } });
   } catch (e) {
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
