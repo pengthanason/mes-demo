@@ -72,17 +72,17 @@ export function CrDetailPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.25rem' }}>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 10 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>4M Type</span>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{cr.mType}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--ink-1)' }}>{cr.mType}</div>
           </div>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 10 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>WO / Product</span>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{cr.woRef || '—'}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--ink-1)' }}>{cr.woRef || '—'}</div>
           </div>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 10 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Date Opened</span>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1e293b' }}>{new Date(cr.createdAt).toLocaleDateString('en-GB')}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--ink-1)' }}>{new Date(cr.createdAt).toLocaleDateString('en-GB')}</div>
           </div>
         </div>
 
@@ -120,13 +120,13 @@ export function CrDetailPage() {
                     width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.7rem', fontWeight: 700, color: '#fff',
-                    background: passed ? '#10b981' : isNext ? '#f59e0b' : '#cbd5e1',
-                    border: '2px solid', borderColor: passed ? '#10b981' : isNext ? '#f59e0b' : '#cbd5e1',
+                    background: passed ? '#10b981' : isNext ? '#f59e0b' : 'var(--line-3)',
+                    border: '2px solid', borderColor: passed ? '#10b981' : isNext ? '#f59e0b' : 'var(--line-3)',
                   }}>
                     {passed ? '✓' : i + 1}
                   </div>
                   {!isLast && (
-                    <div style={{ width: 2, flex: 1, minHeight: 36, background: passed ? '#10b981' : '#e2e8f0' }} />
+                    <div style={{ width: 2, flex: 1, minHeight: 36, background: passed ? '#10b981' : 'var(--line-2)' }} />
                   )}
                 </div>
 
@@ -150,7 +150,7 @@ export function CrDetailPage() {
                         onChange={e => setNotes(prev => ({ ...prev, [g.key]: e.target.value }))}
                         placeholder="Approval remark (optional)..."
                         aria-label="Approval remark"
-                        style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color, #cbd5e1)', borderRadius: 6, fontSize: '0.9rem' }}
+                        style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color, var(--line-3))', borderRadius: 6, fontSize: '0.9rem' }}
                       />
                       <button
                         type="button"

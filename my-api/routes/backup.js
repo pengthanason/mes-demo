@@ -6,10 +6,10 @@ const db     = require('../db');
 // qc_results → qc_records / rework_tickets / transfer_verifications · app_users → audit_logs / notifications
 const TABLES = [
   'app_users', 'audit_logs', 'notifications',
-  'boms', 'bom_lines',
+  'bom_lines',                                   // หัว BOM (boms) ถูกถอดออก — BOM มาจากระบบภายนอก
   'work_orders', 'pre_wo_requests',
   'work_centers', 'workflows', 'workflow_results',
-  'jig_projects', 'jig_test_records', 'jig_retest_requests',
+  'jig_projects', 'jig_test_records',             // jig_retest_requests ถูกถอดออกแล้ว
   'inventory_lots', 'kitting_issues',
   'pp_projects', 'production_reports', 'production_scans', 'production_units', 'routing_records',
   'oba_records', 'qc_results', 'qc_records', 'rework_tickets', 'transfer_verifications',

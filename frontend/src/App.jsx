@@ -67,7 +67,7 @@ const NAV_GROUPS = [
     { to: '/admin/panel',      label: 'Admin Panel', sub: [
       { tab: 'users',      label: 'Manage Users' },
       { tab: 'activities', label: 'Activities' },
-      { tab: 'audit',      label: 'Audit Log' },
+      { tab: 'audit',      label: 'Account & Security' },
     ] },
   ] },
 ];

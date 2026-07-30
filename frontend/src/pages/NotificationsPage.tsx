@@ -15,6 +15,7 @@ export function NotificationsPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
+  const NOTIF_ROW_H = 58;   // ความสูงคงที่ต่อรายการ (px) — ใช้ทั้งการ์ดจริงและช่องว่างที่เติม
   const { data, isLoading, isError, refetch } = useNotifications(false);
   const markRead = useMarkRead();
   const markAll  = useMarkAllRead();
@@ -63,6 +64,9 @@ export function NotificationsPage() {
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: '0.875rem',
                 padding: '0.875rem 1rem',
+                // ล็อกความสูงต่อรายการ — ข้อความยาวไม่เท่ากันทำให้การ์ดสูงไม่เท่า
+                // → รวมกันแล้วความสูงลิสต์เปลี่ยนทุกหน้า ปุ่มเปลี่ยนหน้าขยับ (กดรัวๆ พลาด)
+                height: NOTIF_ROW_H, overflow: 'hidden',
                 background: n.isRead ? 'transparent' : 'rgba(46,125,79,0.06)',
                 borderLeft: n.isRead ? '3px solid transparent' : '3px solid var(--brand)',
                 borderRadius: 6,
@@ -74,9 +78,10 @@ export function NotificationsPage() {
               onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = n.isRead ? 'transparent' : 'rgba(46,125,79,0.06)'; }}
             >
               <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{TYPE_ICON[n.type] ?? TYPE_ICON.DEFAULT}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: n.isRead ? 400 : 600, fontSize: '0.9rem' }}>{n.title}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 2 }}>{n.message}</div>
+              {/* ตัดข้อความยาวด้วย … (hover ดูเต็มได้จาก title) — กันการ์ดสูงเกิน NOTIF_ROW_H */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: n.isRead ? 400 : 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={n.title}>{n.title}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={n.message}>{n.message}</div>
               </div>
               <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title={new Date(n.createdAt).toLocaleString('en-GB')}>
@@ -87,6 +92,10 @@ export function NotificationsPage() {
                 )}
               </div>
             </div>
+          ))}
+          {/* ช่องว่างเติมให้ครบหน้า — ความสูงลิสต์คงที่ ปุ่มเปลี่ยนหน้าไม่ขยับ (ข้ามเมื่อมีหน้าเดียว) */}
+          {totalPages > 1 && Array.from({ length: Math.max(0, PAGE_SIZE - pagedList.length) }, (_, i) => (
+            <div key={`__nfill-${i}`} aria-hidden="true" style={{ height: NOTIF_ROW_H, marginBottom: 2 }} />
           ))}
         </div>
         <Paginator page={page} totalPages={totalPages} onPage={setPage} total={list.length} />

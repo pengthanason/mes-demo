@@ -38,7 +38,7 @@ export function MesAuthPage() {
             <div className="notice info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span>Logged in as: <strong>{auth.username}</strong></span>
               <span style={{
-                background: ROLE_COLOR[auth.role] || '#64748b',
+                background: ROLE_COLOR[auth.role] || 'var(--ink-4)',
                 color: '#fff',
                 padding: '0.2rem 0.6rem',
                 borderRadius: 999,

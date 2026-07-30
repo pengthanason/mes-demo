@@ -7,6 +7,7 @@ import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
 import { Paginator } from '../components/Paginator';
+import { ROW_H_DENSE, fillerCount, FillerRows } from '../components/TableFill';
 import { FactoryOverview } from '../components/FactoryOverview';
 import { TableState } from '../components/DataStates';
 import { FileNamePromptModal } from '../components/FileNamePromptModal';
@@ -1384,7 +1385,7 @@ export function DashboardPage() {
                 const no = (page - 1) * PAGE + idx + 1;   // ลำดับต่อเนื่องข้ามหน้า
                 return (
                   <tr key={p.id} style={rowHasDelay(p) ? { background: '#fff7ed', boxShadow: 'inset 3px 0 0 #ea580c' } : undefined}>
-                    <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
+                    <td style={{ height: ROW_H_DENSE, textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{no}</td>
                     {DASH_COLUMNS.map(c => renderCell(c, p, y, () => setDetail(p), isViewer ? undefined : (key, e) => onCellClick(p, key, e), isViewer ? undefined : (key, value) => inlineSave(p, key, value)))}
                     {!isViewer && (
                       <td style={{ textAlign: 'center' }}>
@@ -1397,6 +1398,9 @@ export function DashboardPage() {
                   </tr>
                 );
               })}
+              {/* เติมแถวว่างให้ครบหน้า — ตารางสูงคงที่ ปุ่มเปลี่ยนหน้าไม่ขยับ
+                  (ตารางนี้มี tableLayout: fixed อยู่แล้ว → คอลัมน์นิ่งแต่เดิม) */}
+              <FillerRows count={fillerCount(paged.length, PAGE, totalPages)} cols={colCount} rowH={ROW_H_DENSE} />
             </tbody>
           </table>
         </div>

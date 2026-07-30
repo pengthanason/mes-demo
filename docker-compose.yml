@@ -60,7 +60,13 @@ services:
       DB_NAME: productiondb
       DB_USER: syntechdb
       DB_PASSWORD: syntech2026
-      DB_SCHEMA: ${MES_DB_SCHEMA:-}
+      # ⚠️ ต้องระบุ mes_core ชัดเจน — ห้ามปล่อยว่าง
+      # เหตุผล: backend/db.js:3 (runtime) default เป็น '' = ใช้ public
+      #         แต่ backend/knexfile.js:8 (migration) default เป็น 'mes_core'
+      #         → ปล่อยว่างแล้ว migration สร้างตารางที่ mes_core แต่ runtime อ่าน public = backend พังในตัวเอง
+      #         และตาราง public คือของ my-api (app_users, work_orders, pp_projects ฯลฯ 26 ตาราง) → ชนกัน
+      # แยกกันชัดเจน: backend = mes_core · my-api = public
+      DB_SCHEMA: ${MES_DB_SCHEMA:-mes_core}
       DB_SSLMODE: disable
       DB_CONNECT_TIMEOUT: ${MES_DB_CONNECT_TIMEOUT:-5000}
       EVENT_INBOX_SECRET: ${EVENT_INBOX_SECRET:-}

@@ -5,22 +5,12 @@ async function migrate() {
   // ตั้ง SEED_DEMO=false เพื่อไม่ใส่ข้อมูลตัวอย่าง (สำหรับ go-live / กระดานเปล่า)
   const SEED_DEMO = process.env.SEED_DEMO !== 'false';
   try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS boms (
-        id          SERIAL PRIMARY KEY,
-        name        VARCHAR(200) NOT NULL,
-        version     VARCHAR(50)  NOT NULL DEFAULT '1.0',
-        approved    BOOLEAN      NOT NULL DEFAULT false,
-        approved_at TIMESTAMPTZ,
-        created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-        UNIQUE(name, version)
-      )
-    `);
-
+    // ⚠️ ตาราง `boms` (หัว BOM) ถูกถอดออกจากระบบ — BOM ตัวจริงมาจากระบบภายนอก (MRP)
+    //    เหลือแต่ `bom_lines` โดย `bom_id` เป็น plain INTEGER (ไม่มี FK ในฐานข้อมูลนี้)
     await client.query(`
       CREATE TABLE IF NOT EXISTS bom_lines (
         id        SERIAL PRIMARY KEY,
-        bom_id    INTEGER     NOT NULL REFERENCES boms(id) ON DELETE CASCADE,
+        bom_id    INTEGER     NOT NULL,
         part_no   VARCHAR(100) NOT NULL,
         part_name VARCHAR(200) NOT NULL,
         qty_per   NUMERIC(10,4) NOT NULL DEFAULT 1,
@@ -46,7 +36,7 @@ async function migrate() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS pre_wo_requests (
         id         SERIAL PRIMARY KEY,
-        bom_id     INTEGER     NOT NULL REFERENCES boms(id),
+        bom_id     INTEGER     NOT NULL,
         qty        INTEGER     NOT NULL CHECK (qty > 0),
         due_date   DATE        NOT NULL,
         status     VARCHAR(30) NOT NULL DEFAULT 'PENDING'
@@ -403,18 +393,7 @@ async function migrate() {
       console.log('[migrate] seeded inventory lots');
     }
 
-    // ── Jig Retest Requests (FE-15: สั่งทดสอบซ้ำชิ้นที่ FAIL) ──
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS jig_retest_requests (
-        id           SERIAL PRIMARY KEY,
-        project_code VARCHAR(50)  NOT NULL,
-        serial       VARCHAR(100) NOT NULL,
-        status       VARCHAR(20)  NOT NULL DEFAULT 'REQUESTED'
-                       CHECK (status IN ('REQUESTED','DONE','CANCELLED')),
-        requested_by VARCHAR(100) NOT NULL DEFAULT '',
-        requested_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-      )
-    `);
+    // ── Jig Retest Requests: ถอดออกจากระบบแล้ว (ตาราง + endpoint + ปุ่มหน้าเว็บถูกลบ) ──
 
     // ── Production Scan (operator สแกนชิ้นงานทีละชิ้นที่แต่ละสถานี) ──
     await client.query(`
@@ -587,15 +566,10 @@ async function migrate() {
     // สายที่บันทึกผล (แท็บ Internal/External) — additive
     await client.query(`ALTER TABLE workflow_results ADD COLUMN IF NOT EXISTS line VARCHAR(10) NOT NULL DEFAULT 'internal'`);
 
-    // Seed ข้อมูลตัวอย่างถ้ายังว่าง
-    const { rows } = await client.query('SELECT COUNT(*) FROM boms');
+    // Seed ข้อมูลตัวอย่างถ้ายังว่าง (เกาะกับ work_orders — เดิมเช็คจาก boms ที่ถูกถอดออกแล้ว)
+    const { rows } = await client.query('SELECT COUNT(*) FROM work_orders');
     if (SEED_DEMO && Number(rows[0].count) === 0) {
-      await client.query(`
-        INSERT INTO boms (name, version, approved, approved_at) VALUES
-          ('PCB-A100 BOM', '1.0', true,  NOW()),
-          ('ASY-300 BOM',  '2.1', false, NULL),
-          ('MOT-4500 BOM', '1.3', true,  NOW())
-      `);
+      // bom_id เป็นเลขอ้างอิง BOM ของระบบภายนอก (ไม่มีตาราง boms ในระบบนี้แล้ว)
       await client.query(`
         INSERT INTO bom_lines (bom_id, part_no, part_name, qty_per, unit, sort_order) VALUES
           (1, 'R-100K',   'Resistor 100K Ohm',  10, 'pcs', 1),

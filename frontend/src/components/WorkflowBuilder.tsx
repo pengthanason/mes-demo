@@ -8,6 +8,7 @@ import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
 import { Paginator } from './Paginator';
+import { ROW_H, fillerCount, FillerRows } from './TableFill';
 
 type StepKind = 'process' | 'checkpoint';
 type TimeScope = 'per_unit' | 'once';
@@ -1731,7 +1732,17 @@ export function WorkflowBuilder() {
           })}
         </div>
         <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-          <table className="table" style={{ minWidth: 720 }}>
+          {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
+          <table className="table" style={{ minWidth: 720, width: '100%', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 130 }} />{/* Date/Time */}
+              <col style={{ width: 130 }} />{/* P/N */}
+              <col style={{ width: 110 }} />{/* Customer */}
+              <col style={{ width: 110 }} />{/* Model */}
+              <col />{/* Process sequence — กินที่เหลือ */}
+              <col style={{ width: 80 }} />{/* Cycle */}
+              {!isViewer && <col style={{ width: 90 }} />}{/* ปุ่มลบ */}
+            </colgroup>
             <thead>
               <tr>
                 <th>Date/Time</th><th>P/N</th><th>Customer</th><th>Model</th><th>Process sequence</th><th>Cycle</th>{!isViewer && <th></th>}
@@ -1742,17 +1753,20 @@ export function WorkflowBuilder() {
                 <tr><td colSpan={isViewer ? 6 : 7} style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>{results.length === 0 ? 'No recorded results yet — enter P/N + time then press “Record result”' : 'No results for the selected line — press “All” to view everything'}</td></tr>
               ) : pagedResults.map(r => (
                 <tr key={r.id}>
-                  <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: '#64748b' }}>{fmtDateTime(r.created_at)}</td>
-                  <td style={{ fontWeight: 600 }}>{r.serial}</td>
-                  <td>{r.customer || '—'}</td>
-                  <td>{r.model || '—'}</td>
-                  <td style={{ fontSize: '0.8rem', color: '#475569', minWidth: 260, maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>{r.sequence || '—'}</td>
+                  <td style={{ height: ROW_H, whiteSpace: 'nowrap', fontSize: '0.82rem', color: '#64748b' }}>{fmtDateTime(r.created_at)}</td>
+                  <td style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.serial}>{r.serial}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.customer || undefined}>{r.customer || '—'}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.model || undefined}>{r.model || '—'}</td>
+                  {/* เดิม whiteSpace:normal + wordBreak → ตัดหลายบรรทัด แถวสูงไม่เท่ากัน · เปลี่ยนเป็นบรรทัดเดียว + … (hover ดูเต็ม) */}
+                  <td style={{ fontSize: '0.8rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.sequence || undefined}>{r.sequence || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtTime(r.total_sec)}</td>
                   {!isViewer && (
                     <td><button className="btn danger" style={{ padding: '4px 10px', fontSize: '0.78rem' }} onClick={async () => { if (await confirmDialog(`Delete result ${r.serial}?`)) delResult.mutate(r.id); }}>Delete</button></td>
                   )}
                 </tr>
               ))}
+              {/* เติมแถวว่างให้ครบหน้า — ตารางสูงคงที่ ปุ่มเปลี่ยนหน้าไม่ขยับ */}
+              <FillerRows count={fillerCount(pagedResults.length, RES_PAGE_SIZE, resTotalPages)} cols={isViewer ? 6 : 7} />
             </tbody>
           </table>
         </div>

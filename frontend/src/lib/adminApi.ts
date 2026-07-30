@@ -85,13 +85,15 @@ export function useAdminUserDelete() {
   });
 }
 
-export function useAuditLogs(filters?: { actor?: string; action?: string }) {
+// kind: 'activity' = กิจกรรมการทำงาน (ไม่รวมเรื่องบัญชี) · 'account' = เข้าออกระบบ/จัดการผู้ใช้/ดาวน์โหลดข้อมูล
+export function useAuditLogs(filters?: { actor?: string; action?: string; kind?: 'activity' | 'account' }) {
   return useQuery({
     queryKey: [...LOGS_KEY, filters],
     queryFn: async (): Promise<AuditLog[]> => {
       const params: any = {};
       if (filters?.actor)  params.actor  = filters.actor;
       if (filters?.action) params.action = filters.action;
+      if (filters?.kind)   params.kind   = filters.kind;
       const res = await api.get('/admin/audit-log', Object.keys(params).length ? { params } : undefined);
       return ((res.data as any)?.data ?? []).map(mapLog);
     },

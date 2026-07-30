@@ -7,7 +7,7 @@ const STYLE: Record<string, { bg: string; text: string; border: string }> = {
 };
 
 export function ResultBadge({ value }: { value: string }) {
-  const s = STYLE[value] ?? { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+  const s = STYLE[value] ?? { bg: 'var(--surface-2)', text: 'var(--ink-3)', border: 'var(--line-3)' };
   return (
     <span className="status-badge" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
       {value}

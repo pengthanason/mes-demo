@@ -7,6 +7,7 @@ import {
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { WoInput } from '../components/WoInput';
 import { useWoLots, useScanSummary } from '../lib/lookups';
 import { TableState } from '../components/DataStates';
@@ -206,12 +207,12 @@ export function QcResultPage() {
                 </label>
                 <label className="field">
                   <span>FAIL (NG)</span>
-                  <input type="number" readOnly value={qtyCheckedN > 0 ? qtyFailN : ''} style={{ background: '#f1f5f9' }} />
+                  <input type="number" readOnly value={qtyCheckedN > 0 ? qtyFailN : ''} style={{ background: 'var(--surface-2)' }} />
                 </label>
               </div>
 
               {overall && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 1rem', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 1rem', background: 'var(--surface-1)', borderRadius: 6, border: '1px solid var(--line-2)' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Overall:</span>
                   <OverallBadge overall={overall} />
                 </div>
@@ -255,7 +256,20 @@ export function QcResultPage() {
 
         {/* ─── Table ────────────────────────────────────────────── */}
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-          <table className="table table-readonly" style={{ minWidth: 920, width: '100%' }}>
+          {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
+          <table className="table table-readonly" style={{ minWidth: 920, width: '100%', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 95 }} />{/* Date */}
+              <col style={{ width: 130 }} />{/* WO */}
+              <col style={{ width: 110 }} />{/* Lot */}
+              <col style={{ width: 75 }} />{/* Checked */}
+              <col style={{ width: 65 }} />{/* Pass */}
+              <col style={{ width: 65 }} />{/* Fail */}
+              <col style={{ width: 95 }} />{/* Overall */}
+              <col />{/* Defect / Remark — กินที่เหลือ */}
+              <col style={{ width: 100 }} />{/* QA Verify */}
+              <col style={{ width: 100 }} />{/* Actions */}
+            </colgroup>
             <thead>
               <tr>
                 <th>Date</th>
@@ -279,16 +293,19 @@ export function QcResultPage() {
                 <TableState colSpan={10} state="empty" emptyText={woFilter.trim() ? 'No items match the filter — clear the WO search to see all' : 'No QC Result data yet — click “+ Record QC Result” to start'} />
               ) : pagedList.map(r => (
                 <tr key={r.id}>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(r.createdAt).toLocaleDateString('en-GB')}</td>
-                  <td style={{ fontWeight: 600 }}>{r.woId}</td>
-                  <td>{r.lotNo}</td>
+                  <td style={{ height: ROW_H, color: 'var(--text-muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{new Date(r.createdAt).toLocaleDateString('en-GB')}</td>
+                  <td style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.woId}>{r.woId}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.lotNo}>{r.lotNo}</td>
                   <td style={{ textAlign: 'center' }}>{r.qtyChecked}</td>
                   <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>{r.qtyPass}</td>
                   <td style={{ textAlign: 'center', color: r.qtyFail > 0 ? '#dc2626' : 'var(--text-muted)', fontWeight: r.qtyFail > 0 ? 600 : 400 }}>{r.qtyFail}</td>
                   <td style={{ textAlign: 'center' }}><OverallBadge overall={r.overall} /></td>
-                  <td style={{ fontSize: '0.8rem', maxWidth: 260, whiteSpace: 'normal', textAlign: 'center' }}>
-                    {r.defectDesc && <div style={{ color: '#dc2626' }}>{r.defectDesc}</div>}
-                    {r.remark && <div style={{ color: 'var(--text-muted)' }}>📝 {r.remark}</div>}
+                  {/* รวมเป็นบรรทัดเดียว + ตัด … (เดิม 2 บรรทัดทำให้แถวสูงไม่เท่ากัน) · hover ดูเต็มได้ */}
+                  <td style={{ fontSize: '0.8rem', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={[r.defectDesc, r.remark].filter(Boolean).join(' · ') || undefined}>
+                    {r.defectDesc && <span style={{ color: '#dc2626' }}>{r.defectDesc}</span>}
+                    {r.defectDesc && r.remark && <span style={{ color: 'var(--line-3)' }}> · </span>}
+                    {r.remark && <span style={{ color: 'var(--text-muted)' }}>📝 {r.remark}</span>}
                     {!r.defectDesc && !r.remark && <span style={{ color: 'var(--text-muted)' }}>—</span>}
                   </td>
                   <td style={{ textAlign: 'center' }}>
@@ -312,6 +329,7 @@ export function QcResultPage() {
                   </td>
                 </tr>
               ))}
+              <FillerRows count={fillerCount(pagedList.length, PAGE_SIZE, totalPages)} cols={10} />
             </tbody>
           </table>
         </div>

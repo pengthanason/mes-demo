@@ -11,7 +11,7 @@ import { useObaRecords } from '../lib/recordsApi';
 import { TRACE_URL } from '../lib/jigTrace';
 
 const rate = (pass: number, total: number) => total > 0 ? (pass / total) * 100 : null;
-const rateColor = (r: number | null) => r == null ? '#94a3b8' : r >= 95 ? '#16a34a' : r >= 85 ? '#d97706' : '#dc2626';
+const rateColor = (r: number | null) => r == null ? 'var(--ink-5)' : r >= 95 ? '#16a34a' : r >= 85 ? '#d97706' : '#dc2626';
 const pct = (r: number | null) => r == null ? '—' : `${r.toFixed(1)}%`;
 
 /* การ์ดกดได้ → ลิงก์ไปหน้าโมดูล */

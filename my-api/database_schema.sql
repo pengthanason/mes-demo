@@ -80,19 +80,12 @@ CREATE TABLE notifications (
 );
 
 -- ── BOM ──────────────────────────────────────────────────────────────────────
-CREATE TABLE boms (
-    id          SERIAL PRIMARY KEY,
-    name        VARCHAR(200) NOT NULL,
-    version     VARCHAR(50)  NOT NULL DEFAULT '1.0',
-    approved    BOOLEAN      NOT NULL DEFAULT false,
-    approved_at TIMESTAMPTZ,
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    UNIQUE (name, version)
-);
-
+-- ⚠️ ไม่มีตาราง `boms` (หัว BOM) — BOM ตัวจริงมาจากระบบภายนอก (MRP)
+--    เก็บแต่ `bom_lines` (รายการชิ้นส่วน) โดย bom_id = เลขอ้างอิง BOM ของระบบภายนอก
+--    เป็น plain INTEGER ไม่มี FK (ระบบนี้ยืนยันความมีอยู่ของ BOM ไม่ได้)
 CREATE TABLE bom_lines (
     id         SERIAL PRIMARY KEY,
-    bom_id     INTEGER       NOT NULL REFERENCES boms(id) ON DELETE CASCADE,
+    bom_id     INTEGER       NOT NULL,
     part_no    VARCHAR(100)  NOT NULL,
     part_name  VARCHAR(200)  NOT NULL,
     qty_per    NUMERIC(10,4) NOT NULL DEFAULT 1,
@@ -124,7 +117,7 @@ CREATE TABLE work_orders (
 
 CREATE TABLE pre_wo_requests (
     id         SERIAL PRIMARY KEY,
-    bom_id     INTEGER      NOT NULL REFERENCES boms(id),
+    bom_id     INTEGER      NOT NULL,                       -- อ้าง BOM ของระบบภายนอก (ไม่มี FK)
     qty        INTEGER      NOT NULL,
     due_date   DATE         NOT NULL,
     status     VARCHAR(30)  NOT NULL DEFAULT 'PENDING',
@@ -192,15 +185,8 @@ CREATE TABLE jig_test_records (
     CONSTRAINT jig_test_records_result_check CHECK (result IN ('PASS','FAIL'))
 );
 
-CREATE TABLE jig_retest_requests (
-    id           SERIAL PRIMARY KEY,
-    project_code VARCHAR(50)  NOT NULL,
-    serial       VARCHAR(100) NOT NULL,
-    status       VARCHAR(20)  NOT NULL DEFAULT 'REQUESTED',
-    requested_by VARCHAR(100) NOT NULL DEFAULT '',
-    requested_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT jig_retest_requests_status_check CHECK (status IN ('REQUESTED','DONE','CANCELLED'))
-);
+-- ⚠️ ไม่มีตาราง `jig_retest_requests` — ฟีเจอร์สั่งทดสอบซ้ำถูกถอดออกจากระบบแล้ว
+--    (ถอดทั้งตาราง · endpoint GET/POST retest · ปุ่ม "Request Retest" ในหน้า Jig Project)
 
 -- ── Inventory / Kitting ──────────────────────────────────────────────────────
 CREATE TABLE inventory_lots (

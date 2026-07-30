@@ -185,10 +185,15 @@ router.get('/:woId', async (req, res) => {
 router.get('/req/list', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT r.id AS req_id, r.bom_id, b.name AS bom_name,
+      // ตาราง boms ถูกถอดออก (BOM มาจากระบบภายนอก) → ชื่อ BOM derive จาก bom_lines
+      // LEFT JOIN: pre-WO ที่ยังไม่มี bom_lines ในระบบก็ยังแสดงได้ (ไม่หายจากรายการ)
+      `SELECT r.id AS req_id, r.bom_id,
+              COALESCE(l.bom_name, 'BOM #' || r.bom_id) AS bom_name,
               r.qty, r.due_date, r.status, r.wo_id, r.created_at
        FROM pre_wo_requests r
-       JOIN boms b ON b.id = r.bom_id
+       LEFT JOIN (
+         SELECT bom_id, MIN(part_name) AS bom_name FROM bom_lines GROUP BY bom_id
+       ) l ON l.bom_id = r.bom_id
        ORDER BY r.created_at DESC`
     );
     res.json({ status: 'success', data: rows });
@@ -203,10 +208,11 @@ router.post('/req', async (req, res) => {
   if (!bom_id || !qty || !due_date) {
     return res.status(400).json({ status: 'error', message: 'bom_id, qty, due_date required' });
   }
+  // เดิมเช็คว่า bom_id มีในตาราง boms — ตอนนี้ boms ถูกถอดออก (BOM อยู่ระบบภายนอก)
+  // จึงตรวจได้แค่ว่าเป็นจำนวนเต็มที่ใช้ได้ ส่วนความมีอยู่จริงของ BOM ให้ระบบภายนอกเป็นผู้ยืนยัน
+  const bomIdErr = intErr('bom_id', bom_id, { min: 1 });
+  if (bomIdErr) return res.status(400).json({ status: 'error', message: bomIdErr });
   try {
-    const bom = await db.query('SELECT id FROM boms WHERE id=$1', [bom_id]);
-    if (!bom.rows.length) return res.status(404).json({ status: 'error', message: 'BOM not found' });
-
     const { rows } = await db.query(
       `INSERT INTO pre_wo_requests (bom_id, qty, due_date)
        VALUES ($1, $2, $3)
@@ -245,10 +251,15 @@ router.post('/convert', async (req, res) => {
     client = await db.connect();
     await client.query('BEGIN');
 
+    // ชื่อสินค้าของ WO เดิมเอาจาก boms.name — ตอนนี้ derive จาก bom_lines (ไม่มีก็ใช้ 'BOM #id')
+    // FOR UPDATE ต้องระบุ OF r เพราะมี subquery join อยู่ (ล็อกแค่แถว pre_wo_requests)
     const reqRes = await client.query(
-      `SELECT r.*, b.name AS bom_name FROM pre_wo_requests r
-       JOIN boms b ON b.id=r.bom_id
-       WHERE r.id=$1 FOR UPDATE`,
+      `SELECT r.*, COALESCE(l.bom_name, 'BOM #' || r.bom_id) AS bom_name
+         FROM pre_wo_requests r
+         LEFT JOIN (
+           SELECT bom_id, MIN(part_name) AS bom_name FROM bom_lines GROUP BY bom_id
+         ) l ON l.bom_id = r.bom_id
+        WHERE r.id=$1 FOR UPDATE OF r`,
       [req_id]
     );
     if (!reqRes.rows.length) {

@@ -3,17 +3,17 @@ import { useWoOverview } from '../lib/planningApi';
 
 // #54: Work Orders Overview บน Dashboard — ดีไซน์ชุดเดียวกับ Station Status: KPI strip + ตาราง grid + บาร์บาง
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
-const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', userSelect: 'none', cursor: 'default' };
+const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: 'var(--ink-1)', userSelect: 'none', cursor: 'default' };
 const SEARCH: React.CSSProperties = { fontSize: '0.85rem', padding: '7px 12px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 200, maxWidth: '45%' };
 const COLS = '160px 1fr 90px 140px';   // Work order | Progress | Yield | Status
 
 const ST_STYLE: Record<string, { bg: string; text: string; border: string; bar: string; label: string }> = {
-  PENDING:     { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', bar: '#94a3b8', label: 'Pending' },
+  PENDING:     { bg: 'var(--surface-2)', text: 'var(--ink-3)', border: 'var(--line-3)', bar: 'var(--ink-5)', label: 'Pending' },
   IN_PROGRESS: { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', bar: '#3b82f6', label: 'In progress' },
   DONE:        { bg: '#dcfce7', text: '#166534', border: '#86efac', bar: '#22c55e', label: 'Done' },
   CANCELLED:   { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5', bar: '#ef4444', label: 'Cancelled' },
 };
-const FALLBACK = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', bar: '#94a3b8', label: '' };
+const FALLBACK = { bg: 'var(--surface-2)', text: 'var(--ink-3)', border: 'var(--line-3)', bar: 'var(--ink-5)', label: '' };
 function StatusPill({ status }: { status: string }) {
   const s = ST_STYLE[status] ?? { ...FALLBACK, label: status || '—' };
   return <span className="status-badge" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>{s.label}</span>;
@@ -22,7 +22,7 @@ function StatusPill({ status }: { status: string }) {
 // KPI มินิการ์ด (ชุดเดียวกับ Station Status)
 function Kpi({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div style={{ flex: 1, minWidth: 90, background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10, padding: '9px 13px' }}>
+    <div style={{ flex: 1, minWidth: 90, background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '9px 13px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ width: 8, height: 8, borderRadius: 999, background: color, flexShrink: 0 }} />
         <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value.toLocaleString()}</span>
@@ -71,7 +71,7 @@ export function WoOverviewWidget() {
         <>
           {/* KPI strip (ชุดเดียวกับ Station Status) */}
           <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-            <Kpi label="Total" value={workOrders.length} color="#64748b" />
+            <Kpi label="Total" value={workOrders.length} color="var(--ink-4)" />
             <Kpi label="In progress" value={counts.IN_PROGRESS || 0} color={ST_STYLE.IN_PROGRESS.bar} />
             <Kpi label="Done" value={counts.DONE || 0} color={ST_STYLE.DONE.bar} />
             <Kpi label="Pending" value={counts.PENDING || 0} color={ST_STYLE.PENDING.bar} />
@@ -89,12 +89,12 @@ export function WoOverviewWidget() {
               const pct = w.qtyTarget > 0 ? Math.min(100, Math.round((w.qtyGood / w.qtyTarget) * 100)) : 0;
               const st = ST_STYLE[w.status] ?? FALLBACK;
               const yCol = w.yieldPct == null ? 'var(--text-muted)' : w.yieldPct >= 95 ? '#16a34a' : w.yieldPct >= 80 ? '#d97706' : '#dc2626';
-              const yBg = w.yieldPct == null ? '#f1f5f9' : w.yieldPct >= 95 ? '#dcfce7' : w.yieldPct >= 80 ? '#fef3c7' : '#fee2e2';
+              const yBg = w.yieldPct == null ? 'var(--surface-2)' : w.yieldPct >= 95 ? '#dcfce7' : w.yieldPct >= 80 ? '#fef3c7' : '#fee2e2';
               return (
                 <div key={w.id}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-1)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '9px 8px', borderRadius: 10, borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
+                  style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '9px 8px', borderRadius: 10, borderBottom: '1px solid var(--surface-2)', transition: 'background 0.15s' }}>
                   {/* Work order + จุดสถานะ (mirror Station: dot + 2 บรรทัด) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: st.bar, flexShrink: 0 }} />
@@ -107,11 +107,11 @@ export function WoOverviewWidget() {
                   <div style={{ minWidth: 0 }} title={`Good ${w.qtyGood.toLocaleString()} / Target ${w.qtyTarget.toLocaleString()} (${pct}%)`}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        <b style={{ color: '#334155' }}>{w.qtyGood.toLocaleString()}</b> / {w.qtyTarget.toLocaleString()} pcs
+                        <b style={{ color: 'var(--ink-2)' }}>{w.qtyGood.toLocaleString()}</b> / {w.qtyTarget.toLocaleString()} pcs
                       </span>
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, color: st.bar }}>{pct}%</span>
                     </div>
-                    <div style={{ height: 8, background: '#eef2f7', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ height: 8, background: 'var(--line-1)', borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${pct}%`, background: st.bar, borderRadius: 999, transition: 'width 0.3s' }} />
                     </div>
                   </div>

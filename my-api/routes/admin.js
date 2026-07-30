@@ -102,13 +102,23 @@ router.delete('/users/:id', async (req, res) => {
 
 // ── Audit Log ──────────────────────────────────────────────────────
 
+// การกระทำที่เกี่ยวกับ "บัญชีผู้ใช้ / การเข้าถึง" — แยกออกจากกิจกรรมการทำงานปกติ
+// เข้าออกระบบ · สร้าง/แก้/ลบผู้ใช้ · ดาวน์โหลดข้อมูลทั้งระบบ (อ่อนไหว ควรอยู่กลุ่มความปลอดภัย)
+const ACCOUNT_ACTIONS = ['LOGIN', 'LOGOUT', 'CREATE_USER', 'UPDATE_USER', 'DELETE_USER', 'EXPORT_BACKUP'];
+
 router.get('/audit-log', async (req, res) => {
-  const { actor, action } = req.query;
+  const { actor, action, kind } = req.query;
   const conds = [];
   const vals  = [];
   // ค้นด้วยชื่อผู้ใช้ → เจอทั้งตอนที่เขาเป็นผู้ทำ (actor) และตอนถูกอ้างถึง (detail เช่น "สร้างผู้ใช้: somchai")
   if (actor)  { vals.push(`%${actor}%`);  conds.push(`(actor ILIKE $${vals.length} OR detail ILIKE $${vals.length})`); }
   if (action) { vals.push(`%${action}%`); conds.push(`action ILIKE $${vals.length}`); }
+  // kind=account → เฉพาะเรื่องบัญชี/การเข้าถึง · kind=activity → ทุกอย่างที่ "ไม่ใช่" เรื่องบัญชี
+  // แยกที่ SQL (ไม่ใช่ตัดฝั่ง frontend) เพราะมี LIMIT 200 — ถ้าตัดทีหลังแท็บที่ข้อมูลน้อยจะหายไปเลย
+  if (kind === 'account' || kind === 'activity') {
+    vals.push(ACCOUNT_ACTIONS);
+    conds.push(kind === 'account' ? `action = ANY($${vals.length})` : `NOT (action = ANY($${vals.length}))`);
+  }
   try {
     const { rows } = await db.query(
       `SELECT id, actor, action, target_type, target_id, detail, created_at

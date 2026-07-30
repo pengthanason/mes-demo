@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useObaRecords, useObaCreate } from '../lib/recordsApi';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { WoInput } from '../components/WoInput';
 import { useWoLots } from '../lib/lookups';
 import { ResultBadge } from '../components/ResultBadge';
@@ -57,7 +58,7 @@ export function ObaPage() {
         {error  && <div className="notice err">{error}</div>}
         {saved  && <div className="notice ok">✅ Saved successfully!</div>}
 
-        <style>{`.oba-input::placeholder { color: #94a3b8; opacity: 1; }`}</style>
+        <style>{`.oba-input::placeholder { color: var(--ink-5); opacity: 1; }`}</style>
 
         <form className="stack" onSubmit={handleSubmit}>
           <label className="field">
@@ -110,7 +111,16 @@ export function ObaPage() {
           <BlockState state="empty" emptyText="No history yet — save an OBA record to add data" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-            <table className="table table-readonly" style={{ minWidth: '550px', width: '100%' }}>
+            {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
+            <table className="table table-readonly" style={{ minWidth: '550px', width: '100%', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: 130 }} />{/* WO ID */}
+                <col style={{ width: 120 }} />{/* Lot No. */}
+                <col style={{ width: 95 }} />{/* Sample Qty */}
+                <col style={{ width: 90 }} />{/* Result */}
+                <col />{/* Defect Note — กินที่เหลือ */}
+                <col style={{ width: 150 }} />{/* Timestamp */}
+              </colgroup>
               <thead>
                 <tr>
                   <th>WO ID</th>
@@ -124,16 +134,17 @@ export function ObaPage() {
               <tbody>
                 {pagedRecords.map(r => (
                   <tr key={r.id}>
-                    <td style={{ fontWeight: 600 }}>{r.woId}</td>
-                    <td>{r.lotNo}</td>
+                    <td style={{ height: ROW_H, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.woId}>{r.woId}</td>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.lotNo}>{r.lotNo}</td>
                     <td style={{ textAlign: 'center' }}>{r.sampleQty}</td>
                     <td style={{ textAlign: 'center' }}><ResultBadge value={r.result} /></td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{r.defectNote || '—'}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.defectNote || undefined}>{r.defectNote || '—'}</td>
                     <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                       {new Date(r.timestamp).toLocaleString()}
                     </td>
                   </tr>
                 ))}
+                <FillerRows count={fillerCount(pagedRecords.length, HIST_PAGE_SIZE, totalHistPages)} cols={6} />
               </tbody>
             </table>
           </div>

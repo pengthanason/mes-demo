@@ -173,22 +173,11 @@ router.post('/projects/:code/records', async (req, res) => {
   }
 });
 
-// ── Retest (สั่งทดสอบซ้ำชิ้นที่ FAIL) ──
-router.get('/projects/:code/retests', async (req, res) => {
-  try {
-    const { rows } = await db.query(
-      `SELECT id, project_code, serial, status, requested_by, requested_at
-       FROM jig_retest_requests WHERE project_code=$1
-       ORDER BY requested_at DESC`,
-      [req.params.code]
-    );
-    res.json({ status: 'success', data: rows });
-  } catch (e) {
-    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
-  }
-});
+// ── Retest: ถอดออกจากระบบแล้ว (ตาราง jig_retest_requests ถูกลบ) ──
+//    ปุ่ม "Request Retest" ฝั่งหน้าเว็บถูกถอดตามไปด้วย
+//    ถ้าจะเอาฟีเจอร์นี้กลับ ต้องสร้างตารางใหม่ + คืน endpoint ทั้ง 2 ตัว (GET retests / POST retest)
 
-// ── ลบโปรเจกต์ Jig (ลบผลทดสอบ + retest ของมันด้วย) ──
+// ── ลบโปรเจกต์ Jig (ลบผลทดสอบของมันด้วย) ──
 router.delete('/projects/:code', async (req, res) => {
   // ต้องเป็น transaction — ของเดิมยิง 3 query แยกกัน ถ้าพังหลังขั้นที่ 2
   // ผลทดสอบทั้งโปรเจกต์จะหายถาวรแต่ตัวโปรเจกต์ยังอยู่ กู้คืนไม่ได้
@@ -196,8 +185,7 @@ router.delete('/projects/:code', async (req, res) => {
   try {
     client = await db.connect();
     await client.query('BEGIN');
-    await client.query('DELETE FROM jig_retest_requests WHERE project_code=$1', [req.params.code]);
-    await client.query('DELETE FROM jig_test_records   WHERE project_code=$1', [req.params.code]);
+    await client.query('DELETE FROM jig_test_records WHERE project_code=$1', [req.params.code]);
     const { rowCount } = await client.query('DELETE FROM jig_projects WHERE project_code=$1', [req.params.code]);
     if (!rowCount) {
       await client.query('ROLLBACK');
@@ -210,22 +198,6 @@ router.delete('/projects/:code', async (req, res) => {
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
     if (client) client.release();
-  }
-});
-
-router.post('/projects/:code/retest', async (req, res) => {
-  const { serial, requested_by } = req.body;
-  if (!serial) return res.status(400).json({ status: 'error', message: 'serial required' });
-  try {
-    const { rows } = await db.query(
-      `INSERT INTO jig_retest_requests (project_code, serial, requested_by)
-       VALUES ($1,$2,$3)
-       RETURNING id, project_code, serial, status, requested_by, requested_at`,
-      [req.params.code, serial, requested_by || '']
-    );
-    res.status(201).json({ status: 'success', data: rows[0] });
-  } catch (e) {
-    console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
 

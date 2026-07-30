@@ -86,7 +86,7 @@ export function ComboBoxInput({
                 background: o === value ? '#e0f2fe' : '#fff', color: o === value ? '#0369a1' : 'var(--text-body)',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}
-              onMouseEnter={e => { if (o !== value) e.currentTarget.style.background = '#f1f5f9'; }}
+              onMouseEnter={e => { if (o !== value) e.currentTarget.style.background = 'var(--surface-2)'; }}
               onMouseLeave={e => { if (o !== value) e.currentTarget.style.background = '#fff'; }}
             >
               {o}

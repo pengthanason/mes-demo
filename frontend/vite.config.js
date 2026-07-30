@@ -43,6 +43,9 @@ export default defineConfig({
       '/api/workflow':      { target: 'http://localhost:5099', changeOrigin: true },
       '/api/mes':           { target: 'http://localhost:5099', changeOrigin: true },   // #52 dev stub (backbone auth ใช้ my-api token ไม่ได้)
       '/api/planning':      { target: 'http://localhost:5099', changeOrigin: true },   // #54 dev stub (endpoint จริงยังรอ merge)
+      '/api/backup':        { target: 'http://localhost:5099', changeOrigin: true },   // Settings → Backup ข้อมูล
+      // ⚠️ เพิ่ม route ใหม่ของ my-api ต้องมาเพิ่มที่นี่ด้วย ไม่งั้นจะตกไป '/api' ท้ายไฟล์ → ยิงไป backbone :5100
+      //    ซึ่งไม่รู้จัก token ของ my-api → ตอบ 401 → frontend เด้ง logout (หาสาเหตุยาก)
       // Everything else → MES backbone (Docker)
       '/api': { target: 'http://localhost:5100', changeOrigin: true },
     },
