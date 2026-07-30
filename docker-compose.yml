@@ -92,7 +92,10 @@ services:
       DB_PORT: 5432
       DB_NAME: productiondb
       DB_USER: syntechdb
-      DB_PASSWORD: syntech2026
+      # ค่าจริงอ่านจากไฟล์ .env (ถูก gitignore) — ไม่เก็บความลับไว้ในไฟล์ที่ commit
+      DB_PASSWORD: ${DB_PASSWORD:-syntech2026}
+      # ลายเซ็น JWT — ถ้าไม่ตั้งจะใช้ค่า dev ของ auth-token.js (มี warning ใน log)
+      JWT_SECRET: ${JWT_SECRET:-}
       SEED_DEMO: "false"
     ports:
       - "5099:5099"

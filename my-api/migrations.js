@@ -197,12 +197,17 @@ async function migrate() {
     // ⚠️ ต้องมี SEED_DEMO เป็นเงื่อนไขด้วย — ไม่งั้น deploy prod บน DB เปล่าจะได้บัญชี admin/admin อัตโนมัติ
     //    (prod ให้สร้าง admin คนแรกด้วย seed_admin.sql เท่านั้น แล้วเปลี่ยนรหัสทันที)
     if (SEED_DEMO && Number(userCount.rows[0].count) === 0) {
-      await client.query(`
-        INSERT INTO app_users (username, full_name, role) VALUES
-          ('admin',   'ผู้ดูแลระบบ',    'ADMIN'),
-          ('member1', 'วิชัย สุขใจ',    'MEMBER'),
-          ('viewer1', 'สมหมาย ดีใจ',    'VIEWER')
-      `);
+      // ระบุ password_hash ตรงนี้เลย — ถ้าปล่อยให้ DEFAULT จะพังบนฐานที่สร้างจาก database_schema.sql
+      // (ที่นั่น password_hash เป็น NOT NULL + CHECK (<> '') ไม่มี DEFAULT) → NOT NULL violation → migrate ตายทั้งไฟล์
+      const bcryptSeed = require('bcryptjs');
+      const h = (pw) => bcryptSeed.hashSync(pw, 10);
+      await client.query(
+        `INSERT INTO app_users (username, full_name, role, password_hash) VALUES
+           ('admin',   'ผู้ดูแลระบบ', 'ADMIN',  $1),
+           ('member1', 'วิชัย สุขใจ', 'MEMBER', $2),
+           ('viewer1', 'สมหมาย ดีใจ', 'VIEWER', $3)`,
+        [h('admin'), h('member1'), h('viewer1')]
+      );
       await client.query(`
         INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES
           ('admin',   'LOGIN',       NULL,          NULL,           'เข้าสู่ระบบสำเร็จ'),

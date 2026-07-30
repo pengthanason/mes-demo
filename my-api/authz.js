@@ -27,15 +27,19 @@ const ROUTE_PERM = [
   { prefix: '/api/inventory',     perm: 'incoming' },
   { prefix: '/api/notifications', perm: 'notifications' },
   { prefix: '/api/admin',         perm: 'admin' },
+  { prefix: '/api/backup',        perm: 'settings' },   // ปุ่ม Backup อยู่ในหน้า Settings → ใช้ perm เดียวกัน
 ];
 
 // path ที่เข้าได้โดยไม่ต้องล็อกอิน (มีเท่านี้เท่านั้น)
 const PUBLIC_PATHS = [/^\/api\/auth(\/|$)/, /^\/api\/health(\/|$)/];
 
 // ค่าเริ่มต้นตาม role (ตรงกับ ROLE_DEFAULT_PERMS ฝั่ง frontend) — ใช้เมื่อผู้ใช้ยังไม่กำหนดสิทธิ์เอง
+// 'settings' = หน้า Settings (มีปุ่ม Backup ดาวน์โหลดข้อมูลทั้งระบบ) — ให้ MEMBER ได้
+// (แต่ไฟล์ของ MEMBER จะไม่มีตาราง app_users — ตัดออกใน routes/backup.js)
+// VIEWER ไม่ได้ เพราะดูอย่างเดียวไม่ควรดึงข้อมูลทั้งก้อนออกนอกระบบ
 const ROLE_DEFAULTS = {
   ADMIN:  null, // = ทุกหน้า
-  MEMBER: ['dashboard', 'production_plan', 'incoming', 'work_orders', 'jig_test', 'oba', 'cr', 'scm', 'qc', 'equipment', 'notifications'],
+  MEMBER: ['dashboard', 'production_plan', 'incoming', 'work_orders', 'jig_test', 'oba', 'cr', 'scm', 'qc', 'equipment', 'notifications', 'settings'],
   VIEWER: ['dashboard', 'cr', 'qc', 'jig_test', 'equipment', 'notifications'],
 };
 

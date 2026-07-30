@@ -1,5 +1,22 @@
 # Syntech MES -- Status & Handoff
-> อัปเดต: **2026-07-17** (intern repo `syntech-intern-2026`, branch `develop`) · ประวัติ deploy server (172.16.10.87) อยู่ด้านล่าง
+> อัปเดต: **2026-07-30** (intern repo `syntech-intern-2026`, branch `develop`) · ประวัติ deploy server (172.16.10.87) อยู่ด้านล่าง
+
+## 2026-07-30 Frontend Track — Pre-production hardening (security + robustness)
+
+ตรวจทั้งระบบก่อนขึ้น prod พบ blocker 10 ข้อ + ควรแก้ 10 ข้อ → ปิดไป **17 ข้อ** (เทสยืนยันทุกข้อ) · เหลือ pagination 1 ข้อ (ไม่บล็อก)
+
+- **Auth (ช่องโหว่ร้ายแรง · ปิดแล้ว)**: เดิม API ไม่มี auth เลย — ไม่ส่ง token ก็ได้ 200 ทุก endpoint และปลอม `base64("x:ADMIN:0")` เป็น admin ได้ → เปลี่ยนเป็น **JWT ลงลายเซ็น** (`auth-token.js` ใหม่ · payload เก็บแค่ `sub` · exp 8 ชม.) + เขียน `authz.js` ใหม่เป็น **fail-closed** (ไม่มี/ปลอม/หมดอายุ = 401 · DB ล่ม = 503 · route ที่ไม่ได้กำกับ = 403 default deny · **VIEWER เขียนไม่ได้ทุกกรณี**) · role อ่านจาก DB ทุก request ไม่เชื่อ token · เพิ่ม `GET /api/auth/me`
+- **Audit trail**: actor เดิมถอด base64 จาก header ดิบๆ (ปลอมได้) + `admin.js` hardcode `'admin'` → เปลี่ยนมาใช้ `req.user.username` จาก JWT ที่ verify แล้วทุกจุด
+- **Hardening**: `helmet` + CORS allowlist (`CORS_ORIGINS` · ว่าง = same-origin) + rate limit (login 10/15นาที · API 600/นาที) · `bcrypt.compare` async (เดิม sync บล็อก event loop) + dummy hash กัน timing attack · รหัสขั้นต่ำ 4→8 ตัว
+- **ลบความเสี่ยงที่ ship ไป prod**: เอา `DEMO_ACCOUNTS` (admin/admin) ออกจากหน้า login · `SEED_DEMO=false` ปิดการสร้าง admin/admin + รหัส=username ได้จริงแล้ว (เดิมไม่ปิด)
+- **API robustness**: เพิ่ม error middleware (Express 4 ไม่ forward async rejection → เดิม request ค้างไม่มี response) · ย้าย `db.connect()` เข้า try + ห่อ ROLLBACK (wo/bom/inventory/production/jig/records/pp) · ห่อ transaction ที่ตกหล่น 3 จุด (`jig` delete/records, `POST /api/qc`) · WO number `COUNT+1` → `MAX+1` + retry 23505 (เดิม 2 คนกดพร้อมกันได้เลขซ้ำ)
+- **Validation (500 → 400 มีข้อความ)**: 8 เคสที่เคยพัง — `qty:-5`, `qty:"1000 pcs"`, `sample_qty:-3`, `voltage:"3.3V"` (NaN ลง DB เงียบๆ), `qty:2.5` ตอนเบิกของ, `done:"maybe"`, `process_log` ที่ไม่ใช่ array, `role:"SUPERADMIN"` · เพิ่ม INT4_MAX / boolean / date guard · จำกัด `steps` ≤ 200 · clamp `limit` ของ jig
+- **Data integrity**: แก้ TOCTOU ของ PP update ด้วย `SELECT ... FOR UPDATE` ใน transaction (เดิม 2 คนแก้พร้อมกันทะลุกฎ `produce ≤ qty` ได้) · ฟอร์ม popup ส่งเฉพาะ field ที่เปลี่ยน (เดิมยัดค่าเดิมทั้งฟอร์มไปชนกฎ "Done ต้องผลิตครบ" → แก้แถวข้อมูลค้างไม่ได้เลย)
+- **Performance**: เพิ่ม **21 index** (เดิมไม่มีเลย) — `production_scans` 4 ตัว (station monitor poll ทุก 8 วิ ทำ seq scan ทั้งตาราง), `audit_logs`, `qc_results`, `jig_test_records` ฯลฯ
+- **Deploy readiness**: `database_schema.sql` ทำเป็น **ไฟล์เดียวจบ** (schema + index + bootstrap admin · รวม `seed_admin.sql` เข้ามา) · แก้ `migrations.js` ไม่ให้พังบนฐานที่สร้างจาก schema.sql (เดิม insert `app_users` ไม่ใส่ `password_hash` → NOT NULL violation → statement ที่เหลือไม่รันทั้งไฟล์) · fail-fast ถ้าไม่ตั้ง `DATABASE_URL`/`JWT_SECRET` บน prod · เพิ่ม `/api/health/ready` (เช็ค DB จริง เดิม health ตอบ ok ตายตัว → DB ล่มแต่ LB เห็นเขียว) · `NODE_ENV=production` ใน `my-api/Dockerfile` · `.catch()` ใน `main.jsx` (mock พัง = จอขาวทั้งเว็บ) · ย้ายรหัส DB ออกจาก `docker-compose.yml` ไป `.env` · CI เพิ่ม branch `develop`
+- **เอกสาร**: `my-api/.env.example` (ใหม่) · เขียน `DEPLOY-RENDER.md` ใหม่ (2 แบบ: Render+Neon / เซิร์ฟเวอร์บริษัท + checklist หลัง deploy)
+- **Data fix**: แก้ข้อมูล PP ที่ขัดกัน 4 แถว (DONE แต่ผลิตไม่ครบ · FG 1,413 > ผลิต 796) ผ่าน API เพื่อให้ validation + audit log ทำงาน
+- **ค้าง (ไม่บล็อก)**: pagination ~15 endpoint ที่ `SELECT` ทั้งตาราง (มี index รองรับแล้ว ค่อยทำเมื่อข้อมูลแตะหลักหมื่นแถว) · `equipment-borrow` ปล่อยตามที่ตกลง (ใช้เอง)
 
 ## 2026-07-17 Frontend Track — UI polish + tests + dashboard widgets
 

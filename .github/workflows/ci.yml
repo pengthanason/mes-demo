@@ -3,7 +3,7 @@ name: CI
 # รันอัตโนมัติทุก push ขึ้น branch หลัก + ทุก Pull Request → จับ bug ก่อน merge
 on:
   push:
-    branches: [ main, mes, 'feat/**' ]
+    branches: [ main, mes, develop, 'feat/**' ]
   pull_request:
 
 jobs:

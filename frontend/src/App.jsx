@@ -27,6 +27,7 @@ import { QcPage } from './pages/QcPage.tsx';
 import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
 import { DriftViewerPage } from './pages/DriftViewerPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
+import { SettingsPage } from './pages/SettingsPage.tsx';
 import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -62,6 +63,7 @@ const NAV_GROUPS = [
   { title: 'System', items: [
     { to: '/equipment-borrow', label: 'Equipment Borrow' },
     { to: '/notifications',    label: 'Notifications' },
+    { to: '/settings',         label: 'Settings', perm: 'settings' },
     { to: '/admin/panel',      label: 'Admin Panel', sub: [
       { tab: 'users',      label: 'Manage Users' },
       { tab: 'activities', label: 'Activities' },
@@ -692,7 +694,7 @@ const PAGE_TITLES = {
   '/oba': 'OBA', '/incoming': 'Incoming & Kitting', '/4m-change': '5M+1E Change',
   '/qc-board': 'QC', '/qc': 'QC Result', '/qa-verify': 'QA Verify', '/fai': 'FAI',
   '/notifications': 'Notifications', '/traceability': 'Traceability', '/drift': 'Drift Viewer',
-  '/admin/panel': 'Admin', '/equipment-borrow': 'Equipment Borrow', '/mes-auth': 'Login',
+  '/admin/panel': 'Admin', '/equipment-borrow': 'Equipment Borrow', '/mes-auth': 'Login', '/settings': 'Settings',
 };
 const _titleKeys = Object.keys(PAGE_TITLES).sort((a, b) => b.length - a.length);
 function titleForPath(p) {
@@ -909,6 +911,7 @@ export default function App() {
               <Route path="/jig-test/:projectCode" element={<PermGuard perm="jig_test"><JigProjectPage /></PermGuard>} />
               <Route path="/traceability"      element={<PermGuard perm="jig_test"><TraceabilityPage /></PermGuard>} />
               <Route path="/drift"             element={<AuthGuard><DriftViewerPage /></AuthGuard>} />
+              <Route path="/settings"          element={<PermGuard perm="settings"><SettingsPage /></PermGuard>} />
               <Route path="/admin/panel"       element={<PermGuard perm="admin"><AdminPanelPage /></PermGuard>} />
               <Route path="/equipment-borrow" element={<PermGuard perm="equipment"><EquipmentBorrowPage /></PermGuard>} />
               <Route path="*"                  element={<NotFound />} />
