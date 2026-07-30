@@ -182,7 +182,9 @@ async function migrate() {
       )
     `);
     const userCount = await client.query('SELECT COUNT(*) FROM app_users');
-    if (Number(userCount.rows[0].count) === 0) {
+    // ⚠️ ต้องมี SEED_DEMO เป็นเงื่อนไขด้วย — ไม่งั้น deploy prod บน DB เปล่าจะได้บัญชี admin/admin อัตโนมัติ
+    //    (prod ให้สร้าง admin คนแรกด้วย seed_admin.sql เท่านั้น แล้วเปลี่ยนรหัสทันที)
+    if (SEED_DEMO && Number(userCount.rows[0].count) === 0) {
       await client.query(`
         INSERT INTO app_users (username, full_name, role) VALUES
           ('admin',   'ผู้ดูแลระบบ',    'ADMIN'),
@@ -203,13 +205,18 @@ async function migrate() {
     await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(100) NOT NULL DEFAULT ''`);
     // สิทธิ์รายหน้า (permissions) — additive · ว่าง [] = ใช้ค่าเริ่มต้นตาม role
     await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '[]'::jsonb`);
-    {
+    // ตั้งรหัสเริ่มต้น (= username) ให้ผู้ใช้ที่ยังไม่มีรหัส — เฉพาะโหมด demo/dev เท่านั้น
+    // ⚠️ ห้ามทำบน prod: รหัส = ชื่อผู้ใช้ = เดาได้ทันที · prod ให้ตั้งรหัสผ่านหน้า Admin หรือ seed_admin.sql
+    if (SEED_DEMO) {
       const bcrypt = require('bcryptjs');
       const needPw = await client.query("SELECT id, username FROM app_users WHERE password_hash = ''");
       for (const u of needPw.rows) {
         await client.query('UPDATE app_users SET password_hash=$1 WHERE id=$2', [bcrypt.hashSync(u.username, 10), u.id]);
       }
-      if (needPw.rows.length) console.log(`[migrate] ตั้งรหัสเริ่มต้นให้ ${needPw.rows.length} ผู้ใช้ (รหัส = username)`);
+      if (needPw.rows.length) console.log(`[migrate] ตั้งรหัสเริ่มต้นให้ ${needPw.rows.length} ผู้ใช้ (รหัส = username · demo/dev เท่านั้น)`);
+    } else {
+      const { rows } = await client.query("SELECT COUNT(*)::int AS n FROM app_users WHERE password_hash = ''");
+      if (rows[0].n) console.warn(`[migrate] ⚠️ มีผู้ใช้ ${rows[0].n} คนที่ยังไม่มีรหัสผ่าน — ล็อกอินไม่ได้จนกว่าจะตั้งรหัสให้ (SEED_DEMO=false จึงไม่ตั้งอัตโนมัติ)`);
     }
 
     // ── FE-15: Jig Test Projects + Records ──
@@ -573,6 +580,38 @@ async function migrate() {
           ('WO-202606-003', 'MOT-4500', 3000, 'DONE',        '2026-06-10')
       `);
       console.log('[migrate] seeded initial data');
+    }
+
+    // ── Indexes (additive · idempotent) ─────────────────────────────────────
+    // เดิมไม่มี index เลยแม้แต่ตัวเดียว → ตารางที่โตเร็วสุด (production_scans) ถูก seq scan ทุก 8 วิ
+    // จากหน้า Station monitor (DISTINCT ON + ORDER BY) พอแตะหลักแสน-ล้านแถวจะกิน connection ทั้ง pool
+    // แล้วลากให้ทุก endpoint ช้าตามไปหมด · audit_logs ก็โตทุก mutation แต่ค้นด้วย target_type/target_id
+    const INDEXES = [
+      // Station monitor: DISTINCT ON (station, serial) ... ORDER BY station, serial, scanned_at DESC
+      `CREATE INDEX IF NOT EXISTS idx_prod_scans_station_serial_time ON production_scans (station, serial, scanned_at DESC)`,
+      // Traceability: ค้นตาม serial · Routing history
+      `CREATE INDEX IF NOT EXISTS idx_prod_scans_serial   ON production_scans (serial)`,
+      `CREATE INDEX IF NOT EXISTS idx_prod_scans_wo       ON production_scans (wo_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_prod_scans_time     ON production_scans (scanned_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_prod_units_wo       ON production_units (wo_id)`,
+      // Audit / history popup: WHERE target_type=$1 AND target_id=$2 ORDER BY created_at DESC
+      `CREATE INDEX IF NOT EXISTS idx_audit_target        ON audit_logs (target_type, target_id, created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_audit_time          ON audit_logs (created_at DESC)`,
+      // รายการที่เปิดบ่อยและเรียงตามเวลา
+      `CREATE INDEX IF NOT EXISTS idx_qc_results_wo       ON qc_results (wo_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_qc_records_sn       ON qc_records (sn)`,
+      `CREATE INDEX IF NOT EXISTS idx_oba_wo              ON oba_records (wo_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_kitting_wo          ON kitting_issues (wo_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_routing_serial      ON routing_records (serial)`,
+      `CREATE INDEX IF NOT EXISTS idx_jig_records_proj    ON jig_test_records (project_code, tested_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_jig_records_serial  ON jig_test_records (serial)`,
+      `CREATE INDEX IF NOT EXISTS idx_wo_created          ON work_orders (created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_pp_date_record      ON pp_projects (date_record DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_inv_lots_part       ON inventory_lots (part_no, received_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_notif_unread        ON notifications (is_read, created_at DESC)`,
+    ];
+    for (const sql of INDEXES) {
+      try { await client.query(sql); } catch (e) { console.warn('[migrate] index ข้าม:', e.message); }
     }
 
     console.log('[migrate] all tables ready');

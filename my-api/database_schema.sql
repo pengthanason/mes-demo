@@ -19,6 +19,25 @@
 --   6) FK ...wo_id/wo_ref/code -> work_orders(wo_no) : DEFERRED
 --      app บาง path (Workflow/QC) แทรก wo_id สังเคราะห์ ('WORKFLOW','QC') ที่ไม่มีใน work_orders
 --      -> ถ้าบังคับ FK ตอนนี้ insert จะ fail  ->  เปิดใช้หลัง normalize wo_id (ดูท้ายไฟล์)
+--
+-- ── รอบตรวจทาน (2026-07-30) : sync เอกสารนี้ให้ตรงกับ migrations.js + โค้ดจริง ──────
+--   7) pre_wo_requests.wo_id : VARCHAR(100)  ->  INTEGER REFERENCES work_orders(id)
+--      ของจริง (migrations.js) เป็น FK ตัวเลขไป work_orders(id) และโค้ด convert (routes/wo.js)
+--      เขียนค่า id ตัวเลขลงคอลัมน์นี้  ->  เอกสารเดิมเขียน VARCHAR = ผิด (prod จะได้ชนิดต่างจาก dev)
+--      -> ย้ายออกจากบล็อก DEFERRED ท้ายไฟล์ด้วย (มัน FK ตัวเลข ไม่ใช่ FK ที่อ้าง wo_no)
+--   8) pp_projects : เพิ่ม `product_image` TEXT (รูปสินค้า data URL — ฟีเจอร์ของเรา)
+--      มีใน migrations.js + DB จริงแล้ว แต่ตกหล่นในเอกสารนี้  ->  เติมให้ครบ (additive, nullable)
+--   9) production_reports.status : ตัด CHECK enum ('PENDING','IN_PROGRESS','DONE','CANCELLED') ออก
+--      คอลัมน์นี้เก็บ "ข้อความอิสระ" (เช่น 'SMT เสร็จ เหลือ Depanel/Packing') ตาม app + seed จริง
+--      -> ถ้าคง CHECK ไว้ prod จะ reject ข้อมูลจริงตอน insert (migrations.js ก็ไม่มี CHECK นี้)
+--
+-- ── go-live: ไฟล์นี้ไฟล์เดียวจบ ────────────────────────────────────────────
+--   psql -U <user> -d productiondb -f database_schema.sql
+--   (หรือ)  docker exec -i mes-postgres psql -U syntechdb -d productiondb < database_schema.sql
+--
+--   ไฟล์นี้ทำครบ 3 อย่างในตัวเอง: (1) สร้างตาราง+constraint  (2) สร้าง index  (3) สร้าง admin คนแรก
+--   จากนั้นตั้ง env `SEED_DEMO=false` แล้วสตาร์ท my-api ได้เลย
+--   ⚠️ รหัส admin เริ่มต้น = "admin" → เปลี่ยนทันทีหลังล็อกอินครั้งแรก (ดูท้ายไฟล์)
 -- ============================================================================
 
 -- ── Users / Auth ───────────────────────────────────────────────────────────
@@ -109,7 +128,7 @@ CREATE TABLE pre_wo_requests (
     qty        INTEGER      NOT NULL,
     due_date   DATE         NOT NULL,
     status     VARCHAR(30)  NOT NULL DEFAULT 'PENDING',
-    wo_id      VARCHAR(100),                                           -- -> work_orders(wo_no) : ดู DEFERRED
+    wo_id      INTEGER REFERENCES work_orders(id),                     -- FK ตัวเลข -> work_orders(id) : บังคับ inline แล้ว (ตรงกับ migrations.js + convert code wo.js)
     created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT pre_wo_requests_qty_check CHECK (qty > 0),
@@ -277,6 +296,7 @@ CREATE TABLE pp_projects (
     pc_bbas         VARCHAR(30)  NOT NULL DEFAULT '',
     pc_packing      VARCHAR(30)  NOT NULL DEFAULT '',
     process_log     JSONB        NOT NULL DEFAULT '[]'::jsonb,          -- [{date, step, status}] วาด Gantt หลายสี
+    product_image   TEXT,                                              -- (เรา) รูปสินค้า (data URL) — แนบจาก popup · แยก endpoint /image ไม่รวมใน list
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
@@ -293,8 +313,9 @@ CREATE TABLE production_reports (
     delivery     DATE,
     is_completed BOOLEAN      NOT NULL DEFAULT false,
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT prod_report_status_check CHECK (status IN ('PENDING','IN_PROGRESS','DONE','CANCELLED'))
+    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
+    -- NOTE: status = ข้อความอิสระ (เช่น "SMT เสร็จ เหลือ Packing") ไม่ใช่ enum — app/seed ใช้ free text
+    --       จึง "ไม่ใส่" CHECK (dump เพื่อนใส่ enum 4 ค่า = จะ reject ข้อมูลจริงตอน insert)
 );
 
 CREATE TABLE production_scans (
@@ -440,6 +461,60 @@ CREATE TABLE change_requests (
 -- ALTER TABLE rework_tickets          ADD CONSTRAINT fk_rework_wo       FOREIGN KEY (wo_id)  REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
 -- ALTER TABLE transfer_verifications  ADD CONSTRAINT fk_transfer_wo     FOREIGN KEY (wo_id)  REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
 -- ALTER TABLE kitting_issues          ADD CONSTRAINT fk_kitting_wo      FOREIGN KEY (wo_id)  REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
--- ALTER TABLE pre_wo_requests         ADD CONSTRAINT fk_pre_wo_requests_wo FOREIGN KEY (wo_id) REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
+-- (pre_wo_requests.wo_id เป็น FK ตัวเลข -> work_orders(id) บังคับ inline แล้ว จึงไม่อยู่ในบล็อก DEFERRED นี้)
 -- ALTER TABLE change_requests         ADD CONSTRAINT fk_cr_wo           FOREIGN KEY (wo_ref) REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
 -- ============================================================================
+
+
+-- ============================================================================
+-- INDEXES
+-- ----------------------------------------------------------------------------
+-- เดิมไม่มี index เลย → production_scans (ตารางที่โตเร็วสุด) ถูก seq scan ทุก 8 วินาที
+-- จากหน้า Station monitor พอแตะหลักแสน-ล้านแถวจะกิน connection ทั้ง pool แล้วลากทุก endpoint ช้าตาม
+-- ============================================================================
+CREATE INDEX IF NOT EXISTS idx_prod_scans_station_serial_time ON production_scans (station, serial, scanned_at DESC);
+CREATE INDEX IF NOT EXISTS idx_prod_scans_serial   ON production_scans (serial);
+CREATE INDEX IF NOT EXISTS idx_prod_scans_wo       ON production_scans (wo_id);
+CREATE INDEX IF NOT EXISTS idx_prod_scans_time     ON production_scans (scanned_at DESC);
+CREATE INDEX IF NOT EXISTS idx_prod_units_wo       ON production_units (wo_id);
+CREATE INDEX IF NOT EXISTS idx_audit_target        ON audit_logs (target_type, target_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_time          ON audit_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_qc_results_wo       ON qc_results (wo_id);
+CREATE INDEX IF NOT EXISTS idx_qc_records_sn       ON qc_records (sn);
+CREATE INDEX IF NOT EXISTS idx_oba_wo              ON oba_records (wo_id);
+CREATE INDEX IF NOT EXISTS idx_kitting_wo          ON kitting_issues (wo_id);
+CREATE INDEX IF NOT EXISTS idx_routing_serial      ON routing_records (serial);
+CREATE INDEX IF NOT EXISTS idx_jig_records_proj    ON jig_test_records (project_code, tested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_jig_records_serial  ON jig_test_records (serial);
+CREATE INDEX IF NOT EXISTS idx_wo_created          ON work_orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pp_date_record      ON pp_projects (date_record DESC);
+CREATE INDEX IF NOT EXISTS idx_inv_lots_part       ON inventory_lots (part_no, received_at);
+CREATE INDEX IF NOT EXISTS idx_notif_unread        ON notifications (is_read, created_at DESC);
+
+
+-- ============================================================================
+-- BOOTSTRAP ADMIN  (ผู้ใช้คนแรกของระบบ)
+-- ----------------------------------------------------------------------------
+-- จำเป็นเพราะ: prod ต้องตั้ง SEED_DEMO=false (ไม่งั้น migrations จะสร้าง admin/member1/viewer1
+-- รหัส = ชื่อผู้ใช้) → ถ้าไม่มีบล็อกนี้จะไม่มีใครล็อกอินเข้าระบบได้เลย
+--
+-- ⚠️  รหัสผ่านเริ่มต้น = "admin"  >>> ต้องเปลี่ยนทันทีหลังล็อกอินครั้งแรก <<<
+--     ถ้าต้องการรหัสอื่น: สร้าง hash ใหม่ด้วย
+--       node -e "console.log(require('bcryptjs').hashSync('รหัสใหม่',10))"
+--     แล้วแทนค่าในช่อง password_hash ด้านล่าง
+--
+-- idempotent: ถ้ามี username 'admin' อยู่แล้วจะไม่ทำอะไร
+-- ============================================================================
+INSERT INTO app_users (username, full_name, role, is_active, password_hash, permissions)
+VALUES (
+  'admin',
+  'ผู้ดูแลระบบ',
+  'ADMIN',
+  true,
+  '$2b$10$aymCG/JWida5PwWDyFA9g.yLq6sCE7lNKqXHhu5IMsSGNXH7ieH4S',  -- bcrypt('admin')
+  '[]'::jsonb
+)
+ON CONFLICT (username) DO NOTHING;
+
+-- ตรวจผล: ควรเห็น admin 1 แถว
+-- SELECT id, username, role, is_active FROM app_users WHERE username = 'admin';

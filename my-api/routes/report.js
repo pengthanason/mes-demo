@@ -19,8 +19,10 @@ router.get('/list', async (req, res) => {
 // POST /api/report (สร้างแถวเปล่าให้พิมพ์ต่อ)
 router.post('/', async (req, res) => {
   try {
+    // ระบุ code ชัดเจน ไม่พึ่ง DEFAULT — database_schema.sql (prod) ไม่มี DEFAULT ให้ code
+    // ถ้าใช้ DEFAULT VALUES จะได้ null → NOT NULL violation → 500 เฉพาะบน prod (dev ไม่เจอ)
     const { rows } = await db.query(
-      `INSERT INTO production_reports DEFAULT VALUES RETURNING ${FIELDS}`
+      `INSERT INTO production_reports (code) VALUES ('') RETURNING ${FIELDS}`
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {

@@ -990,9 +990,25 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
     const today = todayLocal();
     const status = f.status || 'ON_PROCESS';
     const status_color = f.status_color || ((PP_STATUS as readonly string[]).includes(status) ? status : '');
-    const payload: any = editing
-      ? { ...f, id: initial!.id, status, status_color, ...(editNote ? { edit_note: editNote } : {}) }
-      : { ...f, status, status_color, date_record: f.date_record || today, wk: f.wk ?? isoWeek(f.date_record || today) };
+    // แก้ไข → ส่งเฉพาะ field ที่เปลี่ยนจริง (ไม่ยัดค่าเดิมทั้งฟอร์ม)
+    // เหตุผล: server มีกฎ "ปิดงานได้ต่อเมื่อผลิตครบ" ที่ trigger เมื่อ body ส่ง pd_finish_date/status=DONE มา
+    // ถ้าส่งค่าเดิมไปด้วยทุกครั้ง แถวที่มี pd_finish_date ค้างแต่ produce ยังไม่ครบ จะแก้ field อื่นไม่ได้เลย (ติด 400)
+    let payload: any;
+    if (editing) {
+      const base: any = initForm(initial!);
+      const next: any = { ...f, status, status_color };
+      const changed: any = {};
+      const cmp = (v: any) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+      for (const k of Object.keys(next)) if (cmp(next[k]) !== cmp(base[k])) changed[k] = next[k];
+      if (!Object.keys(changed).length) {   // ไม่มีอะไรเปลี่ยน → ไม่ต้องยิง API
+        showToast('ไม่มีการเปลี่ยนแปลง', 'info');
+        setAskRemark(false); setDirty(false); onSaved?.();
+        return;
+      }
+      payload = { id: initial!.id, ...changed, ...(editNote ? { edit_note: editNote } : {}) };
+    } else {
+      payload = { ...f, status, status_color, date_record: f.date_record || today, wk: f.wk ?? isoWeek(f.date_record || today) };
+    }
     mut.mutate(payload, {
       onSuccess: () => {
         showToast(editing ? 'Updated' : 'Project added', 'success');

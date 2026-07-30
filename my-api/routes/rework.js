@@ -20,6 +20,10 @@ router.post('/repair', async (req, res) => {
   if (!qc_result_id || !String(defect_type || '').trim()) {
     return res.status(400).json({ status: 'error', message: 'qc_result_id, defect_type required' });
   }
+  // due_date ส่งเข้าคอลัมน์ DATE ตรงๆ — ถ้าไม่เช็ก "เดือนหน้า" จะกลายเป็น invalid input syntax for type date → 500
+  if (due_date && isNaN(Date.parse(due_date))) {
+    return res.status(400).json({ status: 'error', message: 'due_date ไม่ใช่วันที่ที่ถูกต้อง (YYYY-MM-DD)' });
+  }
   try {
     const check = await db.query('SELECT id, wo_id FROM qc_results WHERE id=$1', [qc_result_id]);
     if (!check.rows.length) return res.status(404).json({ status: 'error', message: 'ไม่พบ QC result' });

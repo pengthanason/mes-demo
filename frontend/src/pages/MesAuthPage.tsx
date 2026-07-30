@@ -4,12 +4,6 @@ import { apiLogin, mockLogout } from '../lib/mockStore';
 import { showToast } from '../lib/toast';
 import { ROLE_COLOR } from '../lib/roles';
 
-const DEMO_ACCOUNTS = [
-  { username: 'admin',   password: 'admin',   role: 'admin',  desc: 'View and manage everything' },
-  { username: 'member1', password: 'member1', role: 'member', desc: 'Can work + view Dashboard' },
-  { username: 'viewer1', password: 'viewer1', role: 'viewer', desc: 'View Dashboard only' },
-];
-
 export function MesAuthPage() {
   const auth = useMockAuth();
   const [username, setUsername] = useState('');
@@ -86,20 +80,6 @@ export function MesAuthPage() {
               </button>
             </form>
 
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem', marginTop: '0.5rem' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Demo Accounts <span style={{ fontWeight: 400, color: '#94a3b8' }}>— click to autofill</span></div>
-              {DEMO_ACCOUNTS.map(acc => (
-                <button key={acc.username} type="button" className="tap-sm" onClick={() => { setUsername(acc.username); setPassword(acc.password); setError(''); }}
-                  title="Click to autofill username/password"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', fontSize: '0.82rem', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderRadius: 6, padding: '0.25rem', cursor: 'pointer' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#eef2f7'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-                  <span style={{ background: ROLE_COLOR[acc.role], color: '#fff', padding: '0.1rem 0.45rem', borderRadius: 999, fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{acc.role}</span>
-                  <code style={{ color: '#334155' }}>{acc.username} / {acc.password}</code>
-                  <span style={{ color: '#94a3b8' }}>— {acc.desc}</span>
-                </button>
-              ))}
-            </div>
           </div>
         )}
       </section>
