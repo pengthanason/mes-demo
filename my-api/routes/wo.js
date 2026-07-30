@@ -144,10 +144,9 @@ router.get('/:woId', async (req, res) => {
 router.get('/req/list', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT r.id AS req_id, r.bom_id, b.name AS bom_name,
+      `SELECT r.id AS req_id, r.bom_id, NULL::text AS bom_name,
               r.qty, r.due_date, r.status, r.wo_id, r.created_at
        FROM pre_wo_requests r
-       JOIN boms b ON b.id = r.bom_id
        ORDER BY r.created_at DESC`
     );
     res.json({ status: 'success', data: rows });
@@ -163,9 +162,6 @@ router.post('/req', async (req, res) => {
     return res.status(400).json({ status: 'error', message: 'bom_id, qty, due_date required' });
   }
   try {
-    const bom = await db.query('SELECT id FROM boms WHERE id=$1', [bom_id]);
-    if (!bom.rows.length) return res.status(404).json({ status: 'error', message: 'BOM not found' });
-
     const { rows } = await db.query(
       `INSERT INTO pre_wo_requests (bom_id, qty, due_date)
        VALUES ($1, $2, $3)
@@ -204,8 +200,7 @@ router.post('/convert', async (req, res) => {
     await client.query('BEGIN');
 
     const reqRes = await client.query(
-      `SELECT r.*, b.name AS bom_name FROM pre_wo_requests r
-       JOIN boms b ON b.id=r.bom_id
+      `SELECT r.*, 'BOM-' || r.bom_id AS bom_name FROM pre_wo_requests r
        WHERE r.id=$1 FOR UPDATE`,
       [req_id]
     );

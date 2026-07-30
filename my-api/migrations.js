@@ -6,21 +6,9 @@ async function migrate() {
   const SEED_DEMO = process.env.SEED_DEMO !== 'false';
   try {
     await client.query(`
-      CREATE TABLE IF NOT EXISTS boms (
-        id          SERIAL PRIMARY KEY,
-        name        VARCHAR(200) NOT NULL,
-        version     VARCHAR(50)  NOT NULL DEFAULT '1.0',
-        approved    BOOLEAN      NOT NULL DEFAULT false,
-        approved_at TIMESTAMPTZ,
-        created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-        UNIQUE(name, version)
-      )
-    `);
-
-    await client.query(`
       CREATE TABLE IF NOT EXISTS bom_lines (
         id        SERIAL PRIMARY KEY,
-        bom_id    INTEGER     NOT NULL REFERENCES boms(id) ON DELETE CASCADE,
+        bom_id    INTEGER      NOT NULL,
         part_no   VARCHAR(100) NOT NULL,
         part_name VARCHAR(200) NOT NULL,
         qty_per   NUMERIC(10,4) NOT NULL DEFAULT 1,
@@ -46,7 +34,7 @@ async function migrate() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS pre_wo_requests (
         id         SERIAL PRIMARY KEY,
-        bom_id     INTEGER     NOT NULL REFERENCES boms(id),
+        bom_id     INTEGER     NOT NULL,
         qty        INTEGER     NOT NULL CHECK (qty > 0),
         due_date   DATE        NOT NULL,
         status     VARCHAR(30) NOT NULL DEFAULT 'PENDING'
@@ -575,25 +563,9 @@ async function migrate() {
     // สายที่บันทึกผล (แท็บ Internal/External) — additive
     await client.query(`ALTER TABLE workflow_results ADD COLUMN IF NOT EXISTS line VARCHAR(10) NOT NULL DEFAULT 'internal'`);
 
-    // Seed ข้อมูลตัวอย่างถ้ายังว่าง
-    const { rows } = await client.query('SELECT COUNT(*) FROM boms');
+    // Seed ข้อมูลตัวอย่างถ้ายังว่าง (boms seed ย้ายไป external system แล้ว)
+    const { rows } = await client.query('SELECT COUNT(*) FROM work_orders');
     if (SEED_DEMO && Number(rows[0].count) === 0) {
-      await client.query(`
-        INSERT INTO boms (name, version, approved, approved_at) VALUES
-          ('PCB-A100 BOM', '1.0', true,  NOW()),
-          ('ASY-300 BOM',  '2.1', false, NULL),
-          ('MOT-4500 BOM', '1.3', true,  NOW())
-      `);
-      await client.query(`
-        INSERT INTO bom_lines (bom_id, part_no, part_name, qty_per, unit, sort_order) VALUES
-          (1, 'R-100K',   'Resistor 100K Ohm',  10, 'pcs', 1),
-          (1, 'C-10UF',   'Capacitor 10uF',      5, 'pcs', 2),
-          (1, 'IC-555',   'Timer IC 555',         2, 'pcs', 3),
-          (2, 'MTR-DC',   'DC Motor 12V',         1, 'pcs', 1),
-          (2, 'GBX-01',   'Gearbox Assembly',     1, 'pcs', 2),
-          (3, 'STL-ROD',  'Steel Rod 10mm',       4, 'pcs', 1),
-          (3, 'BRG-6201', 'Bearing 6201',         2, 'pcs', 2)
-      `);
       await client.query(`
         INSERT INTO work_orders (wo_no, product_name, qty, status, due_date) VALUES
           ('WO-202606-001', 'PCB-A100', 2000, 'IN_PROGRESS', '2026-06-20'),
