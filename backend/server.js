@@ -33,6 +33,7 @@ const closeRoutes = require('./modules/09_close/close.routes');
 const notificationRoutes = require('./modules/10_notifications/notifications.routes');
 const pmRoutes = require('./modules/11_pm_flow/pm.routes');
 const jumboRoutes = require('./modules/13_jumbo/jumbo.routes');
+const adminRoutes = require('./modules/15_admin/admin.routes');
 const outboxWorker = require('./common/outbox_worker');
 
 const APP_HOST = process.env.APP_HOST || '0.0.0.0';
@@ -847,6 +848,7 @@ function createApp() {
   app.use(closeRoutes);
   app.use('/api/pm', pmRoutes);
   app.use(jumboRoutes);
+  app.use(adminRoutes);
 
   app.use((err, req, res, next) => {
     if (res.headersSent) return next(err);
