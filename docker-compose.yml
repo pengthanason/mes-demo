@@ -100,15 +100,20 @@ services:
       DB_USER: syntechdb
       # ค่าจริงอ่านจากไฟล์ .env (ถูก gitignore) — ไม่เก็บความลับไว้ในไฟล์ที่ commit
       DB_PASSWORD: ${DB_PASSWORD:-syntech2026}
-      # ลายเซ็น JWT — ถ้าไม่ตั้งจะใช้ค่า dev ของ auth-token.js (มี warning ใน log)
-      JWT_SECRET: ${JWT_SECRET:-}
+      # ลายเซ็น JWT — Dockerfile ตั้ง NODE_ENV=production ไว้ ทำให้ auth-token.js throw
+      # ตั้งแต่ require ถ้าไม่มีค่า → container crash loop
+      # ใช้ :? เพื่อให้ compose ฟ้องตั้งแต่ตอนสั่ง up (เห็นสาเหตุทันที) ไม่ใช่ไปตายตอน runtime
+      JWT_SECRET: "${JWT_SECRET:?ตั้ง JWT_SECRET ใน .env ก่อน — สร้างด้วย openssl rand -base64 48}"
+      # ไม่ตั้ง = รับเฉพาะ same-origin (deploy แบบ single-service) · ตั้งเมื่อ frontend อยู่คนละโดเมน
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
       SEED_DEMO: "false"
     ports:
       - "5099:5099"
     networks:
       default: {}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5099/api/health >/dev/null 2>&1 || exit 1"]
+      # /api/health/ready เช็ก DB ด้วย (SELECT 1) — /api/health ตอบ ok ตายตัว DB ล่มก็ยังเขียว
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5099/api/health/ready >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10

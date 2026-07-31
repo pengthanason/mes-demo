@@ -185,7 +185,8 @@ async function migrate() {
     `);
     const userCount = await client.query('SELECT COUNT(*) FROM app_users');
     // ⚠️ ต้องมี SEED_DEMO เป็นเงื่อนไขด้วย — ไม่งั้น deploy prod บน DB เปล่าจะได้บัญชี admin/admin อัตโนมัติ
-    //    (prod ให้สร้าง admin คนแรกด้วย seed_admin.sql เท่านั้น แล้วเปลี่ยนรหัสทันที)
+    //    (prod ให้สร้าง admin คนแรกด้วย my-api/seed_admin.sql — หรือได้มาแล้วถ้า init DB
+    //     จาก my-api/database_schema.sql ซึ่งมี INSERT ตัวเดียวกันอยู่ท้ายไฟล์ — แล้วเปลี่ยนรหัสทันที)
     if (SEED_DEMO && Number(userCount.rows[0].count) === 0) {
       // ระบุ password_hash ตรงนี้เลย — ถ้าปล่อยให้ DEFAULT จะพังบนฐานที่สร้างจาก database_schema.sql
       // (ที่นั่น password_hash เป็น NOT NULL + CHECK (<> '') ไม่มี DEFAULT) → NOT NULL violation → migrate ตายทั้งไฟล์
@@ -213,7 +214,8 @@ async function migrate() {
     // สิทธิ์รายหน้า (permissions) — additive · ว่าง [] = ใช้ค่าเริ่มต้นตาม role
     await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '[]'::jsonb`);
     // ตั้งรหัสเริ่มต้น (= username) ให้ผู้ใช้ที่ยังไม่มีรหัส — เฉพาะโหมด demo/dev เท่านั้น
-    // ⚠️ ห้ามทำบน prod: รหัส = ชื่อผู้ใช้ = เดาได้ทันที · prod ให้ตั้งรหัสผ่านหน้า Admin หรือ seed_admin.sql
+    // ⚠️ ห้ามทำบน prod: รหัส = ชื่อผู้ใช้ = เดาได้ทันที · prod ให้ตั้งรหัสผ่านหน้า Admin
+    //    หรือสร้าง admin คนแรกด้วย my-api/seed_admin.sql
     if (SEED_DEMO) {
       const bcrypt = require('bcryptjs');
       const needPw = await client.query("SELECT id, username FROM app_users WHERE password_hash = ''");
