@@ -187,17 +187,29 @@ export function IncomingPage() {
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx)
               คอลัมน์ QA Review โชว์เฉพาะ non-viewer → <col> ตัวสุดท้ายต้องมีเงื่อนไขเดียวกัน */}
-          <table className="table table-readonly" style={{ minWidth: 720, width: '100%', tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: 125 }} />{/* Part No */}
-              <col />{/* Part Name — กินที่เหลือ */}
-              <col style={{ width: 135 }} />{/* Lot No */}
-              <col style={{ width: 90 }} />{/* Received */}
-              <col style={{ width: 90 }} />{/* Available */}
-              <col style={{ width: 100 }} />{/* Status */}
-              <col style={{ width: 110 }} />{/* Received Date */}
-              {!isViewer && <col style={{ width: 190 }} />}{/* QA Review */}
-            </colgroup>
+          <table className="table table-readonly" style={{ minWidth: isViewer ? 780 : 1000, width: '100%', tableLayout: 'fixed' }}>
+            {isViewer ? (
+              <colgroup>
+                <col style={{ width: '15%' }} />{/* Part No */}
+                <col style={{ width: '22%' }} />{/* Part Name */}
+                <col style={{ width: '16%' }} />{/* Lot No */}
+                <col style={{ width: '10%' }} />{/* Received */}
+                <col style={{ width: '10%' }} />{/* Available */}
+                <col style={{ width: '13%' }} />{/* Status */}
+                <col style={{ width: '14%' }} />{/* Received Date */}
+              </colgroup>
+            ) : (
+              <colgroup>
+                <col style={{ width: '13%' }} />{/* Part No */}
+                <col style={{ width: '17%' }} />{/* Part Name */}
+                <col style={{ width: '13%' }} />{/* Lot No */}
+                <col style={{ width: '8%' }} />{/* Received */}
+                <col style={{ width: '8%' }} />{/* Available */}
+                <col style={{ width: '11%' }} />{/* Status */}
+                <col style={{ width: '11%' }} />{/* Received Date */}
+                <col style={{ width: '19%' }} />{/* QA Review */}
+              </colgroup>
+            )}
             <thead>
               <tr>
                 <th>Part No</th>

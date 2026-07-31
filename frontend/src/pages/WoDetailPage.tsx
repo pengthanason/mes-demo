@@ -156,7 +156,7 @@ export function WoDetailPage() {
                 <tr>
                   <th>Date</th><th>Lot</th>
                   <th style={{ textAlign: 'center' }}>Checked</th><th style={{ textAlign: 'center' }}>Pass</th><th style={{ textAlign: 'center' }}>Fail</th>
-                  <th style={{ textAlign: 'center' }}>QC Result</th><th>Defect / Remark</th><th>QA Verify</th>
+                  <th style={{ textAlign: 'center' }}>QC Result</th><th style={{ textAlign: 'left' }}>Defect / Remark</th><th>QA Verify</th>
                 </tr>
               </thead>
               <tbody>
@@ -168,7 +168,7 @@ export function WoDetailPage() {
                     <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>{r.qtyPass}</td>
                     <td style={{ textAlign: 'center', color: r.qtyFail > 0 ? '#dc2626' : 'inherit', fontWeight: r.qtyFail > 0 ? 600 : 400 }}>{r.qtyFail}</td>
                     <td style={{ textAlign: 'center' }}><ResultBadge value={r.overall} /></td>
-                    <td style={{ fontSize: '0.8rem', maxWidth: 240, whiteSpace: 'normal' }}>
+                    <td style={{ fontSize: '0.8rem', maxWidth: 240, whiteSpace: 'normal', textAlign: 'left' }}>
                       {r.defectDesc && <div style={{ color: '#dc2626' }}>{r.defectDesc}</div>}
                       {r.remark && <div style={{ color: 'var(--text-muted)' }}>📝 {r.remark}</div>}
                       {!r.defectDesc && !r.remark && <span style={{ color: 'var(--text-muted)' }}>—</span>}

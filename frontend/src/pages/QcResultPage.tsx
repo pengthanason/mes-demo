@@ -257,18 +257,18 @@ export function QcResultPage() {
         {/* ─── Table ────────────────────────────────────────────── */}
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
-          <table className="table table-readonly" style={{ minWidth: 920, width: '100%', tableLayout: 'fixed' }}>
+          <table className="table table-readonly" style={{ minWidth: 950, width: '100%', tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: 95 }} />{/* Date */}
-              <col style={{ width: 130 }} />{/* WO */}
-              <col style={{ width: 110 }} />{/* Lot */}
-              <col style={{ width: 75 }} />{/* Checked */}
-              <col style={{ width: 65 }} />{/* Pass */}
-              <col style={{ width: 65 }} />{/* Fail */}
-              <col style={{ width: 95 }} />{/* Overall */}
-              <col />{/* Defect / Remark — กินที่เหลือ */}
-              <col style={{ width: 100 }} />{/* QA Verify */}
-              <col style={{ width: 100 }} />{/* Actions */}
+              <col style={{ width: '9%' }} />{/* Date */}
+              <col style={{ width: '15%' }} />{/* WO */}
+              <col style={{ width: '11%' }} />{/* Lot */}
+              <col style={{ width: '7%' }} />{/* Checked */}
+              <col style={{ width: '6%' }} />{/* Pass */}
+              <col style={{ width: '6%' }} />{/* Fail */}
+              <col style={{ width: '9%' }} />{/* Overall */}
+              <col style={{ width: '17%' }} />{/* Defect / Remark */}
+              <col style={{ width: '10%' }} />{/* QA Verify */}
+              <col style={{ width: '10%' }} />{/* Actions */}
             </colgroup>
             <thead>
               <tr>

@@ -151,14 +151,14 @@ export function FourMChangePage() {
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
-          <table className="table table-readonly" style={{ minWidth: 700, width: '100%', tableLayout: 'fixed' }}>
+          <table className="table table-readonly" style={{ minWidth: 800, width: '100%', tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: 130 }} />{/* CR No. */}
-              <col style={{ width: 140 }} />{/* Type */}
-              <col style={{ width: 140 }} />{/* WO / Product */}
-              <col />{/* Details — กินที่เหลือ */}
-              <col style={{ width: 120 }} />{/* State */}
-              <col style={{ width: 110 }} />{/* Date Opened */}
+              <col style={{ width: '20%' }} />{/* CR No. */}
+              <col style={{ width: '14%' }} />{/* Type */}
+              <col style={{ width: '16%' }} />{/* WO / Product */}
+              <col style={{ width: '22%' }} />{/* Details */}
+              <col style={{ width: '14%' }} />{/* State */}
+              <col style={{ width: '14%' }} />{/* Date Opened */}
             </colgroup>
             <thead>
               <tr>

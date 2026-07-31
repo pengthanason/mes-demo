@@ -124,13 +124,13 @@ export function KittingPage() {
         </h3>
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
-          <table className="table table-readonly" style={{ minWidth: 560, width: '100%', tableLayout: 'fixed' }}>
+          <table className="table table-readonly" style={{ minWidth: 760, width: '100%', tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: 135 }} />{/* WO */}
-              <col style={{ width: 130 }} />{/* Part No */}
-              <col />{/* Lot Deducted — กินที่เหลือ */}
-              <col style={{ width: 80 }} />{/* Qty */}
-              <col style={{ width: 145 }} />{/* Time */}
+              <col style={{ width: '20%' }} />{/* WO */}
+              <col style={{ width: '15%' }} />{/* Part No */}
+              <col style={{ width: '20%' }} />{/* Lot Deducted */}
+              <col style={{ width: '10%' }} />{/* Qty */}
+              <col style={{ width: '35%' }} />{/* Time */}
             </colgroup>
             <thead>
               <tr>

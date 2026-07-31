@@ -223,11 +223,11 @@ export function DriftViewerPage() {
                 const s = SEV[sevOf(r)];
                 return (
                   <tr key={r.item_code} style={{ boxShadow: s.border !== 'transparent' ? `inset 3px 0 0 ${s.border}` : undefined, background: s.bg }}>
-                    <td>
+                    <td style={{ textAlign: 'left' }}>
                       <div style={{ fontWeight: 600, color: 'var(--brand)' }}>{r.item_code}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{r.item_name}</div>
                     </td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{r.location}</td>
+                    <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>{r.location}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{r.our_qty.toLocaleString()}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{r.odoo_qty.toLocaleString()}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 700, color: s.color }}>{fmtDiff(r.diff)}</td>

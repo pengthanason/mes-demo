@@ -178,7 +178,7 @@ export default function QcBoard() {
         {/* #51: snapshot สถานะล่าสุดต่อชิ้น (unit) ไม่ใช่ timeline ทุกครั้งที่สแกน */}
         <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-muted)' }}>Unit Status (latest)</h3>
         <div className="table-container">
-          <table>
+          <table className="table table-readonly">
             <thead>
               <tr>
                 <th>Updated</th>

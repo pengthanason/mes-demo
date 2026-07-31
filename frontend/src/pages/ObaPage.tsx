@@ -112,14 +112,14 @@ export function ObaPage() {
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
             {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
-            <table className="table table-readonly" style={{ minWidth: '550px', width: '100%', tableLayout: 'fixed' }}>
+            <table className="table table-readonly" style={{ minWidth: '850px', width: '100%', tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: 130 }} />{/* WO ID */}
-                <col style={{ width: 120 }} />{/* Lot No. */}
-                <col style={{ width: 95 }} />{/* Sample Qty */}
-                <col style={{ width: 90 }} />{/* Result */}
-                <col />{/* Defect Note — กินที่เหลือ */}
-                <col style={{ width: 150 }} />{/* Timestamp */}
+                <col style={{ width: '19%' }} />{/* WO ID */}
+                <col style={{ width: '14%' }} />{/* Lot No. */}
+                <col style={{ width: '9%' }} />{/* Sample Qty */}
+                <col style={{ width: '12%' }} />{/* Result */}
+                <col style={{ width: '20%' }} />{/* Defect Note */}
+                <col style={{ width: '26%' }} />{/* Timestamp */}
               </colgroup>
               <thead>
                 <tr>
@@ -139,7 +139,7 @@ export function ObaPage() {
                     <td style={{ textAlign: 'center' }}>{r.sampleQty}</td>
                     <td style={{ textAlign: 'center' }}><ResultBadge value={r.result} /></td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.defectNote || undefined}>{r.defectNote || '—'}</td>
-                    <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {new Date(r.timestamp).toLocaleString()}
                     </td>
                   </tr>

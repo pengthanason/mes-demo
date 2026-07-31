@@ -1733,16 +1733,27 @@ export function WorkflowBuilder() {
         </div>
         <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
           {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
-          <table className="table" style={{ minWidth: 720, width: '100%', tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: 130 }} />{/* Date/Time */}
-              <col style={{ width: 130 }} />{/* P/N */}
-              <col style={{ width: 110 }} />{/* Customer */}
-              <col style={{ width: 110 }} />{/* Model */}
-              <col />{/* Process sequence — กินที่เหลือ */}
-              <col style={{ width: 80 }} />{/* Cycle */}
-              {!isViewer && <col style={{ width: 90 }} />}{/* ปุ่มลบ */}
-            </colgroup>
+          <table className="table" style={{ minWidth: isViewer ? 760 : 850, width: '100%', tableLayout: 'fixed' }}>
+            {isViewer ? (
+              <colgroup>
+                <col style={{ width: '16%' }} />{/* Date/Time */}
+                <col style={{ width: '16%' }} />{/* P/N */}
+                <col style={{ width: '13%' }} />{/* Customer */}
+                <col style={{ width: '13%' }} />{/* Model */}
+                <col style={{ width: '30%' }} />{/* Process sequence */}
+                <col style={{ width: '12%' }} />{/* Cycle */}
+              </colgroup>
+            ) : (
+              <colgroup>
+                <col style={{ width: '14%' }} />{/* Date/Time */}
+                <col style={{ width: '14%' }} />{/* P/N */}
+                <col style={{ width: '11%' }} />{/* Customer */}
+                <col style={{ width: '11%' }} />{/* Model */}
+                <col style={{ width: '25%' }} />{/* Process sequence */}
+                <col style={{ width: '10%' }} />{/* Cycle */}
+                <col style={{ width: '15%' }} />{/* ปุ่มลบ */}
+              </colgroup>
+            )}
             <thead>
               <tr>
                 <th>Date/Time</th><th>P/N</th><th>Customer</th><th>Model</th><th>Process sequence</th><th>Cycle</th>{!isViewer && <th></th>}

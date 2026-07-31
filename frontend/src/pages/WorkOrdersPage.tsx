@@ -108,16 +108,16 @@ export function WorkOrdersPage() {
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, marginTop: '0.5rem' }}>
           {/* tableLayout fixed + colgroup = คอลัมน์ไม่ยืด/หดตามเนื้อหาในแต่ละหน้า (ดู components/TableFill.tsx) */}
-          <table className="table" style={{ minWidth: 760, width: '100%', tableLayout: 'fixed' }}>
+          <table className="table" style={{ minWidth: 1050, width: '100%', tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: 125 }} />{/* WO No */}
-              <col />{/* Product — กินที่เหลือ */}
-              <col style={{ width: 115 }} />{/* Customer */}
-              <col style={{ width: 70 }} />{/* Qty */}
-              <col style={{ width: 70 }} />{/* Good */}
-              <col style={{ width: 100 }} />{/* Expected */}
-              <col style={{ width: 105 }} />{/* Status */}
-              <col style={{ width: 105 }} />{/* Station */}
+              <col style={{ width: '15%' }} />{/* WO No */}
+              <col style={{ width: '17%' }} />{/* Product */}
+              <col style={{ width: '12%' }} />{/* Customer */}
+              <col style={{ width: '7%' }} />{/* Qty */}
+              <col style={{ width: '7%' }} />{/* Good */}
+              <col style={{ width: '9%' }} />{/* Expected */}
+              <col style={{ width: '18%' }} />{/* Status */}
+              <col style={{ width: '15%' }} />{/* Station */}
             </colgroup>
             <thead>
               <tr>
