@@ -1,8 +1,10 @@
 # Syntech MES — Manufacturing Execution System
 
 ระบบ MES (Manufacturing Execution System) ภายในของ **Synergy Technology Co., Ltd.** (โปรเจกต์ intern 2026)
-ครอบคลุม production planning, work orders, kitting, production/routing scan, QC/rework, OBA, SCM cases,
+ครอบคลุม production planning, work orders, kitting, production/routing scan, QC/rework, OBA,
 notifications และ Jumbo traceability — มี React admin dashboard และเชื่อมต่อ jig-api / WMS / MRP
+
+> SCM Cases (module 12) ถอดออกจากรีโปเมื่อ 2026-07-27 — ดูเหตุผลใน [STATUS.md](STATUS.md#scm-cases-ถูกถอดออก-2026-07-27)
 
 ---
 
@@ -10,7 +12,7 @@ notifications และ Jumbo traceability — มี React admin dashboard แ�
 
 | ส่วน | Stack | Port | หน้าที่ |
 | --- | --- | --- | --- |
-| `frontend/` | Vite + React 18 + TS | 5101 | Admin / PM / SCM / tester UI (Dashboard, PP Gantt, Work Orders, Station monitor…) |
+| `frontend/` | Vite + React 18 + TS | 5101 | Admin / PM / tester UI (Dashboard, PP Gantt, Work Orders, Station monitor…) |
 | `my-api/` | Express + `pg` | 5099 | Data API ให้ admin UI (WO/OBA/QC/PP/planning/station/workflow…) |
 | `backend/` | Express + knex · 14 modules | 5100 | MES backbone เต็ม (auth, integrations, MQTT, Jumbo) |
 | `postgres` | PostgreSQL 16 | 5432 | DB `productiondb` (schema `mes_core`) |

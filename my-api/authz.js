@@ -20,7 +20,6 @@ const ROUTE_PERM = [
   { prefix: '/api/jumbo',         perm: 'jig_test' },   // traceability
   { prefix: '/api/mes',           perm: 'dashboard' },  // station monitor
   { prefix: '/api/cr',            perm: 'cr' },
-  { prefix: '/api/scm',           perm: 'scm' },
   { prefix: '/api/qc',            perm: 'qc' },
   { prefix: '/api/rework',        perm: 'qc' },
   { prefix: '/api/oba',           perm: 'oba' },
@@ -39,7 +38,8 @@ const PUBLIC_PATHS = [/^\/api\/auth(\/|$)/, /^\/api\/health(\/|$)/];
 // VIEWER ไม่ได้ เพราะดูอย่างเดียวไม่ควรดึงข้อมูลทั้งก้อนออกนอกระบบ
 const ROLE_DEFAULTS = {
   ADMIN:  null, // = ทุกหน้า
-  MEMBER: ['dashboard', 'production_plan', 'incoming', 'work_orders', 'jig_test', 'oba', 'cr', 'scm', 'qc', 'equipment', 'notifications', 'settings'],
+  // ไม่มี 'scm' แล้ว — โมดูล SCM Cases ถอดออกจากรีโป 2026-07-27 (ดู STATUS.md)
+  MEMBER: ['dashboard', 'production_plan', 'incoming', 'work_orders', 'jig_test', 'oba', 'cr', 'qc', 'equipment', 'notifications', 'settings'],
   VIEWER: ['dashboard', 'cr', 'qc', 'jig_test', 'equipment', 'notifications'],
 };
 

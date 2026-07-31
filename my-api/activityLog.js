@@ -13,7 +13,6 @@ const RES = [
   ['/api/bom', 'BOM', 'bom'],
   ['/api/cr', 'Change Request (4M)', 'cr'],
   ['/api/jig', 'Jig Test', 'jig'],
-  ['/api/scm', 'SCM Case', 'scm'],
   ['/api/rework', 'Rework', 'rework'],
   ['/api/inventory', 'Kitting/Store', 'inventory'],
   ['/api/notifications', 'Notification', 'notifications'],
