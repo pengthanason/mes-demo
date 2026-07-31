@@ -7,7 +7,7 @@ const db     = require('../db');
 router.get('/users', async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, username, full_name, role, is_active, permissions, created_at FROM app_users ORDER BY created_at DESC'
+      'SELECT id, username, full_name, role, is_active, permissions, created_at FROM users ORDER BY created_at DESC'
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
@@ -27,7 +27,7 @@ router.post('/users', async (req, res) => {
   try {
     const hash = bcrypt.hashSync(String(password), 10);
     const { rows } = await db.query(
-      `INSERT INTO app_users (username, full_name, role, password_hash, permissions)
+      `INSERT INTO users (username, full_name, role, password_hash, permissions)
        VALUES ($1,$2,$3,$4,$5::jsonb)
        RETURNING id, username, full_name, role, is_active, permissions, created_at`,
       [username.trim(), full_name.trim(), role, hash, JSON.stringify(perms)]
@@ -74,7 +74,7 @@ router.put('/users/:id', async (req, res) => {
     sets.push(`updated_at=NOW()`);
     vals.push(req.params.id);
     const { rows, rowCount } = await db.query(
-      `UPDATE app_users SET ${sets.join(', ')} WHERE id=$${vals.length} RETURNING id, username, full_name, role, is_active, permissions`,
+      `UPDATE users SET ${sets.join(', ')} WHERE id=$${vals.length} RETURNING id, username, full_name, role, is_active, permissions`,
       vals
     );
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'user not found' });
@@ -87,7 +87,7 @@ router.put('/users/:id', async (req, res) => {
 router.delete('/users/:id', async (req, res) => {
   try {
     const { rows, rowCount } = await db.query(
-      'DELETE FROM app_users WHERE id=$1 RETURNING username', [req.params.id]
+      'DELETE FROM users WHERE id=$1 RETURNING username', [req.params.id]
     );
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'user not found' });
     await db.query(

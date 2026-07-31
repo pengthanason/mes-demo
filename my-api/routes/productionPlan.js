@@ -233,14 +233,14 @@ router.put('/projects/:id', async (req, res) => {
   }
 });
 
-// GET /api/pp/projects/:id/history — ประวัติการแก้ไข record นั้น (join app_users เอาชื่อ+ตำแหน่ง)
+// GET /api/pp/projects/:id/history — ประวัติการแก้ไข record นั้น (join users เอาชื่อ+ตำแหน่ง)
 router.get('/projects/:id/history', async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT a.id, a.actor, a.action, a.detail, a.note, a.created_at,
               u.full_name AS actor_name, u.role AS actor_role
          FROM audit_logs a
-         LEFT JOIN app_users u ON u.username = a.actor
+         LEFT JOIN users u ON u.username = a.actor
         WHERE a.target_type = 'pp' AND a.target_id = $1
         ORDER BY a.created_at DESC, a.id DESC
         LIMIT 200`,

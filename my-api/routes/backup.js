@@ -2,12 +2,13 @@ const router = require('express').Router();
 const db     = require('../db');
 
 // ── ลำดับตาราง: พ่อก่อนลูก (สำคัญตอน restore ไม่ให้ FK พัง) ──────────────
-// boms → bom_lines · work_orders → pre_wo_requests · jig_projects → jig_test_records
-// qc_results → qc_records / rework_tickets / transfer_verifications · app_users → audit_logs / notifications
+// boms → bom_lines · jig_projects → jig_test_records
+// qc_results → qc_records / rework_tickets / transfer_verifications · users → audit_logs / notifications
+// ⚠️ pre_wo_requests ถูกถอดออกจากระบบแล้ว (ดู migrations.js) — เอาออกจากลิสต์ backup ด้วย
 const TABLES = [
-  'app_users', 'audit_logs', 'notifications',
+  'users', 'audit_logs', 'notifications',
   'bom_lines',                                   // หัว BOM (boms) ถูกถอดออก — BOM มาจากระบบภายนอก
-  'work_orders', 'pre_wo_requests',
+  'work_orders',
   'work_centers', 'workflows', 'workflow_results',
   'jig_projects', 'jig_test_records',             // jig_retest_requests ถูกถอดออกแล้ว
   'inventory_lots', 'kitting_issues',
@@ -17,7 +18,7 @@ const TABLES = [
 ];
 
 // ตารางที่มีข้อมูลอ่อนไหว (รหัสผ่าน hash) — เฉพาะ ADMIN ที่ได้ไปด้วย
-const SENSITIVE_TABLES = new Set(['app_users']);
+const SENSITIVE_TABLES = new Set(['users']);
 
 const pad = (n) => String(n).padStart(2, '0');
 // ชื่อไฟล์ใช้เวลาไทย (UTC+7) ให้ตรงกับที่ผู้ใช้เห็นบนหน้าจอ
@@ -73,8 +74,8 @@ function logDownload(req, format, info) {
 
 /**
  * GET /api/backup/export?format=json|sql
- * ADMIN  → ได้ทุกตาราง รวม app_users (มี password hash)
- * MEMBER → ได้ทุกตารางยกเว้น app_users
+ * ADMIN  → ได้ทุกตาราง รวม users (มี password hash)
+ * MEMBER → ได้ทุกตารางยกเว้น users
  * VIEWER → ถูกบล็อกที่ authz.js (perm 'backup' ไม่อยู่ในสิทธิ์ default)
  */
 router.get('/export', async (req, res) => {
@@ -122,7 +123,7 @@ router.get('/export', async (req, res) => {
     L.push(`-- โดย: ${(req.user && req.user.username) || '-'} (${(req.user && req.user.role) || '-'})`);
     L.push(`-- จำนวนแถวรวม: ${total}`);
     if (skipped.length) L.push(`-- ⚠️ ไม่รวมตาราง: ${skipped.join(', ')} (สิทธิ์ไม่ถึง)`);
-    else L.push('-- ⚠️ รวม app_users (มีรหัสผ่าน hash) — เก็บเป็นความลับ');
+    else L.push('-- ⚠️ รวม users (มีรหัสผ่าน hash) — เก็บเป็นความลับ');
     L.push('--');
     L.push('-- วิธีกู้: สร้างตารางด้วย database_schema.sql ก่อน แล้วรันไฟล์นี้');
     L.push('--   psql -U <user> -d <db> -f database_schema.sql');

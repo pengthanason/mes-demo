@@ -52,15 +52,6 @@ const bomLines: Record<string, any[]> = {
   ],
 };
 
-let _preWoId = 10;
-const preWoList = [
-  { req_id: 'REQ-001', bom_id: 'BOM-002', bom_name: 'ASY-300 Unit', qty: 100, due_date: '2026-07-01', status: 'PENDING',   created_at: '2026-06-10T08:00:00Z' },
-  { req_id: 'REQ-002', bom_id: 'BOM-003', bom_name: 'MOT-4500 Drive', qty: 200, due_date: '2026-07-15', status: 'APPROVED', created_at: '2026-06-11T09:00:00Z' },
-  { req_id: 'REQ-003', bom_id: 'BOM-001', bom_name: 'PCB-A100 Assembly', qty: 500, due_date: '2026-07-05', status: 'APPROVED', created_at: '2026-06-12T09:00:00Z' },
-  { req_id: 'REQ-004', bom_id: 'BOM-002', bom_name: 'ASY-300 Unit', qty: 150, due_date: '2026-07-20', status: 'PENDING',  created_at: '2026-06-13T10:00:00Z' },
-  { req_id: 'REQ-005', bom_id: 'BOM-001', bom_name: 'PCB-A100 Assembly', qty: 300, due_date: '2026-07-10', status: 'REJECTED', created_at: '2026-06-13T14:00:00Z' },
-];
-
 let _crId = 10;
 const crList = [
   { id: 1, cr_no: 'CR-2026-001', m_type: 'Machine', wo_ref: 'WO-2026-002', description: 'เปลี่ยนหัวเชื่อม SMT จากรุ่น A ไป B', impact: 'อาจส่งผลต่อ solder quality', state: 'G2_APPROVED', g1_note: 'ตรวจสอบแล้ว OK', g1_at: '2026-06-12T10:00:00Z', g2_note: 'อนุมัติ proceed', g2_at: '2026-06-13T11:00:00Z', g3_note: null, g3_at: null, created_at: '2026-06-11T09:00:00Z' },
@@ -742,25 +733,7 @@ export const handlers = [
     return ok(wo);
   }),
 
-  // ── Pre-WO ────────────────────────────────────────────────────────────────
-  http.get('/api/wo/req/list', () => ok(preWoList)),
-  http.post('/api/wo/req', async ({ request }) => {
-    const body: any = await request.json();
-    const req = { req_id: `REQ-${String(++_preWoId).padStart(3,'0')}`, ...body, status: 'PENDING', created_at: now() };
-    preWoList.push(req);
-    return ok(req);
-  }),
-  http.patch('/api/wo/req/:reqId/approve', ({ params }) => {
-    const req = preWoList.find(r => r.req_id === params.reqId);
-    if (req) req.status = 'APPROVED';
-    return okSuccess();
-  }),
-  http.post('/api/wo/convert', async ({ request }) => {
-    const body: any = await request.json();
-    const req = preWoList.find(r => r.req_id === body.req_id);
-    if (req) req.status = 'CONVERTED';
-    return okSuccess();
-  }),
+  // ⚠️ Pre-WO (/api/wo/req/*, /api/wo/convert) ถูกถอดออกจากระบบแล้ว — ดู my-api/database_schema.sql หมายเหตุ #11
 
   // ── BOM ───────────────────────────────────────────────────────────────────
   http.get('/api/bom/headers', () => ok(boms)),

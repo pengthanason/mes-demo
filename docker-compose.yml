@@ -64,7 +64,7 @@ services:
       # เหตุผล: backend/db.js:3 (runtime) default เป็น '' = ใช้ public
       #         แต่ backend/knexfile.js:8 (migration) default เป็น 'mes_core'
       #         → ปล่อยว่างแล้ว migration สร้างตารางที่ mes_core แต่ runtime อ่าน public = backend พังในตัวเอง
-      #         และตาราง public คือของ my-api (app_users, work_orders, pp_projects ฯลฯ 26 ตาราง) → ชนกัน
+      #         และตาราง public คือของ my-api (users, work_orders, pp_projects ฯลฯ 26 ตาราง) → ชนกัน
       # แยกกันชัดเจน: backend = mes_core · my-api = public
       DB_SCHEMA: ${MES_DB_SCHEMA:-mes_core}
       DB_SSLMODE: disable

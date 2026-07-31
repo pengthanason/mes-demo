@@ -164,7 +164,7 @@ export function usePpDelete() {
   });
 }
 
-// ประวัติการแก้ไข 1 record (ใคร/ตำแหน่ง/แก้อะไร/เมื่อไหร่) — จาก audit_logs (join app_users)
+// ประวัติการแก้ไข 1 record (ใคร/ตำแหน่ง/แก้อะไร/เมื่อไหร่) — จาก audit_logs (join users)
 export interface PpHistoryEntry {
   id: number; actor: string; actor_name: string | null; actor_role: string | null;
   action: string; detail: string; note: string | null; created_at: string;

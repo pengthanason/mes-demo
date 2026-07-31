@@ -34,7 +34,7 @@ const PUBLIC_PATHS = [/^\/api\/auth(\/|$)/, /^\/api\/health(\/|$)/];
 
 // ค่าเริ่มต้นตาม role (ตรงกับ ROLE_DEFAULT_PERMS ฝั่ง frontend) — ใช้เมื่อผู้ใช้ยังไม่กำหนดสิทธิ์เอง
 // 'settings' = หน้า Settings (มีปุ่ม Backup ดาวน์โหลดข้อมูลทั้งระบบ) — ให้ MEMBER ได้
-// (แต่ไฟล์ของ MEMBER จะไม่มีตาราง app_users — ตัดออกใน routes/backup.js)
+// (แต่ไฟล์ของ MEMBER จะไม่มีตาราง users — ตัดออกใน routes/backup.js)
 // VIEWER ไม่ได้ เพราะดูอย่างเดียวไม่ควรดึงข้อมูลทั้งก้อนออกนอกระบบ
 const ROLE_DEFAULTS = {
   ADMIN:  null, // = ทุกหน้า
@@ -72,7 +72,7 @@ async function authz(req, res, next) {
   let u;
   try {
     const { rows } = await db.query(
-      'SELECT id, username, full_name, role, is_active, permissions FROM app_users WHERE id = $1',
+      'SELECT id, username, full_name, role, is_active, permissions FROM users WHERE id = $1',
       [Number(payload.sub)]
     );
     u = rows[0];

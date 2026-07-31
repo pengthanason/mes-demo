@@ -31,6 +31,14 @@
 --      คอลัมน์นี้เก็บ "ข้อความอิสระ" (เช่น 'SMT เสร็จ เหลือ Depanel/Packing') ตาม app + seed จริง
 --      -> ถ้าคง CHECK ไว้ prod จะ reject ข้อมูลจริงตอน insert (migrations.js ก็ไม่มี CHECK นี้)
 --
+-- ── รอบแก้ไข (2026-07-31) : ตามคำสั่งผู้ใช้ — เฉพาะ my-api (ไม่แตะ backend/ ที่มีตาราง users ของตัวเองแยกต่างหาก) ──
+--   10) app_users -> users (เปลี่ยนชื่อตาราง) : rename ใน migrations.js ด้วย `ALTER TABLE IF EXISTS app_users RENAME TO users`
+--       ก่อน CREATE IF NOT EXISTS เพื่อไม่ให้ข้อมูล/ผู้ใช้เดิมหาย · แก้ทุกจุดที่ query ตารางนี้ (auth.js, authz.js, admin.js,
+--       productionPlan.js, backup.js, seed_admin.sql)
+--   11) ตัดตาราง pre_wo_requests ทิ้ง (ฟีเจอร์ "คำขอเปิด WO ล่วงหน้า" — create/approve/convert) ผู้ใช้ยืนยันแล้วว่ารู้ว่า
+--       เป็นฟีเจอร์ที่ใช้งานอยู่จริง (มี endpoint ใน routes/wo.js + e2e test) — ลบไปพร้อมกันทั้ง endpoint, entry ใน
+--       backup.js TABLES list, และ mock ฝั่ง frontend (mocks/handlers.ts) · migrations.js มี `DROP TABLE IF EXISTS pre_wo_requests`
+--
 -- ── go-live: ไฟล์นี้ไฟล์เดียวจบ ────────────────────────────────────────────
 --   psql -U <user> -d productiondb -f database_schema.sql
 --   (หรือ)  docker exec -i mes-postgres psql -U syntechdb -d productiondb < database_schema.sql
@@ -41,7 +49,8 @@
 -- ============================================================================
 
 -- ── Users / Auth ───────────────────────────────────────────────────────────
-CREATE TABLE app_users (
+-- ⚠️ ตารางนี้เดิมชื่อ app_users — เปลี่ยนชื่อเป็น users (2026-07-31, my-api เท่านั้น ดูหมายเหตุ #10 ด้านบน)
+CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
     username      VARCHAR(100) NOT NULL UNIQUE,
     full_name     VARCHAR(200) NOT NULL,
@@ -51,15 +60,15 @@ CREATE TABLE app_users (
     permissions   JSONB        NOT NULL DEFAULT '[]'::jsonb,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT app_users_password_not_empty CHECK (password_hash <> ''),
-    CONSTRAINT app_users_role_check CHECK (role IN ('ADMIN','MEMBER','VIEWER'))
+    CONSTRAINT users_password_not_empty CHECK (password_hash <> ''),
+    CONSTRAINT users_role_check CHECK (role IN ('ADMIN','MEMBER','VIEWER'))
 );
-CREATE INDEX idx_app_users_permissions ON app_users USING gin (permissions);
+CREATE INDEX idx_users_permissions ON users USING gin (permissions);
 
 CREATE TABLE audit_logs (
     id          SERIAL PRIMARY KEY,
     actor       VARCHAR(100) NOT NULL,
-    actor_id    INTEGER REFERENCES app_users(id) ON DELETE SET NULL,   -- (เพื่อน) normalize actor
+    actor_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,   -- (เพื่อน) normalize actor
     action      VARCHAR(100) NOT NULL,
     target_type VARCHAR(50),
     target_id   VARCHAR(100),
@@ -70,7 +79,7 @@ CREATE TABLE audit_logs (
 
 CREATE TABLE notifications (
     id         SERIAL PRIMARY KEY,
-    user_id    INTEGER REFERENCES app_users(id) ON DELETE CASCADE,     -- NULLABLE: NULL = แจ้งเตือนแบบ global
+    user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,     -- NULLABLE: NULL = แจ้งเตือนแบบ global
     type       VARCHAR(50)  NOT NULL,
     title      VARCHAR(200) NOT NULL,
     message    TEXT         NOT NULL,
@@ -115,18 +124,9 @@ CREATE TABLE work_orders (
     CONSTRAINT work_orders_status_check CHECK (status IN ('PENDING','IN_PROGRESS','DONE','CANCELLED'))
 );
 
-CREATE TABLE pre_wo_requests (
-    id         SERIAL PRIMARY KEY,
-    bom_id     INTEGER      NOT NULL,                       -- อ้าง BOM ของระบบภายนอก (ไม่มี FK)
-    qty        INTEGER      NOT NULL,
-    due_date   DATE         NOT NULL,
-    status     VARCHAR(30)  NOT NULL DEFAULT 'PENDING',
-    wo_id      INTEGER REFERENCES work_orders(id),                     -- FK ตัวเลข -> work_orders(id) : บังคับ inline แล้ว (ตรงกับ migrations.js + convert code wo.js)
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT pre_wo_requests_qty_check CHECK (qty > 0),
-    CONSTRAINT pre_wo_requests_status_check CHECK (status IN ('PENDING','APPROVED','CONVERTED','REJECTED'))
-);
+-- ⚠️ ไม่มีตาราง `pre_wo_requests` — ฟีเจอร์ "คำขอเปิด WO ล่วงหน้า" (create/approve/convert) ถูกถอดออกจากระบบแล้ว
+--    (2026-07-31 ตามคำสั่งผู้ใช้ — ดูหมายเหตุ #11 ด้านบน) ถอดทั้ง endpoint ใน routes/wo.js, entry ใน backup.js,
+--    และ mock ฝั่ง frontend (mocks/handlers.ts) ไปพร้อมกัน
 
 CREATE TABLE work_centers (
     id         SERIAL PRIMARY KEY,
@@ -447,7 +447,6 @@ CREATE TABLE change_requests (
 -- ALTER TABLE rework_tickets          ADD CONSTRAINT fk_rework_wo       FOREIGN KEY (wo_id)  REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
 -- ALTER TABLE transfer_verifications  ADD CONSTRAINT fk_transfer_wo     FOREIGN KEY (wo_id)  REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
 -- ALTER TABLE kitting_issues          ADD CONSTRAINT fk_kitting_wo      FOREIGN KEY (wo_id)  REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
--- (pre_wo_requests.wo_id เป็น FK ตัวเลข -> work_orders(id) บังคับ inline แล้ว จึงไม่อยู่ในบล็อก DEFERRED นี้)
 -- ALTER TABLE change_requests         ADD CONSTRAINT fk_cr_wo           FOREIGN KEY (wo_ref) REFERENCES work_orders(wo_no) ON DELETE RESTRICT;
 -- ============================================================================
 
@@ -491,7 +490,7 @@ CREATE INDEX IF NOT EXISTS idx_notif_unread        ON notifications (is_read, cr
 --
 -- idempotent: ถ้ามี username 'admin' อยู่แล้วจะไม่ทำอะไร
 -- ============================================================================
-INSERT INTO app_users (username, full_name, role, is_active, password_hash, permissions)
+INSERT INTO users (username, full_name, role, is_active, password_hash, permissions)
 VALUES (
   'admin',
   'ผู้ดูแลระบบ',
@@ -503,4 +502,4 @@ VALUES (
 ON CONFLICT (username) DO NOTHING;
 
 -- ตรวจผล: ควรเห็น admin 1 แถว
--- SELECT id, username, role, is_active FROM app_users WHERE username = 'admin';
+-- SELECT id, username, role, is_active FROM users WHERE username = 'admin';

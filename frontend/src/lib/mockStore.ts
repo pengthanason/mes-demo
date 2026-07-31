@@ -64,7 +64,7 @@ function demoLogin(username: string, password: string): boolean {
   return true;
 }
 
-// ตรวจ login กับ backend จริง (my-api /api/auth/login — app_users + bcrypt) · เดโม: fallback local ถ้า MSW/SW ไม่ทำงาน
+// ตรวจ login กับ backend จริง (my-api /api/auth/login — users + bcrypt) · เดโม: fallback local ถ้า MSW/SW ไม่ทำงาน
 export async function apiLogin(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
   const uname = username.trim();
   const isDemo = IS_DEMO;

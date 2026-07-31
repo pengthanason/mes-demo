@@ -15,7 +15,7 @@ router.post('/login', async (req, res) => {
   }
   try {
     const { rows } = await db.query(
-      'SELECT id, username, full_name, role, is_active, password_hash, permissions FROM app_users WHERE username=$1',
+      'SELECT id, username, full_name, role, is_active, password_hash, permissions FROM users WHERE username=$1',
       [String(username).trim()]
     );
     const u = rows[0];
@@ -53,7 +53,7 @@ router.get('/me', async (req, res) => {
   }
   try {
     const { rows } = await db.query(
-      'SELECT id, username, full_name, role, is_active, permissions FROM app_users WHERE id=$1',
+      'SELECT id, username, full_name, role, is_active, permissions FROM users WHERE id=$1',
       [Number(payload.sub)]
     );
     const u = rows[0];

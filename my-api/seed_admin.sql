@@ -17,7 +17,7 @@
 -- idempotent: ถ้ามี username 'admin' อยู่แล้วจะไม่ทำอะไร (รันซ้ำได้)
 -- ============================================================================
 
-INSERT INTO app_users (username, full_name, role, is_active, password_hash, permissions)
+INSERT INTO users (username, full_name, role, is_active, password_hash, permissions)
 VALUES (
   'admin',
   'ผู้ดูแลระบบ',
@@ -29,4 +29,4 @@ VALUES (
 ON CONFLICT (username) DO NOTHING;
 
 -- ตรวจผล
-SELECT username, role, is_active FROM app_users WHERE username = 'admin';
+SELECT username, role, is_active FROM users WHERE username = 'admin';

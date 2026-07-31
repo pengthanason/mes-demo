@@ -33,19 +33,10 @@ async function migrate() {
       )
     `);
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS pre_wo_requests (
-        id         SERIAL PRIMARY KEY,
-        bom_id     INTEGER     NOT NULL,
-        qty        INTEGER     NOT NULL CHECK (qty > 0),
-        due_date   DATE        NOT NULL,
-        status     VARCHAR(30) NOT NULL DEFAULT 'PENDING'
-                     CHECK (status IN ('PENDING','APPROVED','CONVERTED','REJECTED')),
-        wo_id      INTEGER REFERENCES work_orders(id),
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
+    // ⚠️ pre_wo_requests (ฟีเจอร์ "คำขอเปิด WO ล่วงหน้า" — create/approve/convert) ถูกถอดออกจากระบบแล้ว
+    //    ตามคำสั่งผู้ใช้ (ยืนยันแล้วว่ารู้ว่าเป็นฟีเจอร์ที่ใช้งานอยู่จริง) — ลบทั้ง endpoint ใน routes/wo.js,
+    //    entry ใน backup.js, และ mock ฝั่ง frontend ไปพร้อมกัน
+    await client.query(`DROP TABLE IF EXISTS pre_wo_requests`);
 
     // ── WO lifecycle columns (Dashboard / FAI / Close) ──
     await client.query(`
@@ -160,8 +151,12 @@ async function migrate() {
     }
 
     // ── FE-13: Admin Users + Audit Logs ──
+    // ⚠️ ตารางนี้เดิมชื่อ app_users — เปลี่ยนชื่อเป็น users ตามคำสั่งผู้ใช้ (my-api เท่านั้น ไม่แตะ backend/ ที่มี users ของตัวเองแยกต่างหาก)
+    // RENAME ก่อน CREATE IF NOT EXISTS: ฐานเก่าที่มี app_users อยู่แล้วจะถูกเปลี่ยนชื่อ (ข้อมูลเดิมไม่หาย)
+    // ฐานใหม่/ฐานที่ rename ไปแล้วรอบก่อน จะข้ามท่อนนี้ไป (ตาราง app_users ไม่มีอยู่แล้ว)
+    await client.query(`ALTER TABLE IF EXISTS app_users RENAME TO users`);
     await client.query(`
-      CREATE TABLE IF NOT EXISTS app_users (
+      CREATE TABLE IF NOT EXISTS users (
         id         SERIAL PRIMARY KEY,
         username   VARCHAR(100) NOT NULL UNIQUE,
         full_name  VARCHAR(200) NOT NULL,
@@ -183,7 +178,7 @@ async function migrate() {
         created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
-    const userCount = await client.query('SELECT COUNT(*) FROM app_users');
+    const userCount = await client.query('SELECT COUNT(*) FROM users');
     // ⚠️ ต้องมี SEED_DEMO เป็นเงื่อนไขด้วย — ไม่งั้น deploy prod บน DB เปล่าจะได้บัญชี admin/admin อัตโนมัติ
     //    (prod ให้สร้าง admin คนแรกด้วย my-api/seed_admin.sql — หรือได้มาแล้วถ้า init DB
     //     จาก my-api/database_schema.sql ซึ่งมี INSERT ตัวเดียวกันอยู่ท้ายไฟล์ — แล้วเปลี่ยนรหัสทันที)
@@ -193,7 +188,7 @@ async function migrate() {
       const bcryptSeed = require('bcryptjs');
       const h = (pw) => bcryptSeed.hashSync(pw, 10);
       await client.query(
-        `INSERT INTO app_users (username, full_name, role, password_hash) VALUES
+        `INSERT INTO users (username, full_name, role, password_hash) VALUES
            ('admin',   'ผู้ดูแลระบบ', 'ADMIN',  $1),
            ('member1', 'วิชัย สุขใจ', 'MEMBER', $2),
            ('viewer1', 'สมหมาย ดีใจ', 'VIEWER', $3)`,
@@ -210,21 +205,21 @@ async function migrate() {
     }
 
     // ── Auth: คอลัมน์รหัสผ่าน + ตั้งรหัสเริ่มต้น (= username) ให้ผู้ใช้ที่ยังไม่มี ──
-    await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(100) NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(100) NOT NULL DEFAULT ''`);
     // สิทธิ์รายหน้า (permissions) — additive · ว่าง [] = ใช้ค่าเริ่มต้นตาม role
-    await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '[]'::jsonb`);
     // ตั้งรหัสเริ่มต้น (= username) ให้ผู้ใช้ที่ยังไม่มีรหัส — เฉพาะโหมด demo/dev เท่านั้น
     // ⚠️ ห้ามทำบน prod: รหัส = ชื่อผู้ใช้ = เดาได้ทันที · prod ให้ตั้งรหัสผ่านหน้า Admin
     //    หรือสร้าง admin คนแรกด้วย my-api/seed_admin.sql
     if (SEED_DEMO) {
       const bcrypt = require('bcryptjs');
-      const needPw = await client.query("SELECT id, username FROM app_users WHERE password_hash = ''");
+      const needPw = await client.query("SELECT id, username FROM users WHERE password_hash = ''");
       for (const u of needPw.rows) {
-        await client.query('UPDATE app_users SET password_hash=$1 WHERE id=$2', [bcrypt.hashSync(u.username, 10), u.id]);
+        await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [bcrypt.hashSync(u.username, 10), u.id]);
       }
       if (needPw.rows.length) console.log(`[migrate] ตั้งรหัสเริ่มต้นให้ ${needPw.rows.length} ผู้ใช้ (รหัส = username · demo/dev เท่านั้น)`);
     } else {
-      const { rows } = await client.query("SELECT COUNT(*)::int AS n FROM app_users WHERE password_hash = ''");
+      const { rows } = await client.query("SELECT COUNT(*)::int AS n FROM users WHERE password_hash = ''");
       if (rows[0].n) console.warn(`[migrate] ⚠️ มีผู้ใช้ ${rows[0].n} คนที่ยังไม่มีรหัสผ่าน — ล็อกอินไม่ได้จนกว่าจะตั้งรหัสให้ (SEED_DEMO=false จึงไม่ตั้งอัตโนมัติ)`);
     }
 
