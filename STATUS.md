@@ -1,6 +1,52 @@
 # Syntech MES -- Status & Handoff
 > อัปเดต: **2026-07-30** (intern repo `syntech-intern-2026`, branch `develop`) · ประวัติ deploy server (172.16.10.87) อยู่ด้านล่าง
 
+## BOM ย้ายไปเป็นของ MRP (2026-07-30)
+
+**เจ้าของข้อมูล BOM = MRP** ไม่ใช่ MES แล้ว — MES อ่านได้ แก้ไม่ได้
+
+| endpoint | เดิม | ตอนนี้ |
+| --- | --- | --- |
+| `POST /api/bom/upload` (backbone :5100) | ADMIN อัปโหลด BOM ได้ | **503 `BOM_EXTERNAL_ONLY`** + `hint` บอกให้ไปทำที่ MRP |
+| `GET /api/bom/headers` (backbone) | อ่านจาก `master_bom_header` | `boms: []` + `source: 'external_pending'` |
+| `GET /api/bom/headers` (my-api :5099) | อ่านจากตาราง `boms` | derive จาก `bom_lines` + `source: 'local_bom_lines_mirror'` |
+| `PUT /api/bom/:id/approve`, `POST /api/bom` (my-api) | สร้าง/อนุมัติได้ | 400 + ข้อความอธิบาย |
+| ตาราง `boms` | มี | **ถอดออก** · `bom_lines.bom_id` เป็น `INTEGER` ธรรมดา (ไม่มี FK) |
+
+**สิ่งที่ยังไม่จริง (อย่าเขียนเกินความจริงในเอกสาร/โค้ด)**: ยังไม่มี API เชื่อม MRP —
+endpoint อ่านทั้งหมดยังอ่านจาก `bom_lines` ใน DB ตัวเอง ซึ่งเป็น **สำเนา (mirror)** ที่นำเข้ามา
+ไม่ใช่ดึงสดจาก MRP · เมื่อมี MRP API แล้วให้เปลี่ยนให้ยิงออกจริงแล้วลบคำว่า mirror ออก
+
+**ต้องแจ้งก่อน deploy**: prod ยังรันโค้ดเก่า upload BOM ได้อยู่ — deploy รอบหน้าผู้ใช้ ADMIN
+จะเจอ 503 ต้องบอกก่อนว่าไปอัปโหลดที่ MRP แทน
+
+---
+
+## SCM Cases ถูกถอดออก (2026-07-27)
+
+โมดูล **12_scm_cases** ถอดออกจากรีโปแล้ว — ตั้งใจถอด ไม่ใช่ลบพลาดตอน merge
+
+| ถูกถอด | คอมมิต |
+| --- | --- |
+| `my-api/routes/scm.js` | `b085e48` (2026-07-24) |
+| `backend/modules/12_scm_cases/` (routes + controller + recall · 443 บรรทัด) | `b2d6fa0` (2026-07-27) |
+| ตาราง `scm_cases`, `scm_split_lots` ใน `backend/schema.sql` | `b2d6fa0` |
+| `frontend/src/pages/ScmCasesPage.tsx` (502 บรรทัด) | `b2d6fa0` |
+
+**เหตุผล**: ขอบเขต intern track ไม่ครอบ SCM disposition flow — ไม่มีผู้ใช้จริงและไม่มี user story รองรับ
+เก็บโค้ดที่ไม่มีใครใช้ไว้ = ต้องดูแล/ทดสอบ/แก้ช่องโหว่ฟรีๆ
+
+**ผลกระทบต่อ prod (172.16.10.87)**: prod ยังรันโค้ดเก่าอยู่ `GET /api/scm/cases` จึงยังตอบ 200 —
+**deploy รอบหน้าจะกลายเป็น 404** ต้องแจ้งผู้ใช้ backbone ก่อน deploy
+ถ้าจำเป็นต้องใช้กลับ: `git revert b2d6fa0 b085e48` (โค้ดยังอยู่ใน git history ครบ)
+
+**ที่ตามเก็บให้ตรงกันแล้ว**: `authz.js` (ROUTE_PERM + perm `scm` ใน MEMBER), `activityLog.js`,
+เทส 2 ตัวใน `backend/tests/e2e.pm_scm.test.js`, ตารางโมดูลด้านล่าง, README
+
+> `backend/modules/14_event_inbox/` ที่ถอดไปพร้อมกันเป็น dead code จริง (ไม่เคย mount ใน `server.js`) ไม่ต้องกู้
+
+---
+
 ## 2026-07-30 Frontend Track — Pre-production hardening (security + robustness)
 
 ตรวจทั้งระบบก่อนขึ้น prod พบ blocker 10 ข้อ + ควรแก้ 10 ข้อ → ปิดไป **17 ข้อ** (เทสยืนยันทุกข้อ) · เหลือ pagination 1 ข้อ (ไม่บล็อก)
@@ -339,7 +385,7 @@
 | 09_close | Live | dual approve + GR→WMS + DONE + actualQty→MRP |
 | 10_notifications | Live | inbox, ack |
 | 11_pm_flow | Live | PM project lifecycle |
-| 12_scm_cases | Live | SCM case + disposition |
+| 12_scm_cases | **Removed (2026-07-27)** | SCM case + disposition — ถอดออกจากรีโป ดู "SCM Cases ถูกถอดออก" ด้านล่าง |
 | 13_jumbo | Live | ICT auto-push + ICT gate (graceful) |
 
 ---

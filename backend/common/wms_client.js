@@ -139,7 +139,9 @@ async function _movement(woRef, items, type, actor, defaultLocation, defaultRema
 
 const postGI  = (woRef, items, actor = "mes") => _movement(woRef, items, "ISS", actor, null,       `MES GI: ${woRef}`);
 const postGR  = (woRef, items, actor = "mes") => _movement(woRef, items, "REC", actor, "FG-Store", `MES GR (WO Close): ${woRef}`);
-const postADJ = (items, actor = "mes")        => _movement(null,  items, "ADJ", actor, null,       "MES Scrap ADJ");
+// docRef = เลข WO หรือ unit SN — ส่งเป็น document_ref ให้ WMS สืบกลับมาที่ MES ได้ + dedup ได้
+// (เดิมส่ง null → movement ที่ WMS ไม่มีอะไรอ้างกลับเลย ตอนสต็อกไม่ตรงไล่ไม่ได้)
+const postADJ = (items, actor = "mes", docRef = null) => _movement(docRef, items, "ADJ", actor, null, "MES Scrap ADJ");
 
 async function createProdOrder(data) {
   if (!isConfigured()) return null;

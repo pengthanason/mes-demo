@@ -122,10 +122,13 @@ router.post('/api/bom/upload', requireRoles(['ADMIN']), async (req, res) => {
   }
 
   // BOM ภายนอกจาก mrp.bom_lines — local upload ไม่รองรับแล้ว
+  // 503 (ไม่ใช่ 404/400) = ฟีเจอร์ยังอยู่ในสัญญา API แต่ปลายทางย้ายไป MRP และยังไม่มี API เชื่อม
+  // เปลี่ยนพฤติกรรม prod → ประกาศไว้ที่ STATUS.md หัวข้อ "BOM ย้ายไปเป็นของ MRP"
   return res.status(503).json({
     status: 'error',
     code: 'BOM_EXTERNAL_ONLY',
     message: 'BOM is now managed externally via mrp.bom_lines. Local upload is no longer supported.',
+    hint: 'อัปโหลด/แก้ BOM ที่ระบบ MRP · ระบบ MES อ่าน BOM จาก mrp.bom_lines เท่านั้น · ดู STATUS.md',
     request_id: reqId(res),
   });
 });

@@ -2,11 +2,18 @@ const router = require('express').Router();
 const db     = require('../db');
 
 // ── BOM ────────────────────────────────────────────────────────────────────
-// ⚠️ ตาราง `boms` (หัว BOM) ถูกถอดออกจากระบบแล้ว — BOM ตัวจริงมาจากระบบภายนอก (MRP)
+// ⚠️ ตาราง `boms` (หัว BOM) ถูกถอดออกจากระบบแล้ว — เจ้าของ BOM คือ MRP
 //    เหลือเก็บแต่ `bom_lines` (รายการชิ้นส่วน) โดยใช้ `bom_id` เป็น plain INTEGER
-//    ที่อ้างถึง BOM ของระบบภายนอก (ไม่มี FK ในฐานข้อมูลนี้)
-// → endpoint ที่ "สร้าง/อนุมัติ" BOM จึงตอบข้อความอธิบายแทน ไม่ error หน้าขาว
+//    ที่อ้างถึง BOM ของ MRP (ไม่มี FK ในฐานข้อมูลนี้)
+//
+// สถานะจริงตอนนี้ (อย่าเขียนให้เกินความจริง):
+//   - ยัง **ไม่มี** API เชื่อม MRP — endpoint อ่านข้อมูลด้านล่างอ่านจาก `bom_lines`
+//     ในฐานข้อมูลนี้ ซึ่งเป็นสำเนาที่นำเข้ามา (mirror) ไม่ใช่ดึงสดจาก MRP
+//   - endpoint ที่ "สร้าง/อนุมัติ" BOM ปิดแล้ว เพราะระบบนี้ไม่ใช่เจ้าของข้อมูล
+//   - เมื่อมี MRP API แล้วให้เปลี่ยนตรงนี้ให้ยิงออกไปจริง แล้วลบคำว่า mirror ออก
 const EXTERNAL_MSG = 'BOM มาจากระบบภายนอก (MRP) — ระบบนี้ไม่ได้สร้าง/อนุมัติ BOM เอง';
+// แหล่งข้อมูลจริงของ endpoint อ่าน — บอก client ตรงๆ ว่ายังเป็นสำเนาใน DB นี้
+const READ_SOURCE = 'local_bom_lines_mirror';
 
 // GET /api/bom/headers — รายการ BOM ที่มีรายการชิ้นส่วนอยู่ในระบบ
 // เดิมอ่านจากตาราง boms · ตอนนี้ derive จาก bom_lines (group by bom_id)
@@ -20,7 +27,7 @@ router.get('/headers', async (req, res) => {
         GROUP BY bom_id
         ORDER BY bom_id DESC`
     );
-    res.json({ status: 'success', data: rows, note: EXTERNAL_MSG });
+    res.json({ status: 'success', data: rows, source: READ_SOURCE, note: EXTERNAL_MSG });
   } catch (e) {
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
@@ -42,7 +49,7 @@ router.get('/:bomId/review', async (req, res) => {
     if (!lines.rows.length) {
       return res.status(404).json({ status: 'error', message: `ไม่พบรายการชิ้นส่วนของ BOM #${bomId} ในระบบนี้ (${EXTERNAL_MSG})` });
     }
-    res.json({ status: 'success', data: { bom_id: bomId, external: true, lines: lines.rows }, note: EXTERNAL_MSG });
+    res.json({ status: 'success', data: { bom_id: bomId, lines: lines.rows }, source: READ_SOURCE, note: EXTERNAL_MSG });
   } catch (e) {
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
