@@ -13,7 +13,7 @@ import { TableState } from '../components/DataStates';
 import { FileNamePromptModal } from '../components/FileNamePromptModal';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import {
-  STATUS_STYLE, StatusBadge, statusView, exportXlsx, exportGanttXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal, EditHistory,
+  STATUS_STYLE, StatusBadge, statusView, DUE_SOON_DAYS, exportXlsx, exportGanttXlsx, StatCard, BarRow, ChartCard, Donut, GanttChart, ProjectFormModal, EditHistory,
   XLSX_COLUMNS, DASH_COLUMNS, PROCESS_STEPS, PROCESS_KEYS, PROC_STATUS, PROC_STATUS_LABEL, buildHeaderRows, todayLocal, type PpCol, type HeaderCell,
 } from '../components/ppParts';
 import { StationMonitorWidget } from '../components/StationMonitorWidget';
@@ -1346,6 +1346,7 @@ export function DashboardPage() {
           {[
             { label: 'Done', s: STATUS_STYLE.DONE },
             { label: 'On process', s: STATUS_STYLE.ON_PROCESS },
+            { label: `Due soon (≤${DUE_SOON_DAYS}d)`, s: STATUS_STYLE.ORANGE },
             { label: 'Delay', s: STATUS_STYLE.DELAY },
             { label: 'Waiting', s: STATUS_STYLE.WAIT },
           ].map(x => (

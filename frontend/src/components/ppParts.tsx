@@ -83,13 +83,35 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
   );
 }
 
+// ใกล้ครบกำหนด (revised/expected date) ภายในกี่วัน → เตือนสีส้มอัตโนมัติ ก่อนจะกลายเป็นแดง (เดิมมีแค่ปุ่มเลือกสีเอง)
+// ปรับตัวเลขนี้ได้ตามที่ทีมตกลงกัน (transcript พูดถึงทั้ง 1-2 และ 1-3 วัน — ใช้ 3 เป็นค่าเริ่มต้น)
+export const DUE_SOON_DAYS = 3;
+
 // แสดงผลช่อง Status — status เก็บได้ทั้ง 4 สถานะ (DONE/ON_PROCESS/DELAY/CANCEL) หรือชื่อ process step (เช่น "SMT")
-// · ถ้าเป็น process step → โชว์ชื่อ step + สีเหลือง (เหมือน Delay) · status_color = สีที่กดเปลี่ยนเองในตาราง (ทับได้)
+// · ถ้าเป็น process step → โชว์ชื่อ step + สีเหลือง (เหมือน Delay) · status_color = สีที่กดเปลี่ยนเองในตาราง (ทับได้ ชนะทุกกรณี)
+// · ON_PROCESS ที่ยังไม่เลยกำหนดแต่เหลือ <= DUE_SOON_DAYS วัน (เทียบจาก revised_date ถ้ามี ไม่งั้น expected_date) → ขึ้นส้มอัตโนมัติ
+//   (ไม่แตะ DELAY/DONE/CANCEL ที่เป็นสถานะชัดเจนอยู่แล้ว — เฉพาะ ON_PROCESS ที่ยังไม่มีใครตั้งสีเองเท่านั้น)
+// ⚠️ ProjectFormModal auto-fill status_color = status ทุกครั้งที่บันทึกถ้าไม่ได้เลือกสีเอง (ดู ppParts.tsx ~1010)
+//    → status_color เกือบทุก record จะไม่ว่างเปล่าอยู่แล้ว เทียบแค่ "!empty" จะไม่มีทาง auto-orange ทำงานเลย
+//    ต้องเทียบว่า status_color ต่างจาก status จริงๆ (คนละสีกับ default) ถึงจะถือว่า "ตั้งสีเองไว้แล้ว"
 export function statusView(p: Partial<PpProject>): { label: string; colorKey: string } {
   const st = (p.status || '') as string;
   const isStd = (PP_STATUS as readonly string[]).includes(st);
   const label = PP_STATUS_LABEL[st] ?? st;
-  const colorKey = p.status_color || (isStd ? st : 'PROCESS');   // process step (ไม่ใช่ 4 สถานะ) = ฟ้าอมเขียว (teal)
+  const hasCustomColor = !!p.status_color && p.status_color !== st;
+  if (hasCustomColor) return { label, colorKey: p.status_color! };
+
+  if (st === 'ON_PROCESS') {
+    const dueStr = p.revised_date || p.expected_date;
+    const due = dueStr ? new Date(String(dueStr).slice(0, 10) + 'T00:00:00') : null;
+    if (due && !isNaN(due.getTime())) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const daysLeft = Math.round((due.getTime() - today.getTime()) / 86400000);
+      if (daysLeft >= 0 && daysLeft <= DUE_SOON_DAYS) return { label, colorKey: 'ORANGE' };
+    }
+  }
+
+  const colorKey = isStd ? st : 'PROCESS';   // process step (ไม่ใช่ 4 สถานะ) = ฟ้าอมเขียว (teal)
   return { label, colorKey };
 }
 
