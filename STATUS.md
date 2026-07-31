@@ -36,9 +36,26 @@ endpoint อ่านทั้งหมดยังอ่านจาก `bom_li
 **เหตุผล**: ขอบเขต intern track ไม่ครอบ SCM disposition flow — ไม่มีผู้ใช้จริงและไม่มี user story รองรับ
 เก็บโค้ดที่ไม่มีใครใช้ไว้ = ต้องดูแล/ทดสอบ/แก้ช่องโหว่ฟรีๆ
 
+**หลักฐานว่าไม่เคยถูกใช้บน prod** (Claudy query prod DB ใน PR #10 · 2026-07-30):
+
+| ตารางใน `mes_core` | จำนวนแถว |
+| --- | --- |
+| `scm_cases` | **0** |
+| `scm_split_lots` | **0** |
+| (เทียบตารางที่ใช้จริง) `auth_login_audits` | 16 |
+| `mes_sessions` | 4 |
+| `work_orders` | 3 |
+| `jumbo_packing_boxes` | 2 |
+
+endpoint live จริงแต่ไม่มีใครยิงเลยสักเคส → ไม่ต้องกู้กลับ และไม่ใช่ blocker ของการ merge
+
 **ผลกระทบต่อ prod (172.16.10.87)**: prod ยังรันโค้ดเก่าอยู่ `GET /api/scm/cases` จึงยังตอบ 200 —
-**deploy รอบหน้าจะกลายเป็น 404** ต้องแจ้งผู้ใช้ backbone ก่อน deploy
+**deploy รอบหน้าจะกลายเป็น 404** แต่ไม่มีข้อมูล/ผู้ใช้จริงที่ได้รับผลกระทบ
 ถ้าจำเป็นต้องใช้กลับ: `git revert b2d6fa0 b085e48` (โค้ดยังอยู่ใน git history ครบ)
+
+**บทเรียนที่รับมา**: 2 คอมมิตนั้นมี commit message ว่างเปล่า ทำให้คนรีวิวต้องไล่ diff ทีละคอมมิต
+\+ query prod DB เพื่อตอบแค่ว่า "ตั้งใจหรือเปล่า" — ต่อไปการลบโค้ด/ตาราง/endpoint
+ต้องเขียนเหตุผลไว้ใน commit message หรือ PR body เสมอ
 
 **ที่ตามเก็บให้ตรงกันแล้ว**: `authz.js` (ROUTE_PERM + perm `scm` ใน MEMBER), `activityLog.js`,
 เทส 2 ตัวใน `backend/tests/e2e.pm_scm.test.js`, ตารางโมดูลด้านล่าง, README
