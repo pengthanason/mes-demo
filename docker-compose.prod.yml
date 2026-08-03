@@ -1,0 +1,242 @@
+# ============================================================================
+# docker-compose.prod.yml — Syntech MES (production, server 172.16.10.87)
+# ----------------------------------------------------------------------------
+# ไฟล์นี้ "สะท้อนของจริงที่รันอยู่" ไม่ใช่ของอุดมคติ
+# อ้างอิง runtime จริงของ container `mes-backbone` (created 2026-07-24 · ไม่เคย recreate)
+# → env 48 ตัวใน container = 44 ตัวจาก compose (env_file + environment)
+#                            + 4 ตัวจาก image (PATH, NODE_VERSION, YARN_VERSION, NODE_ENV)
+#
+# ⛔ ห้าม deploy ด้วยไฟล์นี้จนกว่าจะอ่านหัวข้อ "ก่อน up ต้องเช็ค" ท้ายไฟล์ให้ครบ
+#
+# วิธีใช้ (ไม่ใช่รอบนี้):
+#   docker compose -f docker-compose.prod.yml config      # ตรวจก่อนเสมอ
+#   docker compose -f docker-compose.prod.yml up -d my_api        # ขึ้นทีละ service
+# ============================================================================
+
+services:
+
+  # ==========================================================================
+  # mes_backbone (:5100) — ของเดิมที่รันอยู่ ห้ามให้ env เพี้ยนแม้ตัวเดียว
+  # ==========================================================================
+  mes_backbone:
+    image: syntech_mes_draft-mes_backbone:next
+    container_name: mes-backbone
+    restart: unless-stopped
+
+    # ── 🔴 บทเรียน #1: DB อยู่บน "host" ไม่ใช่ container ──────────────────
+    # docker-compose.yml ที่ commit ใน main ตั้ง DB_HOST: postgres → ชี้ container เปล่า
+    # ถ้า recreate ด้วยไฟล์นั้น backbone จะต่อ DB ไม่ได้ทันที (prod ล่ม)
+    # ของจริง: Postgres รันบน host ถือพอร์ต 5432 → ต้องเข้าทาง host.docker.internal
+    # ซึ่งใช้ได้เพราะมี extra_hosts map ไป host-gateway (= 172.17.0.1)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # ── 🔴 บทเรียน #2: ห้ามมี service postgres เด็ดขาด ────────────────────
+    #    (ดูคอมเมนต์ก้อนใหญ่ท้ายไฟล์) — ไฟล์นี้จึงไม่มี depends_on postgres
+    #    และไม่มี volume postgres_data
+
+    # ── env: 2 ชั้น ตรงกับที่ container จริงได้รับ ────────────────────────
+    #  ชั้น 1 = env_file .env  → ให้กลุ่ม MES_DB_* (7 ตัว: HOST/PORT/NAME/USER/
+    #           PASSWORD/SSLMODE/SCHEMA) ที่ไม่ได้อยู่ใน environment ด้านล่าง
+    #           หมายเหตุ: MES_DB_* เป็น alias เฉยๆ — backend อ่าน DB_* เป็นหลัก
+    #           ยกเว้น MES_DB_SCHEMA ที่ db.js ใช้จริงเป็น fallback (ดูคอมเมนต์ DB_SCHEMA)
+    #  ชั้น 2 = environment → ทับ/เติม อีก 37 ตัว (environment ชนะ env_file เสมอ)
+    env_file:
+      - .env
+
+    environment:
+      # ---- app ----
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "5100"
+      APP_DEBUG: "false"
+      APP_VERSION: ${MES_APP_VERSION:-0.1.0-station2}
+      MES_ENV: ${MES_ENV:-dev}
+      MES_READY_STRICT: ${MES_READY_STRICT:-false}
+
+      # ---- auth / session ----
+      # MES_AUTH_MODE ของจริง = jwt (ตั้งใน .env) — ห้ามปล่อยเป็น hybrid
+      # hybrid = ยอมรับ header auth → เคยเป็นช่อง bypass ที่ปิดไปแล้ว 2026-07-24
+      MES_CORS_ORIGINS: ${MES_CORS_ORIGINS:-}
+      MES_AUTH_MODE: ${MES_AUTH_MODE:-hybrid}
+      MES_JWT_ISSUER: ${MES_JWT_ISSUER:-syntech-mes-backbone}
+      MES_JWT_SECRET: ${MES_JWT_SECRET:?ต้องตั้ง MES_JWT_SECRET ใน .env - MES_AUTH_MODE=jwt ใช้ค่านี้เซ็น token}
+      MES_JWT_ACCESS_TTL_SEC: ${MES_JWT_ACCESS_TTL_SEC:-900}
+      MES_JWT_REFRESH_TTL_SEC: ${MES_JWT_REFRESH_TTL_SEC:-604800}
+      MES_MAX_CONCURRENT_SESSIONS: ${MES_MAX_CONCURRENT_SESSIONS:-3}
+      MES_SESSION_INACTIVITY_SEC: ${MES_SESSION_INACTIVITY_SEC:-1800}
+      MES_RATE_LIMIT_ENABLED: ${MES_RATE_LIMIT_ENABLED:-false}
+
+      # ---- operator UI (Next.js อยู่บน host เหมือนกัน) ----
+      NEXT_WEB_HOST: ${NEXT_WEB_HOST:-host.docker.internal}
+      NEXT_WEB_PORT: ${NEXT_WEB_PORT:-3005}
+
+      # ---- integrations ----
+      # JIG_API_URL ชี้ host.docker.internal เพราะ jig-api อยู่บน host เช่นกัน
+      JIG_API_URL: ${JIG_API_URL:-http://host.docker.internal:3000}
+      JIG_API_KEY: ${JIG_API_KEY:-}
+      # 🔴 บทเรียน #3: wms-api ต่อได้ผ่าน syntech_wms_idea_default ที่ผูกอยู่แล้ว
+      #    (alias "wms-api" -> 172.18.0.2) ไม่ต้องพึ่ง synexta_event_bus เลย
+      WMS_API_URL: ${WMS_API_URL:-http://wms-api:8000}
+      WMS_API_TOKEN: ${WMS_API_TOKEN:-}
+      WMS_SERVICE_USER: ${WMS_SERVICE_USER:-mes_service}
+      # ห้าม hardcode default PIN ในไฟล์นี้ (ของเดิมมีค่าจริงติดมาใน docker-compose.yml)
+      WMS_SERVICE_PIN: ${WMS_SERVICE_PIN:?ต้องตั้ง WMS_SERVICE_PIN ใน .env}
+      # MRP อยู่บน host เช่นกัน (ไม่ได้อยู่บน event bus) จึงเป็น host.docker.internal:8001
+      MRP_API_URL: ${MRP_API_URL:-http://mrp-api:8001}
+      MRP_SERVICE_TOKEN: ${MRP_SERVICE_TOKEN:-}
+      MRP_API_USER: ${MRP_API_USER:-admin}
+      MRP_API_PASSWORD: ${MRP_API_PASSWORD:?ต้องตั้ง MRP_API_PASSWORD ใน .env - legacy fallback ตอน MRP_SERVICE_TOKEN ว่าง}
+
+      # ---- database (ของจริง = Postgres บน host) ----
+      DB_HOST: host.docker.internal      # 🔴 ห้ามเปลี่ยนเป็น "postgres" (ดูบทเรียน #1)
+      DB_PORT: "5432"
+      DB_NAME: mesdb
+      DB_USER: syntechdb
+      # อ้าง ${MES_DB_PASSWORD} จาก .env — ห้าม hardcode (ของเดิมมีรหัสจริงติดมาในไฟล์)
+      DB_PASSWORD: ${MES_DB_PASSWORD:?ต้องตั้ง MES_DB_PASSWORD ใน .env}
+      DB_SSLMODE: disable
+      DB_CONNECT_TIMEOUT: ${MES_DB_CONNECT_TIMEOUT:-5000}
+      # ⚠️ ตั้งใจ "ไม่ใส่" DB_SCHEMA — runtime จริงของ prod ไม่มีตัวนี้
+      #    backend/db.js อ่าน `DB_SCHEMA || MES_DB_SCHEMA || ''` → ตกมาใช้
+      #    MES_DB_SCHEMA=mes_core จาก .env (env_file) ซึ่งคือของจริงที่รันอยู่
+      #    ถ้าอยากตั้งชัดเจน ต้องตั้งเป็น mes_core เท่านั้น ห้ามปล่อยว่าง
+
+      # ---- inbox / webhook ----
+      # EVENT_INBOX_SECRET ของจริง = ค่าว่าง (ไม่ได้อยู่ใน .env) — คงไว้ตามเดิม
+      EVENT_INBOX_SECRET: ${EVENT_INBOX_SECRET:-}
+      STOCK_WEBHOOK_SECRET: ${STOCK_WEBHOOK_SECRET:-}
+      SKIP_KITTING: ${SKIP_KITTING:-true}
+      # ปลายทาง proxy ของ prefix ที่ my-api เป็นเจ้าของ (ดู backend/server.js)
+      # ตั้งเป็นชื่อ service ใน network เดียวกัน — ไม่ต้องผ่าน host
+      MY_API_URL: ${MY_API_URL:-http://mes-my-api:5099}
+
+    ports:
+      - "5100:5100"                    # nginx /mes-api/ -> 127.0.0.1:5100
+
+    networks:
+      # 🔴 บทเรียน #4 (สำคัญสุด): ลำดับ default route
+      # เคยลอง connect synexta_event_bus เข้ามาแล้ว "แย่ง default route"
+      # ผลคือ host.docker.internal ยิงไม่ถึง → backbone ต่อ DB ไม่ได้ = prod ล่ม
+      # ของจริงตอนนี้: default route ออก eth0 -> 172.19.0.1 (syntech_mes_draft_default)
+      # จึง pin gw_priority ให้ mes_draft ชนะแน่นอน ไม่ปล่อยให้ขึ้นกับลำดับตัวอักษร
+      syntech_mes_draft_default:
+        gw_priority: 100
+        aliases:
+          - mes_backbone               # ของเดิมมี alias นี้ติดมาด้วย คงไว้ให้เหมือนเดิม
+      syntech_wms_idea_default: {}     # ใช้แค่คุยกับ wms-api (172.18.x) ไม่เอา default route
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5100/api/mes/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ==========================================================================
+  # my_api (:5099) — service ใหม่ · MES Planning API
+  # ต้อง build จาก branch fix/my-api-security-blockers (9ef4011) เท่านั้น
+  # (ของใน working tree ณ main = เวอร์ชันเก่าที่ยังไม่ปิด 5 blockers)
+  # ==========================================================================
+  my_api:
+    image: syntech-my-api:next
+    container_name: mes-my-api
+    restart: unless-stopped
+
+    # DB อยู่บน host เหมือน backbone → ต้องมี host-gateway ด้วย
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # ⚠️ ตั้งใจ "ไม่ใช้ env_file: .env" — .env เป็นของ backbone (MES_*/WMS_*/MRP_*)
+    #    ถ้าดูดเข้ามาทั้งก้อน my-api จะได้ env ที่ไม่เกี่ยวเต็มไปหมด และเสี่ยง
+    #    ชนกับชื่อทั่วไปอย่าง JWT_SECRET/DB_* โดยไม่ตั้งใจ → ระบุทีละตัวชัดๆ ดีกว่า
+    environment:
+      NODE_ENV: production            # ย้ำจาก image: เปิด fail-fast ของ db.js + auth-token.js
+      PORT: "5099"
+
+      DB_HOST: host.docker.internal   # 🔴 ห้ามเป็น "postgres" (ไม่มี container นั้น)
+      DB_PORT: "5432"
+      DB_NAME: mesdb
+      DB_USER: syntechdb
+      DB_PASSWORD: ${MES_DB_PASSWORD:?ต้องตั้ง MES_DB_PASSWORD ใน .env}
+
+      # ── 🔴 บทเรียน #5: schema isolation ──────────────────────────────────
+      # productiondb เป็นฐานกลาง: public = WMS/OTS (มีตาราง users ของเขา)
+      #   · mes_core = MES backbone · mrp/bom/rfq = ระบบอื่น
+      # my-api ต้องอยู่ schema ของตัวเองเท่านั้น ไม่งั้น migrations.js จะ
+      # ALTER TABLE users ของ WMS แบบถาวร
+      # db.js จะ CREATE SCHEMA IF NOT EXISTS ให้เอง + fail-fast ถ้าเจอ public บน productiondb
+      DB_SCHEMA: mes_app
+
+      # ลายเซ็น JWT ของ my-api — คนละดอกกับ MES_JWT_SECRET ของ backbone โดยตั้งใจ
+      # auth-token.js จะ throw ทันทีถ้าไม่มีตอน NODE_ENV=production (ไม่มี fallback)
+      # สุ่มค่า: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+      JWT_SECRET: ${JWT_SECRET:?ต้องตั้ง JWT_SECRET ใน .env ก่อน deploy my-api - auth-token.js จะ throw ถ้าไม่มี}
+      JWT_TTL: ${MY_API_JWT_TTL:-8h}
+
+      # false = ไม่ยัด demo data และไม่สร้าง admin/admin อัตโนมัติ
+      # ⚠️ ห้ามเป็น true บน productiondb เด็ดขาด
+      SEED_DEMO: "false"
+
+      # เว้นว่าง = ไม่ติดตั้ง cors middleware เลย (same-origin เท่านั้น) เพราะ NODE_ENV=production
+      # ถ้าจะให้ UI คนละ origin เรียก ต้องใส่รายการโดเมนคั่น comma ผ่าน MY_API_CORS_ORIGINS
+      CORS_ORIGINS: ${MY_API_CORS_ORIGINS:-}
+
+    ports:
+      - "5099:5099"                    # พอร์ตว่างบน host แล้ว (ตรวจ 2026-08-03)
+
+    networks:
+      # เกาะแค่ network ของ MES เอง — my-api ไม่คุยกับ wms-api/mrp-api
+      # network เดียว = ไม่มีปัญหาแย่ง default route แน่นอน
+      syntech_mes_draft_default: {}
+
+    healthcheck:
+      # ใช้ /api/health/ready (ไม่ใช่ /api/health) เพราะตัว ready แตะ DB จริง
+      # ตัว liveness /api/health ตอบ ok ตายตัว → DB ล่มแต่ health เขียว = หลอกตัวเอง
+      # route นี้ถูก mount ก่อน authz middleware จึงเรียกได้โดยไม่ต้องมี token
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5099/api/health/ready >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+# ============================================================================
+# ⛔ ไม่มี service `postgres` และไม่มี volume `postgres_data` — โดยตั้งใจ
+# ----------------------------------------------------------------------------
+# docker-compose.yml เดิม (ทั้ง main และตัว uncommitted) มี service postgres
+# ที่ map "5432:5432" ออก host — แต่ host มี Postgres ตัวจริงถือพอร์ต 5432 อยู่แล้ว
+# (productiondb ที่ทั้ง WMS/MRP/MES/AP ใช้ร่วมกัน)
+# ถ้าเผลอ up ทั้ง stack:
+#   - กรณีดี = bind ชนพอร์ต, service ขึ้นไม่ได้
+#   - กรณีร้าย = ถ้า postgres ตัวจริงหลุดไปชั่วขณะ container จะแย่งพอร์ตแทน
+#                แล้วทั้งแพลตฟอร์มจะไปต่อฐาน "เปล่า" ที่ไม่มีข้อมูล
+# ============================================================================
+
+# ============================================================================
+# networks — ประกาศเป็น external ทั้งคู่ (สำคัญ)
+# ----------------------------------------------------------------------------
+# ถ้าปล่อยให้ compose สร้าง network เอง (`networks: default: driver: bridge`)
+# ตอน recreate มันจะสร้าง network ใหม่แล้ว container หลุดจากเส้นเดิม
+# → alias wms-api หาย, subnet เปลี่ยน, firewall/route ที่อ้าง 172.19.x พัง
+# external: true = "ต้องมีอยู่แล้วเท่านั้น" ถ้าไม่มี compose จะ error ทันที (fail loud)
+#
+# 🚫 ห้ามเพิ่ม synexta_event_bus เข้ามาที่นี่
+#    พิสูจน์แล้ว 2026-08-03: พอ connect เข้ามา มันแย่ง default route ของ container
+#    ทำให้ host.docker.internal (172.17.0.1) ยิงไม่ถึง → mes-backbone ต่อ DB ไม่ได้
+#    และไม่มีความจำเป็นเลย เพราะ alias wms-api มีบน syntech_wms_idea_default อยู่แล้ว
+# ============================================================================
+networks:
+  syntech_mes_draft_default:
+    external: true
+  syntech_wms_idea_default:
+    external: true
+
+# ============================================================================
+# ก่อน up ต้องเช็ค (checklist)
+# ----------------------------------------------------------------------------
+# 1) git: อยู่ branch/commit ที่ my-api ปิด 5 blockers แล้ว (fix/my-api-security-blockers)
+#    ไม่งั้น build ./my-api จะได้โค้ดเก่าที่ยังไม่มี authz/auth-token
+# 2) .env: ต้องมี JWT_SECRET (ตัวใหม่ ยังไม่มีในไฟล์เดิม) — ดู .env.prod.example
+# 3) `docker compose -f docker-compose.prod.yml config` ต้องผ่านและ env ตรง runtime
+# 4) ขึ้น my_api ก่อนตัวเดียว (`up -d my_api`) แล้วดู log ว่า schema = mes_app
+#    อย่ายิง `up -d` เปล่าๆ เพราะจะไป recreate mes_backbone ที่รันดีอยู่ด้วย
+# 5) nginx ยังไม่มี location สำหรับ :5099 — ต้องเพิ่มแยกถ้าจะให้เข้าจากข้างนอก
+# ============================================================================
