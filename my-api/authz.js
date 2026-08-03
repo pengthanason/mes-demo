@@ -55,7 +55,7 @@ const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  * role/permissions อ่านจาก DB ทุกครั้ง ไม่เชื่อค่าที่มาใน token
  */
 async function authz(req, res, next) {
-  const p = req.path;
+  const p = req.path.toLowerCase();   // FIX: normalize ก่อนเทียบ (Express routing ไม่สนตัวพิมพ์)
   if (req.method === 'OPTIONS') return next();
   if (!p.startsWith('/api')) return next();                       // ไฟล์ static ของหน้าเว็บ
   if (PUBLIC_PATHS.some(re => re.test(p))) return next();
