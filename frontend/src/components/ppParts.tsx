@@ -400,10 +400,34 @@ export function ChartCard({ title, children }: { title: string; children: React.
 }
 
 /* ── Gantt chart — ไทม์ไลน์รายวัน: แถวซ้าย = งาน · หัวบน = แกนวันที่ · แท่ง = PD Start → PD Done ── */
+
+// ── วันที่ของ Gantt: ปีต้องอยู่ในช่วงที่เป็นไปได้จริงในโรงงาน ─────────────────
+// 🔴 บทเรียน 2026-08-03: <input type="date"> ยอมให้พิมพ์ปี 1 หลัก (เคยเจอ revised_date = 0001-04-11
+//    ใน WO 102026) → ช่วงของ Gantt ถูกลากจากปี 1 ถึงปีนี้ = 739,741 วัน → หน้า Dashboard พังทั้งหน้า
+//    (Maximum call stack size exceeded ตอน spread array 7 แสนตัวเข้า Math.max)
+// ปีนอกช่วง = ถือว่าไม่มีค่า (คืน null) แล้วโชว์คำเตือนใต้ Gantt ให้คนไปแก้ — ไม่เงียบ
+const GANTT_YEAR_MIN = 2000;
+const GANTT_YEAR_MAX = new Date().getFullYear() + 10;
+// เพดานความกว้างของไทม์ไลน์ — กันไว้อีกชั้นเผื่อมีวันที่แปลกที่ยังอยู่ในช่วงปี (เช่น 2000 กับ 2036 ในชุดเดียวกัน)
+const GANTT_MAX_SPAN_DAYS = 1830;   // ~5 ปี
+
+const gToDate = (v: string | null | undefined): Date | null => {
+  if (!v) return null;
+  const d = new Date(String(v).slice(0, 10) + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  return (y < GANTT_YEAR_MIN || y > GANTT_YEAR_MAX) ? null : d;
+};
+const gDayDiff = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86400000);
+
+// ฟิลด์วันที่ทั้งหมดของ 1 โปรเจกต์ — ใช้ตรวจว่ามีค่าที่ปีหลุดช่วงไหม (โชว์เตือน)
+const PP_DATE_KEYS = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date'] as const;
+const hasBadDate = (p: PpProject): boolean => PP_DATE_KEYS.some(k => { const v = (p as any)[k]; return !!v && !gToDate(v); });
+
 /* ── Export Gantt เป็น Excel (ปฏิทินระบายสีตามสถานะ · เหมือนบนจอ) ── */
 export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
-  const toD = (v: string | null | undefined): Date | null => { if (!v) return null; const d = new Date(String(v).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : d; };
-  const dd = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86400000);
+  const toD = gToDate;                                   // ใช้ตัวเดียวกับบนจอ — กันวันที่ปีเพี้ยนเหมือนกัน
+  const dd = gDayDiff;
   const tasks = rows.map(p => {
     const start = toD(p.pd_start_date);
     // ปลายแท่ง = PD Done ถ้าเสร็จ ไม่งั้นยึด Expected date (เหมือน Gantt บนจอ)
@@ -423,7 +447,13 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
   if (tasks.some(t => t.log.length > 0)) allDates.push(today);
   let min = allDates[0], max = allDates[0];
   for (const d of allDates) { if (d < min) min = d; if (d > max) max = d; }
-  const totalDays = dd(min, max) + 1;
+  let totalDays = dd(min, max) + 1;
+  // เกินเพดาน = ข้อมูลวันที่ผิด ไม่ใช่แผนผลิตจริง — ตัดช่วงแล้วบอกให้รู้ (ไม่งั้น exceljs สร้างเป็นแสนคอลัมน์แล้วค้าง)
+  if (totalDays > GANTT_MAX_SPAN_DAYS) {
+    max = new Date(min.getTime() + (GANTT_MAX_SPAN_DAYS - 1) * 86400000);
+    totalDays = GANTT_MAX_SPAN_DAYS;
+    showToast(`Date range wider than ${Math.round(GANTT_MAX_SPAN_DAYS / 365)} years — the export was trimmed. Check the dates in the table.`, 'error');
+  }
   const days = Array.from({ length: totalDays }, (_, i) => { const d = new Date(min); d.setDate(d.getDate() + i); return d; });
   const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
 
@@ -525,13 +555,6 @@ export async function exportGanttXlsx(rows: PpProject[], filename?: string) {
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-const gToDate = (v: string | null | undefined): Date | null => {
-  if (!v) return null;
-  const d = new Date(String(v).slice(0, 10) + 'T00:00:00');
-  return isNaN(d.getTime()) ? null : d;
-};
-const gDayDiff = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86400000);
-
 export function GanttChart({ rows }: { rows: PpProject[] }) {
   const DAY_W = 44, LEFT_W = 250, ROW_H = 48, HEAD_H = 30, R = 8;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -564,6 +587,7 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   }).filter(t => !!t.start || t.log.length > 0);
 
   const skipped = rows.length - tasks.length;
+  const badDateRows = rows.filter(hasBadDate);   // แถวที่มีวันที่ปีหลุดช่วง — โชว์เตือนใต้กราฟ
 
   if (tasks.length === 0) {
     return (
@@ -583,12 +607,17 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   const PAD_DAYS = 5;
   if (min && max) { min = new Date(min.getTime() - PAD_DAYS * 86400000); max = new Date(max.getTime() + PAD_DAYS * 86400000); }
   { const f = gToDate(fromStr); if (f) min = f; const tt = gToDate(toStr); if (tt) max = tt; if (min.getTime() > max.getTime()) max = min; }   // ฟิลเตอร์ช่วงวันที่
-  const totalDays = gDayDiff(min, max) + 1;
+  let totalDays = gDayDiff(min, max) + 1;
+  // เพดานความกว้าง — เกินนี้คือวันที่ในข้อมูลผิด ไม่ใช่แผนจริง · ตัดช่วง + โชว์เตือนใต้กราฟ
+  const spanClamped = totalDays > GANTT_MAX_SPAN_DAYS;
+  if (spanClamped) { max = new Date(min.getTime() + (GANTT_MAX_SPAN_DAYS - 1) * 86400000); totalDays = GANTT_MAX_SPAN_DAYS; }
   const days = Array.from({ length: totalDays }, (_, i) => { const d = new Date(min); d.setDate(d.getDate() + i); return d; });
 
   // #4 heatmap: นับงานที่ active (ช่วง [start,end] ครอบวันนั้น) ต่อวัน + สเกลสี 5 ระดับ
   const dayActive = days.map(d => tasks.filter(t => t.start && t.end && t.start.getTime() <= d.getTime() && d.getTime() <= t.end.getTime()).length);
-  const maxActive = Math.max(1, ...dayActive);
+  // ⚠️ ห้าม Math.max(1, ...dayActive) — spread array ยาว ๆ = RangeError: Maximum call stack size exceeded
+  //    (เคยทำ Dashboard พังทั้งหน้า 2026-08-03 ตอน dayActive มี 739,741 ตัว) · reduce ไม่ผ่าน argument stack
+  const maxActive = dayActive.reduce((m, n) => (n > m ? n : m), 1);
   // สเกล YlOrRd (ColorBrewer) เหลือง→ส้ม→แดง — หลายสีชัด แยกระดับง่าย แต่ยังเป็นมาตรฐาน data-viz
   const HEAT = ['#eef2f7', '#ffe08a', '#fdbf5c', '#fd8d3c', '#f03b20', '#bd0026'];
   const heatBucket = (n: number) => n <= 0 ? 0 : Math.min(5, Math.ceil((n / maxActive) * 5));
@@ -642,7 +671,8 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
         const heatDays: { d: Date; n: number }[] = [];
         for (let t = hStart.getTime(); t <= hEnd.getTime(); t += 86400000) { const d = new Date(t); d.setHours(0, 0, 0, 0); heatDays.push({ d, n: countByKey.get(d.toDateString()) ?? 0 }); }
         const firstDow = (heatDays[0].d.getDay() + 6) % 7;
-        const gridCells: (null | { d: Date; n: number })[] = [...Array(firstDow).fill(null), ...heatDays];
+        // concat ไม่ใช่ spread — heatDays ยาวตามช่วงวันที่ ถ้า spread เข้า array literal จะพังแบบเดียวกับ Math.max
+        const gridCells: (null | { d: Date; n: number })[] = (Array(firstDow).fill(null) as (null | { d: Date; n: number })[]).concat(heatDays);
         const weeks: (null | { d: Date; n: number })[][] = [];
         for (let k = 0; k < gridCells.length; k += 7) weeks.push(gridCells.slice(k, k + 7));
         if (weeks.length) { const lw = weeks[weeks.length - 1]; while (lw.length < 7) lw.push(null); }
@@ -884,6 +914,18 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
       {skipped > 0 && (
         <div style={{ padding: '6px 12px', fontSize: '0.72rem', color: '#94a3b8' }}>
           * {skipped} job(s) hidden — no PD Start / Process history
+        </div>
+      )}
+
+      {/* วันที่ปีหลุดช่วง / ช่วงกว้างเกินเพดาน = ต้องเห็นชัด ไม่ใช่เงียบแล้วกราฟเพี้ยน */}
+      {(badDateRows.length > 0 || spanClamped) && (
+        <div style={{ padding: '8px 12px', marginTop: 6, fontSize: '0.75rem', color: '#9a3412', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8 }}>
+          {badDateRows.length > 0 && (
+            <div>
+              ⚠️ {badDateRows.length} job(s) have a date outside {GANTT_YEAR_MIN}–{GANTT_YEAR_MAX} — those dates are ignored in the Gantt. Please fix: {badDateRows.slice(0, 5).map(p => p.work_order || p.model || `#${p.id}`).join(', ')}{badDateRows.length > 5 ? ', …' : ''}
+            </div>
+          )}
+          {spanClamped && <div>⚠️ Date range wider than {Math.round(GANTT_MAX_SPAN_DAYS / 365)} years — the timeline was trimmed. Check the dates in the table.</div>}
         </div>
       )}
     </div>
