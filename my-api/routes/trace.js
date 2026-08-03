@@ -23,7 +23,7 @@ router.get('/trace/:serial', async (req, res) => {
        FROM production_scans WHERE serial = $1 ORDER BY scanned_at ASC`,
       [req.params.serial]
     );
-    if (!rows.length) return res.status(404).json({ status: 'error', message: `Serial "${req.params.serial}" ไม่พบในระบบ` });
+    if (!rows.length) return res.status(404).json({ status: 'error', message: `Serial "${req.params.serial}" was not found` });
     const wo = rows[rows.length - 1].wo_id;
     res.json({
       status: 'success',
@@ -52,7 +52,7 @@ router.get('/packing/boxes', (req, res) => {
   res.json({ status: 'success', data: [] });
 });
 router.get('/packing/boxes/:boxId', (req, res) => {
-  res.status(404).json({ status: 'error', message: 'ยังไม่มีระบบ box ในเวอร์ชันนี้' });
+  res.status(404).json({ status: 'error', message: 'Box tracking is not available in this version' });
 });
 
 // รายงานรายวัน สร้างจาก production_scans

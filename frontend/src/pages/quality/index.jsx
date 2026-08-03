@@ -4,6 +4,7 @@ import { useQcHistory, useQcCreate } from '../../lib/recordsApi';
 import { useIsViewer } from '../../lib/useMockStore';
 import { showToast } from '../../lib/toast';
 import { TableState } from '../../components/DataStates';
+import { useEscapeKey } from '../../lib/useEscapeKey';
 
 // สี badge ตามสถานะ (PASS=เขียว, REPAIRED=เหลืองอำพัน, NG/อื่นๆ=แดง) — #51 status = PASS/NG/REPAIRED
 function badgeStyle(st) {
@@ -22,6 +23,7 @@ export default function QcBoard() {
   const history = data ?? [];
   const isLoading = createMut.isPending;
   const [globalError, setGlobalError] = useState('');
+  useEscapeKey(showFailModal, () => setShowFailModal(false));
 
   const submitQc = (result, isScrap = false) => {
     if (isViewer) return;
@@ -129,14 +131,14 @@ export default function QcBoard() {
                 <XCircle color="#ef4444" size={26} />
               </div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#ef4444', margin: 0 }}>
-                ผลการตรวจ: FAIL (NG)
+                Result: FAIL (NG)
               </h3>
             </div>
 
             <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
               Serial Number: <strong style={{ color: 'var(--text-main)' }}>{unitSn}</strong>
               <br />
-              โปรดเลือกการดำเนินการถัดไปสำหรับชิ้นงานนี้:
+              Please choose the next action for this unit:
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -147,7 +149,7 @@ export default function QcBoard() {
                 disabled={isLoading}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem', fontSize: '1rem', fontWeight: 600 }}
               >
-                🗑️ ทำลายชิ้นงาน (Scrap & Adjust WMS Stock)
+                🗑️ Scrap Unit (Scrap & Adjust WMS Stock)
               </button>
 
               <button
@@ -157,7 +159,7 @@ export default function QcBoard() {
                 disabled={isLoading}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem', fontSize: '1rem' }}
               >
-                🛠️ ส่งซ่อมแซม (Rework Only)
+                🛠️ Send to Rework (Rework Only)
               </button>
 
               <button
@@ -167,7 +169,7 @@ export default function QcBoard() {
                 disabled={isLoading}
                 style={{ marginTop: '0.25rem', padding: '0.6rem', fontSize: '0.875rem' }}
               >
-                ยกเลิก (Cancel)
+                Cancel
               </button>
             </div>
           </div>

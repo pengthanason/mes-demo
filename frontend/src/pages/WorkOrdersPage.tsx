@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWoBoard, useWoCreate } from '../lib/woApi';
 import { useIsViewer } from '../lib/useMockStore';
@@ -7,11 +7,16 @@ import { Paginator } from '../components/Paginator';
 import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { TableState } from '../components/DataStates';
 
+// สี status ทั้งชุด (7 ขั้น) — ยึด convention เดียวกับทั้งแอป: เทา=ยังไม่เริ่ม, ฟ้า/ฟ้าเข้ม=กำลังทำงานปกติ,
+// ม่วง=รออนุมัติ, เขียว=เสร็จ · "เหลือง/ส้ม" สงวนไว้ให้แปลว่า "ต้องตามงาน/รอดำเนินการ" เท่านั้น (Incoming PENDING,
+// Rework IN_PROGRESS) ห้ามใช้กับสถานะที่ยังปกติดีอยู่ — เดิม RUNNING เป็นเหลือง ขัดกับ convention นี้ตรงๆ
+// (แก้ตามที่พบจาก code audit 2026-08-03) RUNNING ใช้สีเดียวกับ PP Dashboard's ON_PROCESS (#38bdf8) เป๊ะ
+// เพื่อให้ "กำลังทำงานอยู่ ไม่มีปัญหา" เป็นสีเดียวกันทั้งแอป — เข้มกว่า OPEN/READY (พาสเทล) พอให้แยกออกด้วยตา
 const STEP_STYLE: Record<string, { label: string; bg: string; text: string; border: string }> = {
   DRAFT:        { label: 'Draft',          bg: 'var(--surface-2)', text: 'var(--ink-3)', border: 'var(--line-3)' },
   OPEN:         { label: 'Open',           bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
   READY:        { label: 'Ready',          bg: '#cffafe', text: '#0e7490', border: '#67e8f9' },
-  RUNNING:      { label: 'Running',        bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
+  RUNNING:      { label: 'Running',        bg: '#38bdf8', text: '#0c4a6e', border: '#0284c7' },
   WAIT_FAI_QA:  { label: 'Waiting FAI (QA)',   bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd' },
   WAIT_FAI_MGR: { label: 'Waiting FAI (MGR)',  bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd' },
   CLOSED:       { label: 'Closed',         bg: '#dcfce7', text: '#166534', border: '#86efac' },
@@ -29,9 +34,24 @@ export function WorkOrdersPage() {
   const create = useWoCreate();
   const [showForm, setShowForm] = useState(false);
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const PAGE = 12;
-  const totalPages = Math.max(1, Math.ceil(wos.length / PAGE));
-  const paged = wos.slice((page - 1) * PAGE, page * PAGE);
+
+  const filtered = useMemo(() => {
+    let list = wos;
+    if (statusFilter) list = list.filter(w => w.currentStep === statusFilter);
+    const s = q.trim().toLowerCase();
+    if (s) list = list.filter(w =>
+      w.woId.toLowerCase().includes(s) ||
+      w.productCode.toLowerCase().includes(s) ||
+      (w.customer || '').toLowerCase().includes(s)
+    );
+    return list;
+  }, [wos, q, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const paged = filtered.slice((page - 1) * PAGE, page * PAGE);
 
   // ฟอร์มเปิด WO ใหม่ (inline เหนือตาราง — อ่านตารางไปพร้อมกันได้ เหมือนหน้า 4M Change)
   const [productCode, setProductCode] = useState('');
@@ -106,6 +126,20 @@ export function WorkOrdersPage() {
           </div>
         )}
 
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1.25rem' }}>
+          <label className="field" style={{ flex: '1 1 220px' }}>
+            <span>Search</span>
+            <input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="WO No / Product / Customer..." />
+          </label>
+          <label className="field" style={{ flex: '0 1 200px' }}>
+            <span>Status</span>
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
+              <option value="">All statuses</option>
+              {Object.entries(STEP_STYLE).map(([key, s]) => <option key={key} value={key}>{s.label}</option>)}
+            </select>
+          </label>
+        </div>
+
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, marginTop: '0.5rem' }}>
           {/* tableLayout fixed + colgroup = คอลัมน์ไม่ยืด/หดตามเนื้อหาในแต่ละหน้า (ดู components/TableFill.tsx) */}
           <table className="table" style={{ minWidth: 1050, width: '100%', tableLayout: 'fixed' }}>
@@ -133,7 +167,7 @@ export function WorkOrdersPage() {
               ) : isError ? (
                 <TableState colSpan={8} state="error" onRetry={() => refetch()} />
               ) : paged.length === 0 ? (
-                <TableState colSpan={8} state="empty" emptyText="No Work Orders yet — click “+ Open WO” to start" />
+                <TableState colSpan={8} state="empty" emptyText={(q.trim() || statusFilter) ? 'No Work Orders match the search/filter' : 'No Work Orders yet — click “+ Open WO” to start'} />
               ) : paged.map(w => (
                 <tr key={w.woId} style={{ cursor: 'pointer' }} onClick={() => navigate(`/wo/${w.woId}`)}
                   tabIndex={0} role="button" aria-label={`View WO ${w.woId} details`}
@@ -153,7 +187,7 @@ export function WorkOrdersPage() {
             </tbody>
           </table>
         </div>
-        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={wos.length} />
+        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={filtered.length} />
       </div>
     </section>
   );

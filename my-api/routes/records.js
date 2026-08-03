@@ -26,7 +26,7 @@ router.post('/oba', async (req, res) => {
   // DB มี CHECK (sample_qty > 0) + คอลัมน์ INTEGER — ถ้าไม่ดัก: -3 ผ่าน truthy → CHECK violation → 500 ดิบ
   const sq = Number(sample_qty);
   if (!Number.isInteger(sq) || sq <= 0 || sq > 2147483647) {
-    return res.status(400).json({ status: 'error', message: 'sample_qty ต้องเป็นจำนวนเต็มมากกว่า 0' });
+    return res.status(400).json({ status: 'error', message: 'sample_qty must be an integer greater than 0' });
   }
   try {
     const { rows } = await db.query(
@@ -148,17 +148,17 @@ router.post('/qc/result', async (req, res) => {
   // ดักแล้วตอบ 400 ที่สื่อความหมาย + กันข้อมูลจำนวนเพี้ยนตั้งแต่ก่อนบันทึก (dev/prod พฤติกรรมตรงกัน)
   const checkedN = Number(qty_checked), passN = Number(qty_pass) || 0, failN = Number(qty_fail) || 0;
   if (!Number.isInteger(checkedN) || checkedN <= 0) {
-    return res.status(400).json({ status: 'error', message: 'qty_checked ต้องเป็นจำนวนเต็มมากกว่า 0' });
+    return res.status(400).json({ status: 'error', message: 'qty_checked must be an integer greater than 0' });
   }
   // เพดาน int4 — ถ้าไม่ดัก 2147483648 จะผ่าน Number.isInteger แล้วไป 500 'integer out of range' ที่ DB
   if (checkedN > 2147483647 || passN > 2147483647 || failN > 2147483647) {
-    return res.status(400).json({ status: 'error', message: 'จำนวนมีค่ามากเกินไป' });
+    return res.status(400).json({ status: 'error', message: 'Value is too large' });
   }
   if (passN < 0 || failN < 0) {
-    return res.status(400).json({ status: 'error', message: 'qty_pass / qty_fail ต้องไม่ติดลบ' });
+    return res.status(400).json({ status: 'error', message: 'qty_pass / qty_fail must not be negative' });
   }
   if (passN + failN !== checkedN) {
-    return res.status(400).json({ status: 'error', message: `จำนวนไม่สอดคล้อง: qty_pass (${passN}) + qty_fail (${failN}) ต้องเท่ากับ qty_checked (${checkedN})` });
+    return res.status(400).json({ status: 'error', message: `Quantities do not add up: qty_pass (${passN}) + qty_fail (${failN}) must equal qty_checked (${checkedN})` });
   }
   try {
     const { rows } = await db.query(
@@ -185,7 +185,7 @@ router.get('/qc/transfer-verify/:qcResultId', async (req, res) => {
        ORDER BY tv.created_at DESC LIMIT 1`,
       [req.params.qcResultId]
     );
-    if (!rows.length) return res.status(404).json({ status: 'error', message: 'ยังไม่มี transfer verify สำหรับ QC result นี้' });
+    if (!rows.length) return res.status(404).json({ status: 'error', message: 'No transfer verify exists yet for this QC result' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
@@ -200,7 +200,7 @@ router.post('/qc/transfer-verify', async (req, res) => {
   try {
     // ตรวจว่า qc_result มีอยู่จริง
     const check = await db.query('SELECT id, wo_id FROM qc_results WHERE id=$1', [qc_result_id]);
-    if (!check.rows.length) return res.status(404).json({ status: 'error', message: 'ไม่พบ QC result' });
+    if (!check.rows.length) return res.status(404).json({ status: 'error', message: 'QC result not found' });
     const wo_id = check.rows[0].wo_id;
     const { rows } = await db.query(
       `INSERT INTO transfer_verifications (qc_result_id, wo_id, verdict, note, verified_by)

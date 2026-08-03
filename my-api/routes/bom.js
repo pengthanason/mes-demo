@@ -11,7 +11,7 @@ const db     = require('../db');
 //     ในฐานข้อมูลนี้ ซึ่งเป็นสำเนาที่นำเข้ามา (mirror) ไม่ใช่ดึงสดจาก MRP
 //   - endpoint ที่ "สร้าง/อนุมัติ" BOM ปิดแล้ว เพราะระบบนี้ไม่ใช่เจ้าของข้อมูล
 //   - เมื่อมี MRP API แล้วให้เปลี่ยนตรงนี้ให้ยิงออกไปจริง แล้วลบคำว่า mirror ออก
-const EXTERNAL_MSG = 'BOM มาจากระบบภายนอก (MRP) — ระบบนี้ไม่ได้สร้าง/อนุมัติ BOM เอง';
+const EXTERNAL_MSG = 'BOM data comes from an external system (MRP) — this system does not create/approve BOMs itself';
 // แหล่งข้อมูลจริงของ endpoint อ่าน — บอก client ตรงๆ ว่ายังเป็นสำเนาใน DB นี้
 const READ_SOURCE = 'local_bom_lines_mirror';
 
@@ -38,16 +38,18 @@ router.get('/headers', async (req, res) => {
 router.get('/:bomId/review', async (req, res) => {
   const bomId = Number(req.params.bomId);
   if (!Number.isInteger(bomId) || bomId <= 0) {
-    return res.status(400).json({ status: 'error', message: 'bomId ต้องเป็นจำนวนเต็มมากกว่า 0' });
+    return res.status(400).json({ status: 'error', message: 'bomId must be an integer greater than 0' });
   }
   try {
     const lines = await db.query(
-      `SELECT id AS line_id, part_no, part_name, qty_per, unit
+      `SELECT id AS line_id, part_no, part_name, qty_per, unit,
+              line_no, level, component_type, customer_pn, mfg_pn, brand,
+              avl_os_flag, ref_designators, price_thb, price_usd, total_thb
          FROM bom_lines WHERE bom_id=$1 ORDER BY sort_order`,
       [bomId]
     );
     if (!lines.rows.length) {
-      return res.status(404).json({ status: 'error', message: `ไม่พบรายการชิ้นส่วนของ BOM #${bomId} ในระบบนี้ (${EXTERNAL_MSG})` });
+      return res.status(404).json({ status: 'error', message: `No parts list found for BOM #${bomId} in this system (${EXTERNAL_MSG})` });
     }
     res.json({ status: 'success', data: { bom_id: bomId, lines: lines.rows }, source: READ_SOURCE, note: EXTERNAL_MSG });
   } catch (e) {
@@ -57,12 +59,12 @@ router.get('/:bomId/review', async (req, res) => {
 
 // PUT /api/bom/:bomId/approve — ปิดไว้ (การอนุมัติ BOM อยู่ที่ระบบภายนอก)
 router.put('/:bomId/approve', (req, res) => {
-  res.status(400).json({ status: 'error', message: `อนุมัติ BOM ที่ระบบนี้ไม่ได้ — ${EXTERNAL_MSG}` });
+  res.status(400).json({ status: 'error', message: `Cannot approve BOM in this system — ${EXTERNAL_MSG}` });
 });
 
 // POST /api/bom — ปิดไว้ (การสร้าง BOM อยู่ที่ระบบภายนอก)
 router.post('/', (req, res) => {
-  res.status(400).json({ status: 'error', message: `สร้าง BOM ที่ระบบนี้ไม่ได้ — ${EXTERNAL_MSG}` });
+  res.status(400).json({ status: 'error', message: `Cannot create BOM in this system — ${EXTERNAL_MSG}` });
 });
 
 module.exports = router;

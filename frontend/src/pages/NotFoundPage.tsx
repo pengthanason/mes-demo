@@ -24,17 +24,17 @@ export function NotFoundPage() {
       </div>
 
       <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-main)' }}>
-        404 — ไม่พบหน้าที่คุณต้องการ (Page Not Found)
+        404 — Page Not Found
       </h1>
 
       <p style={{ maxWidth: 480, fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>
-        ที่อยู่เว็บที่คุณพิมพ์เข้ามาอาจไม่ถูกต้อง หรือหน้านี้อาจถูกย้ายไปแล้ว
-        โปรดตรวจสอบการพิมพ์ URL อีกครั้ง หรือกดปุ่มด้านล่างเพื่อกลับสู่หน้าหลัก
+        The address you entered may be incorrect, or this page may have moved.
+        Please check the URL again, or click the button below to return to the dashboard.
       </p>
 
       <Link to="/dashboard" className="btn primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', fontSize: '1rem' }}>
         <Home size={20} />
-        กลับสู่หน้า Dashboard
+        Back to Dashboard
       </Link>
     </div>
   );

@@ -1,4 +1,4 @@
-// แปลง error/สถานะจาก backend → ข้อความภาษาไทยที่ผู้ใช้เข้าใจ (แทน code/ข้อความดิบอังกฤษ)
+// แปลง error/สถานะจาก backend → ข้อความอังกฤษที่ผู้ใช้เข้าใจ (ทุกหน้าต้องเป็นอังกฤษ ไม่มีไทย)
 // ใช้ได้ทั้งจาก response ของ api.ts ({ status, data }) และจาก Error ที่ throw มา
 
 const BY_CODE: Record<string, string> = {
@@ -34,7 +34,7 @@ export function apiErrorMessage(status: number, data?: any): string {
   const code = data?.code;
   if (code && BY_CODE[code]) return BY_CODE[code];
   const msg = data?.message ?? data?.error;
-  if (typeof msg === 'string' && hasThai(msg)) return msg;   // backend ส่งไทยมาแล้ว → ใช้เลย
+  if (typeof msg === 'string' && msg && !hasThai(msg)) return msg;   // ใช้ข้อความจาก backend ได้ถ้าเป็นอังกฤษ (ห้ามโชว์ไทย)
   return BY_STATUS[status] ?? FALLBACK;
 }
 
@@ -45,10 +45,10 @@ export function toThaiMessage(err: unknown, fallback = FALLBACK): string {
     const code = e.code ?? e?.response?.data?.code;
     if (code && BY_CODE[code]) return BY_CODE[code];
     const m = e.message ?? e?.response?.data?.message ?? e?.response?.data?.error;
-    if (typeof m === 'string' && hasThai(m)) return m;
+    if (typeof m === 'string' && m && !hasThai(m)) return m;
     const st = typeof e.status === 'number' ? e.status : e?.response?.status;
     if (typeof st === 'number' && BY_STATUS[st]) return BY_STATUS[st];
   }
-  if (typeof err === 'string' && hasThai(err)) return err;
+  if (typeof err === 'string' && !hasThai(err)) return err;
   return fallback;
 }

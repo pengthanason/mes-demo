@@ -40,6 +40,12 @@
 --       backup.js TABLES list, และ mock ฝั่ง frontend (mocks/handlers.ts) · migrations.js มี `DROP TABLE IF EXISTS pre_wo_requests`
 --   12) pp_projects : เพิ่ม `delivery_date` + `delivery_remark` (ตามที่คุยในที่ประชุม PP — วันส่งมอบลูกค้า แยกจาก
 --       expected/revised ที่เป็นวันเสร็จผลิตภายใน · remark ไว้ใส่รายละเอียดตอนวันยังไม่ finalize → โผล่ดอกจัน+hover ในตาราง)
+--   13) bom_lines : เพิ่ม line_no/level/component_type/customer_pn/mfg_pn/brand/avl_os_flag/ref_designators/
+--       price_thb/price_usd/total_thb — เพื่อนอีกคนที่ดูแล DB ส่ง schema นี้มา (ให้ตรงกับ BOM จริงฝั่งวิศวกรรม
+--       ดูตัวอย่างที่ SYN BOM_From_Rev00.xlsx) sync เข้า my-api ตามนี้ (additive ล้วน ไม่กระทบข้อมูลเดิม)
+--   14) inventory_lots : เพิ่ม `uid` (VARCHAR UNIQUE) — เอกสารนี้ประกาศไว้อยู่แล้วแต่ migrations.js ยังไม่มี
+--       เพิ่มให้ตรงกับ schema ที่เพื่อนส่งมา (2026-08-03) ยังไม่รู้ format/ที่มาแน่ชัด — สคีมาให้ตรงกันไว้ก่อน
+--       ส่วน logic การ generate/ใช้งานจริงรอคุยกับเพื่อนอีกที
 --
 -- ── go-live: ไฟล์นี้ไฟล์เดียวจบ ────────────────────────────────────────────
 --   psql -U <user> -d productiondb -f database_schema.sql
@@ -95,13 +101,25 @@ CREATE TABLE notifications (
 --    เก็บแต่ `bom_lines` (รายการชิ้นส่วน) โดย bom_id = เลขอ้างอิง BOM ของระบบภายนอก
 --    เป็น plain INTEGER ไม่มี FK (ระบบนี้ยืนยันความมีอยู่ของ BOM ไม่ได้)
 CREATE TABLE bom_lines (
-    id         SERIAL PRIMARY KEY,
-    bom_id     INTEGER       NOT NULL,
-    part_no    VARCHAR(100)  NOT NULL,
-    part_name  VARCHAR(200)  NOT NULL,
-    qty_per    NUMERIC(10,4) NOT NULL DEFAULT 1,
-    unit       VARCHAR(50)   NOT NULL DEFAULT 'pcs',
-    sort_order INTEGER       NOT NULL DEFAULT 0
+    id              SERIAL PRIMARY KEY,
+    bom_id          INTEGER       NOT NULL,
+    part_no         VARCHAR(100)  NOT NULL,
+    part_name       VARCHAR(200)  NOT NULL,
+    qty_per         NUMERIC(10,4) NOT NULL DEFAULT 1,
+    unit            VARCHAR(50)   NOT NULL DEFAULT 'pcs',
+    sort_order      INTEGER       NOT NULL DEFAULT 0,
+    -- (2026-08-03) เพิ่มตามที่เพื่อนทำ DB ส่งมา — ให้ตรงกับ BOM จริงฝั่งวิศวกรรม (ดู SYN BOM_From_Rev00)
+    line_no         INTEGER,
+    level           SMALLINT      NOT NULL DEFAULT 1,
+    component_type  VARCHAR(100),
+    customer_pn     VARCHAR(100),
+    mfg_pn          VARCHAR(200),
+    brand           VARCHAR(100),
+    avl_os_flag     VARCHAR(20)   NOT NULL DEFAULT 'TBD',
+    ref_designators VARCHAR(200),                                     -- ตำแหน่งบน PCB จริง เช่น C1,C8
+    price_thb       NUMERIC(12,4),
+    price_usd       NUMERIC(12,4),
+    total_thb       NUMERIC(12,4)
 );
 
 -- ── Work Orders / Planning ───────────────────────────────────────────────────

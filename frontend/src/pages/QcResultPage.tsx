@@ -11,6 +11,7 @@ import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { WoInput } from '../components/WoInput';
 import { useWoLots, useScanSummary } from '../lib/lookups';
 import { TableState } from '../components/DataStates';
+import { useEscapeKey } from '../lib/useEscapeKey';
 
 const OVERALL_STYLE: Record<QcOverall, { bg: string; text: string; border: string }> = {
   PASS:    { bg: '#dcfce7', text: '#166534', border: '#86efac' },
@@ -28,6 +29,7 @@ function OverallBadge({ overall }: { overall: QcOverall }) {
 }
 
 function ReworkDialog({ qcResult, onClose }: { qcResult: QcResult; onClose: () => void }) {
+  useEscapeKey(true, onClose);
   const [defectType,  setDefectType]  = useState(qcResult.defectDesc ?? '');
   const [assignedTo,  setAssignedTo]  = useState('');
   const [dueDate,     setDueDate]     = useState('');

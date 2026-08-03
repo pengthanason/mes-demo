@@ -97,7 +97,7 @@ router.put('/:id/gate-:gate', async (req, res) => {
     if (!rows.length) {
       return res.status(409).json({
         status: 'error',
-        message: `อนุมัติไม่ได้ — CR ต้องอยู่ state ${gate.from} ก่อน (gate ต้องผ่านตามลำดับ)`,
+        message: `Cannot approve — CR must be in state ${gate.from} first (gates must pass in order)`,
       });
     }
     res.json({ status: 'success', data: rows[0] });

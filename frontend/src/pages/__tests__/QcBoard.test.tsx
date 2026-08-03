@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import QcBoard from '../quality/index.jsx';
 import { useQcHistory } from '../../lib/recordsApi';
@@ -37,5 +38,17 @@ describe('QcBoard (#51)', () => {
     render(<QcBoard />);
     // viewer เห็นข้อความ read-only
     expect(screen.getByText(/Viewer mode/i)).toBeInTheDocument();
+  });
+
+  it('FAIL modal shows English-only text (no Thai)', async () => {
+    const user = userEvent.setup();
+    render(<QcBoard />);
+    await user.type(screen.getByPlaceholderText(/Scan barcode/i), 'SN-999');
+    await user.click(screen.getByRole('button', { name: /FAIL \(NG\)/i }));
+    expect(screen.getByText('Result: FAIL (NG)')).toBeInTheDocument();
+    expect(screen.getByText(/Please choose the next action/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Scrap Unit/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Send to Rework/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 });

@@ -148,9 +148,9 @@ const ACT_RES: [string, string, string][] = [
 ];
 function describeActivity(method: string, path: string, row: any) {
   const r = ACT_RES.find(([pre]) => path === pre || path.startsWith(pre + '/'));
-  const [, label, type] = r || ['', 'ข้อมูล', 'other'];
+  const [, label, type] = r || ['', 'Record', 'other'];
   const verb = method === 'POST' ? 'CREATE' : method === 'DELETE' ? 'DELETE' : 'UPDATE';
-  const th = verb === 'CREATE' ? 'สร้าง' : verb === 'DELETE' ? 'ลบ' : 'แก้ไข';
+  const th = verb === 'CREATE' ? 'Created' : verb === 'DELETE' ? 'Deleted' : 'Updated';
   const segs = path.split('/').filter(Boolean);
   const last = segs[segs.length - 1];
   const pathId = (method !== 'POST' && last && !/^(projects|results|users|board|cases)$/.test(last) && !ACT_RES.some(([pre]) => pre.endsWith('/' + last))) ? last : null;
@@ -930,7 +930,7 @@ export const handlers = [
     const body: any = await request.json();
     const u = { id: ++_adminUserId, username: body.username, full_name: body.full_name, role: body.role, is_active: true, permissions: Array.isArray(body.permissions) ? body.permissions : [], created_at: now() };
     adminUsers.push(u);
-    auditLogs.push({ id: ++_auditId, actor: 'admin', action: 'CREATE_USER', target_type: 'app_user', target_id: String(u.id), detail: `สร้างผู้ใช้ ${u.username}`, created_at: now() });
+    auditLogs.push({ id: ++_auditId, actor: 'admin', action: 'CREATE_USER', target_type: 'app_user', target_id: String(u.id), detail: `Created user: ${u.username}`, created_at: now() });
     return ok(u);
   }),
   http.put('/api/admin/users/:id', async ({ params, request }) => {
@@ -943,7 +943,7 @@ export const handlers = [
     const idx = adminUsers.findIndex(x => x.id === Number(params.id));
     if (idx !== -1) {
       const [u] = adminUsers.splice(idx, 1);
-      auditLogs.push({ id: ++_auditId, actor: 'admin', action: 'DELETE_USER', target_type: 'app_user', target_id: String(u.id), detail: `ลบผู้ใช้ ${u.username}`, created_at: now() });
+      auditLogs.push({ id: ++_auditId, actor: 'admin', action: 'DELETE_USER', target_type: 'app_user', target_id: String(u.id), detail: `Deleted user: ${u.username}`, created_at: now() });
     }
     return okSuccess();
   }),
@@ -961,13 +961,13 @@ export const handlers = [
   http.get('/api/jumbo/serials', () => ok(Object.keys(TRACES))),
   http.get('/api/jumbo/trace/:serial', ({ params }) => {
     const t = TRACES[params.serial as string];
-    if (!t) return HttpResponse.json({ status: 'error', message: `ไม่พบ serial: ${params.serial}` }, { status: 404 });
+    if (!t) return HttpResponse.json({ status: 'error', message: `Serial not found: ${params.serial}` }, { status: 404 });
     return ok(t);
   }),
   // #50 FE-CONNECT-3: routing history จริง (mes_draft#5) — เดโมแปลง TRACES เดิม → event shape (SCAN_IN แล้ว SCAN_OUT ต่อ step)
   http.get('/api/routing/history/:unitSn', ({ params }) => {
     const t = TRACES[params.unitSn as string];
-    if (!t) return HttpResponse.json({ status: 'error', message: `ไม่พบ serial: ${params.unitSn}` }, { status: 404 });
+    if (!t) return HttpResponse.json({ status: 'error', message: `Serial not found: ${params.unitSn}` }, { status: 404 });
     let id = 0;
     const events: any[] = [];
     (t.steps || []).forEach((s: any, i: number) => {
@@ -1031,7 +1031,7 @@ export const handlers = [
     const b = await request.json() as any;
     if (!['APPROVED', 'REJECTED'].includes(b.status)) return HttpResponse.json({ status: 'error', message: 'status(APPROVED|REJECTED) required' }, { status: 400 });
     const lot = inventoryLots.find(l => l.id === Number(params.id) && l.status === 'PENDING');
-    if (!lot) return HttpResponse.json({ status: 'error', message: 'ไม่พบล็อต PENDING นี้' }, { status: 404 });
+    if (!lot) return HttpResponse.json({ status: 'error', message: 'This PENDING lot was not found' }, { status: 404 });
     lot.status = b.status;
     if (b.note) lot.note = b.note;
     if (b.status === 'REJECTED') lot.qty_available = 0;
@@ -1040,7 +1040,7 @@ export const handlers = [
   }),
   http.delete('/api/inventory/lots/:id', ({ params }) => {
     const idx = inventoryLots.findIndex(l => l.id === Number(params.id));
-    if (idx === -1) return HttpResponse.json({ status: 'error', message: 'ไม่พบล็อตนี้' }, { status: 404 });
+    if (idx === -1) return HttpResponse.json({ status: 'error', message: 'Lot not found' }, { status: 404 });
     inventoryLots.splice(idx, 1);
     return HttpResponse.json({ status: 'success' });
   }),
@@ -1064,7 +1064,7 @@ export const handlers = [
     const lots = inventoryLots.filter(l => l.part_no === b.part_no && l.status === 'APPROVED' && l.qty_available > 0)
       .sort((a, b2) => a.received_at.localeCompare(b2.received_at));
     const totalAvail = lots.reduce((s, l) => s + l.qty_available, 0);
-    if (totalAvail < need) return HttpResponse.json({ status: 'error', message: `stock ไม่พอ: ต้องการ ${need} มีพร้อมเบิก ${totalAvail}` }, { status: 409 });
+    if (totalAvail < need) return HttpResponse.json({ status: 'error', message: `Insufficient stock: need ${need}, available ${totalAvail}` }, { status: 409 });
     let remaining = need;
     const issued = [];
     for (const lot of lots) {
@@ -1122,12 +1122,12 @@ export const handlers = [
     };
     const u = DEMO[b.username];
     if (!u || b.password !== b.username) {
-      return HttpResponse.json({ status: 'error', message: 'username หรือ password ไม่ถูกต้อง' }, { status: 401 });
+      return HttpResponse.json({ status: 'error', message: 'Incorrect username or password' }, { status: 401 });
     }
     // permissions: ถ้ามี record ใน adminUsers ใช้ค่านั้น ไม่งั้นว่าง (= ใช้ค่าตาม role)
     const rec = adminUsers.find(x => x.username === b.username);
     const permissions = rec ? rec.permissions : [];
-    auditLogs.push({ id: ++_auditId, actor: b.username, action: 'LOGIN', target_type: null, target_id: null, detail: 'เข้าสู่ระบบสำเร็จ', created_at: now() });
+    auditLogs.push({ id: ++_auditId, actor: b.username, action: 'LOGIN', target_type: null, target_id: null, detail: 'Signed in successfully', created_at: now() });
     return ok({ id: rec?.id ?? 1, username: b.username, fullName: u.name, role: u.role, permissions, token: btoa(`${b.username}:${u.role}:demo`) });
   }),
 

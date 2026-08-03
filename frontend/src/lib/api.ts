@@ -106,7 +106,7 @@ async function request<T>(
   } catch (e: any) {
     clearTimeout(timeoutId);
     if (e?.name === 'AbortError') {
-      if (method === 'GET') throw new Error('การเชื่อมต่อหมดเวลา (Request Timeout)');
+      if (method === 'GET') throw new Error('Request timeout — connection took too long');
       return { data: null as T, status: 0, headers: new Headers() };
     }
     if (method === 'GET') throw new Error('Connection failed — cannot reach the server');

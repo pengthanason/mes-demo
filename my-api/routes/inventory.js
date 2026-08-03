@@ -7,7 +7,7 @@ router.get('/lots', async (req, res) => {
   try {
     const { status } = req.query;
     const { rows } = await db.query(
-      `SELECT id, part_no, part_name, lot_no, qty_received, qty_available, status, note, received_at, reviewed_at
+      `SELECT id, part_no, part_name, lot_no, qty_received, qty_available, status, note, received_at, reviewed_at, uid
        FROM inventory_lots
        ${status ? 'WHERE status = $1' : ''}
        ORDER BY received_at DESC`,
@@ -28,7 +28,7 @@ router.post('/receive', async (req, res) => {
     const { rows } = await db.query(
       `INSERT INTO inventory_lots (part_no, part_name, lot_no, qty_received, qty_available, status)
        VALUES ($1,$2,$3,$4,$4,'PENDING')
-       RETURNING id, part_no, part_name, lot_no, qty_received, qty_available, status, note, received_at, reviewed_at`,
+       RETURNING id, part_no, part_name, lot_no, qty_received, qty_available, status, note, received_at, reviewed_at, uid`,
       [part_no, part_name || '', lot_no, Number(qty)]
     );
     res.status(201).json({ status: 'success', data: rows[0] });
@@ -52,10 +52,10 @@ router.post('/lots/:id/review', async (req, res) => {
            qty_available = CASE WHEN $1::text = 'REJECTED' THEN 0 ELSE qty_available END,
            reviewed_at = NOW()
        WHERE id = $3 AND status = 'PENDING'
-       RETURNING id, part_no, part_name, lot_no, qty_received, qty_available, status, note, received_at, reviewed_at`,
+       RETURNING id, part_no, part_name, lot_no, qty_received, qty_available, status, note, received_at, reviewed_at, uid`,
       [status, note ?? null, req.params.id]
     );
-    if (!rows.length) return res.status(404).json({ status: 'error', message: 'ไม่พบล็อต PENDING นี้ (อาจถูกตรวจไปแล้ว)' });
+    if (!rows.length) return res.status(404).json({ status: 'error', message: 'This PENDING lot was not found (it may already be reviewed)' });
     res.json({ status: 'success', data: rows[0] });
   } catch (e) {
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
@@ -65,7 +65,7 @@ router.post('/lots/:id/review', async (req, res) => {
 router.delete('/lots/:id', async (req, res) => {
   try {
     const { rowCount } = await db.query('DELETE FROM inventory_lots WHERE id=$1', [req.params.id]);
-    if (!rowCount) return res.status(404).json({ status: 'error', message: 'ไม่พบล็อตนี้' });
+    if (!rowCount) return res.status(404).json({ status: 'error', message: 'Lot not found' });
     res.json({ status: 'success' });
   } catch (e) {
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
@@ -112,7 +112,7 @@ router.post('/issue', async (req, res) => {
   const need = Number(qty);
   // ต้องเป็นจำนวนเต็ม > 0 และไม่เกิน int4 — qty_available เป็น INTEGER ถ้าส่ง 2.5 มาจะ 500 กลาง transaction
   if (!wo_id || !part_no || !Number.isInteger(need) || need <= 0 || need > 2147483647) {
-    return res.status(400).json({ status: 'error', message: 'wo_id, part_no, qty (จำนวนเต็ม > 0) required' });
+    return res.status(400).json({ status: 'error', message: 'wo_id, part_no, qty (integer > 0) required' });
   }
   let client;
   try {
@@ -129,7 +129,7 @@ router.post('/issue', async (req, res) => {
     const totalAvail = lots.reduce((s, l) => s + l.qty_available, 0);
     if (totalAvail < need) {
       await client.query('ROLLBACK');
-      return res.status(409).json({ status: 'error', message: `stock ไม่พอ: ต้องการ ${need} มีพร้อมเบิก ${totalAvail}` });
+      return res.status(409).json({ status: 'error', message: `Insufficient stock: need ${need}, available ${totalAvail}` });
     }
     let remaining = need;
     const issued = [];

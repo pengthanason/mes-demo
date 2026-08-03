@@ -14,6 +14,7 @@ export interface InventoryLot {
   note: string | null;
   receivedAt: string;
   reviewedAt: string | null;
+  uid: string | null;   // (2026-08-03) จาก schema ที่เพื่อนดูแล DB ส่งมา — ยังไม่รู้ format/การใช้งานจริง แค่ sync สคีมาไว้ก่อน
 }
 
 export interface StockItem {
@@ -40,6 +41,7 @@ function mapLot(r: any): InventoryLot {
     id: r.id, partNo: r.part_no, partName: r.part_name ?? '', lotNo: r.lot_no,
     qtyReceived: Number(r.qty_received), qtyAvailable: Number(r.qty_available),
     status: r.status, note: r.note ?? null, receivedAt: r.received_at, reviewedAt: r.reviewed_at ?? null,
+    uid: r.uid ?? null,
   };
 }
 

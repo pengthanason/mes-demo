@@ -4,6 +4,7 @@ import { useJigProject, useJigRecords, useJigTimeseries, useJigRecordCreate, Jig
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { BlockState } from '../components/DataStates';
+import { useEscapeKey } from '../lib/useEscapeKey';
 
 /* ──────── SVG Line Chart ──────── */
 function LineChart({ data }: { data: JigTimeseries[] }) {
@@ -117,6 +118,7 @@ function RecordsTable({ records, onSelect }: { records: JigRecord[]; onSelect: (
 /* ──────── Detail Modal (drill-down) ──────── */
 // ฟีเจอร์ "Request Retest" ถูกถอดออกจากระบบ (ตาราง jig_retest_requests + endpoint ถูกลบ)
 function RecordDetailModal({ record, onClose }: { record: JigRecord; onClose: () => void }) {
+  useEscapeKey(true, onClose);
   const isFail = record.result === 'FAIL';
   const rows: [string, any][] = [
     ['Serial', record.serial],
@@ -158,6 +160,7 @@ function RecordDetailModal({ record, onClose }: { record: JigRecord; onClose: ()
 
 /* ──────── Add Record Modal (กรอกผลทดสอบมือ) ──────── */
 function AddRecordModal({ code, onClose }: { code: string; onClose: () => void }) {
+  useEscapeKey(true, onClose);
   const [serial, setSerial] = useState('');
   const [result, setResult] = useState<'PASS' | 'FAIL'>('PASS');
   const [voltage, setVoltage] = useState('');

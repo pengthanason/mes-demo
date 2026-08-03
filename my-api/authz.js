@@ -62,11 +62,11 @@ async function authz(req, res, next) {
 
   const token = bearerFrom(req);
   if (!token) {
-    return res.status(401).json({ status: 'error', message: 'ต้องเข้าสู่ระบบก่อน' });
+    return res.status(401).json({ status: 'error', message: 'Please sign in first' });
   }
   const payload = verifyToken(token);
   if (!payload || !payload.sub) {
-    return res.status(401).json({ status: 'error', message: 'เซสชันหมดอายุหรือ token ไม่ถูกต้อง — กรุณาเข้าสู่ระบบใหม่' });
+    return res.status(401).json({ status: 'error', message: 'Session expired or invalid token — please sign in again' });
   }
 
   let u;
@@ -79,10 +79,10 @@ async function authz(req, res, next) {
   } catch (e) {
     // DB ล่ม = ยืนยันสิทธิ์ไม่ได้ → ต้องปฏิเสธ ห้ามปล่อยผ่าน
     console.error('[authz] db error:', e.message);
-    return res.status(503).json({ status: 'error', message: 'ระบบยืนยันสิทธิ์ไม่พร้อมใช้งาน กรุณาลองใหม่' });
+    return res.status(503).json({ status: 'error', message: 'Authorization system unavailable, please try again' });
   }
   if (!u || !u.is_active) {
-    return res.status(401).json({ status: 'error', message: 'บัญชีนี้ใช้งานไม่ได้ — กรุณาเข้าสู่ระบบใหม่' });
+    return res.status(401).json({ status: 'error', message: 'This account is disabled — please sign in again' });
   }
 
   const role = String(u.role || '').toUpperCase();
@@ -92,21 +92,21 @@ async function authz(req, res, next) {
   const isWrite = !READ_METHODS.has(req.method);
   // VIEWER = ดูอย่างเดียว ห้ามเขียนทุกกรณี (แม้จะมี permission ของหน้านั้น)
   if (role === 'VIEWER' && isWrite) {
-    return res.status(403).json({ status: 'error', message: 'บัญชีระดับ Viewer ดูข้อมูลได้เท่านั้น ไม่สามารถแก้ไขได้' });
+    return res.status(403).json({ status: 'error', message: 'Viewer accounts are read-only and cannot make changes' });
   }
   if (role === 'ADMIN') return next();                            // admin (ยืนยันจาก DB แล้ว) ผ่านทุกอย่าง
 
   const rule = ROUTE_PERM.find(r => p === r.prefix || p.startsWith(r.prefix + '/'));
   if (!rule) {
-    console.warn('[authz] ปฏิเสธ path ที่ยังไม่ได้กำกับ permission:', req.method, p);
-    return res.status(403).json({ status: 'error', message: 'ไม่มีสิทธิ์เข้าถึงส่วนนี้' });
+    console.warn('[authz] denied path with no permission mapping:', req.method, p);
+    return res.status(403).json({ status: 'error', message: 'You do not have permission to access this' });
   }
   const perms = Array.isArray(u.permissions) ? u.permissions : [];
   const eff = perms.length ? perms : (ROLE_DEFAULTS[role] || []);
   if (eff.includes(rule.perm)) return next();
   // GET: ยอมรับ readPerm ด้วย (เช่นหน้า Dashboard ของ VIEWER ต้องอ่านข้อมูล PP/WO ได้)
   if (!isWrite && rule.readPerm && eff.includes(rule.readPerm)) return next();
-  return res.status(403).json({ status: 'error', message: `ไม่มีสิทธิ์เข้าถึงส่วนนี้ (${rule.perm})` });
+  return res.status(403).json({ status: 'error', message: `You do not have permission to access this (${rule.perm})` });
 }
 
 module.exports = authz;

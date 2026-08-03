@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useMockAuth } from '../lib/useMockStore';
 import { confirmDialog } from '../lib/confirm';
+import { useEscapeKey } from '../lib/useEscapeKey';
 import {
   useAdminUsers, useAdminUserCreate, useAdminUserUpdate, useAdminUserDelete,
   useAuditLogs, AppRole, AppUser,
@@ -116,6 +117,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({ username: '', fullName: '', role: 'MEMBER' as AppRole, password: '', permissions: [] as string[] });
   const create = useAdminUserCreate();
   const [err, setErr] = useState('');
+  useEscapeKey(true, onClose);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -173,6 +175,7 @@ function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }
   const [form, setForm] = useState({ fullName: user.fullName, role: user.role, password: '', permissions: user.permissions ?? [] });
   const update = useAdminUserUpdate();
   const [err, setErr] = useState('');
+  useEscapeKey(true, onClose);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -407,8 +410,8 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 const TAB_DESC: Record<Tab, string> = {
   users:      'Manage users · control page permissions',
-  activities: 'สิ่งที่ผู้ใช้แต่ละคนทำในระบบ — สร้าง/แก้/ลบข้อมูลงาน (WO · Production Plan · QC · Jig ฯลฯ)',
-  audit:      'เรื่องบัญชีและการเข้าถึง — เข้าสู่ระบบ · สร้าง/แก้/ลบผู้ใช้ · ดาวน์โหลดข้อมูลทั้งระบบ',
+  activities: 'What each user did in the system — create/edit/delete records (WO · Production Plan · QC · Jig, etc.)',
+  audit:      'Account and access — sign-ins · create/edit/delete users · full data downloads',
 };
 
 export function AdminPanelPage() {
@@ -441,10 +444,10 @@ export function AdminPanelPage() {
         <div style={{ marginTop: '1.25rem' }}>
           {tab === 'users' && <UsersTab />}
           {tab === 'activities' && (
-            <ActivityTable withFilter kind="activity" emptyText="ยังไม่มีกิจกรรมการทำงาน" />
+            <ActivityTable withFilter kind="activity" emptyText="No activity yet" />
           )}
           {tab === 'audit' && (
-            <ActivityTable withFilter kind="account" emptyText="ยังไม่มีรายการเกี่ยวกับบัญชี/การเข้าถึง" />
+            <ActivityTable withFilter kind="account" emptyText="No account/access records yet" />
           )}
         </div>
       </div>

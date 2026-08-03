@@ -22,11 +22,11 @@ router.post('/repair', async (req, res) => {
   }
   // due_date ส่งเข้าคอลัมน์ DATE ตรงๆ — ถ้าไม่เช็ก "เดือนหน้า" จะกลายเป็น invalid input syntax for type date → 500
   if (due_date && isNaN(Date.parse(due_date))) {
-    return res.status(400).json({ status: 'error', message: 'due_date ไม่ใช่วันที่ที่ถูกต้อง (YYYY-MM-DD)' });
+    return res.status(400).json({ status: 'error', message: 'due_date is not a valid date (YYYY-MM-DD)' });
   }
   try {
     const check = await db.query('SELECT id, wo_id FROM qc_results WHERE id=$1', [qc_result_id]);
-    if (!check.rows.length) return res.status(404).json({ status: 'error', message: 'ไม่พบ QC result' });
+    if (!check.rows.length) return res.status(404).json({ status: 'error', message: 'QC result not found' });
     const wo_id = check.rows[0].wo_id;
     const { rows } = await db.query(
       `INSERT INTO rework_tickets (qc_result_id, wo_id, defect_type, assigned_to, due_date)

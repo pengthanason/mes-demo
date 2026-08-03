@@ -6,6 +6,7 @@ import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
 import { TRACE_URL } from '../lib/jigTrace';   // KNEX_GW — URL Traceability ภายนอก (จาก env, ไม่ hardcode)
 import { BlockState } from '../components/DataStates';
+import { useEscapeKey } from '../lib/useEscapeKey';
 
 function PassRateBar({ rate }: { rate: number }) {
   const color = rate >= 95 ? '#22c55e' : rate >= 80 ? '#f59e0b' : '#ef4444';
@@ -121,6 +122,7 @@ function TraceKnexCard() {
 }
 
 function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
+  useEscapeKey(true, onClose);
   const [projectCode, setProjectCode] = useState('');
   const [name, setName] = useState('');
   const [jigId, setJigId] = useState('');

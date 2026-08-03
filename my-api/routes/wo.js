@@ -7,9 +7,9 @@ const INT4_MAX = 2147483647;
 function intErr(name, v, { min = 0, allowNull = false } = {}) {
   if (v == null || v === '') return allowNull ? null : `${name} required`;
   const n = Number(v);
-  if (!Number.isInteger(n)) return `${name} ต้องเป็นจำนวนเต็ม`;
-  if (n < min) return `${name} ต้องไม่น้อยกว่า ${min}`;
-  if (n > INT4_MAX) return `${name} มีค่ามากเกินไป`;
+  if (!Number.isInteger(n)) return `${name} must be an integer`;
+  if (n < min) return `${name} must not be less than ${min}`;
+  if (n > INT4_MAX) return `${name} is too large`;
   return null;
 }
 
@@ -84,7 +84,7 @@ router.post('/board', async (req, res) => {
   const qtyErr = intErr('qty', qty, { min: 1 });
   if (qtyErr) return res.status(400).json({ status: 'error', message: qtyErr });
   if (due_date && isNaN(Date.parse(due_date))) {
-    return res.status(400).json({ status: 'error', message: 'due_date ไม่ใช่วันที่ที่ถูกต้อง' });
+    return res.status(400).json({ status: 'error', message: 'due_date is not a valid date' });
   }
   // retry เมื่อชน UNIQUE(wo_no) — 2 คนกด Create พร้อมกันจะได้เลขเดียวกัน ถ้าไม่ retry คนที่ 2 จะเจอ 500
   for (let attempt = 1; attempt <= 5; attempt++) {
@@ -127,7 +127,7 @@ router.patch('/board/:woNo', async (req, res) => {
     }
   }
   if ('fai_passed' in patch && typeof patch.fai_passed !== 'boolean') {
-    return res.status(400).json({ status: 'error', message: 'fai_passed ต้องเป็น true/false' });
+    return res.status(400).json({ status: 'error', message: 'fai_passed must be true/false' });
   }
   if (patch.current_step) patch.status = stepToStatus(patch.current_step);
 

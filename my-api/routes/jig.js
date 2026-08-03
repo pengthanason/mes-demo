@@ -116,7 +116,7 @@ router.post('/projects', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'project_code นี้มีอยู่แล้ว' });
+    if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'This project_code already exists' });
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
@@ -135,8 +135,8 @@ router.post('/projects/:code/records', async (req, res) => {
   for (const [name, [raw, max]] of Object.entries(NUMS)) {
     if (raw === '' || raw == null) { vals3[name] = null; continue; }
     const n = Number(raw);
-    if (!Number.isFinite(n)) return res.status(400).json({ status: 'error', message: `${name} ต้องเป็นตัวเลข` });
-    if (Math.abs(n) > max) return res.status(400).json({ status: 'error', message: `${name} ต้องอยู่ในช่วง -${max} ถึง ${max}` });
+    if (!Number.isFinite(n)) return res.status(400).json({ status: 'error', message: `${name} must be a number` });
+    if (Math.abs(n) > max) return res.status(400).json({ status: 'error', message: `${name} must be between -${max} and ${max}` });
     vals3[name] = n;
   }
   let client;
@@ -146,7 +146,7 @@ router.post('/projects/:code/records', async (req, res) => {
     const proj = await client.query('SELECT 1 FROM jig_projects WHERE project_code=$1', [req.params.code]);
     if (!proj.rows.length) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ status: 'error', message: 'ไม่พบโปรเจกต์' });
+      return res.status(404).json({ status: 'error', message: 'Project not found' });
     }
     const { rows } = await client.query(
       `INSERT INTO jig_test_records (project_code, serial, result, voltage, current_ma, temp_c, fail_param, notes)

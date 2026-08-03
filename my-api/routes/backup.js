@@ -64,11 +64,11 @@ function summarize(data) {
 // activityLog กลางจับแค่ POST/PUT/PATCH/DELETE จึงต้องเขียนเองที่นี่
 function logDownload(req, format, info) {
   const actor = (req.user && req.user.username) || 'system';
-  const scope = info.skipped.length ? `ไม่รวม ${info.skipped.join(',')}` : 'รวมทุกตาราง';
+  const scope = info.skipped.length ? `excludes ${info.skipped.join(',')}` : 'all tables';
   db.query(
     `INSERT INTO audit_logs (actor, action, target_type, target_id, detail)
      VALUES ($1,'EXPORT_BACKUP','backup',NULL,$2)`,
-    [actor, `ดาวน์โหลด backup (${format}) — ${info.total} แถว · ${scope}`]
+    [actor, `Downloaded backup (${format}) — ${info.total} rows · ${scope}`]
   ).catch(() => {});
 }
 
@@ -81,7 +81,7 @@ function logDownload(req, format, info) {
 router.get('/export', async (req, res) => {
   const format = String(req.query.format || 'json').toLowerCase();
   if (!['json', 'sql'].includes(format)) {
-    return res.status(400).json({ status: 'error', message: 'format ต้องเป็น json หรือ sql' });
+    return res.status(400).json({ status: 'error', message: 'format must be json or sql' });
   }
   const isAdmin = req.user && req.user.role === 'ADMIN';
   try {
@@ -104,8 +104,8 @@ router.get('/export', async (req, res) => {
           row_counts: counts,
           total_rows: total,
           note: skipped.length
-            ? 'ไฟล์นี้ไม่รวมตารางผู้ใช้/รหัสผ่าน (สิทธิ์ MEMBER) — กู้ระบบทั้งก้อนต้องใช้ไฟล์ที่ ADMIN ดาวน์โหลด'
-            : 'ไฟล์นี้รวมตารางผู้ใช้และรหัสผ่าน (hash) — เก็บเป็นความลับ ห้ามส่งต่อ',
+            ? 'This file excludes the users/password table (MEMBER access) — a full system restore requires a file downloaded by ADMIN'
+            : 'This file includes the users table and password hashes — keep it confidential, do not share',
         },
         data,
       };
@@ -119,26 +119,26 @@ router.get('/export', async (req, res) => {
     const L = [];
     L.push('-- ============================================================');
     L.push('-- Syntech MES — Data Backup (SQL)');
-    L.push(`-- สร้างเมื่อ: ${date} ${time.slice(0, 2)}:${time.slice(2)} (เวลาไทย)`);
-    L.push(`-- โดย: ${(req.user && req.user.username) || '-'} (${(req.user && req.user.role) || '-'})`);
-    L.push(`-- จำนวนแถวรวม: ${total}`);
-    if (skipped.length) L.push(`-- ⚠️ ไม่รวมตาราง: ${skipped.join(', ')} (สิทธิ์ไม่ถึง)`);
-    else L.push('-- ⚠️ รวม users (มีรหัสผ่าน hash) — เก็บเป็นความลับ');
+    L.push(`-- Created at: ${date} ${time.slice(0, 2)}:${time.slice(2)} (Thailand time)`);
+    L.push(`-- By: ${(req.user && req.user.username) || '-'} (${(req.user && req.user.role) || '-'})`);
+    L.push(`-- Total rows: ${total}`);
+    if (skipped.length) L.push(`-- ⚠️ Excludes tables: ${skipped.join(', ')} (insufficient permission)`);
+    else L.push('-- ⚠️ Includes users (with password hashes) — keep confidential');
     L.push('--');
-    L.push('-- วิธีกู้: สร้างตารางด้วย database_schema.sql ก่อน แล้วรันไฟล์นี้');
+    L.push('-- To restore: create tables with database_schema.sql first, then run this file');
     L.push('--   psql -U <user> -d <db> -f database_schema.sql');
-    L.push('--   psql -U <user> -d <db> -f ไฟล์นี้');
+    L.push('--   psql -U <user> -d <db> -f this-file.sql');
     L.push('-- ============================================================');
     L.push('');
     L.push('BEGIN;');
-    L.push('SET session_replication_role = replica;   -- ปิด trigger/FK ชั่วคราว ให้ใส่ข้อมูลได้ทุกลำดับ');
+    L.push('SET session_replication_role = replica;   -- temporarily disable triggers/FK so rows can insert in any order');
     L.push('');
     // ล้างของเดิมก่อน (ย้อนลำดับ: ลูกก่อนพ่อ)
     for (const t of [...tables].reverse()) L.push(`DELETE FROM ${t};`);
     L.push('');
     for (const t of tables) {
       const rows = data[t];
-      L.push(`-- ${t} (${rows.length} แถว)`);
+      L.push(`-- ${t} (${rows.length} rows)`);
       if (rows.length) {
         const cols = Object.keys(rows[0]);
         for (const r of rows) {
@@ -149,7 +149,7 @@ router.get('/export', async (req, res) => {
     }
     L.push('SET session_replication_role = DEFAULT;');
     L.push('');
-    L.push('-- รีเซ็ต sequence ให้ต่อจาก id ล่าสุด (ไม่ทำ = insert ใหม่จะ id ชนกัน)');
+    L.push('-- Reset sequences to continue from the last id (skipping this causes new inserts to collide on id)');
     for (const t of tables) {
       if ((data[t][0] || {}).id === undefined) continue;
       L.push(`SELECT setval(pg_get_serial_sequence('${t}','id'), COALESCE((SELECT MAX(id) FROM ${t}), 1), true);`);
@@ -164,7 +164,7 @@ router.get('/export', async (req, res) => {
     return res.send(L.join('\n'));
   } catch (e) {
     console.error('[backup]', e);
-    res.status(500).json({ status: 'error', message: 'สร้างไฟล์ backup ไม่สำเร็จ กรุณาลองใหม่' });
+    res.status(500).json({ status: 'error', message: 'Failed to create backup file, please try again' });
   }
 });
 

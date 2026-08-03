@@ -38,13 +38,13 @@ app.use(express.json({ limit: '8mb' }));   // เผื่อรูปสิน�
 app.use('/api/auth/login', rateLimit({
   windowMs: 15 * 60 * 1000, max: 10,
   standardHeaders: true, legacyHeaders: false,
-  message: { status: 'error', message: 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอ 15 นาที' },
+  message: { status: 'error', message: 'Too many sign-in attempts, please wait 15 minutes' },
 }));
 // ทั้ง API: กันยิงถล่มทำ DoS (ปกติผู้ใช้จริงไม่ถึง)
 app.use('/api', rateLimit({
   windowMs: 60 * 1000, max: 600,
   standardHeaders: true, legacyHeaders: false,
-  message: { status: 'error', message: 'มีการเรียกใช้บ่อยเกินไป กรุณารอสักครู่' },
+  message: { status: 'error', message: 'Too many requests, please wait a moment' },
 }));
 
 // ── Health ─────────────────────────────────────────────────────────
@@ -117,8 +117,8 @@ app.use((err, req, res, next) => {
   if (res.headersSent) return;
   const isBadJson = err?.type === 'entity.parse.failed';
   const tooLarge  = err?.type === 'entity.too.large';
-  if (isBadJson) return res.status(400).json({ status: 'error', message: 'รูปแบบ JSON ไม่ถูกต้อง' });
-  if (tooLarge)  return res.status(413).json({ status: 'error', message: 'ข้อมูลที่ส่งมาใหญ่เกินกำหนด' });
+  if (isBadJson) return res.status(400).json({ status: 'error', message: 'Invalid JSON format' });
+  if (tooLarge)  return res.status(413).json({ status: 'error', message: 'The submitted data is too large' });
   res.status(500).json({ status: 'error', message: 'Server error, please try again' });
 });
 

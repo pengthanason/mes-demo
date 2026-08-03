@@ -21,7 +21,7 @@ const RES = [
 
 function resourceOf(path) {
   const r = RES.find(([pre]) => path === pre || path.startsWith(pre + '/'));
-  return r ? { label: r[1], type: r[2] } : { label: 'ข้อมูล', type: 'other' };
+  return r ? { label: r[1], type: r[2] } : { label: 'Record', type: 'other' };
 }
 
 // ชื่อที่อ่านง่ายของ record ที่สร้าง/แก้ (จาก response body) — รองรับหลาย endpoint
@@ -54,7 +54,7 @@ module.exports = function activityLog(req, res, next) {
 
       const { label, type } = resourceOf(p);
       const verb = method === 'POST' ? 'CREATE' : method === 'DELETE' ? 'DELETE' : 'UPDATE';
-      const th = verb === 'CREATE' ? 'สร้าง' : verb === 'DELETE' ? 'ลบ' : 'แก้ไข';
+      const th = verb === 'CREATE' ? 'Created' : verb === 'DELETE' ? 'Deleted' : 'Updated';
       const segs = p.split('/').filter(Boolean);
       const lastSeg = segs[segs.length - 1];
       const pathId = (method !== 'POST' && lastSeg && !/^(projects|results|users|board|cases)$/.test(lastSeg)) ? lastSeg : null;

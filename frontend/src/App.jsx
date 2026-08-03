@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useMockAuth } from './lib/useMockStore.ts';
 import { mockLogout, getAuth } from './lib/mockStore.ts';
@@ -6,28 +6,32 @@ import { showToast } from './lib/toast.ts';
 import { SYNTECH_LOGO_PNG_BASE64 } from './assets/syntechLogo.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
 import { PERMISSIONS, effectivePerms, hasPerm } from './lib/permissions.ts';
-import { MesAuthPage } from './pages/MesAuthPage.tsx';
-import { WoDetailPage } from './pages/WoDetailPage.tsx';
-import { CloseWoPage } from './pages/CloseWoPage.tsx';
-import { FaiPage } from './pages/FaiPage.tsx';
-import { ProductionPlanPage } from './pages/ProductionPlanPage.tsx';
-import { ObaPage } from './pages/ObaPage.tsx';
-import { FourMChangePage } from './pages/FourMChangePage.tsx';
-import { CrDetailPage } from './pages/CrDetailPage.tsx';
-import { QcResultPage } from './pages/QcResultPage.tsx';
-import { QaVerifyPage } from './pages/QaVerifyPage.tsx';
-import { NotificationsPage } from './pages/NotificationsPage.tsx';
-import { AdminPanelPage } from './pages/AdminPanelPage.tsx';
-import { JigProjectPage } from './pages/JigProjectPage.tsx';
-import { JigTestPage } from './pages/JigTestPage.tsx';
-import { DashboardPage } from './pages/DashboardPage.tsx';
-import { IncomingKittingPage } from './pages/IncomingKittingPage.tsx';
-import { WorkOrdersPage } from './pages/WorkOrdersPage.tsx';
-import { QcPage } from './pages/QcPage.tsx';
-import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
-import { DriftViewerPage } from './pages/DriftViewerPage.tsx';
-import { NotFoundPage } from './pages/NotFoundPage.tsx';
-import { SettingsPage } from './pages/SettingsPage.tsx';
+import { Spinner } from './components/DataStates.tsx';
+
+// โหลดหน้าแบบ lazy ทั้งหมด (code-splitting) — แต่ละหน้าถูก bundle แยก chunk,
+// โหลดเฉพาะตอนเข้า route นั้นจริงๆ แทนที่จะรวมทุกหน้าไว้ใน bundle แรกตอนเปิดแอป
+const MesAuthPage        = React.lazy(() => import('./pages/MesAuthPage.tsx').then(m => ({ default: m.MesAuthPage })));
+const WoDetailPage       = React.lazy(() => import('./pages/WoDetailPage.tsx').then(m => ({ default: m.WoDetailPage })));
+const CloseWoPage        = React.lazy(() => import('./pages/CloseWoPage.tsx').then(m => ({ default: m.CloseWoPage })));
+const FaiPage             = React.lazy(() => import('./pages/FaiPage.tsx').then(m => ({ default: m.FaiPage })));
+const ProductionPlanPage = React.lazy(() => import('./pages/ProductionPlanPage.tsx').then(m => ({ default: m.ProductionPlanPage })));
+const ObaPage             = React.lazy(() => import('./pages/ObaPage.tsx').then(m => ({ default: m.ObaPage })));
+const FourMChangePage    = React.lazy(() => import('./pages/FourMChangePage.tsx').then(m => ({ default: m.FourMChangePage })));
+const CrDetailPage       = React.lazy(() => import('./pages/CrDetailPage.tsx').then(m => ({ default: m.CrDetailPage })));
+const QcResultPage       = React.lazy(() => import('./pages/QcResultPage.tsx').then(m => ({ default: m.QcResultPage })));
+const QaVerifyPage       = React.lazy(() => import('./pages/QaVerifyPage.tsx').then(m => ({ default: m.QaVerifyPage })));
+const NotificationsPage  = React.lazy(() => import('./pages/NotificationsPage.tsx').then(m => ({ default: m.NotificationsPage })));
+const AdminPanelPage     = React.lazy(() => import('./pages/AdminPanelPage.tsx').then(m => ({ default: m.AdminPanelPage })));
+const JigProjectPage     = React.lazy(() => import('./pages/JigProjectPage.tsx').then(m => ({ default: m.JigProjectPage })));
+const JigTestPage        = React.lazy(() => import('./pages/JigTestPage.tsx').then(m => ({ default: m.JigTestPage })));
+const DashboardPage      = React.lazy(() => import('./pages/DashboardPage.tsx').then(m => ({ default: m.DashboardPage })));
+const IncomingKittingPage = React.lazy(() => import('./pages/IncomingKittingPage.tsx').then(m => ({ default: m.IncomingKittingPage })));
+const WorkOrdersPage     = React.lazy(() => import('./pages/WorkOrdersPage.tsx').then(m => ({ default: m.WorkOrdersPage })));
+const QcPage              = React.lazy(() => import('./pages/QcPage.tsx').then(m => ({ default: m.QcPage })));
+const TraceabilityPage   = React.lazy(() => import('./pages/TraceabilityPage.tsx').then(m => ({ default: m.TraceabilityPage })));
+const DriftViewerPage    = React.lazy(() => import('./pages/DriftViewerPage.tsx').then(m => ({ default: m.DriftViewerPage })));
+const NotFoundPage       = React.lazy(() => import('./pages/NotFoundPage.tsx').then(m => ({ default: m.NotFoundPage })));
+const SettingsPage       = React.lazy(() => import('./pages/SettingsPage.tsx').then(m => ({ default: m.SettingsPage })));
 import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -883,6 +887,7 @@ export default function App() {
         <ConfirmContainer />
         <Shell>
           <ErrorBoundary>
+            <Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><Spinner /></div>}>
             <Routes>
               <Route path="/"                  element={<Navigate to="/dashboard" replace />} />
               <Route path="/mes-auth"          element={<MesAuthPage />} />
@@ -916,6 +921,7 @@ export default function App() {
               <Route path="/equipment-borrow" element={<PermGuard perm="equipment"><EquipmentBorrowPage /></PermGuard>} />
               <Route path="*"                  element={<NotFound />} />
             </Routes>
+            </Suspense>
           </ErrorBoundary>
         </Shell>
       </HashRouter>

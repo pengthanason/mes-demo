@@ -1,9 +1,17 @@
 const db = require('./db');
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+// ตั้ง SEED_DEMO=false เพื่อไม่ใส่ข้อมูลตัวอย่าง (สำหรับ go-live / กระดานเปล่า)
+const SEED_DEMO = process.env.SEED_DEMO !== 'false';
+// fail-fast บน prod ตอน require (ก่อนแตะ DB ด้วยซ้ำ) — เหมือน pattern เดียวกับ JWT_SECRET ใน
+// auth-token.js และ DB_PASSWORD ใน db.js — ถ้าลืมตั้ง SEED_DEMO=false ของเดิมจะสร้าง admin/admin
+// (รหัส=username) ให้เองแบบเงียบๆ ตอนนี้ครั้งแรกที่ boot
+if (IS_PROD && SEED_DEMO) {
+  throw new Error('[migrate] ต้องตั้ง SEED_DEMO=false เมื่อ NODE_ENV=production (ห้ามสร้างบัญชี admin/admin อัตโนมัติบน prod)');
+}
+
 async function migrate() {
   const client = await db.connect();
-  // ตั้ง SEED_DEMO=false เพื่อไม่ใส่ข้อมูลตัวอย่าง (สำหรับ go-live / กระดานเปล่า)
-  const SEED_DEMO = process.env.SEED_DEMO !== 'false';
   try {
     // ⚠️ ตาราง `boms` (หัว BOM) ถูกถอดออกจากระบบ — BOM ตัวจริงมาจากระบบภายนอก (MRP)
     //    เหลือแต่ `bom_lines` โดย `bom_id` เป็น plain INTEGER (ไม่มี FK ในฐานข้อมูลนี้)
@@ -18,6 +26,19 @@ async function migrate() {
         sort_order INTEGER NOT NULL DEFAULT 0
       )
     `);
+    // ── BOM line เพิ่มฟิลด์ (2026-08-03 — ตามที่เพื่อนทำ DB ส่งมา ให้ตรงกับ BOM จริงฝั่งวิศวกรรม
+    //    เช่นไฟล์ SYN BOM_From_Rev00: Level, Component Type, Customer/MFG P/N, Brand, AVL/OS, ตำแหน่งบน PCB, ราคา) ──
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS line_no         INTEGER`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS level           SMALLINT NOT NULL DEFAULT 1`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS component_type  VARCHAR(100)`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS customer_pn     VARCHAR(100)`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS mfg_pn          VARCHAR(200)`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS brand           VARCHAR(100)`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS avl_os_flag     VARCHAR(20) NOT NULL DEFAULT 'TBD'`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS ref_designators VARCHAR(200)`);   // ตำแหน่งบน PCB จริง เช่น C1,C8
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS price_thb       NUMERIC(12,4)`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS price_usd       NUMERIC(12,4)`);
+    await client.query(`ALTER TABLE bom_lines ADD COLUMN IF NOT EXISTS total_thb       NUMERIC(12,4)`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS work_orders (
@@ -365,6 +386,10 @@ async function migrate() {
         reviewed_at   TIMESTAMPTZ
       )
     `);
+    // uid — ตามที่เพื่อนทำ DB ส่งมา (2026-08-03) · database_schema.sql ประกาศไว้อยู่แล้วแต่ migrations.js ยังไม่มี
+    // ใช้ unique index แทน ADD CONSTRAINT (Postgres ไม่รองรับ ADD CONSTRAINT ... IF NOT EXISTS) — รันซ้ำได้ปลอดภัย
+    await client.query(`ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS uid VARCHAR(100)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS inventory_lots_uid_key ON inventory_lots (uid)`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS kitting_issues (

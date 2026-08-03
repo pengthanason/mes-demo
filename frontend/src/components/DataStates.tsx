@@ -114,7 +114,7 @@ export function EmptyState({ state = 'empty', title, message, icon, onRetry, act
 }
 
 // สปินเนอร์เล็ก (SVG self-animate ผ่าน SMIL — ไม่ต้องพึ่ง @keyframes ใน CSS)
-function Spinner() {
+export function Spinner() {
   return (
     <svg width="30" height="30" viewBox="0 0 50 50" style={{ display: 'block', margin: '0 auto' }} role="img" aria-label="loading">
       <circle cx="25" cy="25" r="20" fill="none" stroke="#e2e8f0" strokeWidth="5" />

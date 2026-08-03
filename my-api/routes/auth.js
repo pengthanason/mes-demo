@@ -11,7 +11,7 @@ const DUMMY_HASH = '$2b$10$CwTycUXWue0Thq9StjUM0uJ8DvW4rF4y8Wc7lFVQ7hVfJZ7hJ0V9e
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
-    return res.status(400).json({ status: 'error', message: 'username และ password จำเป็น' });
+    return res.status(400).json({ status: 'error', message: 'username and password are required' });
   }
   try {
     const { rows } = await db.query(
@@ -23,14 +23,14 @@ router.post('/login', async (req, res) => {
     // และเทียบเสมอแม้ไม่พบ user เพื่อไม่ให้ timing บอกได้ว่า username มีจริงไหม
     const ok = await bcrypt.compare(String(password), (u && u.password_hash) || DUMMY_HASH);
     if (!u || !ok) {
-      return res.status(401).json({ status: 'error', message: 'username หรือ password ไม่ถูกต้อง' });
+      return res.status(401).json({ status: 'error', message: 'Incorrect username or password' });
     }
     if (!u.is_active) {
-      return res.status(403).json({ status: 'error', message: 'บัญชีนี้ถูกปิดใช้งาน' });
+      return res.status(403).json({ status: 'error', message: 'This account is disabled' });
     }
     // log การเข้าระบบ
     await db.query(
-      `INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES ($1,'LOGIN',NULL,NULL,'เข้าสู่ระบบสำเร็จ')`,
+      `INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES ($1,'LOGIN',NULL,NULL,'Signed in successfully')`,
       [u.username]
     ).catch(() => {});
     // ออก token ให้ client แนบใน header Authorization: Bearer ทุก request ที่ไม่ใช่ login
@@ -49,7 +49,7 @@ router.get('/me', async (req, res) => {
   const token = bearerFrom(req);
   const payload = token ? verifyToken(token) : null;
   if (!payload || !payload.sub) {
-    return res.status(401).json({ status: 'error', message: 'ต้องเข้าสู่ระบบก่อน' });
+    return res.status(401).json({ status: 'error', message: 'Please sign in first' });
   }
   try {
     const { rows } = await db.query(
@@ -57,7 +57,7 @@ router.get('/me', async (req, res) => {
       [Number(payload.sub)]
     );
     const u = rows[0];
-    if (!u || !u.is_active) return res.status(401).json({ status: 'error', message: 'บัญชีนี้ใช้งานไม่ได้' });
+    if (!u || !u.is_active) return res.status(401).json({ status: 'error', message: 'This account is disabled' });
     res.json({
       status: 'success',
       data: { id: u.id, username: u.username, fullName: u.full_name, role: u.role,

@@ -82,12 +82,12 @@ function validateData(data, changed = data) {   // data = ค่ารวม (be
     if (n > INT4_MAX) return `${k} is too large`;
   }
   for (const k of BOOL_FIELDS) {
-    if (k in changed && changed[k] != null && typeof changed[k] !== 'boolean') return `${k} ต้องเป็น true/false`;
+    if (k in changed && changed[k] != null && typeof changed[k] !== 'boolean') return `${k} must be true/false`;
   }
   // วันที่: ต้อง parse ได้จริง — ของเดิม '31/02/2026' ได้ Invalid Date แล้วเทียบ < ได้ false ทุกครั้ง → ผ่าน validate → DB reject → 500
   for (const k of DATE_FIELDS) {
     if (k in changed && changed[k] != null && changed[k] !== '' && isNaN(Date.parse(changed[k]))) {
-      return `${k} ไม่ใช่วันที่ที่ถูกต้อง (YYYY-MM-DD)`;
+      return `${k} is not a valid date (YYYY-MM-DD)`;
     }
   }
   if (data.produce != null && data.qty != null && data.produce !== '' && data.qty !== '' && Number(data.produce) > Number(data.qty)) {
@@ -145,9 +145,9 @@ router.get('/projects', async (req, res) => {
 
 router.post('/projects', async (req, res) => {
   const data = clean(req.body);
-  if (data.__bad_process_log) return res.status(400).json({ status: 'error', message: 'process_log ต้องเป็น array' });
+  if (data.__bad_process_log) return res.status(400).json({ status: 'error', message: 'process_log must be an array' });
   if (!data.product_pn && !data.model) {
-    return res.status(400).json({ status: 'error', message: 'ต้องมี Product P/N หรือ Model อย่างน้อย 1' });
+    return res.status(400).json({ status: 'error', message: 'Must have at least one of Product P/N or Model' });
   }
   const verr = validateData(data);
   if (verr) return res.status(400).json({ status: 'error', message: verr });
@@ -168,7 +168,7 @@ router.post('/projects', async (req, res) => {
 
 router.put('/projects/:id', async (req, res) => {
   const data = clean(req.body);
-  if (data.__bad_process_log) return res.status(400).json({ status: 'error', message: 'process_log ต้องเป็น array' });
+  if (data.__bad_process_log) return res.status(400).json({ status: 'error', message: 'process_log must be an array' });
   const keys = Object.keys(data);
   if (!keys.length) return res.status(400).json({ status: 'error', message: 'no data' });
   const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');

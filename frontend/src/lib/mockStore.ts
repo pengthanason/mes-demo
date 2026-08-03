@@ -1,5 +1,5 @@
 import { setAuthTokens, clearAuthTokens } from './api';
-import { IS_DEMO } from './config';
+import { IS_DEMO, API_BASE_URL } from './config';
 
 export type WoStep = 'DRAFT' | 'OPEN' | 'READY' | 'RUNNING' | 'WAIT_FAI_QA' | 'WAIT_FAI_MGR' | 'CLOSED';
 export type UserRole = 'admin' | 'member' | 'viewer';
@@ -69,7 +69,7 @@ export async function apiLogin(username: string, password: string): Promise<{ ok
   const uname = username.trim();
   const isDemo = IS_DEMO;
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(`${API_BASE_URL || ''}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: uname, password }),

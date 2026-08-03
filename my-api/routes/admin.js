@@ -21,7 +21,7 @@ router.post('/users', async (req, res) => {
     return res.status(400).json({ status: 'error', message: 'username, full_name, role(ADMIN|MEMBER|VIEWER) required' });
   }
   if (!password || String(password).length < 8) {
-    return res.status(400).json({ status: 'error', message: 'password ต้องยาวอย่างน้อย 8 ตัวอักษร' });
+    return res.status(400).json({ status: 'error', message: 'Password must be at least 8 characters' });
   }
   const perms = Array.isArray(permissions) ? permissions.filter(p => typeof p === 'string') : [];
   try {
@@ -35,11 +35,11 @@ router.post('/users', async (req, res) => {
     // actor = คนที่กดจริง (จาก req.user ที่ verify แล้ว) — ของเดิม hardcode 'admin' ทำให้สืบไม่ได้ว่าใครสร้าง
     await db.query(
       `INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES ($3,'CREATE_USER','user',$1,$2)`,
-      [String(rows[0].id), `สร้างผู้ใช้: ${username}`, (req.user && req.user.username) || 'system']
+      [String(rows[0].id), `Created user: ${username}`, (req.user && req.user.username) || 'system']
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
-    if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'username นี้มีอยู่แล้ว' });
+    if (e.code === '23505') return res.status(409).json({ status: 'error', message: 'This username already exists' });
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   }
 });
@@ -49,15 +49,15 @@ router.put('/users/:id', async (req, res) => {
   // validate เหมือน POST — ของเดิม PUT ไม่เช็กเลย: role='SUPERADMIN' → CHECK violation → 500,
   // is_active='no' → boolean cast fail → 500, full_name='' → ผ่าน NOT NULL ได้ user ชื่อว่าง
   if (role !== undefined && !['ADMIN', 'MEMBER', 'VIEWER'].includes(role)) {
-    return res.status(400).json({ status: 'error', message: 'role ต้องเป็น ADMIN | MEMBER | VIEWER' });
+    return res.status(400).json({ status: 'error', message: 'role must be ADMIN | MEMBER | VIEWER' });
   }
   if (is_active !== undefined && typeof is_active !== 'boolean') {
-    return res.status(400).json({ status: 'error', message: 'is_active ต้องเป็น true/false' });
+    return res.status(400).json({ status: 'error', message: 'is_active must be true/false' });
   }
   if (full_name !== undefined) {
     const fn = String(full_name).trim();
-    if (!fn)             return res.status(400).json({ status: 'error', message: 'full_name ห้ามว่าง' });
-    if (fn.length > 200) return res.status(400).json({ status: 'error', message: 'full_name ยาวเกิน 200 ตัวอักษร' });
+    if (!fn)             return res.status(400).json({ status: 'error', message: 'full_name must not be empty' });
+    if (fn.length > 200) return res.status(400).json({ status: 'error', message: 'full_name is too long (max 200 characters)' });
   }
   try {
     const sets = [];
@@ -67,7 +67,7 @@ router.put('/users/:id', async (req, res) => {
     if (is_active !== undefined)   { vals.push(is_active);   sets.push(`is_active=$${vals.length}`); }
     if (Array.isArray(permissions)) { vals.push(JSON.stringify(permissions.filter(p => typeof p === 'string'))); sets.push(`permissions=$${vals.length}::jsonb`); }
     if (password) {
-      if (String(password).length < 8) return res.status(400).json({ status: 'error', message: 'password ต้องยาวอย่างน้อย 8 ตัวอักษร' });
+      if (String(password).length < 8) return res.status(400).json({ status: 'error', message: 'Password must be at least 8 characters' });
       vals.push(bcrypt.hashSync(String(password), 10)); sets.push(`password_hash=$${vals.length}`);
     }
     if (!sets.length) return res.status(400).json({ status: 'error', message: 'nothing to update' });
@@ -92,7 +92,7 @@ router.delete('/users/:id', async (req, res) => {
     if (!rowCount) return res.status(404).json({ status: 'error', message: 'user not found' });
     await db.query(
       `INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES ($3,'DELETE_USER','user',$1,$2)`,
-      [req.params.id, `ลบผู้ใช้: ${rows[0].username}`, (req.user && req.user.username) || 'system']
+      [req.params.id, `Deleted user: ${rows[0].username}`, (req.user && req.user.username) || 'system']
     );
     res.json({ status: 'success' });
   } catch (e) {

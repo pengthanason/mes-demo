@@ -1,5 +1,5 @@
 # Syntech MES -- Status & Handoff
-> อัปเดต: **2026-07-30** (intern repo `syntech-intern-2026`, branch `develop`) · ประวัติ deploy server (172.16.10.87) อยู่ด้านล่าง
+> อัปเดต: **2026-08-03** (repo `syntech_mes_draft` — remote `draft`, branch `develop` · โฟลเดอร์ในเครื่องชื่อ `syntech-intern-2026` แต่ push จริงไป `draft` ไม่ใช่ `origin`) · ประวัติ deploy server (172.16.10.87) อยู่ด้านล่าง
 
 ## BOM ย้ายไปเป็นของ MRP (2026-07-30)
 
@@ -63,6 +63,22 @@ endpoint live จริงแต่ไม่มีใครยิงเลยส
 > `backend/modules/14_event_inbox/` ที่ถอดไปพร้อมกันเป็น dead code จริง (ไม่เคย mount ใน `server.js`) ไม่ต้องกู้
 
 ---
+
+## 2026-08-03 Frontend Track — PP Delivery date + BOM schema sync
+
+- **PP Dashboard — Delivery date + hover remark**: เพิ่ม `pp_projects.delivery_date` + `delivery_remark` (วันส่งมอบลูกค้า แยกจาก Expected/Revised ที่เป็นวันเสร็จผลิตภายใน) ตามที่คุยในที่ประชุม PP · ช่อง Delivery date ในตาราง — ถ้ามี remark โผล่ดอกจัน (*) แดงมุมขวาบน เอาเมาส์ชี้ดูรายละเอียดได้ (ใช้ pattern ดอกจันเดียวกับช่อง Process ที่มีอยู่แล้ว ไม่ได้สร้างกลไกใหม่) · ครบทุกช่องทาง: ตาราง (แก้ไข+อ่านอย่างเดียว), ฟอร์ม Add/Edit, Excel/PDF export, demo mock
+- **BOM — sync schema กับเพื่อนที่ดูแล DB**: เพิ่ม 11 คอลัมน์ใน `bom_lines` (`line_no, level, component_type, customer_pn, mfg_pn, brand, avl_os_flag, ref_designators, price_thb, price_usd, total_thb`) ให้ตรงกับ BOM จริงฝั่งวิศวกรรม (อ้างอิง `SYN BOM_From_Rev00.xlsx`) · เพิ่มฟิลด์ใหม่ใน `GET /api/bom/:bomId/review` ด้วย (เดิม SELECT แค่ part_no/part_name/qty_per/unit) · **สังเกต**: DB dump ที่เพื่อนส่งมายังมี `pre_wo_requests` อยู่ — ทีมยังไม่ได้ sync กันเรื่องนี้ ควรคุยให้ตรงเวอร์ชัน
+- **ทดสอบ**: ทั้ง 2 งาน — `tsc` + `vitest` (26 เทส) ผ่าน, รัน migration จริงกับ dev DB (`docker cp` + restart `mes-my-api`) แล้วยิง API create/read ผ่าน API จริง ลบ test data ทิ้งหมดแล้ว
+- **README**: ตัดหัวข้อ "Git workflow" ออก (ไม่ต้องการแล้ว) + ปรับเนื้อหาให้เน้น `frontend/`+`my-api/` (เว็บที่ทีมนี้ดูแล) เป็นหลัก แทนที่จะให้น้ำหนักเท่ากับ `backend/` (คนละทีมดูแล)
+- **ค้าง (ยังไม่ commit)**: งานวันนี้ทั้งหมดยังไม่ได้ commit/push — ผู้ใช้ขอให้ร่าง commit message ให้แทน แล้วจะ commit/push เอง (ดูรายละเอียดใน conversation)
+
+## 2026-07-31 Frontend Track — Table layout fixes + DB rename/cleanup + PP auto-orange
+
+- **Table layout**: แก้ตาราง Work Orders/Kitting/QC (3 แท็บ)/OBA/4M+1E — คอลัมน์แคบเกินจนล้น (WO No, Status badge) + ช่องว่างใหญ่กลางตาราง (คอลัมน์เดียว "กินพื้นที่ที่เหลือ" ตอน viewport กว้าง) → เปลี่ยน `colgroup` เป็น % รวม 100% ทุกคอลัมน์ · เพิ่ม default `text-align:center` ให้ `.table` class ให้ข้อมูลตรงกับหัวคอลัมน์
+- **DB — เปลี่ยนชื่อ `app_users` → `users`** ใน `my-api` เท่านั้น (ไม่แตะ `backend/` ที่มีตาราง `users` ของตัวเองแยก DB คนละตัว) — rename ด้วย `ALTER TABLE IF EXISTS app_users RENAME TO users` ก่อน `CREATE IF NOT EXISTS` (ข้อมูลผู้ใช้เดิมไม่หาย) แก้ทุกจุดที่ query (`auth.js`, `authz.js`, `admin.js`, `productionPlan.js`, `backup.js`, `seed_admin.sql`)
+- **DB — ลบตาราง `pre_wo_requests`** (ฟีเจอร์ "คำขอเปิด WO ล่วงหน้า" — create/approve/convert) ยืนยันแล้วว่าไม่มีหน้า/ปุ่มใดในเว็บเรียกใช้เลย (เป็น backend-only ตกค้างจากดีไซน์เดิมที่เปลี่ยนมาใช้ direct-create form แทน) — ลบ endpoint ใน `routes/wo.js`, entry ใน `backup.js`, mock ฝั่ง frontend
+- **PP Dashboard — Orange auto-warning (Due soon)**: เดิม Status มีแค่ปุ่มเลือกสีเอง ไม่มี logic คำนวณอัตโนมัติ → เพิ่มเงื่อนไขใน `statusView()`: `ON_PROCESS` ที่ยังไม่เลยกำหนดแต่เหลือ ≤3 วัน (เทียบ revised/expected date) → ขึ้นส้มอัตโนมัติ (ปรับที่ `DUE_SOON_DAYS` จุดเดียว) — เจอบั๊กแฝงระหว่างทำ: ฟอร์ม auto-fill `status_color = status` ทุกครั้งที่บันทึก ถ้าเช็คแค่ "มีค่า" จะกลายเป็น dead code ทันที ต้องเทียบว่าต่างจาก status จริงถึงนับว่าตั้งสีเอง
+- **ทดสอบ**: ทุกงาน — `tsc` + `vitest` ผ่าน, รัน migration จริงกับ dev DB แล้วเทส login/admin panel/endpoint 404 ผ่านหมด
 
 ## 2026-07-30 Frontend Track — Pre-production hardening (security + robustness)
 

@@ -59,12 +59,12 @@ npm run dev
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | Vitest (unit + Testing Library) |
 
-### backend/
+### my-api/
 
 | คำสั่ง | ทำอะไร |
 | --- | --- |
-| `npm run migrate:status` · `migrate:latest` · `migrate:rollback` | knex migrations |
-| `npm run test:all` | e2e + jumbo + auth tests |
+| `npm run dev` | dev server :5099 (`node --watch`) — รันใน Docker ปกติ, ใช้อันนี้เวลารันนอก container |
+| `npm start` | รันแบบ prod (ไม่ watch) |
 
 ---
 
@@ -72,7 +72,7 @@ npm run dev
 
 - **Backend / my-api:** `backend/envs/.env.{dev,test,prod,webtest}` — **gitignored** (ห้าม commit · ดู `.env.example`)
 - **Frontend:** `frontend/.env.{development,production}` (`VITE_JIGAPI_URL`, `VITE_DEMO_MODE`)
-- **DB (default ใน compose):** db `productiondb` · user `syntechdb` · schema `mes_core` · port `5432`
+- **DB (default ใน compose):** db `productiondb` · user `syntechdb` · port `5432` — **my-api ใช้ schema `public`** (26 ตาราง: users, work_orders, pp_projects, bom_lines …) ส่วน `backend` ใช้ schema `mes_core` แยกกันคนละ schema ในดาต้าเบสเดียวกัน (ห้ามสลับ ไม่งั้นตารางชนกัน)
 
 > ⚠️ `pull`/`rebase` อาจลบไฟล์ `backend/envs/.env.*` (ถูก untrack) — **backup ก่อนทุกครั้ง**: `cp -a backend/envs backend/envs.bak`
 
@@ -84,11 +84,10 @@ npm run dev
 syntech-intern-2026/
 ├── frontend/        Vite+React admin UI (Dashboard, PP Gantt, WO, Station…)
 ├── my-api/          Express data API (:5099) ให้ admin UI
-├── backend/         MES backbone (:5100)
-│   ├── modules/     00_auth … 13_jumbo (14 modules)
-│   ├── migrations/  knex migrations
-│   ├── schema.sql   full DB schema
-│   └── envs/        .env.* (gitignored)
+│   ├── migrations.js         schema migration (additive, รันตอน boot)
+│   ├── database_schema.sql   เอกสาร schema อ้างอิง (go-live)
+│   └── routes/                wo.js, productionPlan.js, bom.js, admin.js …
+├── backend/         MES backbone (:5100) — คนละแอป คนละ DB แยกทีมดูแล
 ├── docs/            setup / api-reference / overview / mes_web_test answers
 ├── docker-compose.yml
 ├── STATUS.md        สถานะล่าสุด + ประวัติ session
@@ -98,23 +97,12 @@ syntech-intern-2026/
 
 ---
 
-## Git workflow
-
-Remotes: `origin` (syntech-intern-2026) · `draft` (syntech_mes_draft) · `demo` (mes-demo)
-
-- ทำงานบน branch **`develop`** · `git push` → `draft/develop`
-- **ห้าม force push** (จะลบงานทีม) · diverged ให้ `rebase` ก่อน
-- backup env ก่อน pull เสมอ (ดูหัวข้อ Environment)
-- เปลี่ยนแปลงใหญ่ → เปิด **Pull Request** เข้า `main`
-
----
-
 ## เอกสารเพิ่มเติม
 
 - [STATUS.md](STATUS.md) — สถานะล่าสุด + ประวัติ handoff
 - [MES_DESIGN.md](MES_DESIGN.md) — architecture + integration
 - [docs/mes-dev-setup.md](docs/mes-dev-setup.md) · [docs/mes-api-reference.md](docs/mes-api-reference.md) · [docs/mes-overview.md](docs/mes-overview.md)
-- [backend/schema.sql](backend/schema.sql) — full DB schema
+- [my-api/database_schema.sql](my-api/database_schema.sql) — DB schema ของ `my-api` (เว็บเรา)
 
 ---
 *Synergy Technology Co., Ltd. — Internal use only · Supervisor: Weradech K.*

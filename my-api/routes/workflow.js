@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { name, customer, model, steps } = req.body;
   if (!Array.isArray(steps) || steps.length === 0) {
-    return res.status(400).json({ status: 'error', message: 'ต้องมีขั้นตอน (steps) อย่างน้อย 1' });
+    return res.status(400).json({ status: 'error', message: 'Must have at least 1 step' });
   }
   try {
     const { rows } = await db.query(
@@ -55,14 +55,14 @@ router.get('/results', async (req, res) => {
 router.post('/results', async (req, res) => {
   const { serial, customer, model, sequence, result, total_sec, line, steps } = req.body;
   if (!serial || !String(serial).trim()) {
-    return res.status(400).json({ status: 'error', message: 'ต้องมี Serial Number' });
+    return res.status(400).json({ status: 'error', message: 'Serial Number is required' });
   }
   const r = (result === 'FAIL') ? 'FAIL' : 'PASS';
   const ln = (line === 'external' || line === 'mix') ? line : 'internal';
   const sn = String(serial).trim();
   // จำกัดจำนวน step — body รับได้ถึง 8mb ถ้ายัดมาเป็นแสน step จะ INSERT ทีละตัวเป็นนาที ถือ connection ค้างทั้ง pool
   if (Array.isArray(steps) && steps.length > 200) {
-    return res.status(400).json({ status: 'error', message: 'steps มากเกินไป (จำกัด 200 ขั้นตอน)' });
+    return res.status(400).json({ status: 'error', message: 'Too many steps (limit is 200)' });
   }
   try {
     const { rows } = await db.query(
@@ -83,7 +83,7 @@ router.post('/results', async (req, res) => {
         await db.query(
           `INSERT INTO production_scans (wo_id, serial, station, result, operator, note, scanned_at)
            VALUES ($1,$2,$3,$4,$5,$6, NOW() + make_interval(secs => $7))`,
-          [woTag, sn, String(st), stepResult, '', stepResult === 'FAIL' ? 'จาก Workflow (FAIL)' : 'จาก Workflow', i]
+          [woTag, sn, String(st), stepResult, '', stepResult === 'FAIL' ? 'From Workflow (FAIL)' : 'From Workflow', i]
         );
       }
     }

@@ -16,7 +16,7 @@ export function useBackupSummary() {
     queryFn: async () => {
       const res = await api.get('/backup/summary');
       if (res.status >= 400 || res.status === 0) {
-        throw new Error((res.data as any)?.message || 'โหลดข้อมูลไม่สำเร็จ');
+        throw new Error((res.data as any)?.message || 'Failed to load data');
       }
       return (res.data as any).data as BackupSummary;
     },
@@ -45,7 +45,11 @@ export async function downloadBackup(format: 'json' | 'sql', filename?: string):
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
-      let msg = `ดาวน์โหลดไม่สำเร็จ (${res.status})`;
+      // 401 = session หมดอายุ — แจ้ง app ให้จัดการเหมือน request อื่นทุกตัวใน api.ts (เดิมจุดนี้ไม่แจ้ง)
+      if (res.status === 401 && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('app:unauthorized'));
+      }
+      let msg = `Download failed (${res.status})`;
       try { const j = await res.json(); if (j?.message) msg = j.message; } catch { /* ไม่ใช่ JSON */ }
       return { ok: false, error: msg };
     }
@@ -68,6 +72,6 @@ export async function downloadBackup(format: 'json' | 'sql', filename?: string):
     URL.revokeObjectURL(href);
     return { ok: true, filename: name };
   } catch (e: any) {
-    return { ok: false, error: e?.message || 'เชื่อมต่อไม่สำเร็จ' };
+    return { ok: false, error: e?.message || 'Connection failed' };
   }
 }
