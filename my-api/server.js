@@ -10,6 +10,11 @@ const app     = express();
 const PORT    = process.env.PORT || 5099;
 const IS_PROD = process.env.NODE_ENV === 'production';
 
+// หลัง nginx/reverse proxy req.ip จะเป็น IP ของ proxy เดียวกันทุก request (ไม่ใช่ IP ผู้ใช้จริง)
+// → rate limiter (login 10 ครั้ง/15 นาที) กลายเป็นโควตารวมของทั้งออฟฟิศ ใครพิมพ์รหัสผิดคนอื่นล็อกอินไม่ได้
+// ตั้ง 1 (เชื่อ proxy ชั้นแรกสุดเท่านั้น) — ห้ามใช้ true (เชื่อทุกชั้น ปลอมค่า X-Forwarded-For ได้)
+app.set('trust proxy', 1);
+
 // กันแอปตายจาก error ที่ไม่ได้ catch (เช่น DB หลุดชั่วคราว) — log แล้วไปต่อ ไม่ crash
 process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', err?.message || err));
 process.on('uncaughtException',  (err) => console.error('[uncaughtException]',  err?.message || err));

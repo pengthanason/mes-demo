@@ -58,9 +58,9 @@ async function migrate() {
     `);
 
     // ⚠️ pre_wo_requests (ฟีเจอร์ "คำขอเปิด WO ล่วงหน้า" — create/approve/convert) ถูกถอดออกจากระบบแล้ว
-    //    ตามคำสั่งผู้ใช้ (ยืนยันแล้วว่ารู้ว่าเป็นฟีเจอร์ที่ใช้งานอยู่จริง) — ลบทั้ง endpoint ใน routes/wo.js,
-    //    entry ใน backup.js, และ mock ฝั่ง frontend ไปพร้อมกัน
-    await client.query(`DROP TABLE IF EXISTS pre_wo_requests`);
+    //    (endpoint ใน routes/wo.js, entry ใน backup.js, mock ฝั่ง frontend ก็ลบไปพร้อมกัน)
+    //    ตาราง DROP ไปแล้วในทุก environment ที่รู้จัก (ยืนยัน 0 แถวก่อนลบ) — เอา DROP TABLE ที่เคย
+    //    รันทุก boot ไปตลอดกาลออก เพราะไม่มีที่ไหนต้องดร็อปซ้ำแล้ว (2026-08-03 code review)
 
     // ── WO lifecycle columns (Dashboard / FAI / Close) ──
     await client.query(`
