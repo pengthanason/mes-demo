@@ -1,6 +1,9 @@
 const db = require('./db');
 
 async function migrate() {
+  // สร้าง schema ให้พร้อมก่อนขอ connection — connection ผูก search_path ไว้แล้ว
+  // ถ้า schema ยังไม่มี CREATE TABLE จะตกไป schema อื่นเงียบๆ
+  await db.ensureSchema();
   const client = await db.connect();
   // ตั้ง SEED_DEMO=false เพื่อไม่ใส่ข้อมูลตัวอย่าง (สำหรับ go-live / กระดานเปล่า)
   const SEED_DEMO = process.env.SEED_DEMO !== 'false';
@@ -157,14 +160,20 @@ async function migrate() {
     await client.query(`ALTER TABLE IF EXISTS app_users RENAME TO users`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id         SERIAL PRIMARY KEY,
-        username   VARCHAR(100) NOT NULL UNIQUE,
-        full_name  VARCHAR(200) NOT NULL,
-        role       VARCHAR(20)  NOT NULL DEFAULT 'VIEWER'
-                     CHECK (role IN ('ADMIN','MEMBER','VIEWER')),
-        is_active  BOOLEAN      NOT NULL DEFAULT true,
-        created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+        id            SERIAL PRIMARY KEY,
+        username      VARCHAR(100) NOT NULL UNIQUE,
+        full_name     VARCHAR(200) NOT NULL,
+        role          VARCHAR(20)  NOT NULL DEFAULT 'VIEWER'
+                        CHECK (role IN ('ADMIN','MEMBER','VIEWER')),
+        is_active     BOOLEAN      NOT NULL DEFAULT true,
+        -- ⚠️ ต้องมีตั้งแต่ CREATE — ไม่ใช่รอ ALTER ทีหลัง
+        --    เดิม CREATE ไม่มีคอลัมน์นี้ แต่บล็อก seed ข้างล่าง INSERT ใส่ password_hash
+        --    → ฐานเปล่า (เส้นทาง "ติดตั้งใหม่") migrate ตายทันที: column ... does not exist
+        --    ค่า DEFAULT '' ไว้รองรับฐานเก่าที่ ALTER ตามมาทีหลัง (ดูท้ายบล็อกนี้)
+        password_hash VARCHAR(255) NOT NULL DEFAULT '',
+        permissions   JSONB        NOT NULL DEFAULT '[]'::jsonb,
+        created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
     await client.query(`
@@ -419,6 +428,11 @@ async function migrate() {
       )
     `);
     // seed ตัวอย่าง (dev/เดโม) — ใส่เฉพาะตอนตารางว่าง เพื่อให้หน้า Traceability (#50) มี serial ให้ค้นหาทดสอบบน 5101
+    // ⚠️ ต้องอยู่ใต้ SEED_DEMO เหมือน seed ตัวอื่นทั้ง 10 จุด — ก้อนนี้เคยหลุด guard อยู่ก้อนเดียว
+    //    ผลคือ prod (SEED_DEMO=false) ได้ข้อมูลปลอมนี้ไปด้วย แล้วมันไปโผล่เป็น
+    //    "Production Pass Rate 88.2%" บนการ์ด KPI ใบแรกของ Dashboard ทั้งที่ยังไม่มีการผลิตจริง
+    //    (ทาง GET /api/jumbo/report/daily → useDailyReport() → FactoryOverview)
+    if (SEED_DEMO) {
     await client.query(`
       INSERT INTO production_scans (wo_id, serial, station, result, operator, note, scanned_at)
       SELECT * FROM (VALUES
@@ -442,6 +456,7 @@ async function migrate() {
       ) AS v(wo_id, serial, station, result, operator, note, scanned_at)
       WHERE NOT EXISTS (SELECT 1 FROM production_scans)
     `);
+    }
 
     // ── Production Plan (โมดูลใหม่ตาม Excel จริง — Add Project) ──
     await client.query(`

@@ -483,23 +483,19 @@ CREATE INDEX IF NOT EXISTS idx_notif_unread        ON notifications (is_read, cr
 -- จำเป็นเพราะ: prod ต้องตั้ง SEED_DEMO=false (ไม่งั้น migrations จะสร้าง admin/member1/viewer1
 -- รหัส = ชื่อผู้ใช้) → ถ้าไม่มีบล็อกนี้จะไม่มีใครล็อกอินเข้าระบบได้เลย
 --
--- ⚠️  รหัสผ่านเริ่มต้น = "admin"  >>> ต้องเปลี่ยนทันทีหลังล็อกอินครั้งแรก <<<
---     ถ้าต้องการรหัสอื่น: สร้าง hash ใหม่ด้วย
---       node -e "console.log(require('bcryptjs').hashSync('รหัสใหม่',10))"
---     แล้วแทนค่าในช่อง password_hash ด้านล่าง
+-- ⚠️  ไฟล์นี้ไม่สร้างบัญชี admin ให้แล้ว — และตั้งใจให้เป็นแบบนั้น
 --
--- idempotent: ถ้ามี username 'admin' อยู่แล้วจะไม่ทำอะไร
+--     ของเดิมฝัง bcrypt('admin') ไว้ตรงนี้ = รหัสผ่านของระบบอยู่ในไฟล์ที่ commit ลง git
+--     ใครอ่านรีโปได้ก็ล็อกอินได้ และในทางปฏิบัติไม่มีใครกลับมาเปลี่ยนหลัง deploy
+--
+--     สร้าง admin คนแรกด้วยสคริปต์แทน (รหัสมาจาก env ไม่ใช่จากไฟล์):
+--
+--       ADMIN_PASSWORD='<รหัสที่ตั้งเอง>' node my-api/seed_admin.js
+--       ADMIN_PASSWORD="$(openssl rand -base64 18)" node my-api/seed_admin.js
+--
+--     ไม่ตั้ง ADMIN_PASSWORD → สคริปต์สุ่มให้แล้วพิมพ์ออกมาครั้งเดียว (จดทันที)
+--     สคริปต์ idempotent: มี 'admin' อยู่แล้วจะไม่ทำอะไร
 -- ============================================================================
-INSERT INTO users (username, full_name, role, is_active, password_hash, permissions)
-VALUES (
-  'admin',
-  'ผู้ดูแลระบบ',
-  'ADMIN',
-  true,
-  '$2b$10$aymCG/JWida5PwWDyFA9g.yLq6sCE7lNKqXHhu5IMsSGNXH7ieH4S',  -- bcrypt('admin')
-  '[]'::jsonb
-)
-ON CONFLICT (username) DO NOTHING;
 
--- ตรวจผล: ควรเห็น admin 1 แถว
+-- ตรวจผลหลังรัน seed_admin.js: ควรเห็น admin 1 แถว
 -- SELECT id, username, role, is_active FROM users WHERE username = 'admin';

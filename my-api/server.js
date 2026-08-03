@@ -98,7 +98,9 @@ if (fs.existsSync(PUBLIC_DIR)) {
   app.use(express.static(PUBLIC_DIR));
   // SPA fallback: ทุก GET ที่ไม่ใช่ /api → ส่ง index.html (รองรับ HashRouter)
   app.get(/.*/, (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
+    // เทียบด้วย path ที่ normalize แล้ว — กฎเดียวกับ authz.js
+    // (Express routing ไม่สนตัวพิมพ์ ถ้าเทียบ path ดิบ /API/... จะหลุดมาที่ SPA fallback แทนที่จะไป API)
+    if (req.path.toLowerCase().startsWith('/api')) return next();
     res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
   });
 }
