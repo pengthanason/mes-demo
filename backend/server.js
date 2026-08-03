@@ -32,8 +32,6 @@ const qaObaRoutes = require('./modules/08_qa_oba/qa_oba.routes');
 const closeRoutes = require('./modules/09_close/close.routes');
 const notificationRoutes = require('./modules/10_notifications/notifications.routes');
 const pmRoutes = require('./modules/11_pm_flow/pm.routes');
-const scmRoutes = require('./modules/12_scm_cases/scm.routes');
-const recallRoutes = require('./modules/12_scm_cases/recall.routes');
 const jumboRoutes = require('./modules/13_jumbo/jumbo.routes');
 const adminRoutes = require('./modules/15_admin/admin.routes');
 const outboxWorker = require('./common/outbox_worker');
@@ -849,8 +847,6 @@ function createApp() {
   app.use(notificationRoutes);
   app.use(closeRoutes);
   app.use('/api/pm', pmRoutes);
-  app.use('/api/scm', scmRoutes);
-  app.use(recallRoutes);
   app.use(jumboRoutes);
   app.use(adminRoutes);
 

@@ -39,6 +39,17 @@ async function processEvent(row) {
       if (!result) return { ok: false, error: "updateProdOrder returned null" };
       return { ok: true };
     }
+    case "SCRAP_ADJ": {
+      // QC FAIL + scrapped → หักสต็อกวัตถุดิบที่ WMS (Task C)
+      // controller เขียนแถวนี้เป็น PENDING ก่อนยิง WMS แล้วค่อยอัปเดตเป็น OK
+      // ถ้า WMS ล่ม/timeout แถวจะค้าง PENDING → worker ตัวนี้เก็บตกให้เมื่อ WMS กลับมา
+      if (!wms.isConfigured()) return { ok: false, error: "WMS not configured" };
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      if (!items.length) return { ok: true, note: "no BOM lines to adjust — skipped" };
+      const result = await wms.postADJ(items, payload.actor || "mes", payload.document_ref || null);
+      if (!result.ok) return { ok: false, error: JSON.stringify(result.errors).slice(0, 500) };
+      return { ok: true };
+    }
     case "MRP_ACTUAL_QTY": {
       if (!mrp.isConfigured()) return { ok: false, error: "MRP not configured" };
       const result = await mrp.updateActualQty(payload.plan_no, payload.qty);

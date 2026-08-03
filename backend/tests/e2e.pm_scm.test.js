@@ -213,88 +213,10 @@ test('PM Module Flow (Module 11) Happy Path', { concurrency: false }, async () =
     assert.equal(gateG3.body.lead.status, 'WON_YES_PO');
 });
 
-test('SCM QA Cases Flow (Module 12) Happy Path', { concurrency: false }, async () => {
-    const scmCaseId = `CASE-TEST-${Date.now()}`;
-
-    // 1. Open Case
-    const openCase = await apiRequest('POST', '/api/scm/cases', 'QA', users.qa, {
-        case_id: scmCaseId,
-        case_type: 'DOC_PENDING',
-        ref_po: 'PO-123',
-        ref_inv: 'INV-456',
-        part_no: 'TEST-RAW-001',
-        due_date: new Date().toISOString()
-    });
-    assertSuccess(openCase, 201, 'open scm case');
-    assert.equal(openCase.body.case.status, 'OPEN');
-
-    // 2. Sub-action Disposition
-    const disp = await apiRequest('POST', '/api/scm/dispositions', 'QA', users.qa, {
-        case_id: scmCaseId,
-        action: 'RTV',
-        rma_no: 'RMA-999',
-        return_qty: 500
-    });
-    assertSuccess(disp, 201, 'log disposition');
-    assert.equal(disp.body.disposition.action, 'RTV');
-
-    // 3. Resolve Case
-    const resolveCase = await apiRequest('PUT', `/api/scm/cases/${scmCaseId}/resolve`, 'QA', users.qa, {
-        resolution_note: 'Supplier sent invoice'
-    });
-    assertSuccess(resolveCase, 200, 'resolve scm case');
-    assert.equal(resolveCase.body.case.status, 'CLOSED');
-});
-
-test('SCM Lots Split SOP (Module 12) Happy Path', { concurrency: false }, async () => {
-    const originalUid = 'UID-010126-1111';
-    const okUid = 'UID-010126-2222';
-    const ngUid = 'UID-010126-3333';
-
-    // Seed inventory for split
-    await pool.query(
-        `INSERT INTO inventory_uids (uid, part_no, qty_on_hand, status)
-         VALUES ($1, 'TEST-RAW-002', 1000, 'PENDING')
-         ON CONFLICT DO NOTHING`,
-        [originalUid]
-    );
-
-    const split = await apiRequest('POST', '/api/scm/lots/split', 'QA', users.qa, {
-        original_uid: originalUid,
-        ok_uid: okUid,
-        ng_uid: ngUid,
-        ok_qty: 800,
-        ng_qty: 200,
-        reason: '200 units found defective during QA'
-    });
-    assertSuccess(split, 201, 'split lot sop');
-    assert.equal(split.body.split.original_uid, originalUid);
-    assert.equal(split.body.split.ok_uid, okUid);
-    assert.equal(split.body.split.ng_uid, ngUid);
-    assert.equal(Number(split.body.split.ok_qty), 800);
-    assert.equal(Number(split.body.split.ng_qty), 200);
-
-    // Verify DB states after split
-    const origCheck = await pool.query('SELECT status, qty_on_hand FROM inventory_uids WHERE uid = $1', [originalUid]);
-    assert.equal(origCheck.rows[0].status, 'SPLIT');
-    assert.equal(Number(origCheck.rows[0].qty_on_hand), 0);
-
-    const okCheck = await pool.query('SELECT status, qty_on_hand FROM inventory_uids WHERE uid = $1', [okUid]);
-    assert.equal(okCheck.rows[0].status, 'APPROVED');
-    assert.equal(Number(okCheck.rows[0].qty_on_hand), 800);
-
-    const ngCheck = await pool.query('SELECT status, qty_on_hand FROM inventory_uids WHERE uid = $1', [ngUid]);
-    assert.equal(ngCheck.rows[0].status, 'REJECTED');
-    assert.equal(Number(ngCheck.rows[0].qty_on_hand), 200);
-
-    const splitAgain = await apiRequest('POST', '/api/scm/lots/split', 'QA', users.qa, {
-        original_uid: originalUid,
-        ok_uid: 'UID-010126-4444',
-        ng_uid: 'UID-010126-5555',
-        ok_qty: 700,
-        ng_qty: 300,
-        reason: 'Should be blocked after first split'
-    });
-    assert.equal(splitAgain.status, 409);
-    assert.equal(splitAgain.body.error, 'Original UID already split');
-});
+// ── เทส SCM (Module 12) ถอดออก 2026-07-31 ────────────────────────────────
+// โมดูล 12_scm_cases ถอดออกจากรีโปตั้งแต่ b2d6fa0 (2026-07-27) — routes /api/scm/*
+// ไม่มีอยู่แล้ว และ backend/schema.sql ก็ไม่มีตาราง scm_cases / scm_split_lots
+// เทสเดิม 2 ตัว ('SCM QA Cases Flow', 'SCM Lots Split SOP') จึงต้อง fail แน่นอน
+// เหตุผลที่ถอดโมดูล + วิธีกู้กลับ: ดู STATUS.md หัวข้อ "SCM Cases ถูกถอดออก (2026-07-27)"
+// ถ้ากู้โมดูลกลับ ให้ revert b2d6fa0 แล้วเอาเทสจาก git history กลับมาด้วย
+// ไฟล์นี้ยังชื่อ e2e.pm_scm เพราะ package.json อ้างอยู่ (test:pm-scm, test:all)

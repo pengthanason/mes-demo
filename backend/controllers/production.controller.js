@@ -1,5 +1,7 @@
 const { withTransaction, query } = require('../db');
 const { normalizeCode, validateUid } = require('../utils/validator');
+const wmsClient = require('../common/wms_client');
+const { safeCreateNotifications } = require('../common/notifications');
 
 const MACHINE_EVENT_TYPES = new Set(['SETUP_START', 'SETUP_END', 'RUN_START', 'PAUSE', 'RESUME', 'STOP']);
 
@@ -462,6 +464,8 @@ async function postReworkRepair(req, res) {
 async function postQcResult(req, res) {
   const unitSn = String(req.body?.unit_sn || '').trim();
   const result = normalizeCode(req.body?.result);
+  const scrapped = Boolean(req.body?.scrapped);
+
   if (!unitSn) {
     return sendValidationError(res, 'unit_sn is required');
   }
@@ -472,7 +476,7 @@ async function postQcResult(req, res) {
   try {
     const payload = await withTransaction(async (client) => {
       const rowResult = await client.query(
-        `SELECT pu.sn, pu.wo_id, pu.status AS unit_status, wo.status AS wo_status
+        `SELECT pu.sn, pu.wo_id, pu.status AS unit_status, wo.status AS wo_status, wo.wo_number
          FROM production_units pu
          JOIN work_orders wo ON wo.id = pu.wo_id
          WHERE pu.sn=$1
@@ -505,15 +509,16 @@ async function postQcResult(req, res) {
           [row.wo_id]
         );
       } else {
+        const nextStation = scrapped ? 'SCRAPPED' : 'REWORK';
         await client.query(
           `UPDATE production_units
-           SET status='NG', current_station='REWORK'
+           SET status='NG', current_station=$2
            WHERE sn=$1`,
-          [unitSn]
+          [unitSn, nextStation]
         );
       }
 
-      return { wo_id: row.wo_id };
+      return { wo_id: row.wo_id, wo_number: row.wo_number };
     });
 
     if (payload.notFound) {
@@ -523,7 +528,109 @@ async function postQcResult(req, res) {
       return res.status(409).json({ status: 'error', code: 'QC_RESULT_BLOCKED', message: payload.conflict, request_id: reqId(res) });
     }
 
-    return res.json({ status: 'success', unit_sn: unitSn, result, request_id: reqId(res) });
+    // Task C: Scrap ADJ flow when QC FAIL + scrapped=true
+    //
+    // ใช้ outbox pattern (เหมือน WMS_GR): เขียน mes_sync_log เป็น PENDING **ก่อน** ยิง WMS
+    // แล้วยิงทันทีเพื่อความเร็ว · ถ้ายิงไม่สำเร็จก็ปล่อยแถวค้าง PENDING ให้ outbox_worker
+    // เก็บตกเมื่อ WMS กลับมา (retry ถึง max_attempts)
+    //
+    // เดิมเขียน log หลังยิงด้วย status OK/FAILED แล้ว catch เงียบๆ + ตอบ 200 success
+    // → WMS ล่มแล้วสต็อกไม่ถูกปรับอย่างถาวร ยิงซ้ำก็ไม่ได้เพราะ unit เป็น NG แล้ว
+    //   guard `unit_status IN ('IN_PROGRESS','REPAIRED')` จะตอบ 409 ตลอดไป (กู้ได้แค่แก้ DB มือ)
+    let scrapSync = null;
+    if (result === 'FAIL' && scrapped && payload.wo_id) {
+      const user = getUserFromRequest(req);
+      try {
+        const bomResult = await query(
+          `SELECT part_no, qty_required FROM wo_bom_snapshot WHERE wo_id=$1`,
+          [payload.wo_id]
+        );
+        const items = bomResult.rows.map((line) => ({
+          part_no: line.part_no,
+          qty: Number(line.qty_required) || 1,
+          remarks: `MES QC Scrap Unit: ${unitSn}`,
+        }));
+
+        // document_ref/actor ให้ WMS สืบกลับได้ว่า movement นี้มาจาก WO ไหน ใครกด
+        const docRef = payload.wo_number ? String(payload.wo_number).trim() : unitSn;
+        const actor = user.username || (user.id != null ? `user:${user.id}` : 'mes');
+
+        const logRow = await query(
+          `INSERT INTO mes_sync_log (direction, event_type, wo_id, payload, status, created_at)
+           VALUES ('MES->WMS', 'SCRAP_ADJ', $1, $2, 'PENDING', NOW())
+           RETURNING id`,
+          [
+            payload.wo_id,
+            JSON.stringify({ unit_sn: unitSn, items, document_ref: docRef, actor }),
+          ]
+        );
+        const logId = logRow.rows[0].id;
+        scrapSync = 'PENDING';
+
+        // ยิงทันที 1 ครั้ง — สำเร็จก็ปิดแถวเลย ไม่ต้องรอ worker 10 วิ
+        if (!items.length) {
+          await query(
+            `UPDATE mes_sync_log SET status='OK', attempts=1, completed_at=NOW(),
+                    error_msg='no BOM lines to adjust — skipped' WHERE id=$1`,
+            [logId]
+          );
+          scrapSync = 'OK';
+        } else if (wmsClient.isConfigured()) {
+          const adjRes = await wmsClient.postADJ(items, actor, docRef);
+          if (adjRes.ok) {
+            await query(
+              `UPDATE mes_sync_log SET status='OK', attempts=1, completed_at=NOW(),
+                      payload = payload || $2::jsonb WHERE id=$1`,
+              [logId, JSON.stringify({ wms_response: adjRes })]
+            );
+            scrapSync = 'OK';
+          } else {
+            // ค้าง PENDING ไว้ให้ worker retry — ไม่ mark FAILED เอง
+            await query(
+              `UPDATE mes_sync_log SET attempts=1, error_msg=$2 WHERE id=$1`,
+              [logId, JSON.stringify(adjRes.errors || []).slice(0, 1000)]
+            );
+          }
+        } else {
+          await query(
+            `UPDATE mes_sync_log SET error_msg='WMS client not configured' WHERE id=$1`,
+            [logId]
+          );
+        }
+
+        await safeCreateNotifications([
+          {
+            notice_type: 'QC_UNIT_SCRAPPED',
+            severity: 'WARN',
+            audience_key: 'PM',
+            title: `Unit ${unitSn} Scrapped`,
+            message: scrapSync === 'OK'
+              ? `Unit ${unitSn} failed QC and was scrapped. Stock adjustment posted to WMS.`
+              : `Unit ${unitSn} failed QC and was scrapped. Stock adjustment queued — pending WMS sync.`,
+            entity_type: 'PRODUCTION_UNIT',
+            entity_id: unitSn,
+            wo_id: payload.wo_id,
+            created_by: user.id || null,
+          },
+        ]);
+      } catch (scrapErr) {
+        // ถ้าล้มหลัง INSERT แล้ว แถวยังค้าง PENDING → worker เก็บตกให้
+        // ถ้าล้มก่อน INSERT (เช่น query BOM พัง) จะไม่มีแถว outbox → ต้องเห็นใน log ว่าไม่ได้ sync
+        if (scrapSync === null) scrapSync = 'NOT_QUEUED';
+        console.error('[postQcResult] Scrap ADJ flow error:', scrapErr.message);
+      }
+    }
+
+    return res.json({
+      status: 'success',
+      unit_sn: unitSn,
+      result,
+      scrapped: result === 'FAIL' && scrapped,
+      // บอกความจริงว่า sync WMS ถึงไหน — เดิมกลืน error แล้วตอบ success เฉยๆ
+      // OK = หักสต็อกที่ WMS แล้ว · PENDING = เข้าคิว outbox รอ retry · NOT_QUEUED = ไม่ได้เข้าคิว ต้องดู log
+      ...(scrapSync ? { scrap_sync: scrapSync } : {}),
+      request_id: reqId(res),
+    });
   } catch (error) {
     return res.status(500).json({ status: 'error', code: 'QC_RESULT_FAILED', message: error.message, request_id: reqId(res) });
   }
