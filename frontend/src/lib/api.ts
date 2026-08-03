@@ -122,7 +122,16 @@ async function request<T>(
   }
   if (!res.ok) {
     // 401 = token หมดอายุ/ไม่ถูกต้อง → แจ้ง app จัดการ session (ยกเว้น request login เอง)
-    if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/auth/login')) {
+    //
+    // ⚠️ ยกเว้น prefix ที่เป็นของ MES backbone (:5100) ด้วย — ระบบนี้เซ็น JWT คนละ secret
+    //    กับ my-api ที่เราล็อกอินอยู่ ดังนั้น token ของเราจะได้ 401 จากมันเป็นปกติ
+    //    ถ้าปล่อยให้ 401 ของ widget พวกนี้ dispatch app:unauthorized จะกลายเป็นว่า
+    //    "เปิด Dashboard แล้วเด้ง Session expired ทันที" ทั้งที่ session ยังดีอยู่
+    //    (FactoryOverview เรียก /api/jumbo/report/daily · StationMonitor เรียก /api/mes/stations/monitor)
+    //    → widget เหล่านั้นจะว่างเปล่าไปก่อนจนกว่าจะทำ SSO ระหว่าง 2 ระบบ แต่ที่เหลือใช้งานได้ปกติ
+    const OTHER_REALM_PREFIXES = ['/jumbo', '/mes', '/api/jumbo', '/api/mes'];
+    const isOtherRealm = OTHER_REALM_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
+    if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/auth/login') && !isOtherRealm) {
       window.dispatchEvent(new CustomEvent('app:unauthorized'));
     }
     // GET + server error (5xx) → throw ให้ useQuery เข้า isError (แยก "server ล่ม" ออกจาก "ไม่มีข้อมูล")
