@@ -288,7 +288,9 @@ function InlineNumberCell({ value, color, title = 'Click to quick-edit', onSave 
   );
 }
 
-function InlineDateCell({ value, green, title = 'Click to quick-edit date', onSave }: { value: string | null | undefined; green?: boolean; title?: string; onSave: (iso: string) => void }) {
+// note = หมายเหตุวันที่ยังไม่ finalize (เช่น Delivery date) — โผล่เป็นดอกจัน (*) แดงมุมขวาบน เอาเมาส์ชี้ดูรายละเอียดได้
+// (สไตล์เดียวกับดอกจัน note ของช่อง Process — ดู renderCell ด้านล่าง)
+function InlineDateCell({ value, green, title = 'Click to quick-edit date', note, onSave }: { value: string | null | undefined; green?: boolean; title?: string; note?: string; onSave: (iso: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [ok, setOk] = useState(false);
@@ -310,7 +312,7 @@ function InlineDateCell({ value, green, title = 'Click to quick-edit date', onSa
       onMouseLeave={() => setHovering(false)}
       title={title}
       style={{
-        textAlign: 'center', cursor: 'pointer', whiteSpace: 'nowrap',
+        position: 'relative', textAlign: 'center', cursor: 'pointer', whiteSpace: 'nowrap',
         background: ok ? '#dcfce7' : hovering ? '#f1f5f9' : (green && iso ? '#dcfce7' : undefined),
         color: green && iso ? '#166534' : (iso ? undefined : '#cbd5e1'),
         fontWeight: green && iso ? 600 : undefined,
@@ -323,6 +325,7 @@ function InlineDateCell({ value, green, title = 'Click to quick-edit date', onSa
       ) : (
         <span style={{ color: hovering ? 'var(--brand)' : '#cbd5e1', opacity: hovering ? 1 : 0.75, marginLeft: 4, fontSize: '0.7rem', transition: 'all 0.15s' }}>✎</span>
       )}
+      {note && <span title={note} style={{ position: 'absolute', top: -2, right: 2, color: '#dc2626', fontWeight: 900, fontSize: '0.95rem', lineHeight: 1 }}>*</span>}
     </td>
   );
 }
@@ -352,9 +355,9 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
     const col = c.key === 'total_ng' ? '#dc2626' : c.key === 'total_ok' ? '#16a34a' : undefined;
     return <InlineNumberCell key={c.key} value={(p as any)[c.key] || 0} color={col} title={`Click to edit ${c.header}`} onSave={n => onInline(c.key, n)} />;
   }
-  if (onInline && (c.key === 'pd_finish' || c.key === 'expected' || c.key === 'revised' || c.key === 'store' || c.key === 'store_received')) {
-    const field = c.key === 'pd_finish' ? 'pd_finish_date' : c.key === 'expected' ? 'expected_date' : c.key === 'revised' ? 'revised_date' : 'store_received';
-    return <InlineDateCell key={c.key} value={(p as any)[field]} green={c.key === 'pd_finish'} title={`Click to edit ${c.header}`} onSave={iso => onInline(c.key, iso)} />;
+  if (onInline && (c.key === 'pd_finish' || c.key === 'expected' || c.key === 'revised' || c.key === 'delivery' || c.key === 'store' || c.key === 'store_received')) {
+    const field = c.key === 'pd_finish' ? 'pd_finish_date' : c.key === 'expected' ? 'expected_date' : c.key === 'revised' ? 'revised_date' : c.key === 'delivery' ? 'delivery_date' : 'store_received';
+    return <InlineDateCell key={c.key} value={(p as any)[field]} green={c.key === 'pd_finish'} title={`Click to edit ${c.header}`} note={c.key === 'delivery' ? (p.delivery_remark || undefined) : undefined} onSave={iso => onInline(c.key, iso)} />;
   }
   if (onInline && (c.key === 'remark' || c.key === 'qa_test_rate')) {
     return <InlineTextCell key={c.key} value={(p as any)[c.key]} title={`Click to edit ${c.header}`} onSave={txt => onInline(c.key, txt)} />;
@@ -381,6 +384,13 @@ function renderCell(c: PpCol, p: PpProject, y: number | null, onOpen?: () => voi
       </td>
     );
   }
+  // Delivery date แบบอ่านอย่างเดียว (viewer ไม่มี onInline) — ยังโชว์ดอกจัน+hover ได้เหมือนโหมดแก้ไข
+  if (c.key === 'delivery') { const d = c.value(p); return (
+    <td key={c.key} style={{ position: 'relative', textAlign: 'center', whiteSpace: 'nowrap' }} title={p.delivery_remark || undefined}>
+      {d || <span style={{ color: '#cbd5e1' }}>—</span>}
+      {p.delivery_remark && <span title={p.delivery_remark} style={{ position: 'absolute', top: -2, right: 2, color: '#dc2626', fontWeight: 900, fontSize: '0.95rem', lineHeight: 1 }}>*</span>}
+    </td>
+  ); }
   if (c.key === 'remark') return <td key={c.key} title={p.remark || undefined} style={{ color: 'var(--text-muted)', textAlign: 'center' }}>{p.remark || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
   if (c.key === 'model') return <td key={c.key} title={p.model || undefined} style={{ textAlign: 'center' }}>{p.model || <span style={{ color: '#cbd5e1' }}>—</span>}</td>;
   if (c.key === 'yield') return <td key={c.key} style={{ textAlign: 'center', fontWeight: 600, color: y == null ? '#94a3b8' : y >= 95 ? '#16a34a' : y >= 80 ? '#d97706' : '#dc2626' }}>{y == null ? '—' : `${y.toFixed(2)}%`}</td>;

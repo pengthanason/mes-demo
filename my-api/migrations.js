@@ -506,6 +506,10 @@ async function migrate() {
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS process_log JSONB NOT NULL DEFAULT '[]'::jsonb`);
     // Bom Rec — วันที่รับ BOM (กลุ่ม WO)
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS bom_rec_date DATE`);
+    // Delivery date — วันส่งมอบลูกค้า (ต่างจาก expected/revised ที่เป็นวันเสร็จงานผลิตภายใน) + remark เฉพาะ
+    // วันนี้ (ทำไว้ให้พิมพ์เหตุผล/รายละเอียดตอนยังไม่ finalize วันที่ได้ — โผล่เป็นดอกจัน+hover ในตาราง)
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS delivery_date DATE`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS delivery_remark TEXT NOT NULL DEFAULT ''`);
     // ประเภทงาน: internal (งานภายใน) / external (งานภายนอก) — แยกแท็บใน Dashboard
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pp_type VARCHAR(20) NOT NULL DEFAULT 'internal'`);
     // audit_logs: note = หมายเหตุ/เหตุผลการแก้ไข (ผู้ใช้กรอกตอนกด Save ในหน้าแก้ไข pp)

@@ -39,6 +39,8 @@ export interface PpProject {
   expected_date: string | null;
   revised_date: string | null;     // Revised date (แสดงก่อน Remark)
   bom_rec_date: string | null;     // Bom Rec — วันที่รับ BOM (กลุ่ม WO)
+  delivery_date: string | null;    // วันส่งมอบลูกค้า — ต่างจาก expected/revised ที่เป็นวันเสร็จผลิตภายใน
+  delivery_remark: string;         // หมายเหตุ delivery ที่ยังไม่ finalize — โผล่เป็นดอกจัน (*) + hover ดูรายละเอียดในตาราง
   done: boolean;                   // (เลิกใช้)
   pd_pic: string;
   pic_responsible: string;         // PIC → Responsible

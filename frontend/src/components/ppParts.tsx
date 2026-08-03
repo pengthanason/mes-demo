@@ -160,6 +160,10 @@ export const XLSX_COLUMNS: PpCol[] = [
   { key: 'special_request', header: 'Special request', w: 22, value: p => p.special_request || '' },
   // Revised date — ก่อน Remark
   { key: 'revised',    header: 'Revised date', w: 13, center: true, headerColor: 'FFFF00', value: p => xlsxDate(p.revised_date) },
+  // Delivery date — วันส่งมอบลูกค้า (ต่างจาก Expected/Revised ที่เป็นวันเสร็จผลิตภายใน) · remark แยกไว้ excelOnly
+  // (ในตาราง Dashboard โผล่เป็นดอกจัน (*) + hover บนช่อง Delivery date แทน ไม่กินที่เป็นคอลัมน์แยก — ดู renderCell)
+  { key: 'delivery',        header: 'Delivery date',    w: 13, center: true, headerColor: 'FFC000', value: p => xlsxDate(p.delivery_date) },
+  { key: 'delivery_remark', header: 'Delivery remark',  w: 24, excelOnly: true, value: p => p.delivery_remark || '' },
   { key: 'remark',     header: 'Remark', w: 34, value: p => p.remark || '' },
 ];
 
@@ -970,7 +974,7 @@ export function EditHistory({ id }: { id: number }) {
 
 /** ฟอร์มกรอกข้อมูลโปรเจกต์ (ใช้ทั้ง inline ในหน้า Add Project และในป๊อปอัพแก้ไข) */
 // แปลงค่าวันที่จาก API (ISO datetime เช่น 2026-06-03T00:00:00.000Z) → YYYY-MM-DD ให้ <input type="date"> โชว์ค่าเดิมได้
-const DATE_KEYS: (keyof PpProject)[] = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date' as keyof PpProject];
+const DATE_KEYS: (keyof PpProject)[] = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date', 'delivery_date' as keyof PpProject];
 const initForm = (p: PpProject): Partial<PpProject> => {
   const out: any = { ...p };
   for (const k of DATE_KEYS) if (out[k]) out[k] = String(out[k]).slice(0, 10);
@@ -1183,7 +1187,11 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
           <div className="grid-3col">
             <label className="field"><span>Revised date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
+            <label className="field"><span>Delivery date</span><input type="date" value={f.delivery_date ?? ''} onChange={txt('delivery_date')} /></label>
           </div>
+          {/* วันยังไม่ finalize → ใส่รายละเอียด/เหตุผลไว้ตรงนี้ โผล่เป็นดอกจัน (*) ให้เอาเมาส์ไปชี้ดูที่ช่อง Delivery date ในตาราง */}
+          <label className="field"><span>Delivery remark <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(วันยังไม่ finalize? ใส่รายละเอียดตรงนี้ — จะโผล่เป็น * ให้เอาเมาส์ชี้ดูในตาราง)</span></span>
+            <textarea value={f.delivery_remark ?? ''} onChange={txt('delivery_remark')} rows={2} placeholder="e.g. รอ confirm จากลูกค้า, target คร่าวๆ ยังไม่ล็อก" /></label>
           <label className="field"><span>Special request</span><textarea value={f.special_request ?? ''} onChange={txt('special_request')} rows={2} placeholder="e.g. urgent, QA first, etc." /></label>
           <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={4} /></label>
 

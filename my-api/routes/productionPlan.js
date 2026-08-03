@@ -5,6 +5,7 @@ const COLS = `id, pp_type, status, status_color, wk, date_record, product_pn, mo
   work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat, chk_env,
   pd_pcba, pd_bbas, pd_test, pd_modified, pd_rma, pd_prep, pd_start_date, pd_finish_date, target_per_day,
   qa_test_rate, qa_finish_date, qa_status, store_received, expected_date, revised_date, bom_rec_date, done,
+  delivery_date, delivery_remark,
   pd_pic, pic_responsible, team_member, ok_per_day, total_ng, total_ok, special_request, remark,
   pc_prpo, pc_wait, pc_incoming, pc_smt, pc_thr, pc_test, pc_bbas, pc_packing, process_log,
   st_pr_po, st_wait_mat, st_incoming, st_create_bo, st_test, st_rework, st_smt, st_thr, st_bbas,
@@ -16,11 +17,12 @@ const WRITABLE = [
   'work_order', 'wo_name', 'matl_coming', 'chk_man', 'chk_mac', 'chk_med', 'chk_mat', 'chk_env',
   'pd_pcba', 'pd_bbas', 'pd_test', 'pd_modified', 'pd_rma', 'pd_prep', 'pd_start_date', 'pd_finish_date', 'target_per_day',
   'qa_test_rate', 'qa_finish_date', 'qa_status', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date', 'done',
+  'delivery_date', 'delivery_remark',
   'pd_pic', 'pic_responsible', 'team_member', 'ok_per_day', 'total_ng', 'total_ok', 'special_request', 'remark',
   'pc_prpo', 'pc_wait', 'pc_incoming', 'pc_smt', 'pc_thr', 'pc_test', 'pc_bbas', 'pc_packing', 'process_log',
   'st_pr_po', 'st_wait_mat', 'st_incoming', 'st_create_bo', 'st_test', 'st_rework', 'st_smt', 'st_thr', 'st_bbas',
 ];
-const DATE_FIELDS = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date'];
+const DATE_FIELDS = ['date_record', 'pd_start_date', 'pd_finish_date', 'qa_finish_date', 'store_received', 'expected_date', 'revised_date', 'bom_rec_date', 'delivery_date'];
 
 // ── ป้ายชื่อ field (อ่านง่าย) สำหรับ audit diff · field ที่ไม่เอาเข้า diff (ใหญ่/ซ้ำ) อยู่ใน DIFF_SKIP ──
 const FIELD_LABELS = {
@@ -29,7 +31,7 @@ const FIELD_LABELS = {
   pd_start_date: 'PD Start', pd_finish_date: 'PD Done', expected_date: 'Expected date', revised_date: 'Revised date',
   bom_rec_date: 'Bom Rec', target_per_day: 'CAP/day', qa_test_rate: 'Sampling%', qa_finish_date: 'QA Finish', qa_status: 'QA Status',
   store_received: 'Store received', pd_pic: 'PIC Name', pic_responsible: 'Responsible', total_ng: 'Total NG', total_ok: 'Total FG',
-  special_request: 'Special request', remark: 'Remark',
+  special_request: 'Special request', remark: 'Remark', delivery_date: 'Delivery date', delivery_remark: 'Delivery remark',
   pc_prpo: 'PR/PO', pc_wait: "Wait Mat'l", pc_incoming: 'In Coming', pc_smt: 'SMT', pc_thr: 'THR', pc_test: 'TEST', pc_bbas: 'BBAS', pc_packing: 'Packing',
 };
 const DIFF_SKIP = new Set(['process_log', 'updated_at', 'created_at']);

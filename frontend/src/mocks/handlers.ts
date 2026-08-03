@@ -337,7 +337,7 @@ const jigRetests: any[] = [
 // ── Production Plan (pp_projects) ──
 let _ppId = 50;
 const ppBase = {
-  pp_type: 'internal', bom_rec_date: null,
+  pp_type: 'internal', bom_rec_date: null, delivery_date: null, delivery_remark: '',
   status_color: '', wk: 0, date_record: null, customer: '', produce: 0, syn_requestor: '', work_order: '', wo_name: '', matl_coming: '',
   chk_man: false, chk_mac: false, chk_med: false, chk_mat: false, chk_env: false,
   pd_pcba: false, pd_bbas: false, pd_test: false, pd_modified: false, pd_rma: false, pd_prep: false, pd_start_date: null, pd_finish_date: null,
@@ -601,6 +601,7 @@ const PP_FIELD_LABELS: Record<string, string> = {
   produce: 'Produced', syn_requestor: 'Owner', work_order: 'WO', date_record: 'Date record', expected_date: 'Expected date',
   revised_date: 'Revised date', pd_start_date: 'PD Start', pd_finish_date: 'PD Done', total_ok: 'Total FG', total_ng: 'Total NG',
   pd_pic: 'PIC Name', remark: 'Remark', qa_status: 'QA Status', target_per_day: 'CAP/day',
+  delivery_date: 'Delivery date', delivery_remark: 'Delivery remark',
 };
 
 // ── Handlers ──────────────────────────────────────────────────────────────────

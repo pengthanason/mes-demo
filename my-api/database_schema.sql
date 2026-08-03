@@ -38,6 +38,8 @@
 --   11) ตัดตาราง pre_wo_requests ทิ้ง (ฟีเจอร์ "คำขอเปิด WO ล่วงหน้า" — create/approve/convert) ผู้ใช้ยืนยันแล้วว่ารู้ว่า
 --       เป็นฟีเจอร์ที่ใช้งานอยู่จริง (มี endpoint ใน routes/wo.js + e2e test) — ลบไปพร้อมกันทั้ง endpoint, entry ใน
 --       backup.js TABLES list, และ mock ฝั่ง frontend (mocks/handlers.ts) · migrations.js มี `DROP TABLE IF EXISTS pre_wo_requests`
+--   12) pp_projects : เพิ่ม `delivery_date` + `delivery_remark` (ตามที่คุยในที่ประชุม PP — วันส่งมอบลูกค้า แยกจาก
+--       expected/revised ที่เป็นวันเสร็จผลิตภายใน · remark ไว้ใส่รายละเอียดตอนวันยังไม่ finalize → โผล่ดอกจัน+hover ในตาราง)
 --
 -- ── go-live: ไฟล์นี้ไฟล์เดียวจบ ────────────────────────────────────────────
 --   psql -U <user> -d productiondb -f database_schema.sql
@@ -249,6 +251,8 @@ CREATE TABLE pp_projects (
     expected_date   DATE,
     revised_date    DATE,
     bom_rec_date    DATE,                                              -- (เรา) วันรับ BOM (กลุ่ม WO)
+    delivery_date   DATE,                                              -- (เรา) วันส่งมอบลูกค้า — ต่างจาก expected/revised ที่เป็นวันเสร็จผลิตภายใน
+    delivery_remark TEXT         NOT NULL DEFAULT '',                   -- (เรา) หมายเหตุ delivery ที่ยังไม่ finalize — โผล่เป็นดอกจัน+hover ในตาราง
     qa_test_rate    VARCHAR(50)  NOT NULL DEFAULT '',
     qa_finish_date  DATE,
     qa_status       VARCHAR(30)  NOT NULL DEFAULT '',
