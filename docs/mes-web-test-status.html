@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สถานะงาน — mes_web_test Schema (23 ก.ค. 2569)</title>
+<style>
+:root{
+  --bg:#0d1117;--surf:#161b22;--surf2:#1c2128;--border:#30363d;
+  --txt:#e6edf3;--txt2:#8b949e;--txt3:#6e7681;
+  --green:#3fb950;--green-bg:#0d2818;--green-border:#196c2e;
+  --orange:#f0883e;--orange-bg:#1e1200;--orange-border:#5a2c00;
+  --red:#ff7b72;--red-bg:#2a0f0d;--red-border:#6b1a16;
+  --blue:#79c0ff;--blue-bg:#0c1a29;--blue-border:#1a4571;
+  --yellow:#e3b341;--yellow-bg:#1a1400;--yellow-border:#4a3800;
+  --kw:#ff7b72;--fn:#d2a8ff;--str:#a5d6ff;--cmt:#4a5568;
+  --num:#79c0ff;--tbl:#f0883e;--col:#c9d1d9;
+}
+@media(prefers-color-scheme:light){:root{
+  --bg:#f6f8fa;--surf:#fff;--surf2:#f0f2f4;--border:#d0d7de;
+  --txt:#1f2328;--txt2:#57606a;--txt3:#8c959f;
+  --green:#1a7f37;--green-bg:#dafbe1;--green-border:#95d8a2;
+  --orange:#bc4c00;--orange-bg:#fff1e5;--orange-border:#f9b97a;
+  --red:#cf222e;--red-bg:#ffebe9;--red-border:#ffaba8;
+  --blue:#0550ae;--blue-bg:#ddf4ff;--blue-border:#80ccff;
+  --yellow:#9a6700;--yellow-bg:#fff8c5;--yellow-border:#f2cc60;
+  --kw:#cf222e;--fn:#6639ba;--str:#0a3069;--cmt:#8c959f;--num:#0550ae;--tbl:#bc4c00;--col:#24292f;
+}}
+:root[data-theme="dark"]{--bg:#0d1117;--surf:#161b22;--surf2:#1c2128;--border:#30363d;--txt:#e6edf3;--txt2:#8b949e;--txt3:#6e7681;--kw:#ff7b72;--fn:#d2a8ff;--str:#a5d6ff;--cmt:#4a5568;--num:#79c0ff;--tbl:#f0883e;--col:#c9d1d9;}
+:root[data-theme="light"]{--bg:#f6f8fa;--surf:#fff;--surf2:#f0f2f4;--border:#d0d7de;--txt:#1f2328;--txt2:#57606a;--txt3:#8c959f;--kw:#cf222e;--fn:#6639ba;--str:#0a3069;--cmt:#8c959f;--num:#0550ae;--tbl:#bc4c00;--col:#24292f;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;font-size:13px;line-height:1.5;padding:24px 20px 60px;max-width:1100px;margin:0 auto;}
+.hdr{margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:16px;}
+.hdr h1{font-size:18px;font-weight:700;margin-bottom:4px;}
+.hdr .sub{color:var(--txt2);font-size:12px;}
+.hdr .sub span{margin-right:14px;display:inline-block;}
+.lead{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:26px;font-size:12.5px;color:var(--txt2);line-height:1.6;}
+.lead strong{color:var(--txt);}
+.sec{margin-bottom:34px;}
+.sec-hdr{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:6px 0 8px;border-bottom:2px solid var(--border);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.sec-hdr.green{color:var(--green);border-color:var(--green-border);}
+.sec-hdr.red{color:var(--red);border-color:var(--red-border);}
+.sec-hdr.orange{color:var(--orange);border-color:var(--orange-border);}
+.sec-hdr.yellow{color:var(--yellow);border-color:var(--yellow-border);}
+.sec-hdr.blue{color:var(--blue);border-color:var(--blue-border);}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:var(--surf2);}
+th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--txt3);padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;font-size:12.5px;color:var(--txt2);line-height:1.55;}
+td strong,td b{color:var(--txt);}
+tr:hover td{background:var(--surf2);}
+.id-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:4px;white-space:nowrap;}
+.id-badge.green{background:var(--green-border);color:var(--green);}
+.id-badge.red{background:var(--red-border);color:var(--red);}
+.id-badge.orange{background:var(--orange-border);color:var(--orange);}
+.id-badge.yellow{background:var(--yellow-border);color:var(--yellow);}
+.id-badge.blue{background:var(--blue-border);color:var(--blue);}
+.ok{color:var(--green);font-weight:700;}.bad{color:var(--red);font-weight:700;}.warn{color:var(--orange);font-weight:700;}
+code{background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:"SFMono-Regular",Consolas,Menlo,monospace;font-size:11.5px;color:var(--txt);white-space:nowrap;}
+pre{background:#010409;border:1px solid var(--border);border-radius:6px;padding:10px 12px;overflow-x:auto;font-size:11.5px;line-height:1.6;font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;white-space:pre;color:var(--col);margin:6px 0;}
+@media(prefers-color-scheme:light){pre{background:#f6f8fa;}}
+:root[data-theme="light"] pre{background:#f6f8fa;}
+.kw{color:var(--kw);font-weight:600;}.fn{color:var(--fn);}.str{color:var(--str);}.cmt{color:var(--cmt);font-style:italic;}.num{color:var(--num);}.op{color:var(--txt3);}.path{color:var(--tbl);}
+ol,ul{margin:4px 0 4px 18px;}li{margin-bottom:3px;}
+.callout{border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:14px;}
+.callout.red{border-color:var(--red-border);background:var(--red-bg);}
+.callout.blue{border-color:var(--blue-border);background:var(--blue-bg);}
+.callout.green{border-color:var(--green-border);background:var(--green-bg);}
+.callout.orange{border-color:var(--orange-border);background:var(--orange-bg);}
+.callout.yellow{border-color:var(--yellow-border);background:var(--yellow-bg);}
+.callout .cl-t{font-weight:700;margin-bottom:6px;color:var(--txt);}
+.pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;}
+.pill.mask{background:var(--green-border);color:var(--green);}
+.pill.known{background:var(--blue-border);color:var(--blue);}
+.pill.debt{background:var(--orange-border);color:var(--orange);}
+.pill.done{background:var(--green-border);color:var(--green);}
+.pill.pending{background:var(--orange-border);color:var(--orange);}
+.pill.check{background:var(--blue-border);color:var(--blue);}
+.foot{margin-top:36px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--txt3);}
+h3.step{font-size:13px;color:var(--txt);margin:16px 0 4px;}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:26px;}
+.stat{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:14px 16px;text-align:center;}
+.stat .val{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;}
+.stat .lbl{font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.04em;margin-top:3px;}
+.stat.green .val{color:var(--green);}
+.stat.blue .val{color:var(--blue);}
+.stat.orange .val{color:var(--orange);}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>สถานะงาน — สร้าง Schema <span class="path">mes_web_test</span> ใน productiondb</h1>
+  <div class="sub">
+    <span>📅 23 กรกฎาคม 2569</span>
+    <span>👤 ผู้ทำ: db-analysis (intern)</span>
+    <span>📋 อ้างอิง: <code>docs/mes-web-test-setup-answers.html</code></span>
+    <span>🔒 internal · ห้ามแชร์นอกทีม</span>
+  </div>
+</div>
+
+<div class="lead">
+  เอกสารนี้คือ <strong>รายงานสถานะจริง</strong> หลังทำงานตาม issue #7 ครบแล้ว — ครอบคลุมทุกหัวข้อเดิมจาก <code>mes-web-test-setup-answers.html</code>:
+  ① ผล checklist 5 ข้อ · ② กับดักที่เจอระหว่างทาง · ③ ขั้นตอน build จริงที่ทำ (พร้อมผล) · ④ สถานะ production finding ล่าสุด · ⑤ master data SoT (ไม่เปลี่ยน)
+</div>
+
+<!-- ================= SUMMARY BANNER ================= -->
+<div class="callout green" style="margin-bottom:22px">
+  <div class="cl-t" style="font-size:14px">✅ Issue #7 — DONE ครบ Definition of Done ทุกข้อ (23 ก.ค. 2569)</div>
+  <div class="stat-row" style="margin-top:10px;margin-bottom:0">
+    <div class="stat green"><div class="val">45</div><div class="lbl">ตารางใน mes_web_test</div></div>
+    <div class="stat green"><div class="val">200</div><div class="lbl">health status</div></div>
+    <div class="stat blue"><div class="val">5100</div><div class="lbl">backend port</div></div>
+    <div class="stat blue"><div class="val">5101</div><div class="lbl">frontend port</div></div>
+    <div class="stat green"><div class="val">3</div><div class="lbl">test users</div></div>
+  </div>
+</div>
+
+<!-- ================= 1. CHECKLIST RESULTS ================= -->
+<div class="sec">
+  <div class="sec-hdr green">✅ ① ผล Checklist 5 ข้อ — ทำจริงได้อะไร</div>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>#</th><th>คำถามเดิม</th><th>ผลจริงที่ได้</th></tr></thead>
+    <tbody>
+    <tr>
+      <td><span class="id-badge green">①</span></td>
+      <td><strong>schema <code>mes_web_test</code> มีอยู่แล้วไหม?</strong></td>
+      <td><span class="ok">✅ ไม่มี → สร้างใหม่</span><br>
+        รัน <code>\dn mes_web_test</code> ไม่เจอ → ทำ <code>CREATE SCHEMA IF NOT EXISTS mes_web_test</code> แล้วดำเนินการต่อ</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge green">②</span></td>
+      <td><strong>DB user มีสิทธิ์ CREATE ไหม?</strong></td>
+      <td><span class="ok">✅ ผ่าน</span><br>
+        user <code>postgres</code> เป็น superuser — <code>CREATE ON DATABASE</code> ผ่านทันที ไม่ต้อง grant เพิ่ม</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge green">③</span></td>
+      <td><strong>schema.sql apply ซ้ำได้ไหม?</strong></td>
+      <td><span class="ok">✅ ได้จริง</span><br>
+        ทุก <code>CREATE TABLE IF NOT EXISTS</code> + ENUM ห่อ <code>duplicate_object</code> — รันซ้ำไม่พังตามที่ทีมยืนยัน</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge green">④</span></td>
+      <td><strong>Frontend รันที่ port อะไร?</strong></td>
+      <td><span class="ok">✅ ยืนยัน</span><br>
+        Vite frontend = <b>5101</b> · backend API = <b>5100</b><br>
+        <code>MES_CORS_ORIGINS=http://localhost:5101,http://127.0.0.1:5101</code> ตั้งใน <code>.env.mes_web_test</code> แล้ว<br>
+        <b>หมายเหตุ:</b> <code>localhost:5101/api/...</code> ไม่มี route (Vite ไม่ใช่ server) — ต้องยิง API ที่ <code>localhost:5100</code> เท่านั้น</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge green">⑤</span></td>
+      <td><strong><code>.env.webtest</code> ห้าม commit</strong></td>
+      <td><span class="ok">✅ ปลอดภัย</span><br>
+        <code>.env.*</code> ถูก gitignore จาก commit <code>0af7ca3</code> ก่อนเริ่ม — <code>.env.webtest</code> และ <code>.env.mes_web_test</code> ไม่ขึ้น GitHub</td>
+    </tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- ================= 2. GOTCHAS ================= -->
+<div class="sec">
+  <div class="sec-hdr red">⚠️ ② กับดัก 3 ตัว — เจอจริงหรือเลี่ยงได้</div>
+
+  <div class="callout green">
+    <div class="cl-t">กับดัก #1 — <code>schema.sql</code> ไม่ระบุ schema → <span class="ok">เลี่ยงได้ด้วย PGOPTIONS</span></div>
+    ทำตามคำแนะนำในเอกสาร — apply ด้วย:
+    <pre><span class="kw">PGOPTIONS</span>=<span class="str">"-c search_path=mes_web_test"</span> psql -U postgres \
+  -d productiondb_20260721 -f <span class="path">backend/schema.sql</span></pre>
+    ตาราง 35 ตัวลงใน <code>mes_web_test</code> ถูกต้อง ไม่ชน <code>public</code>
+  </div>
+
+  <div class="callout green">
+    <div class="cl-t">กับดัก #2 — port 5432 vs 15432 → <span class="ok">เลี่ยงได้ด้วยการใส่ DB_PORT ชัดๆ</span></div>
+    ใส่ <code>DB_PORT=5432</code> ใน <code>.env.mes_web_test</code> ตั้งแต่แรก — knex migrate ยิงถูก port ไม่มี error
+  </div>
+
+  <div class="callout red">
+    <div class="cl-t">กับดัก #3 — ลืม <code>DB_SCHEMA</code> → <span class="bad">เจอแล้ว แก้แล้ว</span></div>
+    รอบแรกรัน <code>node server.js</code> โดยไม่โหลด env → <code>DB_SCHEMA</code> ไม่ถูกตั้ง → <code>db.js</code> ไม่ set <code>search_path</code> → query วิ่งไป <code>public.users</code> (ว่าง) → Login failed<br><br>
+    <b>แก้:</b> หยุด server แล้วโหลด env ก่อนรัน
+    <pre><span class="cmt"># โหลด env ก่อน (PowerShell)</span>
+Get-Content envs\.env.mes_web_test | Where-Object { <span class="str">$_</span> -notmatch <span class="str">'^#'</span> -and <span class="str">$_</span> -match <span class="str">'='</span> } | ForEach-Object { <span class="str">$k</span>,<span class="str">$v</span> = <span class="str">$_</span> -split <span class="str">'='</span>,2; [System.Environment]::SetEnvironmentVariable(<span class="str">$k</span>,<span class="str">$v</span>,<span class="str">'Process'</span>) }
+node server.js</pre>
+    หลังแก้ login ผ่านทันที
+  </div>
+</div>
+
+<!-- ================= 3. BUILD STEPS DONE ================= -->
+<div class="sec">
+  <div class="sec-hdr blue">🔧 ③ ขั้นตอน build จริงที่ทำ (พร้อมผล)</div>
+
+  <h3 class="step">0) git pull + ยืนยัน branch</h3>
+  <pre>git checkout develop
+git pull   <span class="cmt"># รับ security fix commit 0af7ca3 ที่ทีมแก้ .gitignore</span></pre>
+
+  <h3 class="step">1) สร้าง <code>backend/envs/.env.mes_web_test</code></h3>
+  <pre><span class="cmt"># ค่าที่ใช้จริง (password ถูก mask ในเอกสารนี้)</span>
+APP_PORT=5100
+MES_ENV=development
+DB_HOST=127.0.0.1
+DB_PORT=<span class="num">5432</span>
+DB_NAME=productiondb_20260721
+DB_SCHEMA=mes_web_test
+DB_SSLMODE=prefer
+MES_AUTH_MODE=hybrid
+MES_CORS_ORIGINS=http://localhost:3005,http://127.0.0.1:3005,http://localhost:5101,http://127.0.0.1:5101</pre>
+
+  <h3 class="step">2) สร้าง schema</h3>
+  <pre>psql -U postgres -d productiondb_20260721 \
+  -c <span class="str">"CREATE SCHEMA IF NOT EXISTS mes_web_test;"</span>
+<span class="cmt"># → CREATE SCHEMA</span></pre>
+
+  <h3 class="step">3) apply schema.sql พร้อม search_path</h3>
+  <pre>PGOPTIONS=<span class="str">"-c search_path=mes_web_test"</span> psql -U postgres \
+  -d productiondb_20260721 -f backend/schema.sql
+<span class="cmt"># → 35 ตารางลงใน mes_web_test สำเร็จ</span></pre>
+
+  <h3 class="step">4) knex migrate:latest</h3>
+  <pre>cd backend
+<span class="cmt"># โหลด env ก่อน (Windows)</span>
+Get-Content envs\.env.mes_web_test | ... | SetEnvironmentVariable
+npx knex migrate:latest
+<span class="cmt"># → Batch 1 run: 9 migrations ✅  รวมตารางทั้งหมด 45 ตาราง</span></pre>
+
+  <h3 class="step">5) seed users</h3>
+  <pre><span class="cmt"># bcryptjs hash password แล้ว INSERT ผ่าน psql</span>
+INSERT INTO mes_web_test.users (username, password_hash, role)
+VALUES
+  (<span class="str">'admin'</span>,   <span class="str">'$2b$10$...'</span>, <span class="str">'ADMIN'</span>),
+  (<span class="str">'member1'</span>, <span class="str">'$2b$10$...'</span>, <span class="str">'PD'</span>),
+  (<span class="str">'viewer1'</span>, <span class="str">'$2b$10$...'</span>, <span class="str">'QC'</span>);
+<span class="cmt"># → 3 rows seeded ✅</span></pre>
+
+  <h3 class="step">6) start + verify</h3>
+  <pre>node server.js
+curl -s localhost:5100/api/mes/health
+<span class="cmt"># → {"status":"ok","version":"0.1.0-station2","database":"reachable",...}</span>
+
+psql -U postgres -d productiondb_20260721 \
+  -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='mes_web_test';"
+<span class="cmt"># → count = 45 ✅</span></pre>
+
+  <div class="callout green">
+    <div class="cl-t">✔ Definition of Done — ผ่านทุกข้อ</div>
+    <ul style="margin-top:6px">
+      <li><span class="ok">✅</span> <code>/api/mes/health</code> → <code>{"status":"ok","database":"reachable"}</code></li>
+      <li><span class="ok">✅</span> 45 ตารางอยู่ใน <b>mes_web_test</b> ไม่ใช่ public</li>
+      <li><span class="ok">✅</span> <code>knex_migrations</code> อยู่ใน mes_web_test</li>
+      <li><span class="ok">✅</span> Login ด้วย admin / admin ผ่าน</li>
+      <li><span class="ok">✅</span> เปิด <code>http://localhost:5101/</code> → Production Dashboard ขึ้น · CORS ไม่มี error ใน console</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================= 4. PRODUCTION CONTEXT ================= -->
+<div class="sec">
+  <div class="sec-hdr orange">📋 ④ Production context — สถานะ finding ล่าสุด</div>
+
+  <div class="callout green" style="margin-bottom:14px">
+    <div class="cl-t"><span class="pill mask">MASKED</span>&nbsp; ไม่ใช่บั๊ก production — เป็นผลจาก masked copy (ไม่เปลี่ยน)</div>
+    <b>D03 avg_cost NULL 100%</b> → ยืนยันแล้ว: DB ชุดนี้ต้นทุนถูก null เจตนาก่อนส่งให้ intern
+    ของจริง <b>cost มาจาก Odoo</b> (standard_price mirror) — <b>ห้ามออกแบบให้ cost เป็น source-of-truth</b> ในระบบใหม่<br>
+    D09 unit_price NULL — ส่วนหนึ่งเป็น legacy VARCHAR จริง ต้องตรวจกับ prod ก่อนสรุป
+  </div>
+
+  <div class="callout blue" style="margin-bottom:14px">
+    <div class="cl-t"><span class="pill known">KNOWN</span>&nbsp; สถานะล่าสุด</div>
+    <ul>
+      <li><b>A2+A7 / A8 reservation ค้าง (30k / 18.8k)</b> → รากคือ MO close/cancel ไม่สั่ง WMS ปลดจอง · เคยปลดมาแล้ว 261k (17/7) + 904k (2/7) · <span class="warn">⏳ ยังต้อง wire MO→WMS release ระยะยาว</span></li>
+      <li><b>DB-15 APD-0690 ZWS</b> → <span class="ok">✅ Wararat แก้ใน PR#59 (21/7)</span> — <code>regexp_replace</code> ลบ U+200B แล้ว · 8 ตัวที่เหลือรอ Odoo sync</li>
+      <li><b>D13 rfq.customers dedup + code</b> → <span class="ok">✅ DB-11 (17/7) จัดการ dedup 337→322 + Odoo bridge แล้ว</span> · joinable 21.4% · ที่เหลือรอ Odoo populate</li>
+      <li><b>L1 / L5 / L3 location variants</b> → รากเดียวกับ phantom-location 101k · <span class="warn">⏳ location master + FK = ทางที่ถูก ยังไม่ได้ทำ</span></li>
+    </ul>
+  </div>
+
+  <div class="callout orange" style="margin-bottom:6px">
+    <div class="cl-t"><span class="pill debt">DEBT</span>&nbsp; หนี้ architecture จริงใน <code>productiondb_20260721</code> — ต้องทำให้ถูกตั้งแต่ต้นใน build ใหม่</div>
+    <ul style="margin-top:6px">
+      <li><b>D10 user 4 ตาราง</b> — ใน <code>productiondb_20260721</code> มี user กระจายอยู่ 4 ตาราง (<code>wms_users</code> 23 แถวใกล้ headcount จริงสุด) ยังไม่มีตารางกลาง build ใหม่ต้องออกแบบ central user table ให้ทุก module FK มาที่นี่</li>
+      <li><b>D12 BOM 2 ชุด</b> — <code>productiondb_20260721</code> มี <code>bom.bom_lines</code> (เก่า) กับ <code>mrp.bom_lines</code> (ใหม่ — join m_items 100% + MO ใช้ตัวนี้) canonical คือ <code>mrp.bom_lines</code> · <code>bom.*</code> ให้ทำ view หรือลบ อย่าเก็บ 2 ชุด</li>
+      <li><b>D08 trxType camelCase / F1 int vs uuid</b> — naming ใน <code>productiondb_20260721</code> ไม่สม่ำเสมอ build ใหม่ต้องใช้ snake_case + uuid ตั้งแต่วันแรก <b>อย่าไป rename ตารางใน WMS live</b> — โค้ดอ้างเยอะ เสี่ยงล่ม</li>
+      <li><b>A3 · D19 · F2/F6 · F4/F5</b> — column <code>last_event_at</code>, <code>actor_id</code>, <code>created_by</code> มีอยู่ใน <code>productiondb_20260721</code> แต่ไม่มีใครเขียนค่า build ใหม่ต้อง wire writer (audit / actor_id / timestamp / created_by จาก logged-in user) ครบตั้งแต่ day 1</li>
+      <li><b>A1 · D04 · D05</b> — MO ปิดทั้งที่ผลิตไม่ครบ / datecode ขาดหาย / ไม่มี policy ลบ bak · build ใหม่ต้องเพิ่ม guard/constraint (บังคับกรอกเหตุผล / NOT NULL / ลบ bak 14 วัน)</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================= 5. MASTER DATA SOT ================= -->
+<div class="sec">
+  <div class="sec-hdr yellow">🧭 ⑤ Master data — ตัวจริงชี้ที่ไหน (ไม่เปลี่ยน)</div>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Master</th><th>Source of truth</th><th>หมายเหตุ</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Item / SKU</strong></td><td><code>public.m_items</code></td><td><code>item_master</code> เก่า retired แล้ว (D02/D06 join 100%)</td></tr>
+      <tr><td><strong>BOM</strong></td><td><code>mrp.bom_lines</code></td><td>ไม่ใช่ <code>bom.bom_lines</code> — ตัวนั้นเก่า/ต่าง 632 แถว</td></tr>
+      <tr><td><strong>Cost / ต้นทุน</strong></td><td>Odoo (standard_price mirror)</td><td>อย่าเก็บเป็น SoT ในระบบเรา (สาเหตุ D03)</td></tr>
+      <tr><td><strong>Customer</strong></td><td>Odoo bridge → <code>rfq.customers.code</code></td><td>joinable 21.4% แล้ว ที่เหลือรอ Odoo populate</td></tr>
+      <tr><td><strong>Supplier</strong></td><td>Odoo <code>APD-*</code></td><td>reconcile 18/7 → 98.83% (SUP-* เก่า 144 ตัวแปลงแล้ว)</td></tr>
+      <tr><td><strong>User</strong></td><td><code>mes_db.app_users</code> (build ใหม่)</td><td>D10 แก้แล้วใน mes_db · productiondb ยังกระจาย 4 ตาราง</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="foot">
+  รายงานโดย: db-analysis (intern) · 23 ก.ค. 2569 · branch <code>develop</code> · commit <code>1b3dc5f</code> ·
+  อ้างอิง <code>docs/mes-web-test-setup-answers.html</code> + issue #7 · internal · ห้ามแชร์นอกทีม
+</div>
+
+</body>
+</html>

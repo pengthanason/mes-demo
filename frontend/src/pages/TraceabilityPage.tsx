@@ -12,7 +12,7 @@ const fmtDate = (s: string) => { try { return new Date(s).toLocaleDateString('en
 
 function StatusPill({ status }: { status: 'PASS' | 'FAIL' | null }) {
   if (status == null) return (   // routing scan-in / ยังไม่มีผล → กลางๆ (ไม่ใช่ fail)
-    <span className="status-badge" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}>• Scan</span>
+    <span className="status-badge" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)', border: '1px solid var(--line-3)' }}>• Scan</span>
   );
   const ok = status === 'PASS';
   return (
@@ -26,26 +26,26 @@ function StatusPill({ status }: { status: 'PASS' | 'FAIL' | null }) {
 function Timeline({ steps }: { steps: TraceStep[] }) {
   return (
     <div style={{ position: 'relative', paddingLeft: 28 }}>
-      <div style={{ position: 'absolute', left: 9, top: 8, bottom: 8, width: 2, background: '#e2e8f0' }} />
+      <div style={{ position: 'absolute', left: 9, top: 8, bottom: 8, width: 2, background: 'var(--line-2)' }} />
       {steps.map((s, i) => {
         const st = s.status;   // 'PASS' | 'FAIL' | null (null = scan-in/ยังไม่มีผล)
-        const dotBg = st === 'PASS' ? '#16a34a' : st === 'FAIL' ? '#dc2626' : '#94a3b8';
+        const dotBg = st === 'PASS' ? '#16a34a' : st === 'FAIL' ? '#dc2626' : 'var(--ink-5)';
         const dotIcon = st === 'PASS' ? '✓' : st === 'FAIL' ? '✗' : '•';
-        const cardBorder = st === 'FAIL' ? '#fca5a5' : '#e2e8f0';
+        const cardBorder = st === 'FAIL' ? '#fca5a5' : 'var(--line-2)';
         return (
           <div key={i} style={{ position: 'relative', marginBottom: i === steps.length - 1 ? 0 : 18 }}>
             <span style={{ position: 'absolute', left: -28, top: 2, width: 20, height: 20, borderRadius: '50%', background: dotBg, color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #fff' }}>{dotIcon}</span>
             <div style={{ background: '#fff', border: `1px solid ${cardBorder}`, borderRadius: 8, padding: '10px 12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: '0.92rem', color: '#1e293b' }}>{i + 1}. {s.step}</strong>
+                <strong style={{ fontSize: '0.92rem', color: 'var(--ink-1)' }}>{i + 1}. {s.step}</strong>
                 <StatusPill status={s.status} />
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--ink-4)', marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <span>🕒 {fmt(s.at)}</span>
                 <span>👤 {s.operator}</span>
                 <span>🏭 {s.station}</span>
               </div>
-              {s.note && <div style={{ fontSize: '0.8rem', color: st === 'FAIL' ? '#b91c1c' : '#64748b', marginTop: 4, fontStyle: 'italic' }}>📝 {s.note}</div>}
+              {s.note && <div style={{ fontSize: '0.8rem', color: st === 'FAIL' ? '#b91c1c' : 'var(--ink-4)', marginTop: 4, fontStyle: 'italic' }}>📝 {s.note}</div>}
             </div>
           </div>
         );
@@ -72,13 +72,13 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
       </form>
 
       {!sn && (
-        <div style={{ padding: '1rem', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, color: '#64748b', fontSize: '0.88rem' }}>
+        <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px dashed var(--line-3)', borderRadius: 8, color: 'var(--ink-4)', fontSize: '0.88rem' }}>
           Type or scan a Serial and press Search — you will see the history of that item across every station
           {serials.length > 0 && (
             <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {serials.slice(0, 8).map(s => (
                 <button key={s} type="button" onClick={() => { setQ(s); setSn(s); }}
-                  style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: '#334155' }}>{s}</button>
+                  style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid var(--line-3)', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--ink-2)' }}>{s}</button>
               ))}
             </div>
           )}
@@ -90,7 +90,7 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
       {sn && isError && (
         <div style={{ padding: '1.25rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, color: '#b91c1c', textAlign: 'center' }}>
           ⚠️ {(error as Error)?.message || 'Serial not found'}<br />
-          <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Check the Serial number again, or choose from the list above</span>
+          <span style={{ fontSize: '0.82rem', color: 'var(--ink-5)' }}>Check the Serial number again, or choose from the list above</span>
         </div>
       )}
 
@@ -98,8 +98,8 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
         <>
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px' }}>
             <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e3a8a' }}>{trace.serial}</div>
-            {trace.product && <><span style={{ color: '#94a3b8' }}>·</span><span style={{ fontSize: '0.88rem', color: '#334155' }}>Product: <strong>{trace.product}</strong></span></>}
-            {trace.wo && <span style={{ fontSize: '0.88rem', color: '#334155' }}>Route/WO: <strong>{trace.wo}</strong></span>}
+            {trace.product && <><span style={{ color: 'var(--ink-5)' }}>·</span><span style={{ fontSize: '0.88rem', color: 'var(--ink-2)' }}>Product: <strong>{trace.product}</strong></span></>}
+            {trace.wo && <span style={{ fontSize: '0.88rem', color: 'var(--ink-2)' }}>Route/WO: <strong>{trace.wo}</strong></span>}
             {trace.box && (
               <button type="button" onClick={() => goBox(trace.box)}
                 style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: '1px solid #93c5fd', background: '#fff', color: '#1d4ed8', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
@@ -127,12 +127,12 @@ function BoxesTab({ boxId, setBox, goSerial }: { boxId: string; setBox: (b: stri
         {isError && <div style={{ padding: '1rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, color: '#b91c1c', textAlign: 'center' }}>⚠️ Box not found</div>}
         {box && (
           <>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px', fontSize: '0.88rem' }}>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', background: 'var(--surface-1)', border: '1px solid var(--line-2)', borderRadius: 10, padding: '12px 16px', fontSize: '0.88rem' }}>
               <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>📦 {box.box_id}</span>
               <span>Product: <strong>{box.product}</strong></span>
               <span>WO: <strong>{box.wo}</strong></span>
               <span>Packed: {fmt(box.packed_at)}</span>
-              <span style={{ marginLeft: 'auto', color: '#64748b' }}>{box.items.length} pcs</span>
+              <span style={{ marginLeft: 'auto', color: 'var(--ink-4)' }}>{box.items.length} pcs</span>
             </div>
             <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
               <table className="table" style={{ minWidth: 480, width: '100%' }}>

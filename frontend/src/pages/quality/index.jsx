@@ -16,13 +16,14 @@ export default function QcBoard() {
   const isViewer = useIsViewer();
 
   const [unitSn, setUnitSn] = useState('');
+  const [showFailModal, setShowFailModal] = useState(false);
   const { data, isLoading: histLoading, isError: histError, refetch: histRefetch } = useQcHistory();
   const createMut = useQcCreate();
   const history = data ?? [];
   const isLoading = createMut.isPending;
   const [globalError, setGlobalError] = useState('');
 
-  const handleQcSubmit = (result) => {
+  const submitQc = (result, isScrap = false) => {
     if (isViewer) return;
     if (!unitSn.trim()) {
       setGlobalError('Please enter a Unit SN first.');
@@ -32,15 +33,26 @@ export default function QcBoard() {
 
     const sn = unitSn.trim();
     createMut.mutate(
-      { sn, status: result, error: null },
+      { sn, status: result, error: isScrap ? 'Scrapped by QC' : null, scrapped: isScrap },
       {
         onSuccess: () => {
           setUnitSn('');
-          showToast(`QC ${result}: ${sn}`, result === 'PASS' ? 'success' : 'error');
+          setShowFailModal(false);
+          showToast(`QC ${result}${isScrap ? ' (SCRAPPED - WMS Stock Adjusted)' : ''}: ${sn}`, result === 'PASS' ? 'success' : 'error');
         },
         onError: () => setGlobalError('Save failed — please try again'),
       }
     );
+  };
+
+  const handleFailClick = () => {
+    if (isViewer) return;
+    if (!unitSn.trim()) {
+      setGlobalError('Please enter a Unit SN first.');
+      return;
+    }
+    setGlobalError('');
+    setShowFailModal(true);
   };
 
   return (
@@ -71,7 +83,7 @@ export default function QcBoard() {
             placeholder="Scan barcode or type manually..."
             value={unitSn}
             onChange={(e) => setUnitSn(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleQcSubmit('PASS'); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') submitQc('PASS'); }}
             disabled={isLoading}
             autoFocus
             style={{ fontSize: '1.25rem', padding: '1rem' }}
@@ -89,7 +101,7 @@ export default function QcBoard() {
           <button
             className="btn success"
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', minWidth: 0, padding: '1.25rem 0.5rem', fontSize: '1.15rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
-            onClick={() => handleQcSubmit('PASS')}
+            onClick={() => submitQc('PASS')}
             disabled={isLoading || !unitSn || isViewer}
           >
             <CheckCircle2 size={28} />
@@ -99,7 +111,7 @@ export default function QcBoard() {
           <button
             className="btn danger"
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', minWidth: 0, padding: '1.25rem 0.5rem', fontSize: '1.15rem', opacity: isViewer ? 0.45 : 1, cursor: isViewer ? 'not-allowed' : undefined }}
-            onClick={() => handleQcSubmit('FAIL')}
+            onClick={handleFailClick}
             disabled={isLoading || !unitSn || isViewer}
           >
             <XCircle size={28} />
@@ -108,11 +120,65 @@ export default function QcBoard() {
         </div>
       </div>
 
+      {/* FAIL Option Modal */}
+      {showFailModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="panel" style={{ maxWidth: 460, width: '100%', border: '1px solid rgba(239, 68, 68, 0.4)', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px' }}>
+                <XCircle color="#ef4444" size={26} />
+              </div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#ef4444', margin: 0 }}>
+                ผลการตรวจ: FAIL (NG)
+              </h3>
+            </div>
+
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+              Serial Number: <strong style={{ color: 'var(--text-main)' }}>{unitSn}</strong>
+              <br />
+              โปรดเลือกการดำเนินการถัดไปสำหรับชิ้นงานนี้:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => submitQc('FAIL', true)}
+                disabled={isLoading}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem', fontSize: '1rem', fontWeight: 600 }}
+              >
+                🗑️ ทำลายชิ้นงาน (Scrap & Adjust WMS Stock)
+              </button>
+
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => submitQc('FAIL', false)}
+                disabled={isLoading}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem', fontSize: '1rem' }}
+              >
+                🛠️ ส่งซ่อมแซม (Rework Only)
+              </button>
+
+              <button
+                type="button"
+                className="btn outline"
+                onClick={() => setShowFailModal(false)}
+                disabled={isLoading}
+                style={{ marginTop: '0.25rem', padding: '0.6rem', fontSize: '0.875rem' }}
+              >
+                ยกเลิก (Cancel)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginTop: '3rem' }}>
         {/* #51: snapshot สถานะล่าสุดต่อชิ้น (unit) ไม่ใช่ timeline ทุกครั้งที่สแกน */}
         <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-muted)' }}>Unit Status (latest)</h3>
         <div className="table-container">
-          <table>
+          <table className="table table-readonly">
             <thead>
               <tr>
                 <th>Updated</th>

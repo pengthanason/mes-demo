@@ -4,10 +4,11 @@ import { useWoBoard, useWoCreate } from '../lib/woApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { TableState } from '../components/DataStates';
 
 const STEP_STYLE: Record<string, { label: string; bg: string; text: string; border: string }> = {
-  DRAFT:        { label: 'Draft',          bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' },
+  DRAFT:        { label: 'Draft',          bg: 'var(--surface-2)', text: 'var(--ink-3)', border: 'var(--line-3)' },
   OPEN:         { label: 'Open',           bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
   READY:        { label: 'Ready',          bg: '#cffafe', text: '#0e7490', border: '#67e8f9' },
   RUNNING:      { label: 'Running',        bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
@@ -106,7 +107,18 @@ export function WorkOrdersPage() {
         )}
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, marginTop: '0.5rem' }}>
-          <table className="table" style={{ minWidth: 760, width: '100%' }}>
+          {/* tableLayout fixed + colgroup = คอลัมน์ไม่ยืด/หดตามเนื้อหาในแต่ละหน้า (ดู components/TableFill.tsx) */}
+          <table className="table" style={{ minWidth: 1050, width: '100%', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '15%' }} />{/* WO No */}
+              <col style={{ width: '17%' }} />{/* Product */}
+              <col style={{ width: '12%' }} />{/* Customer */}
+              <col style={{ width: '7%' }} />{/* Qty */}
+              <col style={{ width: '7%' }} />{/* Good */}
+              <col style={{ width: '9%' }} />{/* Expected */}
+              <col style={{ width: '18%' }} />{/* Status */}
+              <col style={{ width: '15%' }} />{/* Station */}
+            </colgroup>
             <thead>
               <tr>
                 <th>WO No</th><th>Product</th><th>Customer</th>
@@ -127,16 +139,17 @@ export function WorkOrdersPage() {
                   tabIndex={0} role="button" aria-label={`View WO ${w.woId} details`}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/wo/${w.woId}`); } }}
                   title="Click to view details / FAI / Close WO">
-                  <td style={{ fontWeight: 600, color: 'var(--brand)' }}>{w.woId}</td>
-                  <td>{w.productCode}</td>
-                  <td>{w.customer}</td>
+                  <td style={{ height: ROW_H, fontWeight: 600, color: 'var(--brand)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.woId}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={w.productCode}>{w.productCode}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={w.customer}>{w.customer}</td>
                   <td style={{ textAlign: 'center' }}>{w.qty.toLocaleString()}</td>
                   <td style={{ textAlign: 'center', fontWeight: 600, color: '#0369a1' }}>{(w.actualQty ?? w.qtyGood).toLocaleString()}</td>
                   <td style={{ textAlign: 'center', whiteSpace: 'nowrap', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{w.expectedDate ? new Date(String(w.expectedDate).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-GB') : '—'}</td>
                   <td style={{ textAlign: 'center' }}><StepBadge step={w.currentStep} /></td>
-                  <td>{w.station}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={w.station}>{w.station}</td>
                 </tr>
               ))}
+              <FillerRows count={fillerCount(paged.length, PAGE, totalPages)} cols={8} />
             </tbody>
           </table>
         </div>

@@ -52,15 +52,6 @@ const bomLines: Record<string, any[]> = {
   ],
 };
 
-let _preWoId = 10;
-const preWoList = [
-  { req_id: 'REQ-001', bom_id: 'BOM-002', bom_name: 'ASY-300 Unit', qty: 100, due_date: '2026-07-01', status: 'PENDING',   created_at: '2026-06-10T08:00:00Z' },
-  { req_id: 'REQ-002', bom_id: 'BOM-003', bom_name: 'MOT-4500 Drive', qty: 200, due_date: '2026-07-15', status: 'APPROVED', created_at: '2026-06-11T09:00:00Z' },
-  { req_id: 'REQ-003', bom_id: 'BOM-001', bom_name: 'PCB-A100 Assembly', qty: 500, due_date: '2026-07-05', status: 'APPROVED', created_at: '2026-06-12T09:00:00Z' },
-  { req_id: 'REQ-004', bom_id: 'BOM-002', bom_name: 'ASY-300 Unit', qty: 150, due_date: '2026-07-20', status: 'PENDING',  created_at: '2026-06-13T10:00:00Z' },
-  { req_id: 'REQ-005', bom_id: 'BOM-001', bom_name: 'PCB-A100 Assembly', qty: 300, due_date: '2026-07-10', status: 'REJECTED', created_at: '2026-06-13T14:00:00Z' },
-];
-
 let _crId = 10;
 const crList = [
   { id: 1, cr_no: 'CR-2026-001', m_type: 'Machine', wo_ref: 'WO-2026-002', description: 'เปลี่ยนหัวเชื่อม SMT จากรุ่น A ไป B', impact: 'อาจส่งผลต่อ solder quality', state: 'G2_APPROVED', g1_note: 'ตรวจสอบแล้ว OK', g1_at: '2026-06-12T10:00:00Z', g2_note: 'อนุมัติ proceed', g2_at: '2026-06-13T11:00:00Z', g3_note: null, g3_at: null, created_at: '2026-06-11T09:00:00Z' },
@@ -117,15 +108,6 @@ const routingRecords = [
   { id: 4, serial: 'SN-M450-0001', sequence: 'Winding → Test → FAIL', result: 'FAIL', total_sec: 600, created_at: '2026-06-13T15:00:00Z' },
 ];
 
-let _scmId = 10;
-const scmCases = [
-  { case_id: 'SCM-2026-001', lot_uid: 'LOT-SCM-001', product: 'PCB-A100', defect_type: 'Cosmetic', qty_ng: 5,  status: 'OPEN',   created_at: '2026-06-13T09:00:00Z', resolved_at: null, dispositions: [{ id: 1, action: 'Rework', qty: 5, note: 'ขัดรอยและทาสี', created_at: '2026-06-13T10:00:00Z' }] },
-  { case_id: 'SCM-2026-002', lot_uid: 'LOT-SCM-002', product: 'ASY-300',  defect_type: 'Functional', qty_ng: 10, status: 'CLOSED', created_at: '2026-06-10T08:00:00Z', resolved_at: '2026-06-12T14:00:00Z', dispositions: [{ id: 2, action: 'Scrap', qty: 3, note: 'เสียหายไม่คุ้มซ่อม', created_at: '2026-06-11T09:00:00Z' }, { id: 3, action: 'Use-As-Is', qty: 7, note: 'defect ไม่กระทบ function หลัก', created_at: '2026-06-11T10:00:00Z' }] },
-  { case_id: 'SCM-2026-003', lot_uid: 'LOT-SCM-003', product: 'MOT-4500', defect_type: 'Dimension',  qty_ng: 8,  status: 'OPEN',   created_at: '2026-06-14T08:00:00Z', resolved_at: null, dispositions: [] },
-  { case_id: 'SCM-2026-004', lot_uid: 'LOT-SCM-004', product: 'PCB-A100', defect_type: 'Functional', qty_ng: 12, status: 'OPEN',   created_at: '2026-06-14T10:00:00Z', resolved_at: null, dispositions: [{ id: 4, action: 'RTV', qty: 12, note: 'ส่งคืน supplier', created_at: '2026-06-14T11:00:00Z' }] },
-  { case_id: 'SCM-2026-005', lot_uid: 'LOT-SCM-005', product: 'CAB-200',  defect_type: 'Cosmetic',   qty_ng: 4,  status: 'CLOSED', created_at: '2026-06-11T08:00:00Z', resolved_at: '2026-06-13T09:00:00Z', dispositions: [{ id: 5, action: 'Rework', qty: 4, note: 'ตัดแต่งสายใหม่', created_at: '2026-06-12T10:00:00Z' }] },
-];
-
 let _adminUserId = 10;
 const adminUsers = [
   { id: 1, username: 'admin',   full_name: 'ผู้ดูแลระบบ',    role: 'ADMIN',  is_active: true,  permissions: [],                                                                                created_at: '2026-01-01T00:00:00Z' },
@@ -159,7 +141,6 @@ const ACT_RES: [string, string, string][] = [
   ['/api/bom', 'BOM', 'bom'],
   ['/api/cr', 'Change Request (5M+1E)', 'cr'],
   ['/api/jig', 'Jig Test', 'jig'],
-  ['/api/scm', 'SCM Case', 'scm'],
   ['/api/rework', 'Rework', 'rework'],
   ['/api/inventory', 'Kitting/Store', 'inventory'],
   ['/api/notifications', 'Notification', 'notifications'],
@@ -752,25 +733,7 @@ export const handlers = [
     return ok(wo);
   }),
 
-  // ── Pre-WO ────────────────────────────────────────────────────────────────
-  http.get('/api/wo/req/list', () => ok(preWoList)),
-  http.post('/api/wo/req', async ({ request }) => {
-    const body: any = await request.json();
-    const req = { req_id: `REQ-${String(++_preWoId).padStart(3,'0')}`, ...body, status: 'PENDING', created_at: now() };
-    preWoList.push(req);
-    return ok(req);
-  }),
-  http.patch('/api/wo/req/:reqId/approve', ({ params }) => {
-    const req = preWoList.find(r => r.req_id === params.reqId);
-    if (req) req.status = 'APPROVED';
-    return okSuccess();
-  }),
-  http.post('/api/wo/convert', async ({ request }) => {
-    const body: any = await request.json();
-    const req = preWoList.find(r => r.req_id === body.req_id);
-    if (req) req.status = 'CONVERTED';
-    return okSuccess();
-  }),
+  // ⚠️ Pre-WO (/api/wo/req/*, /api/wo/convert) ถูกถอดออกจากระบบแล้ว — ดู my-api/database_schema.sql หมายเหตุ #11
 
   // ── BOM ───────────────────────────────────────────────────────────────────
   http.get('/api/bom/headers', () => ok(boms)),
@@ -958,32 +921,6 @@ export const handlers = [
   http.post('/api/notifications/read-all', () => {
     notifications.forEach(n => { n.is_read = true; });
     return okSuccess();
-  }),
-
-  // ── SCM Cases ─────────────────────────────────────────────────────────────
-  http.get('/api/scm/cases', () => HttpResponse.json({ success: true, cases: scmCases })),
-  http.post('/api/scm/cases', async ({ request }) => {
-    const body: any = await request.json();
-    const c = { case_id: body.case_id || `SCM-2026-${String(++_scmId).padStart(3,'0')}`, lot_uid: body.lot_uid, product: body.product, defect_type: body.defect_type, qty_ng: body.qty_ng, status: 'OPEN', created_at: now(), resolved_at: null, dispositions: [] };
-    scmCases.push(c);
-    return HttpResponse.json({ success: true, case: c });
-  }),
-  http.put('/api/scm/cases/:caseId/resolve', ({ params }) => {
-    const c = scmCases.find(x => x.case_id === params.caseId);
-    if (c) { c.status = 'CLOSED'; c.resolved_at = now(); }
-    return HttpResponse.json({ success: true });
-  }),
-  http.post('/api/scm/dispositions', async ({ request }) => {
-    const body: any = await request.json();
-    const c = scmCases.find(x => x.case_id === body.case_id);
-    const d = { id: Date.now(), action: body.action, qty: body.qty, note: body.note, created_at: now() };
-    if (c) c.dispositions.push(d);
-    return HttpResponse.json({ success: true, disposition: d });
-  }),
-  http.post('/api/scm/lots/split', async ({ request }) => {
-    const body: any = await request.json();
-    const split = { original_uid: body.lot_uid, ok_uid: `LOT-OK-${Date.now()}`, ng_uid: `LOT-NG-${Date.now()}`, qty_ok: body.qty_ok, qty_ng: body.qty_ng };
-    return HttpResponse.json({ success: true, split });
   }),
 
   // ── Admin Users ───────────────────────────────────────────────────────────

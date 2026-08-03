@@ -35,7 +35,24 @@
   --frame-line:        rgba(255,255,255,0.14);
   --frame-logo:        #ffffff;
   --topbar-h:          60px;       /* ความสูงร่วม: header (nav) = หัว sidebar → เส้นขอบล่างตรงกัน */
+
+  /* ── สีกลาง (neutral scale) — ใช้แทนการเขียน hex ตรงๆ ใน component ──
+     surface = พื้นผิว (อ่อน→เข้ม) · line = เส้นขอบ · ink = ตัวอักษร (เข้ม→จาง)
+     ค่าใน light = slate ชุดเดิมที่ใช้อยู่ (#f8fafc/#e2e8f0/#64748b ฯลฯ) จึงหน้าตาไม่เปลี่ยน
+     แต่เวลาสลับ dark จะเปลี่ยนตามให้เอง */
+  --surface-1: #f8fafc;   /* พื้นอ่อนสุด (การ์ดใน การ์ด, แถบหัว) */
+  --surface-2: #f1f5f9;   /* พื้นอ่อน (hover, แถบสลับ) */
+  --line-1:    #eef2f7;   /* เส้นคั่นบาง */
+  --line-2:    #e2e8f0;   /* เส้นขอบปกติ */
+  --line-3:    #cbd5e1;   /* เส้นขอบเข้ม / ไอคอนจาง */
+  --ink-1:     #1e293b;   /* ตัวอักษรหลัก */
+  --ink-2:     #334155;
+  --ink-3:     #475569;
+  --ink-4:     #64748b;   /* ตัวอักษรรอง */
+  --ink-5:     #94a3b8;   /* ตัวอักษรจางสุด */
 }
+
+
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -95,12 +112,12 @@ body {
 }
 
 .btn.secondary {
-  background: #fff;
+  background: var(--bg-card);
   border-color: var(--border-color);
   color: var(--text-body);
 }
 .btn.secondary:hover:not(:disabled) {
-  background: #f8fafc;
+  background: var(--bg-muted);
   border-color: #cbd5e1;
   transform: none;
   box-shadow: none;
@@ -133,7 +150,7 @@ body {
   color: var(--text-body);
 }
 .btn.tertiary:hover:not(:disabled) {
-  background: #e2e8f0;
+  background: var(--border-color);
   transform: none;
   box-shadow: none;
 }
@@ -209,7 +226,7 @@ body {
   width: 100%;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-body);
   font-family: inherit;
@@ -227,7 +244,7 @@ select {
   padding: 0.45rem 2rem 0.45rem 0.7rem;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background-color: #fff;
+  background-color: var(--bg-card);
   color: var(--text-body);
   font-family: inherit;
   font-size: 0.875rem;
@@ -301,13 +318,13 @@ textarea {
   overflow-x: auto;
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  text-align: left;
+  text-align: center;
 }
 
 .table th {
@@ -332,7 +349,7 @@ textarea {
 
 .table tbody tr:last-child td { border-bottom: none; }
 .table tbody tr:nth-child(even) { background: #fafafa; }
-.table tbody tr:hover td { background: #f1f5f9; }
+.table tbody tr:hover td { background: var(--bg-muted); }
 .table.table-readonly tbody tr:hover td { background: transparent !important; }
 
 .table.compact th,
@@ -355,7 +372,7 @@ table { width: 100%; border-collapse: collapse; }
 th { background: var(--bg-muted); padding: 0.75rem 1rem; font-weight: 600; font-size: 0.8rem; color: var(--text-muted); border-bottom: 1px solid var(--border-color); }
 td { padding: 0.875rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; color: var(--text-body); }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: #f8fafc; }
+tr:hover td { background: var(--bg-muted); }
 
 /* ─── Badge ──────────────────────────────────────────────────────── */
 .badge {
@@ -403,7 +420,7 @@ tr:hover td { background: #f8fafc; }
 
 .modal {
   width: min(100%, 560px);
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 1.75rem;
@@ -535,7 +552,7 @@ tr:hover td { background: #f8fafc; }
 .home-quick-card,
 .mes-module-card {
   display: block;
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.25rem;
@@ -654,7 +671,7 @@ tr:hover td { background: #f8fafc; }
   padding: 1rem 1.1rem;
   border-radius: 10px;
   border: 1px solid var(--border-color);
-  background: #fff;
+  background: var(--bg-card);
   text-decoration: none;
   color: var(--text-main);
   transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;

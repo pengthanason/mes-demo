@@ -4,6 +4,7 @@ import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
 import { Paginator } from '../components/Paginator';
+import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { TableState } from '../components/DataStates';
 
 const STATUS_STYLE: Record<LotStatus, { bg: string; text: string; border: string; label: string }> = {
@@ -34,7 +35,7 @@ function StatCard({ icon, label, value, accent }: { icon: string; label: string;
         background: accent + '1a', color: accent,
       }}>{icon}</span>
       <div style={{ lineHeight: 1.2 }}>
-        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1e293b' }}>{value}</div>
+        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--ink-1)' }}>{value}</div>
         <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</div>
       </div>
     </div>
@@ -184,7 +185,31 @@ export function IncomingPage() {
 
         {/* Table */}
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-          <table className="table table-readonly" style={{ minWidth: 720, width: '100%' }}>
+          {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx)
+              คอลัมน์ QA Review โชว์เฉพาะ non-viewer → <col> ตัวสุดท้ายต้องมีเงื่อนไขเดียวกัน */}
+          <table className="table table-readonly" style={{ minWidth: isViewer ? 780 : 1000, width: '100%', tableLayout: 'fixed' }}>
+            {isViewer ? (
+              <colgroup>
+                <col style={{ width: '15%' }} />{/* Part No */}
+                <col style={{ width: '22%' }} />{/* Part Name */}
+                <col style={{ width: '16%' }} />{/* Lot No */}
+                <col style={{ width: '10%' }} />{/* Received */}
+                <col style={{ width: '10%' }} />{/* Available */}
+                <col style={{ width: '13%' }} />{/* Status */}
+                <col style={{ width: '14%' }} />{/* Received Date */}
+              </colgroup>
+            ) : (
+              <colgroup>
+                <col style={{ width: '13%' }} />{/* Part No */}
+                <col style={{ width: '17%' }} />{/* Part Name */}
+                <col style={{ width: '13%' }} />{/* Lot No */}
+                <col style={{ width: '8%' }} />{/* Received */}
+                <col style={{ width: '8%' }} />{/* Available */}
+                <col style={{ width: '11%' }} />{/* Status */}
+                <col style={{ width: '11%' }} />{/* Received Date */}
+                <col style={{ width: '19%' }} />{/* QA Review */}
+              </colgroup>
+            )}
             <thead>
               <tr>
                 <th>Part No</th>
@@ -204,11 +229,11 @@ export function IncomingPage() {
                 <TableState colSpan={isViewer ? 7 : 8} state="empty" emptyText={statusFilter ? 'No lots match the filter — select “All” to see all lots' : 'No material lots yet — click “+ Receive Goods” to start receiving'} />
               ) : paged.map(lot => (
                 <tr key={lot.id}>
-                  <td style={{ fontWeight: 600 }}><code>{lot.partNo}</code></td>
-                  <td>{lot.partName || '—'}</td>
-                  <td><code style={{ fontSize: '0.85rem' }}>{lot.lotNo}</code></td>
+                  <td style={{ height: ROW_H, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lot.partNo}><code>{lot.partNo}</code></td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lot.partName || undefined}>{lot.partName || '—'}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lot.lotNo}><code style={{ fontSize: '0.85rem' }}>{lot.lotNo}</code></td>
                   <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{lot.qtyReceived.toLocaleString()}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: lot.qtyAvailable > 0 ? '#0369a1' : '#94a3b8' }}>{lot.qtyAvailable.toLocaleString()}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: lot.qtyAvailable > 0 ? '#0369a1' : 'var(--ink-5)' }}>{lot.qtyAvailable.toLocaleString()}</td>
                   <td style={{ textAlign: 'center' }}><StatusBadge status={lot.status} /></td>
                   <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                     {new Date(lot.receivedAt).toLocaleDateString('en-GB')}
@@ -240,6 +265,7 @@ export function IncomingPage() {
                   )}
                 </tr>
               ))}
+              <FillerRows count={fillerCount(paged.length, PAGE_SIZE, totalPages)} cols={isViewer ? 7 : 8} />
             </tbody>
           </table>
         </div>

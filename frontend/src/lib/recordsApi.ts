@@ -54,7 +54,7 @@ const QC_KEY = ['qc-records'];
 export function useQcCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (rec: { sn: string; status: string; error?: string | null }) => {
+    mutationFn: async (rec: { sn: string; status: string; error?: string | null; scrapped?: boolean }) => {
       const res = await api.post('/qc', rec);
       if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to save QC');
       return res.data;

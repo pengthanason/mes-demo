@@ -1,5 +1,133 @@
 # Syntech MES -- Status & Handoff
-> อัปเดต: **2026-04-24** Session 89-CTO | Server: 172.16.10.87 | Container: syntech_mes_draft-mes_backbone-1
+> อัปเดต: **2026-07-30** (intern repo `syntech-intern-2026`, branch `develop`) · ประวัติ deploy server (172.16.10.87) อยู่ด้านล่าง
+
+## BOM ย้ายไปเป็นของ MRP (2026-07-30)
+
+**เจ้าของข้อมูล BOM = MRP** ไม่ใช่ MES แล้ว — MES อ่านได้ แก้ไม่ได้
+
+| endpoint | เดิม | ตอนนี้ |
+| --- | --- | --- |
+| `POST /api/bom/upload` (backbone :5100) | ADMIN อัปโหลด BOM ได้ | **503 `BOM_EXTERNAL_ONLY`** + `hint` บอกให้ไปทำที่ MRP |
+| `GET /api/bom/headers` (backbone) | อ่านจาก `master_bom_header` | `boms: []` + `source: 'external_pending'` |
+| `GET /api/bom/headers` (my-api :5099) | อ่านจากตาราง `boms` | derive จาก `bom_lines` + `source: 'local_bom_lines_mirror'` |
+| `PUT /api/bom/:id/approve`, `POST /api/bom` (my-api) | สร้าง/อนุมัติได้ | 400 + ข้อความอธิบาย |
+| ตาราง `boms` | มี | **ถอดออก** · `bom_lines.bom_id` เป็น `INTEGER` ธรรมดา (ไม่มี FK) |
+
+**สิ่งที่ยังไม่จริง (อย่าเขียนเกินความจริงในเอกสาร/โค้ด)**: ยังไม่มี API เชื่อม MRP —
+endpoint อ่านทั้งหมดยังอ่านจาก `bom_lines` ใน DB ตัวเอง ซึ่งเป็น **สำเนา (mirror)** ที่นำเข้ามา
+ไม่ใช่ดึงสดจาก MRP · เมื่อมี MRP API แล้วให้เปลี่ยนให้ยิงออกจริงแล้วลบคำว่า mirror ออก
+
+**ต้องแจ้งก่อน deploy**: prod ยังรันโค้ดเก่า upload BOM ได้อยู่ — deploy รอบหน้าผู้ใช้ ADMIN
+จะเจอ 503 ต้องบอกก่อนว่าไปอัปโหลดที่ MRP แทน
+
+---
+
+## SCM Cases ถูกถอดออก (2026-07-27)
+
+โมดูล **12_scm_cases** ถอดออกจากรีโปแล้ว — ตั้งใจถอด ไม่ใช่ลบพลาดตอน merge
+
+| ถูกถอด | คอมมิต |
+| --- | --- |
+| `my-api/routes/scm.js` | `b085e48` (2026-07-24) |
+| `backend/modules/12_scm_cases/` (routes + controller + recall · 443 บรรทัด) | `b2d6fa0` (2026-07-27) |
+| ตาราง `scm_cases`, `scm_split_lots` ใน `backend/schema.sql` | `b2d6fa0` |
+| `frontend/src/pages/ScmCasesPage.tsx` (502 บรรทัด) | `b2d6fa0` |
+
+**เหตุผล**: ขอบเขต intern track ไม่ครอบ SCM disposition flow — ไม่มีผู้ใช้จริงและไม่มี user story รองรับ
+เก็บโค้ดที่ไม่มีใครใช้ไว้ = ต้องดูแล/ทดสอบ/แก้ช่องโหว่ฟรีๆ
+
+**หลักฐานว่าไม่เคยถูกใช้บน prod** (Claudy query prod DB ใน PR #10 · 2026-07-30):
+
+| ตารางใน `mes_core` | จำนวนแถว |
+| --- | --- |
+| `scm_cases` | **0** |
+| `scm_split_lots` | **0** |
+| (เทียบตารางที่ใช้จริง) `auth_login_audits` | 16 |
+| `mes_sessions` | 4 |
+| `work_orders` | 3 |
+| `jumbo_packing_boxes` | 2 |
+
+endpoint live จริงแต่ไม่มีใครยิงเลยสักเคส → ไม่ต้องกู้กลับ และไม่ใช่ blocker ของการ merge
+
+**ผลกระทบต่อ prod (172.16.10.87)**: prod ยังรันโค้ดเก่าอยู่ `GET /api/scm/cases` จึงยังตอบ 200 —
+**deploy รอบหน้าจะกลายเป็น 404** แต่ไม่มีข้อมูล/ผู้ใช้จริงที่ได้รับผลกระทบ
+ถ้าจำเป็นต้องใช้กลับ: `git revert b2d6fa0 b085e48` (โค้ดยังอยู่ใน git history ครบ)
+
+**บทเรียนที่รับมา**: 2 คอมมิตนั้นมี commit message ว่างเปล่า ทำให้คนรีวิวต้องไล่ diff ทีละคอมมิต
+\+ query prod DB เพื่อตอบแค่ว่า "ตั้งใจหรือเปล่า" — ต่อไปการลบโค้ด/ตาราง/endpoint
+ต้องเขียนเหตุผลไว้ใน commit message หรือ PR body เสมอ
+
+**ที่ตามเก็บให้ตรงกันแล้ว**: `authz.js` (ROUTE_PERM + perm `scm` ใน MEMBER), `activityLog.js`,
+เทส 2 ตัวใน `backend/tests/e2e.pm_scm.test.js`, ตารางโมดูลด้านล่าง, README
+
+> `backend/modules/14_event_inbox/` ที่ถอดไปพร้อมกันเป็น dead code จริง (ไม่เคย mount ใน `server.js`) ไม่ต้องกู้
+
+---
+
+## 2026-07-30 Frontend Track — Pre-production hardening (security + robustness)
+
+ตรวจทั้งระบบก่อนขึ้น prod พบ blocker 10 ข้อ + ควรแก้ 10 ข้อ → ปิดไป **17 ข้อ** (เทสยืนยันทุกข้อ) · เหลือ pagination 1 ข้อ (ไม่บล็อก)
+
+- **Auth (ช่องโหว่ร้ายแรง · ปิดแล้ว)**: เดิม API ไม่มี auth เลย — ไม่ส่ง token ก็ได้ 200 ทุก endpoint และปลอม `base64("x:ADMIN:0")` เป็น admin ได้ → เปลี่ยนเป็น **JWT ลงลายเซ็น** (`auth-token.js` ใหม่ · payload เก็บแค่ `sub` · exp 8 ชม.) + เขียน `authz.js` ใหม่เป็น **fail-closed** (ไม่มี/ปลอม/หมดอายุ = 401 · DB ล่ม = 503 · route ที่ไม่ได้กำกับ = 403 default deny · **VIEWER เขียนไม่ได้ทุกกรณี**) · role อ่านจาก DB ทุก request ไม่เชื่อ token · เพิ่ม `GET /api/auth/me`
+- **Audit trail**: actor เดิมถอด base64 จาก header ดิบๆ (ปลอมได้) + `admin.js` hardcode `'admin'` → เปลี่ยนมาใช้ `req.user.username` จาก JWT ที่ verify แล้วทุกจุด
+- **Hardening**: `helmet` + CORS allowlist (`CORS_ORIGINS` · ว่าง = same-origin) + rate limit (login 10/15นาที · API 600/นาที) · `bcrypt.compare` async (เดิม sync บล็อก event loop) + dummy hash กัน timing attack · รหัสขั้นต่ำ 4→8 ตัว
+- **ลบความเสี่ยงที่ ship ไป prod**: เอา `DEMO_ACCOUNTS` (admin/admin) ออกจากหน้า login · `SEED_DEMO=false` ปิดการสร้าง admin/admin + รหัส=username ได้จริงแล้ว (เดิมไม่ปิด)
+- **API robustness**: เพิ่ม error middleware (Express 4 ไม่ forward async rejection → เดิม request ค้างไม่มี response) · ย้าย `db.connect()` เข้า try + ห่อ ROLLBACK (wo/bom/inventory/production/jig/records/pp) · ห่อ transaction ที่ตกหล่น 3 จุด (`jig` delete/records, `POST /api/qc`) · WO number `COUNT+1` → `MAX+1` + retry 23505 (เดิม 2 คนกดพร้อมกันได้เลขซ้ำ)
+- **Validation (500 → 400 มีข้อความ)**: 8 เคสที่เคยพัง — `qty:-5`, `qty:"1000 pcs"`, `sample_qty:-3`, `voltage:"3.3V"` (NaN ลง DB เงียบๆ), `qty:2.5` ตอนเบิกของ, `done:"maybe"`, `process_log` ที่ไม่ใช่ array, `role:"SUPERADMIN"` · เพิ่ม INT4_MAX / boolean / date guard · จำกัด `steps` ≤ 200 · clamp `limit` ของ jig
+- **Data integrity**: แก้ TOCTOU ของ PP update ด้วย `SELECT ... FOR UPDATE` ใน transaction (เดิม 2 คนแก้พร้อมกันทะลุกฎ `produce ≤ qty` ได้) · ฟอร์ม popup ส่งเฉพาะ field ที่เปลี่ยน (เดิมยัดค่าเดิมทั้งฟอร์มไปชนกฎ "Done ต้องผลิตครบ" → แก้แถวข้อมูลค้างไม่ได้เลย)
+- **Performance**: เพิ่ม **21 index** (เดิมไม่มีเลย) — `production_scans` 4 ตัว (station monitor poll ทุก 8 วิ ทำ seq scan ทั้งตาราง), `audit_logs`, `qc_results`, `jig_test_records` ฯลฯ
+- **Deploy readiness**: `database_schema.sql` ทำเป็น **ไฟล์เดียวจบ** (schema + index + bootstrap admin · รวม `seed_admin.sql` เข้ามา) · แก้ `migrations.js` ไม่ให้พังบนฐานที่สร้างจาก schema.sql (เดิม insert `app_users` ไม่ใส่ `password_hash` → NOT NULL violation → statement ที่เหลือไม่รันทั้งไฟล์) · fail-fast ถ้าไม่ตั้ง `DATABASE_URL`/`JWT_SECRET` บน prod · เพิ่ม `/api/health/ready` (เช็ค DB จริง เดิม health ตอบ ok ตายตัว → DB ล่มแต่ LB เห็นเขียว) · `NODE_ENV=production` ใน `my-api/Dockerfile` · `.catch()` ใน `main.jsx` (mock พัง = จอขาวทั้งเว็บ) · ย้ายรหัส DB ออกจาก `docker-compose.yml` ไป `.env` · CI เพิ่ม branch `develop`
+- **เอกสาร**: `my-api/.env.example` (ใหม่) · เขียน `DEPLOY-RENDER.md` ใหม่ (2 แบบ: Render+Neon / เซิร์ฟเวอร์บริษัท + checklist หลัง deploy)
+- **Data fix**: แก้ข้อมูล PP ที่ขัดกัน 4 แถว (DONE แต่ผลิตไม่ครบ · FG 1,413 > ผลิต 796) ผ่าน API เพื่อให้ validation + audit log ทำงาน
+- **ค้าง (ไม่บล็อก)**: pagination ~15 endpoint ที่ `SELECT` ทั้งตาราง (มี index รองรับแล้ว ค่อยทำเมื่อข้อมูลแตะหลักหมื่นแถว) · `equipment-borrow` ปล่อยตามที่ตกลง (ใช้เอง)
+
+## 2026-07-17 Frontend Track — UI polish + tests + dashboard widgets
+
+- **Dashboard widgets**: WO Overview + Station Monitor widget (เริ่ม)
+- **Quality**: fail-soft states (loading/error/retry) ทุก query · unit tests (Vitest) · cleanup ไฟล์ตาย · CI `.github/workflows/ci.yml` (typecheck + test + build)
+
+## 2026-07-10 Frontend Track — Workflow + Stock Drift + 5M+1E
+
+- **Workflow dashboard**: `WorkflowBuilder` + charts
+- **Stock Drift**: filter stock vs Odoo (`DriftViewer`)
+- **5M+1E**: Production Plan filter/label เปลี่ยน 4M → 5M+1E
+
+## 2026-07-03 Frontend Track — PP iterations + Workflow start
+
+- **Production Plan**: Gantt / dashboard iterations
+- **Workflow**: เริ่ม workflow dashboard
+
+## 2026-06-26 Frontend Track — Production Plan (PP)
+
+- **PP export**: Excel-form-style export + Gantt
+- **Single source**: sync Dashboard/PDF ให้มาจาก column source เดียวกัน
+
+## 2026-06-19 Frontend Track — real auth + Equipment Borrow
+
+- **Auth/data**: real auth + BOM/WO flow + dropdowns + jig manual entry
+- **Equipment Borrow**: หน้า static เข้า topnav/sidebar (iframe → full-bleed)
+- **Demo**: MSW handlers เพิ่ม (PP / Workflow / jig delete)
+
+## 2026-06-12 Frontend Track — my-api backend + FE pages + demo mode
+
+- **`my-api` backend (ใหม่ · Express + `pg` · :5099)**: data API ให้ admin UI (WO/BOM/OBA/QC/rework/routing/production/planning(PP)/workflow/SCM/notifications/admin/jumbo/jig/inventory/report/auth) · เพิ่มใน `docker-compose.yml` (`mes-my-api`)
+- **Frontend**: หน้า FE-08→FE-15 (รวมทั้งหมด 24 หน้าภายหลัง) + components ทำมือ (`ppParts` Gantt/Donut/BarRow, `WoInput`, `ComboBoxInput`, ฯลฯ)
+- **Deploy/demo**: `vercel.json` (SPA) + MSW demo mode (mock ครบทุกหน้า · เปิดเฉพาะ hostname `mes-demo`)
+- **Node-RED**: starter + FE-7 "apply to real MES" guide
+
+## 2026-06-05 Frontend Track — Kickoff
+
+- **Repo init**: โครง repo + daily report template
+- **Docs**: MES overview / dev-setup / api-reference · integration contracts (UI↔MES)
+- **Plan**: task briefs A–D · Frontend track (port prototype → React) + Node-RED track (PR #7)
+
+## สถานะปัจจุบัน — Intern Frontend Track (local dev)
+
+- **รัน**: `docker compose up -d --build` (postgres `:5432` + backbone `:5100` + my-api `:5099`) + `cd frontend && npm run dev` (`:5101`)
+- **Frontend**: Vite + React 18 + TS · 24 หน้า + widget/มินิชาร์ตทำมือ (ไม่มี chart lib) · demo mode (MSW) เปิดเฉพาะ hostname `mes-demo`
+- **Still OPEN**: mes_web_test apply DB (issue #7) · planning(PP)/mes endpoint จริงบน backbone รอ merge (ตอนนี้ dev proxy stub ที่ my-api)
+
+---
 
 ## 2026-04-24 Session 89-CTO (Cross-Squad Data Flow Validation) — CLAUDY orchestrate 4 squads
 
@@ -274,7 +402,7 @@
 | 09_close | Live | dual approve + GR→WMS + DONE + actualQty→MRP |
 | 10_notifications | Live | inbox, ack |
 | 11_pm_flow | Live | PM project lifecycle |
-| 12_scm_cases | Live | SCM case + disposition |
+| 12_scm_cases | **Removed (2026-07-27)** | SCM case + disposition — ถอดออกจากรีโป ดู "SCM Cases ถูกถอดออก" ด้านล่าง |
 | 13_jumbo | Live | ICT auto-push + ICT gate (graceful) |
 
 ---

@@ -8,6 +8,7 @@ import {
 } from '../lib/adminApi';
 import { PERMISSIONS, ROLE_DEFAULT_PERMS } from '../lib/permissions';
 import { Paginator } from '../components/Paginator';
+import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { showToast } from '../lib/toast';
 
 const ROLES: AppRole[] = ['ADMIN', 'MEMBER', 'VIEWER'];
@@ -284,7 +285,6 @@ function targetLink(targetType: string | null, targetId: string | null): string 
     case 'workflow':      return '/production-plan?tab=workflow';
     case 'pp':            return targetId ? `/dashboard?pp=${targetId}` : '/dashboard';   // เปิดรายละเอียดรายการนั้นบน Dashboard
     case 'jig':           return targetId ? `/jig-test/${targetId}` : '/jig-test';
-    case 'scm':           return '/scm-cases';
     case 'rework':        return '/qc-board?tab=rework';
     case 'inventory':     return '/incoming';
     case 'notifications': return '/notifications';
@@ -296,22 +296,27 @@ function targetLink(targetType: string | null, targetId: string | null): string 
 }
 
 const ACTION_COLOR: Record<string, { bg: string; text: string }> = {
-  LOGIN:       { bg: 'rgba(34,197,94,0.12)',  text: '#16a34a' },
-  CREATE_USER: { bg: 'rgba(59,130,246,0.1)',  text: '#3b82f6' },
-  UPDATE_USER: { bg: 'rgba(234,179,8,0.14)',  text: '#a16207' },
-  DELETE_USER: { bg: 'rgba(239,68,68,0.12)',  text: '#dc2626' },
+  LOGIN:         { bg: 'rgba(34,197,94,0.12)',  text: '#16a34a' },
+  LOGOUT:        { bg: 'rgba(100,116,139,0.14)', text: '#475569' },
+  CREATE_USER:   { bg: 'rgba(59,130,246,0.1)',  text: '#3b82f6' },
+  UPDATE_USER:   { bg: 'rgba(234,179,8,0.14)',  text: '#a16207' },
+  DELETE_USER:   { bg: 'rgba(239,68,68,0.12)',  text: '#dc2626' },
+  EXPORT_BACKUP: { bg: 'rgba(168,85,247,0.13)', text: '#7e22ce' },   // ดาวน์โหลดข้อมูลทั้งระบบ = อ่อนไหว ให้เด่น
 };
 
-function ActivityTable({ withFilter }: { withFilter: boolean }) {
+function ActivityTable({ withFilter, kind, emptyText }: { withFilter: boolean; kind: 'activity' | 'account'; emptyText: string }) {
   const nav = useNavigate();
   const { data: users = [] } = useAdminUsers();
   const [actor, setActor] = useState('');
   const [page, setPage] = useState(1);
   const PAGE = 15;
-  const { data: logs = [], isLoading } = useAuditLogs(actor ? { actor } : undefined);
+  const { data: logs = [], isLoading } = useAuditLogs({ kind, ...(actor ? { actor } : {}) });
   useEffect(() => { setPage(1); }, [actor, logs.length]);
   const totalPages = Math.max(1, Math.ceil(logs.length / PAGE));
   const paged = logs.slice((page - 1) * PAGE, page * PAGE);
+  // เติมแถวว่างให้ครบ PAGE เมื่อมีหลายหน้า → ความสูงตารางคงที่ ปุ่มเปลี่ยนหน้าไม่ขยับ กดรัวๆ ได้
+  // (ถ้ามีหน้าเดียวไม่ต้องเติม จะได้ไม่เห็นตารางว่างโหวงตอนข้อมูลน้อย)
+  const filler = fillerCount(paged.length, PAGE, totalPages);
 
   return (
     <>
@@ -333,7 +338,17 @@ function ActivityTable({ withFilter }: { withFilter: boolean }) {
       ) : (
         <>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            {/* tableLayout: fixed + colgroup = คอลัมน์กว้างตามที่กำหนด ไม่ยืด/หดตามความยาวเนื้อหา
+                → เปลี่ยนหน้าแล้วคอลัมน์อยู่ที่เดิมเป๊ะ (ของเดิม auto จะวัดจากเนื้อหาในหน้านั้น จึงขยับทุกครั้ง)
+                minWidth กันคอลัมน์บีบกันบนจอแคบ — ตัว wrapper มี overflowX ให้เลื่อนอยู่แล้ว */}
+            <table style={{ width: '100%', minWidth: 720, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+              <colgroup>
+                <col style={{ width: 155 }} />{/* Time — วันเวลา en-GB ยาวคงที่ */}
+                <col style={{ width: 130 }} />{/* Actor */}
+                <col style={{ width: 165 }} />{/* Activity — ป้าย action */}
+                <col />{/* Details — กินที่เหลือ */}
+                <col style={{ width: 34 }} />{/* ลูกศร › */}
+              </colgroup>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)' }}>
                   {['Time', 'Actor', 'Activity', 'Details', ''].map((h, i) => (
@@ -352,22 +367,29 @@ function ActivityTable({ withFilter }: { withFilter: boolean }) {
                       title={link ? 'Click to view related information' : undefined}
                       onMouseEnter={e => { if (link) e.currentTarget.style.background = 'rgba(59,130,246,0.06)'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-                      <td style={{ padding: '0.5rem 0.75rem', whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '0.78rem' }}>{new Date(log.createdAt).toLocaleString('en-GB')}</td>
-                      <td style={{ padding: '0.5rem 0.75rem' }}><code style={{ fontSize: '0.82rem' }}>{log.actor}</code></td>
-                      <td style={{ padding: '0.5rem 0.75rem' }}>
+                      {/* height บน cell = ความสูงขั้นต่ำของแถว → ทุกแถว (จริง+ว่าง) สูงเท่ากันเป๊ะ
+                          ทุกคอลัมน์เป็น nowrap อยู่แล้ว จึงไม่มีแถวไหนสูงเกิน ROW_H */}
+                      <td style={{ height: ROW_H, padding: '0.5rem 0.75rem', whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '0.78rem' }}>{new Date(log.createdAt).toLocaleString('en-GB')}</td>
+                      {/* ellipsis: เนื้อหายาวเกินให้ตัด … ไม่ดันคอลัมน์ให้กว้างขึ้น (title = hover ดูเต็มได้) */}
+                      <td style={{ padding: '0.5rem 0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.actor}>
+                        <code style={{ fontSize: '0.82rem' }}>{log.actor}</code>
+                      </td>
+                      <td style={{ padding: '0.5rem 0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.action}>
                         <span style={{ background: ac.bg, color: ac.text, padding: '2px 8px', borderRadius: 4, fontSize: '0.78rem', fontWeight: 600 }}>{log.action}</span>
                       </td>
-                      <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.82rem', color: '#334155', maxWidth: 340 }}>
+                      <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.82rem', color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        title={log.detail ?? undefined}>
                         {log.detail ?? (log.targetType ? `${log.targetType}#${log.targetId}` : '—')}
-                        {link && <span style={{ color: '#3b82f6', marginLeft: 6, fontSize: '0.78rem' }}>↗</span>}
+                        {link && <span style={{ color: 'var(--primary)', marginLeft: 6, fontSize: '0.78rem' }}>↗</span>}
                       </td>
-                      <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: '#cbd5e1' }}>{link ? '›' : ''}</td>
+                      <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: 'var(--line-3)' }}>{link ? '›' : ''}</td>
                     </tr>
                   );
                 })}
+                <FillerRows count={filler} cols={5} />
               </tbody>
             </table>
-            {logs.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No activity found</div>}
+            {logs.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>{emptyText}</div>}
           </div>
           {logs.length > 0 && <Paginator page={page} totalPages={totalPages} onPage={setPage} total={logs.length} />}
         </>
@@ -377,11 +399,17 @@ function ActivityTable({ withFilter }: { withFilter: boolean }) {
 }
 
 type Tab = 'users' | 'activities' | 'audit';
+// key 'audit' คงไว้ (ลิงก์เดิม ?tab=audit ยังใช้ได้) แต่เปลี่ยนความหมาย/ป้ายเป็นเรื่องบัญชี+การเข้าถึง
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'users', label: 'Manage Users + Permissions' },
+  { key: 'users',      label: 'Manage Users + Permissions' },
   { key: 'activities', label: 'Activities' },
-  { key: 'audit', label: 'Audit Log' },
+  { key: 'audit',      label: 'Account & Security' },
 ];
+const TAB_DESC: Record<Tab, string> = {
+  users:      'Manage users · control page permissions',
+  activities: 'สิ่งที่ผู้ใช้แต่ละคนทำในระบบ — สร้าง/แก้/ลบข้อมูลงาน (WO · Production Plan · QC · Jig ฯลฯ)',
+  audit:      'เรื่องบัญชีและการเข้าถึง — เข้าสู่ระบบ · สร้าง/แก้/ลบผู้ใช้ · ดาวน์โหลดข้อมูลทั้งระบบ',
+};
 
 export function AdminPanelPage() {
   const { role } = useMockAuth();
@@ -402,7 +430,7 @@ export function AdminPanelPage() {
     <section className="stack-lg" style={{ maxWidth: 960, margin: '0 auto' }}>
       <div className="panel">
         <h1 className="panel__title">Admin Panel</h1>
-        <p className="panel__subtitle">Manage users · control page permissions · view activity/Audit</p>
+        <p className="panel__subtitle">{TAB_DESC[tab]}</p>
 
         <div className="mes-module-tabs" style={{ marginTop: '1.25rem' }}>
           {TABS.map(t => (
@@ -412,8 +440,12 @@ export function AdminPanelPage() {
 
         <div style={{ marginTop: '1.25rem' }}>
           {tab === 'users' && <UsersTab />}
-          {tab === 'activities' && <ActivityTable withFilter />}
-          {tab === 'audit' && <ActivityTable withFilter={false} />}
+          {tab === 'activities' && (
+            <ActivityTable withFilter kind="activity" emptyText="ยังไม่มีกิจกรรมการทำงาน" />
+          )}
+          {tab === 'audit' && (
+            <ActivityTable withFilter kind="account" emptyText="ยังไม่มีรายการเกี่ยวกับบัญชี/การเข้าถึง" />
+          )}
         </div>
       </div>
     </section>

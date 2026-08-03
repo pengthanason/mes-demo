@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useJigProject, useJigRecords, useJigTimeseries, useJigRetests, useJigRetestCreate, useJigRecordCreate, JigTimeseries, JigRecord } from '../lib/jigApi';
+import { useJigProject, useJigRecords, useJigTimeseries, useJigRecordCreate, JigTimeseries, JigRecord } from '../lib/jigApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { BlockState } from '../components/DataStates';
@@ -115,8 +115,8 @@ function RecordsTable({ records, onSelect }: { records: JigRecord[]; onSelect: (
 }
 
 /* ──────── Detail Modal (drill-down) ──────── */
-function RecordDetailModal({ record, onClose, onRetest, retesting, alreadyRequested }:
-  { record: JigRecord; onClose: () => void; onRetest: () => void; retesting: boolean; alreadyRequested: boolean }) {
+// ฟีเจอร์ "Request Retest" ถูกถอดออกจากระบบ (ตาราง jig_retest_requests + endpoint ถูกลบ)
+function RecordDetailModal({ record, onClose }: { record: JigRecord; onClose: () => void }) {
   const isFail = record.result === 'FAIL';
   const rows: [string, any][] = [
     ['Serial', record.serial],
@@ -150,16 +150,6 @@ function RecordDetailModal({ record, onClose, onRetest, retesting, alreadyReques
         </table>
         <div className="modal-actions">
           <button type="button" className="btn secondary" onClick={onClose}>Close</button>
-          {isFail && (
-            alreadyRequested ? (
-              <span style={{ alignSelf: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#f59e0b' }}>🔁 Retest requested</span>
-            ) : (
-              <button type="button" className="btn" disabled={retesting} onClick={onRetest}
-                style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#fff', fontWeight: 600 }}>
-                {retesting ? 'Sending...' : '🔁 Request Retest'}
-              </button>
-            )
-          )}
         </div>
       </div>
     </div>
@@ -246,24 +236,11 @@ export function JigProjectPage() {
   const { data: project, isLoading: loadingProject, error: projError } = useJigProject(projectCode);
   const { data: records = [], isLoading: loadingRecords } = useJigRecords(projectCode, resultFilter);
   const { data: timeseries = [], isLoading: loadingTs } = useJigTimeseries(projectCode);
-  const { data: retests = [] } = useJigRetests(projectCode);
-  const retestMut = useJigRetestCreate(projectCode);
-
-  // serial ที่ขอ retest ไปแล้ว (กันขอซ้ำ)
-  const requestedSerials = useMemo(() => new Set(retests.map(r => r.serial)), [retests]);
-
   // filter วันที่ (client-side ตามวันที่ทดสอบ)
   const shownRecords = useMemo(
     () => (dateFilter ? records.filter(r => r.testedAt.slice(0, 10) === dateFilter) : records),
     [records, dateFilter]
   );
-
-  function handleRetest(serial: string) {
-    retestMut.mutate(serial, {
-      onSuccess: () => { showToast(`Retest requested: ${serial}`, 'success'); setSelected(null); },
-      onError: (err: any) => showToast(err.message, 'error'),
-    });
-  }
 
   if (loadingProject) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
   if (projError || !project) return (
@@ -361,13 +338,7 @@ export function JigProjectPage() {
       </div>
 
       {selected && (
-        <RecordDetailModal
-          record={selected}
-          onClose={() => setSelected(null)}
-          onRetest={() => handleRetest(selected.serial)}
-          retesting={retestMut.isPending}
-          alreadyRequested={requestedSerials.has(selected.serial)}
-        />
+        <RecordDetailModal record={selected} onClose={() => setSelected(null)} />
       )}
 
       {showAdd && projectCode && <AddRecordModal code={projectCode} onClose={() => setShowAdd(false)} />}

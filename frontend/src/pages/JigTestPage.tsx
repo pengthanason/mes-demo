@@ -105,7 +105,7 @@ function TraceKnexCard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
         {['Total', 'Pass', 'Fail'].map(l => (
           <div key={l} style={{ background: 'var(--bg-muted)', padding: '0.5rem', borderRadius: 6, textAlign: 'center' }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#cbd5e1' }}>—</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--line-3)' }}>—</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{l}</div>
           </div>
         ))}

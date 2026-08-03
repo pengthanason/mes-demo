@@ -111,33 +111,33 @@ export function WoDetailPage() {
       <div className="panel">
         <h2 className="panel__title panel__title--sm">General Information</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Product Code</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.productCode}</div>
           </div>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Customer</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.customer}</div>
           </div>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Station</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.station}</div>
           </div>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Target Qty</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.qty.toLocaleString()} pcs</div>
           </div>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Good Qty</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--success)' }}>
               {wo.actualQty != null ? wo.actualQty.toLocaleString() : wo.qtyGood.toLocaleString()} pcs
             </div>
           </div>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Expected date</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.expectedDate ? new Date(wo.expectedDate).toLocaleDateString('en-GB') : '—'}</div>
           </div>
-          <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+          <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Status</span>
             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{wo.currentStep}</div>
           </div>
@@ -156,7 +156,7 @@ export function WoDetailPage() {
                 <tr>
                   <th>Date</th><th>Lot</th>
                   <th style={{ textAlign: 'center' }}>Checked</th><th style={{ textAlign: 'center' }}>Pass</th><th style={{ textAlign: 'center' }}>Fail</th>
-                  <th style={{ textAlign: 'center' }}>QC Result</th><th>Defect / Remark</th><th>QA Verify</th>
+                  <th style={{ textAlign: 'center' }}>QC Result</th><th style={{ textAlign: 'left' }}>Defect / Remark</th><th>QA Verify</th>
                 </tr>
               </thead>
               <tbody>
@@ -168,7 +168,7 @@ export function WoDetailPage() {
                     <td style={{ textAlign: 'center', color: '#16a34a', fontWeight: 600 }}>{r.qtyPass}</td>
                     <td style={{ textAlign: 'center', color: r.qtyFail > 0 ? '#dc2626' : 'inherit', fontWeight: r.qtyFail > 0 ? 600 : 400 }}>{r.qtyFail}</td>
                     <td style={{ textAlign: 'center' }}><ResultBadge value={r.overall} /></td>
-                    <td style={{ fontSize: '0.8rem', maxWidth: 240, whiteSpace: 'normal' }}>
+                    <td style={{ fontSize: '0.8rem', maxWidth: 240, whiteSpace: 'normal', textAlign: 'left' }}>
                       {r.defectDesc && <div style={{ color: '#dc2626' }}>{r.defectDesc}</div>}
                       {r.remark && <div style={{ color: 'var(--text-muted)' }}>📝 {r.remark}</div>}
                       {!r.defectDesc && !r.remark && <span style={{ color: 'var(--text-muted)' }}>—</span>}
@@ -239,15 +239,15 @@ export function WoDetailPage() {
         <div className="panel">
           <h2 className="panel__title panel__title--sm">FAI Result</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-            <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+            <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Inspector</span>
               <div style={{ fontWeight: 'bold' }}>{wo.faiInspector}</div>
             </div>
-            <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+            <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Approver</span>
               <div style={{ fontWeight: 'bold' }}>{wo.faiApprover}</div>
             </div>
-            <div style={{ padding: '1rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 8 }}>
+            <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Result</span>
               <div style={{ fontWeight: 'bold', color: 'var(--success)' }}>✅ PASSED</div>
             </div>

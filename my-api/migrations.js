@@ -1,26 +1,19 @@
 const db = require('./db');
 
 async function migrate() {
+  // สร้าง schema ให้พร้อมก่อนขอ connection — connection ผูก search_path ไว้แล้ว
+  // ถ้า schema ยังไม่มี CREATE TABLE จะตกไป schema อื่นเงียบๆ
+  await db.ensureSchema();
   const client = await db.connect();
   // ตั้ง SEED_DEMO=false เพื่อไม่ใส่ข้อมูลตัวอย่าง (สำหรับ go-live / กระดานเปล่า)
   const SEED_DEMO = process.env.SEED_DEMO !== 'false';
   try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS boms (
-        id          SERIAL PRIMARY KEY,
-        name        VARCHAR(200) NOT NULL,
-        version     VARCHAR(50)  NOT NULL DEFAULT '1.0',
-        approved    BOOLEAN      NOT NULL DEFAULT false,
-        approved_at TIMESTAMPTZ,
-        created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-        UNIQUE(name, version)
-      )
-    `);
-
+    // ⚠️ ตาราง `boms` (หัว BOM) ถูกถอดออกจากระบบ — BOM ตัวจริงมาจากระบบภายนอก (MRP)
+    //    เหลือแต่ `bom_lines` โดย `bom_id` เป็น plain INTEGER (ไม่มี FK ในฐานข้อมูลนี้)
     await client.query(`
       CREATE TABLE IF NOT EXISTS bom_lines (
         id        SERIAL PRIMARY KEY,
-        bom_id    INTEGER     NOT NULL REFERENCES boms(id) ON DELETE CASCADE,
+        bom_id    INTEGER     NOT NULL,
         part_no   VARCHAR(100) NOT NULL,
         part_name VARCHAR(200) NOT NULL,
         qty_per   NUMERIC(10,4) NOT NULL DEFAULT 1,
@@ -43,19 +36,10 @@ async function migrate() {
       )
     `);
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS pre_wo_requests (
-        id         SERIAL PRIMARY KEY,
-        bom_id     INTEGER     NOT NULL REFERENCES boms(id),
-        qty        INTEGER     NOT NULL CHECK (qty > 0),
-        due_date   DATE        NOT NULL,
-        status     VARCHAR(30) NOT NULL DEFAULT 'PENDING'
-                     CHECK (status IN ('PENDING','APPROVED','CONVERTED','REJECTED')),
-        wo_id      INTEGER REFERENCES work_orders(id),
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
+    // ⚠️ pre_wo_requests (ฟีเจอร์ "คำขอเปิด WO ล่วงหน้า" — create/approve/convert) ถูกถอดออกจากระบบแล้ว
+    //    ตามคำสั่งผู้ใช้ (ยืนยันแล้วว่ารู้ว่าเป็นฟีเจอร์ที่ใช้งานอยู่จริง) — ลบทั้ง endpoint ใน routes/wo.js,
+    //    entry ใน backup.js, และ mock ฝั่ง frontend ไปพร้อมกัน
+    await client.query(`DROP TABLE IF EXISTS pre_wo_requests`);
 
     // ── WO lifecycle columns (Dashboard / FAI / Close) ──
     await client.query(`
@@ -169,66 +153,27 @@ async function migrate() {
       `);
     }
 
-    // ── FE-12: SCM Cases ──
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS scm_cases (
-        id              SERIAL PRIMARY KEY,
-        case_id         VARCHAR(50)  NOT NULL UNIQUE,
-        case_type       VARCHAR(50)  NOT NULL,
-        status          VARCHAR(20)  NOT NULL DEFAULT 'OPEN',
-        ref_po          VARCHAR(100) NOT NULL DEFAULT '',
-        ref_inv         VARCHAR(100) NOT NULL DEFAULT '',
-        part_no         VARCHAR(100) NOT NULL DEFAULT '',
-        due_date        DATE,
-        resolution_note TEXT         NOT NULL DEFAULT '',
-        resolved_at     TIMESTAMPTZ,
-        created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-        updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-      )
-    `);
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS scm_dispositions (
-        id         SERIAL PRIMARY KEY,
-        case_id    VARCHAR(50)   NOT NULL REFERENCES scm_cases(case_id) ON DELETE CASCADE,
-        action     VARCHAR(50)   NOT NULL,
-        rma_no     VARCHAR(100)  NOT NULL DEFAULT '',
-        return_qty NUMERIC(10,3) NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ   NOT NULL DEFAULT NOW()
-      )
-    `);
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS scm_lot_splits (
-        id           SERIAL PRIMARY KEY,
-        original_uid VARCHAR(100)  NOT NULL,
-        ok_uid       VARCHAR(100)  NOT NULL,
-        ng_uid       VARCHAR(100)  NOT NULL,
-        original_qty NUMERIC(10,3) NOT NULL,
-        ok_qty       NUMERIC(10,3) NOT NULL,
-        ng_qty       NUMERIC(10,3) NOT NULL,
-        reason       TEXT          NOT NULL DEFAULT '',
-        created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
-      )
-    `);
-    const scmCount = await client.query('SELECT COUNT(*) FROM scm_cases');
-    if (SEED_DEMO && Number(scmCount.rows[0].count) === 0) {
-      await client.query(`
-        INSERT INTO scm_cases (case_id, case_type, status, ref_po, ref_inv, part_no, due_date, resolution_note, resolved_at) VALUES
-          ('SCM-202606-001', 'QTY_SHORT', 'OPEN',   'PO-10234', 'INV-5501', 'R-100K', '2026-06-20', '', NULL),
-          ('SCM-202606-002', 'DAMAGED',   'CLOSED',  'PO-10235', 'INV-5502', 'IC-555', '2026-06-15', 'Supplier ส่งของมาทดแทนครบ', NOW())
-      `);
-    }
-
     // ── FE-13: Admin Users + Audit Logs ──
+    // ⚠️ ตารางนี้เดิมชื่อ app_users — เปลี่ยนชื่อเป็น users ตามคำสั่งผู้ใช้ (my-api เท่านั้น ไม่แตะ backend/ ที่มี users ของตัวเองแยกต่างหาก)
+    // RENAME ก่อน CREATE IF NOT EXISTS: ฐานเก่าที่มี app_users อยู่แล้วจะถูกเปลี่ยนชื่อ (ข้อมูลเดิมไม่หาย)
+    // ฐานใหม่/ฐานที่ rename ไปแล้วรอบก่อน จะข้ามท่อนนี้ไป (ตาราง app_users ไม่มีอยู่แล้ว)
+    await client.query(`ALTER TABLE IF EXISTS app_users RENAME TO users`);
     await client.query(`
-      CREATE TABLE IF NOT EXISTS app_users (
-        id         SERIAL PRIMARY KEY,
-        username   VARCHAR(100) NOT NULL UNIQUE,
-        full_name  VARCHAR(200) NOT NULL,
-        role       VARCHAR(20)  NOT NULL DEFAULT 'VIEWER'
-                     CHECK (role IN ('ADMIN','MEMBER','VIEWER')),
-        is_active  BOOLEAN      NOT NULL DEFAULT true,
-        created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      CREATE TABLE IF NOT EXISTS users (
+        id            SERIAL PRIMARY KEY,
+        username      VARCHAR(100) NOT NULL UNIQUE,
+        full_name     VARCHAR(200) NOT NULL,
+        role          VARCHAR(20)  NOT NULL DEFAULT 'VIEWER'
+                        CHECK (role IN ('ADMIN','MEMBER','VIEWER')),
+        is_active     BOOLEAN      NOT NULL DEFAULT true,
+        -- ⚠️ ต้องมีตั้งแต่ CREATE — ไม่ใช่รอ ALTER ทีหลัง
+        --    เดิม CREATE ไม่มีคอลัมน์นี้ แต่บล็อก seed ข้างล่าง INSERT ใส่ password_hash
+        --    → ฐานเปล่า (เส้นทาง "ติดตั้งใหม่") migrate ตายทันที: column ... does not exist
+        --    ค่า DEFAULT '' ไว้รองรับฐานเก่าที่ ALTER ตามมาทีหลัง (ดูท้ายบล็อกนี้)
+        password_hash VARCHAR(255) NOT NULL DEFAULT '',
+        permissions   JSONB        NOT NULL DEFAULT '[]'::jsonb,
+        created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
     await client.query(`
@@ -242,14 +187,22 @@ async function migrate() {
         created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )
     `);
-    const userCount = await client.query('SELECT COUNT(*) FROM app_users');
-    if (Number(userCount.rows[0].count) === 0) {
-      await client.query(`
-        INSERT INTO app_users (username, full_name, role) VALUES
-          ('admin',   'ผู้ดูแลระบบ',    'ADMIN'),
-          ('member1', 'วิชัย สุขใจ',    'MEMBER'),
-          ('viewer1', 'สมหมาย ดีใจ',    'VIEWER')
-      `);
+    const userCount = await client.query('SELECT COUNT(*) FROM users');
+    // ⚠️ ต้องมี SEED_DEMO เป็นเงื่อนไขด้วย — ไม่งั้น deploy prod บน DB เปล่าจะได้บัญชี admin/admin อัตโนมัติ
+    //    (prod ให้สร้าง admin คนแรกด้วย my-api/seed_admin.sql — หรือได้มาแล้วถ้า init DB
+    //     จาก my-api/database_schema.sql ซึ่งมี INSERT ตัวเดียวกันอยู่ท้ายไฟล์ — แล้วเปลี่ยนรหัสทันที)
+    if (SEED_DEMO && Number(userCount.rows[0].count) === 0) {
+      // ระบุ password_hash ตรงนี้เลย — ถ้าปล่อยให้ DEFAULT จะพังบนฐานที่สร้างจาก database_schema.sql
+      // (ที่นั่น password_hash เป็น NOT NULL + CHECK (<> '') ไม่มี DEFAULT) → NOT NULL violation → migrate ตายทั้งไฟล์
+      const bcryptSeed = require('bcryptjs');
+      const h = (pw) => bcryptSeed.hashSync(pw, 10);
+      await client.query(
+        `INSERT INTO users (username, full_name, role, password_hash) VALUES
+           ('admin',   'ผู้ดูแลระบบ', 'ADMIN',  $1),
+           ('member1', 'วิชัย สุขใจ', 'MEMBER', $2),
+           ('viewer1', 'สมหมาย ดีใจ', 'VIEWER', $3)`,
+        [h('admin'), h('member1'), h('viewer1')]
+      );
       await client.query(`
         INSERT INTO audit_logs (actor, action, target_type, target_id, detail) VALUES
           ('admin',   'LOGIN',       NULL,          NULL,           'เข้าสู่ระบบสำเร็จ'),
@@ -261,16 +214,22 @@ async function migrate() {
     }
 
     // ── Auth: คอลัมน์รหัสผ่าน + ตั้งรหัสเริ่มต้น (= username) ให้ผู้ใช้ที่ยังไม่มี ──
-    await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(100) NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(100) NOT NULL DEFAULT ''`);
     // สิทธิ์รายหน้า (permissions) — additive · ว่าง [] = ใช้ค่าเริ่มต้นตาม role
-    await client.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '[]'::jsonb`);
-    {
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    // ตั้งรหัสเริ่มต้น (= username) ให้ผู้ใช้ที่ยังไม่มีรหัส — เฉพาะโหมด demo/dev เท่านั้น
+    // ⚠️ ห้ามทำบน prod: รหัส = ชื่อผู้ใช้ = เดาได้ทันที · prod ให้ตั้งรหัสผ่านหน้า Admin
+    //    หรือสร้าง admin คนแรกด้วย my-api/seed_admin.sql
+    if (SEED_DEMO) {
       const bcrypt = require('bcryptjs');
-      const needPw = await client.query("SELECT id, username FROM app_users WHERE password_hash = ''");
+      const needPw = await client.query("SELECT id, username FROM users WHERE password_hash = ''");
       for (const u of needPw.rows) {
-        await client.query('UPDATE app_users SET password_hash=$1 WHERE id=$2', [bcrypt.hashSync(u.username, 10), u.id]);
+        await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [bcrypt.hashSync(u.username, 10), u.id]);
       }
-      if (needPw.rows.length) console.log(`[migrate] ตั้งรหัสเริ่มต้นให้ ${needPw.rows.length} ผู้ใช้ (รหัส = username)`);
+      if (needPw.rows.length) console.log(`[migrate] ตั้งรหัสเริ่มต้นให้ ${needPw.rows.length} ผู้ใช้ (รหัส = username · demo/dev เท่านั้น)`);
+    } else {
+      const { rows } = await client.query("SELECT COUNT(*)::int AS n FROM users WHERE password_hash = ''");
+      if (rows[0].n) console.warn(`[migrate] ⚠️ มีผู้ใช้ ${rows[0].n} คนที่ยังไม่มีรหัสผ่าน — ล็อกอินไม่ได้จนกว่าจะตั้งรหัสให้ (SEED_DEMO=false จึงไม่ตั้งอัตโนมัติ)`);
     }
 
     // ── FE-15: Jig Test Projects + Records ──
@@ -440,18 +399,7 @@ async function migrate() {
       console.log('[migrate] seeded inventory lots');
     }
 
-    // ── Jig Retest Requests (FE-15: สั่งทดสอบซ้ำชิ้นที่ FAIL) ──
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS jig_retest_requests (
-        id           SERIAL PRIMARY KEY,
-        project_code VARCHAR(50)  NOT NULL,
-        serial       VARCHAR(100) NOT NULL,
-        status       VARCHAR(20)  NOT NULL DEFAULT 'REQUESTED'
-                       CHECK (status IN ('REQUESTED','DONE','CANCELLED')),
-        requested_by VARCHAR(100) NOT NULL DEFAULT '',
-        requested_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-      )
-    `);
+    // ── Jig Retest Requests: ถอดออกจากระบบแล้ว (ตาราง + endpoint + ปุ่มหน้าเว็บถูกลบ) ──
 
     // ── Production Scan (operator สแกนชิ้นงานทีละชิ้นที่แต่ละสถานี) ──
     await client.query(`
@@ -480,6 +428,11 @@ async function migrate() {
       )
     `);
     // seed ตัวอย่าง (dev/เดโม) — ใส่เฉพาะตอนตารางว่าง เพื่อให้หน้า Traceability (#50) มี serial ให้ค้นหาทดสอบบน 5101
+    // ⚠️ ต้องอยู่ใต้ SEED_DEMO เหมือน seed ตัวอื่นทั้ง 10 จุด — ก้อนนี้เคยหลุด guard อยู่ก้อนเดียว
+    //    ผลคือ prod (SEED_DEMO=false) ได้ข้อมูลปลอมนี้ไปด้วย แล้วมันไปโผล่เป็น
+    //    "Production Pass Rate 88.2%" บนการ์ด KPI ใบแรกของ Dashboard ทั้งที่ยังไม่มีการผลิตจริง
+    //    (ทาง GET /api/jumbo/report/daily → useDailyReport() → FactoryOverview)
+    if (SEED_DEMO) {
     await client.query(`
       INSERT INTO production_scans (wo_id, serial, station, result, operator, note, scanned_at)
       SELECT * FROM (VALUES
@@ -503,6 +456,7 @@ async function migrate() {
       ) AS v(wo_id, serial, station, result, operator, note, scanned_at)
       WHERE NOT EXISTS (SELECT 1 FROM production_scans)
     `);
+    }
 
     // ── Production Plan (โมดูลใหม่ตาม Excel จริง — Add Project) ──
     await client.query(`
@@ -559,6 +513,7 @@ async function migrate() {
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS qa_status       VARCHAR(30) NOT NULL DEFAULT ''`);
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS status_color    VARCHAR(30) NOT NULL DEFAULT ''`);
     await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS pd_modified     BOOLEAN     NOT NULL DEFAULT false`);
+    await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS product_image   TEXT`);   // รูปสินค้า (data URL) — แนบจาก popup · แยก endpoint /image ไม่รวมใน list
     for (const c of ['pc_prpo', 'pc_wait', 'pc_incoming', 'pc_smt', 'pc_thr', 'pc_test', 'pc_bbas', 'pc_packing']) {
       await client.query(`ALTER TABLE pp_projects ADD COLUMN IF NOT EXISTS ${c} VARCHAR(30) NOT NULL DEFAULT ''`);   // สถานะต่อ step ('' | PP_STATUS)
     }
@@ -623,15 +578,10 @@ async function migrate() {
     // สายที่บันทึกผล (แท็บ Internal/External) — additive
     await client.query(`ALTER TABLE workflow_results ADD COLUMN IF NOT EXISTS line VARCHAR(10) NOT NULL DEFAULT 'internal'`);
 
-    // Seed ข้อมูลตัวอย่างถ้ายังว่าง
-    const { rows } = await client.query('SELECT COUNT(*) FROM boms');
+    // Seed ข้อมูลตัวอย่างถ้ายังว่าง (เกาะกับ work_orders — เดิมเช็คจาก boms ที่ถูกถอดออกแล้ว)
+    const { rows } = await client.query('SELECT COUNT(*) FROM work_orders');
     if (SEED_DEMO && Number(rows[0].count) === 0) {
-      await client.query(`
-        INSERT INTO boms (name, version, approved, approved_at) VALUES
-          ('PCB-A100 BOM', '1.0', true,  NOW()),
-          ('ASY-300 BOM',  '2.1', false, NULL),
-          ('MOT-4500 BOM', '1.3', true,  NOW())
-      `);
+      // bom_id เป็นเลขอ้างอิง BOM ของระบบภายนอก (ไม่มีตาราง boms ในระบบนี้แล้ว)
       await client.query(`
         INSERT INTO bom_lines (bom_id, part_no, part_name, qty_per, unit, sort_order) VALUES
           (1, 'R-100K',   'Resistor 100K Ohm',  10, 'pcs', 1),
@@ -649,6 +599,38 @@ async function migrate() {
           ('WO-202606-003', 'MOT-4500', 3000, 'DONE',        '2026-06-10')
       `);
       console.log('[migrate] seeded initial data');
+    }
+
+    // ── Indexes (additive · idempotent) ─────────────────────────────────────
+    // เดิมไม่มี index เลยแม้แต่ตัวเดียว → ตารางที่โตเร็วสุด (production_scans) ถูก seq scan ทุก 8 วิ
+    // จากหน้า Station monitor (DISTINCT ON + ORDER BY) พอแตะหลักแสน-ล้านแถวจะกิน connection ทั้ง pool
+    // แล้วลากให้ทุก endpoint ช้าตามไปหมด · audit_logs ก็โตทุก mutation แต่ค้นด้วย target_type/target_id
+    const INDEXES = [
+      // Station monitor: DISTINCT ON (station, serial) ... ORDER BY station, serial, scanned_at DESC
+      `CREATE INDEX IF NOT EXISTS idx_prod_scans_station_serial_time ON production_scans (station, serial, scanned_at DESC)`,
+      // Traceability: ค้นตาม serial · Routing history
+      `CREATE INDEX IF NOT EXISTS idx_prod_scans_serial   ON production_scans (serial)`,
+      `CREATE INDEX IF NOT EXISTS idx_prod_scans_wo       ON production_scans (wo_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_prod_scans_time     ON production_scans (scanned_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_prod_units_wo       ON production_units (wo_id)`,
+      // Audit / history popup: WHERE target_type=$1 AND target_id=$2 ORDER BY created_at DESC
+      `CREATE INDEX IF NOT EXISTS idx_audit_target        ON audit_logs (target_type, target_id, created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_audit_time          ON audit_logs (created_at DESC)`,
+      // รายการที่เปิดบ่อยและเรียงตามเวลา
+      `CREATE INDEX IF NOT EXISTS idx_qc_results_wo       ON qc_results (wo_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_qc_records_sn       ON qc_records (sn)`,
+      `CREATE INDEX IF NOT EXISTS idx_oba_wo              ON oba_records (wo_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_kitting_wo          ON kitting_issues (wo_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_routing_serial      ON routing_records (serial)`,
+      `CREATE INDEX IF NOT EXISTS idx_jig_records_proj    ON jig_test_records (project_code, tested_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_jig_records_serial  ON jig_test_records (serial)`,
+      `CREATE INDEX IF NOT EXISTS idx_wo_created          ON work_orders (created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_pp_date_record      ON pp_projects (date_record DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_inv_lots_part       ON inventory_lots (part_no, received_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_notif_unread        ON notifications (is_read, created_at DESC)`,
+    ];
+    for (const sql of INDEXES) {
+      try { await client.query(sql); } catch (e) { console.warn('[migrate] index ข้าม:', e.message); }
     }
 
     console.log('[migrate] all tables ready');

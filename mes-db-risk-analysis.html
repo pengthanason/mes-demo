@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายงานการวิเคราะห์ความเสี่ยงและผลการทดสอบ mes_db</title>
+<style>
+  :root{
+    --bg:#0d0f14; --bg2:#13161e; --bg3:#1a1e2a; --border:#252a38;
+    --txt:#e2e6f0; --txt2:#9aa3b8; --txt3:#5c6480;
+    --red:#f05060;    --red-bg:rgba(240,80,96,.10);    --red-bd:rgba(240,80,96,.28);
+    --orange:#f0924a; --orange-bg:rgba(240,146,74,.10); --orange-bd:rgba(240,146,74,.28);
+    --yellow:#e8c44a; --yellow-bg:rgba(232,196,74,.09); --yellow-bd:rgba(232,196,74,.28);
+    --green:#4ac488;  --green-bg:rgba(74,196,136,.10);  --green-bd:rgba(74,196,136,.28);
+    --blue:#5b9cf6;   --blue-bg:rgba(91,156,246,.10);   --blue-bd:rgba(91,156,246,.26);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:'Segoe UI','Noto Sans Thai',Tahoma,sans-serif;font-size:14.5px;line-height:1.8;padding:48px 24px 100px}
+  .page{max-width:900px;margin:0 auto}
+
+  .report-header{border-bottom:2px solid var(--border);padding-bottom:24px;margin-bottom:36px}
+  .report-eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--txt3);margin-bottom:10px}
+  .report-title{font-size:24px;font-weight:700;line-height:1.35;margin-bottom:12px}
+  .report-meta{font-size:13px;color:var(--txt2);line-height:1.9}
+  .report-meta span{margin-right:22px;white-space:nowrap}
+
+  .section{margin-bottom:44px}
+  .section-title{font-size:17px;font-weight:700;color:var(--txt);border-left:3px solid var(--blue);padding-left:12px;margin-bottom:16px}
+  .section-intro{font-size:14px;color:var(--txt2);margin-bottom:20px;line-height:1.9}
+  .group-title{font-size:13px;font-weight:700;letter-spacing:.02em;margin:26px 0 12px;display:flex;align-items:center;gap:8px}
+  .group-title.g-high{color:var(--red)} .group-title.g-med{color:var(--orange)} .group-title.g-low{color:var(--yellow)}
+
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
+  .stat-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 14px;text-align:center}
+  .stat-num{font-size:36px;font-weight:800;line-height:1;margin-bottom:8px}
+  .stat-label{font-size:12px;color:var(--txt2);line-height:1.45}
+  .c-red{color:var(--red)} .c-orange{color:var(--orange)} .c-yellow{color:var(--yellow)} .c-green{color:var(--green)} .c-blue{color:var(--blue)}
+
+  .risk-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:16px}
+  .risk-card.r-high{border-left:4px solid var(--red)}
+  .risk-card.r-med{border-left:4px solid var(--orange)}
+  .risk-card.r-low{border-left:4px solid var(--yellow)}
+  .risk-card.r-fixed{border-left:4px solid var(--green)}
+  .risk-card.r-code{border-left:4px solid var(--red)}
+  .risk-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+  .risk-badge{flex-shrink:0;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+  .bg-red{background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red)}
+  .bg-orange{background:var(--orange-bg);border:1px solid var(--orange-bd);color:var(--orange)}
+  .bg-green{background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green)}
+  .risk-num{flex-shrink:0;font-size:11px;font-weight:700;color:var(--txt3);background:var(--bg3);border:1px solid var(--border);padding:3px 8px;border-radius:5px}
+  .risk-title{font-size:15px;font-weight:700;flex:1;min-width:200px}
+  .risk-body{font-size:13.5px;color:var(--txt2);line-height:1.9}
+  .risk-body p{margin-bottom:8px}
+  .risk-body p:last-child{margin-bottom:0}
+  .risk-body strong{color:var(--txt);font-weight:600}
+
+  .test-result{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:6px;margin-top:12px}
+  .tr-pass,.tr-fixed{background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green)}
+  .tr-warn{background:var(--orange-bg);border:1px solid var(--orange-bd);color:var(--orange)}
+  .tr-fail{background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red)}
+  .tr-info{background:var(--blue-bg);border:1px solid var(--blue-bd);color:var(--blue)}
+
+  .code-line{font-family:'Consolas','Cascadia Code',monospace;font-size:12px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:8px 12px;color:var(--txt2);margin:6px 0;overflow-x:auto;white-space:pre}
+  .code-line .del{color:var(--red);text-decoration:line-through}
+  .code-line .add{color:var(--green)}
+  code{font-family:'Consolas','Cascadia Code',monospace;font-size:12px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--blue)}
+
+  .infobox{border-radius:8px;padding:14px 16px;font-size:13.5px;line-height:1.9;margin-bottom:16px}
+  .infobox.blue{background:var(--blue-bg);border-left:3px solid var(--blue)}
+  .infobox.orange{background:var(--orange-bg);border-left:3px solid var(--orange)}
+  .infobox.green{background:var(--green-bg);border-left:3px solid var(--green);color:var(--txt)}
+  .infobox strong{font-weight:700;color:var(--txt)}
+
+  table.check{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px}
+  table.check th{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--bg3);color:var(--txt2);font-weight:600}
+  table.check td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--txt2)}
+  table.check tr:nth-child(even) td{background:var(--bg2)}
+  .ok{color:var(--green);font-weight:600;text-align:center}
+
+  .checklist p{margin-bottom:10px;color:var(--txt2)}
+  .checklist .box{display:inline-block;width:15px;height:15px;border:1.5px solid var(--txt3);border-radius:3px;margin-right:10px;vertical-align:-2px}
+  .checklist .box.done{border-color:var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:800;line-height:13px;text-align:center}
+  .checklist p.done{color:var(--txt2)}
+  .checklist .note{display:block;margin:2px 0 0 25px;font-size:12.5px;color:var(--green)}
+  .checklist .note-wait{display:block;margin:2px 0 0 25px;font-size:12.5px;color:var(--txt3)}
+
+  /* กล่องตอบกลับ: การดำเนินการฝั่ง my-api */
+  .action{margin-top:14px;padding:12px 14px;background:var(--blue-bg);border-left:3px solid var(--blue);border-radius:6px;font-size:13px;line-height:1.85}
+  .action .a-head{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:5px}
+  .action p{margin:0 0 5px;color:var(--txt2)}
+  .action p:last-child{margin-bottom:0}
+  .action strong{color:var(--txt);font-weight:600}
+  .pill{display:inline-block;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:12px;margin:2px 4px 2px 0;color:var(--txt2)}
+
+  hr{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .foot{font-size:12px;color:var(--txt3);text-align:center;line-height:1.9}
+
+  @media (max-width:620px){
+    .stat-row{grid-template-columns:repeat(2,1fr)}
+    body{padding:32px 16px 80px}
+    .report-meta span{display:block;margin:0 0 4px}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="report-header">
+    <div class="report-eyebrow">MES Backend · Database Schema Migration</div>
+    <div class="report-title">รายงานการวิเคราะห์ความเสี่ยงและผลการทดสอบ<br>ฐานข้อมูล <code>mes_db</code> Schema v2</div>
+    <div class="report-meta">
+      <span>📅 วันที่จัดทำ: 28 กรกฎาคม 2569</span>
+      <span>🗄️ ฐานข้อมูลที่ใช้ทดสอบ: <code>test_mes_db</code></span>
+      <span>📁 ไฟล์ schema ใหม่: <code>database_schema(1).sql</code></span>
+    </div>
+    <div class="infobox blue" style="margin:18px 0 0">
+      <strong>📣 เอกสารนี้มีการอัปเดต</strong> — เพิ่ม <strong>กล่อง "การดำเนินการฝั่ง my-api"</strong> ใต้ความเสี่ยงแต่ละข้อ
+      (ผลการตรวจกับโค้ด/ฐานข้อมูลที่ใช้งานจริง) และเพิ่ม <strong>หัวข้อ 6</strong> สรุปสิ่งที่แก้ไขไปแล้ว ·
+      Checklist ในหัวข้อ 5 ติ๊กเฉพาะข้อที่ตรวจแล้วเรียบร้อย
+    </div>
+  </div>
+
+  <!-- 1. ภาพรวม -->
+  <div class="section">
+    <div class="section-title">1. สรุปภาพรวม</div>
+    <div class="section-intro">
+      ในช่วงที่ผ่านมา ทีมได้รับ Schema ฐานข้อมูล MES ฉบับใหม่ที่ได้รับการปรับปรุงให้สอดคล้องกับการใช้งานจริง (Reconciled v2)
+      เราจึงทำการวิเคราะห์เปรียบเทียบกับ Schema เดิม เพื่อหาว่ามีจุดไหนที่อาจทำให้ระบบทำงานผิดพลาดได้บ้าง
+      จากนั้นสร้างฐานข้อมูลทดสอบ (<code>test_mes_db</code>) แล้วทดสอบจริงทีละข้อ
+      <br><br>
+      <strong>ตัวเลขด้านล่าง = สถานะปัจจุบัน</strong> (หลังตรวจสอบกับโค้ดและฐานข้อมูลที่ใช้งานจริงเรียบร้อยแล้ว) —
+      ตอนเริ่มวิเคราะห์จัดระดับไว้เป็น ความเสี่ยงสูง 1 · ปานกลาง 4 · ต่ำ 3 และพบจุดในโค้ด 4 จุด
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-num c-green">7</div><div class="stat-label">ตรวจแล้วไม่พบปัญหา<br>(R3–R9 · ระบบรองรับอยู่แล้ว)</div></div>
+      <div class="stat-box"><div class="stat-num c-orange">1</div><div class="stat-label">คงสถานะ DEFERRED<br>(R2 · FK wo_id)</div></div>
+      <div class="stat-box"><div class="stat-num c-blue">5</div><div class="stat-label">แก้เพิ่มฝั่ง my-api<br>(ดูหัวข้อ 6)</div></div>
+      <div class="stat-box"><div class="stat-num c-green">4</div><div class="stat-label">ไฟล์ backend ไม่ต้องแก้<br>(คนละฐานข้อมูล · หัวข้อ 3)</div></div>
+    </div>
+
+    <div class="infobox blue">
+      <strong>📌 สิ่งสำคัญที่ต้องรู้ก่อน:</strong>
+      Schema ใหม่ (v2) มีการปรับปรุงหลายจุดจากที่เพื่อน BE ออกแบบมา เพื่อให้ตรงกับการทำงานจริงของแอปพลิเคชัน
+      เช่น เปลี่ยนประเภทคอลัมน์บางตัว เพิ่มค่าใหม่ในฟิลด์สถานะ และแก้ไขข้อกำหนด FK ที่ซับซ้อน รายละเอียดทั้งหมดอยู่ในส่วนถัดไป
+    </div>
+  </div>
+
+  <!-- 2. ความเสี่ยง -->
+  <div class="section">
+    <div class="section-title">2. ความเสี่ยงที่พบและผลการทดสอบจริง</div>
+    <div class="section-intro">
+      ทดสอบในฐานข้อมูล <code>test_mes_db</code> ซึ่งเป็น copy จาก <code>mes_db</code> v2 ทุกการทดสอบเป็นข้อมูลจำลอง ไม่กระทบข้อมูลจริง
+    </div>
+
+    <!-- สูง -->
+    <div class="group-title g-high">🔴 ความเสี่ยงสูง — ต้องแก้ก่อน deploy</div>
+
+    <div class="risk-card r-fixed">
+      <div class="risk-top">
+        <span class="risk-num">R2</span>
+        <span class="risk-badge bg-green">แก้แล้ว (test_mes_db)</span>
+        <span class="risk-title">FK ของ wo_id ยังไม่ถูกบังคับใช้</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ปัญหาคืออะไร:</strong> ตารางหลายตัว (เช่น production_scans, oba_records, qc_results) มีคอลัมน์ <code>wo_id</code>
+          ที่ควรจะต้องอ้างอิงไปยัง Work Order จริงๆ ใน <code>work_orders</code> แต่ตอนนี้ยังไม่มีการบังคับ —
+          ทำให้ระบบสามารถบันทึก wo_id ที่ไม่มีอยู่จริงได้ ส่งผลให้ข้อมูลขาดการเชื่อมโยง ตามหา WO ย้อนหลังไม่ได้</p>
+        <p><strong>สาเหตุที่ยังไม่ได้บังคับตั้งแต่แรก:</strong> แอปบางส่วน (โมดูล Workflow และ QC) บันทึกค่า <code>'WORKFLOW'</code> และ <code>'QC'</code>
+          เป็น wo_id แทนหมายเลข WO จริง ซึ่งค่าพวกนี้ไม่มีใน work_orders ถ้าบังคับ FK ไปเลยโดยไม่แก้ไข ระบบจะ error ทุกครั้งที่บันทึก</p>
+        <p><strong>วิธีแก้ที่ทดสอบแล้ว:</strong> สร้างแถว WO พิเศษสำหรับค่า synthetic เข้าไปใน work_orders ก่อน (WORKFLOW, QC)
+          จากนั้นเปิดใช้งาน FK ได้สำเร็จทั้ง 11 ตาราง</p>
+      </div>
+      <div class="test-result tr-fixed">✓ แก้แล้วใน test_mes_db — FK 11 ตารางทำงานปกติ</div>
+      <div class="action">
+        <div class="a-head">การดำเนินการฝั่ง my-api</div>
+        <p><strong>ยังคงสถานะ DEFERRED (ยังไม่เปิด FK)</strong> — ตรวจ DB ที่ใช้งานจริงแล้วพบข้อมูลที่ไม่มี WO รองรับปนอยู่มาก
+          โดยเฉพาะ <code>production_scans</code> ที่แถวเกือบทั้งหมดยังอ้าง wo_id ที่ไม่มีใน work_orders</p>
+        <p>ค่าที่พบมี 2 กลุ่ม — กลุ่มสังเคราะห์ตามดีไซน์ <span class="pill">WORKFLOW</span><span class="pill">QC</span>
+          และกลุ่มที่กรอกอิสระ <span class="pill">qew</span><span class="pill">A001</span><span class="pill">RSU</span><span class="pill">PCBA</span></p>
+        <p><strong>สรุป:</strong> วิธีสร้าง WO สังเคราะห์ใช้ได้จริงตามที่ทดสอบ แต่ต้องล้างค่าที่กรอกอิสระ + เพิ่ม validation กัน wo_id มั่วก่อน จึงจะเปิด FK ได้ปลอดภัย</p>
+      </div>
+    </div>
+
+    <!-- ปานกลาง -->
+    <div class="group-title g-med">🟠 ความเสี่ยงปานกลาง — ต้องวางแผนรองรับ</div>
+
+    <div class="risk-card r-med">
+      <div class="risk-top">
+        <span class="risk-num">R3</span>
+        <span class="risk-badge bg-green">ผ่านการทดสอบ</span>
+        <span class="risk-title">คอลัมน์สถานะ PP เปลี่ยนประเภทข้อมูล</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ปัญหาคืออะไร:</strong> คอลัมน์ <code>pc_prpo</code>, <code>pc_wait</code>, <code>pc_smt</code> และอีก 5 คอลัมน์ใน <code>pp_projects</code>
+          เดิมถูกออกแบบมาเพื่อเก็บเลขเปอร์เซ็นต์ (เช่น 75.00%) แต่จริงๆ แล้วระบบเก็บเป็น "คำสถานะ" เช่น ON_PROCESS, DONE, DELAY
+          ทีมเพื่อน BE เข้าใจผิดว่าเป็นตัวเลข จึง Schema เก่าเป็น numeric — ตอนนี้แก้เป็น VARCHAR แล้ว</p>
+        <p><strong>ผลกระทบ:</strong> ถ้าโค้ดไหนยังคำนวณตัวเลขบนคอลัมน์นี้อยู่ (เช่น หาค่าเฉลี่ย หรือเปรียบเทียบตัวเลข) จะ error ทันที</p>
+      </div>
+      <div class="test-result tr-pass">✓ ยืนยันแล้ว — ทั้ง 8 คอลัมน์เป็น VARCHAR(30) ครบถ้วน</div>
+      <div class="action">
+        <div class="a-head">การดำเนินการฝั่ง my-api</div>
+        <p><strong>ไม่ต้องแก้เพิ่ม</strong> — สแกนโค้ดทั้งโปรเจกต์แล้วไม่มีจุดใดคำนวณตัวเลขบน <code>pc_*</code>
+          (ไม่มี SUM / AVG / เปรียบเทียบ / parseFloat) ทุกที่ใช้เป็นสตริงสถานะเพื่อลงสี Gantt เท่านั้น จึงไม่มีโค้ดที่ error จากการเปลี่ยน type</p>
+      </div>
+    </div>
+
+    <div class="risk-card r-med">
+      <div class="risk-top">
+        <span class="risk-num">R4</span>
+        <span class="risk-badge bg-green">ผ่านการทดสอบ</span>
+        <span class="risk-title">ประเภทการเปลี่ยนแปลง (Change Request) เพิ่มจาก 4M เป็น 5M+1E</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ปัญหาคืออะไร:</strong> ระบบ Change Request เดิมรองรับแค่ 4 ประเภท (Man, Machine, Material, Method)
+          แต่ในความเป็นจริงมีการใช้ 2 ประเภทเพิ่มเติม คือ Measurement (การวัด) และ Environment (สิ่งแวดล้อม) Schema ใหม่รองรับครบแล้ว</p>
+        <p><strong>ผลกระทบ:</strong> หน้าจอ dropdown ที่ hardcode ไว้แค่ 4 ค่า จะไม่แสดง 2 ค่าใหม่
+          ถ้ามีการส่งค่า <code>Measurement</code> หรือ <code>Environment</code> ผ่าน API โดยที่ backend validation ยังไม่ได้อัปเดต จะถูก reject</p>
+      </div>
+      <div class="test-result tr-pass">✓ ยืนยันแล้ว — INSERT ด้วย Measurement และ Environment สำเร็จทั้งคู่</div>
+      <div class="action">
+        <div class="a-head">การดำเนินการฝั่ง my-api</div>
+        <p><strong>อัปเดตครบแล้วทั้ง 3 ชั้น</strong> — dropdown หน้าจอมี 6 ค่า (ทั้งฟอร์มสร้างและตัวกรอง) ·
+          backend validation รับ 6 ค่า · DB constraint ขยายจาก 4M เป็น 6 ค่าแบบ idempotent (ไม่ลบข้อมูลเดิม)</p>
+        <p>จึงไม่มีเคสที่ Measurement / Environment ถูก reject</p>
+      </div>
+    </div>
+
+    <div class="risk-card r-med">
+      <div class="risk-top">
+        <span class="risk-num">R5</span>
+        <span class="risk-badge bg-green">ผ่านการทดสอบ</span>
+        <span class="risk-title">การแจ้งเตือน (Notification) ไม่จำเป็นต้องระบุผู้รับ</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ปัญหาคืออะไร:</strong> เดิมระบบบังคับว่าทุก notification ต้องระบุ <code>user_id</code> (ส่งให้ใครคนหนึ่ง)
+          แต่ในทางปฏิบัติมีการส่ง notification แบบ "ประกาศทั่วระบบ" ที่ไม่ได้ส่งให้ใครโดยเฉพาะ
+          Schema ใหม่จึงเปลี่ยนให้ user_id เป็น Optional (ค่า NULL = ประกาศทั่วระบบ)</p>
+        <p><strong>ผลกระทบ:</strong> โค้ดที่ดึง user_id จาก notification แล้วใช้โดยตรงโดยไม่ตรวจสอบ NULL
+          จะเกิดข้อผิดพลาด เช่น "Cannot read property of null" หรือ NullPointerException</p>
+      </div>
+      <div class="test-result tr-pass">✓ ยืนยันแล้ว — INSERT notification แบบ global (user_id = NULL) สำเร็จ</div>
+      <div class="action">
+        <div class="a-head">การดำเนินการฝั่ง my-api</div>
+        <p><strong>ไม่ต้องเพิ่ม null check</strong> — ระบบแจ้งเตือนที่ใช้จริงเป็นแบบ global ทั้งหมด
+          โค้ดฝั่ง API และหน้าจอไม่มีการอ่าน / filter / เขียน <code>user_id</code> เลย (query ดึงทั้งหมดโดยไม่กรองผู้ใช้) จึงไม่มีจุดที่จะ crash จากค่า NULL</p>
+      </div>
+    </div>
+
+    <div class="risk-card r-med">
+      <div class="risk-top">
+        <span class="risk-num">R6</span>
+        <span class="risk-badge bg-orange">ยืนยันความเสี่ยง — ต้องระวัง</span>
+        <span class="risk-title">บันทึก Audit Log ต้องระบุผู้ทำรายการที่มีอยู่จริงในระบบ</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ปัญหาคืออะไร:</strong> Schema ใหม่เพิ่มคอลัมน์ <code>actor_id</code> ใน <code>audit_logs</code>
+          เพื่อเชื่อมโยงกับตาราง <code>app_users</code> ซึ่งเป็นสิ่งดีที่ช่วยให้ตรวจสอบย้อนหลังได้ชัดเจนขึ้น</p>
+        <p><strong>แต่มีข้อควรระวัง:</strong> ถ้าโค้ดส่ง actor_id ที่ไม่มีอยู่ใน app_users ระบบจะปฏิเสธการบันทึกทันที
+          (ไม่ใช่แค่ตั้งค่าเป็น NULL อย่างที่เข้าใจไว้แต่แรก) หมายความว่าถ้า module ส่ง user_id ผิด — audit log จะบันทึกไม่ได้เลย
+          ซึ่งอาจทำให้ API ที่เรียก fail ไปด้วย ขึ้นอยู่กับว่า error handling เขียนไว้แค่ไหน</p>
+      </div>
+      <div class="test-result tr-warn">⚠️ ยืนยันความเสี่ยง — actor_id ที่ไม่มีจริงทำให้ INSERT fail ทันที (FK error)</div>
+      <div class="action">
+        <div class="a-head">การดำเนินการฝั่ง my-api</div>
+        <p><strong>ไม่กระทบระบบที่ใช้จริง</strong> — audit log ของ my-api บันทึกผู้ทำรายการด้วยคอลัมน์ <code>actor</code>
+          (ชื่อผู้ใช้เป็น VARCHAR, ค่าเริ่มต้น <code>'system'</code>) ไม่ได้ใช้ <code>actor_id</code> ที่เป็น FK จึงไม่เกิด FK error ตามที่กังวล</p>
+        <p>คง <code>actor_id</code> ไว้ใน schema ตามที่เสนอ (เป็น nullable + ON DELETE SET NULL) เพื่อรองรับอนาคต แต่ยังไม่มีโค้ดใดส่งค่านี้</p>
+      </div>
+    </div>
+
+    <!-- ต่ำ -->
+    <div class="group-title g-low">🟡 ความเสี่ยงต่ำ — ติดตามหลัง deploy</div>
+
+    <div class="risk-card r-low">
+      <div class="risk-top">
+        <span class="risk-num">R7</span>
+        <span class="risk-badge bg-green">ผ่านการทดสอบ</span>
+        <span class="risk-title">แบบฟอร์ม Production Plan มีฟิลด์ใหม่ 2 ตัว</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ปัญหาคืออะไร:</strong> ตาราง <code>pp_projects</code> มีคอลัมน์ใหม่ 2 ตัวคือ
+          <code>pp_type</code> (ระบุว่าเป็นงาน internal หรือ external) และ <code>bom_rec_date</code> (วันที่รับ BOM)
+          ซึ่งเพิ่มมาเพื่อรองรับฟีเจอร์ Dashboard ที่แยกแท็บตามประเภทงาน</p>
+        <p><strong>ผลกระทบ:</strong> การบันทึกข้อมูลยังทำได้ปกติแม้ไม่ได้ส่ง 2 ฟิลด์นี้ (ใช้ค่า default)
+          แต่ข้อมูลที่บันทึกจะไม่ครบ ทำให้ filter/แยกแท็บ Dashboard ไม่ทำงาน</p>
+      </div>
+      <div class="test-result tr-pass">✓ ยืนยันแล้ว — INSERT พร้อม pp_type และ bom_rec_date สำเร็จ</div>
+      <div class="action">
+        <div class="a-head">การดำเนินการฝั่ง my-api</div>
+        <p><strong>รองรับครบแล้ว</strong> — ฟอร์มหน้าจอส่งทั้ง <code>pp_type</code> (dropdown internal/external) และ <code>bom_rec_date</code> (ช่องวันที่) ·
+          API อ่าน/เขียนทั้งคู่ · Dashboard ใช้ pp_type แยกแท็บได้จริง</p>
+        <p>คอลัมน์ถูกเพิ่มแบบ <code>IF NOT EXISTS</code> + มี DEFAULT <code>'internal'</code> แถวเดิมจึงไม่พังและ filter ทำงานได้ทันที</p>
+      </div>
+    </div>
+
+    <div class="risk-card r-low">
+      <div class="risk-top">
+        <span class="risk-num">R8</span>
+        <span class="risk-badge bg-green">ผ่านการทดสอบ</span>
+        <span class="risk-title">Work Order ใช้หมายเลข (wo_no) เป็นตัวอ้างอิงแทน ID ตัวเลข</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ปัญหาคืออะไร:</strong> Schema ใหม่ใช้ <code>wo_no</code> (เช่น "WO-2026-001") เป็นตัวระบุหลักของ Work Order
+          แทนที่จะใช้ <code>id</code> ซึ่งเป็นตัวเลขอัตโนมัติอย่างใน Schema เก่า
+          โค้ดที่เชื่อมตาราง (JOIN) ด้วย <code>work_orders.id</code> จะต้องเปลี่ยนมาใช้ <code>wo_no</code> แทน</p>
+        <p><strong>ผลกระทบ:</strong> Query ที่ JOIN ด้วย id จะหาข้อมูลไม่เจอหรือ error แต่ถ้า JOIN ด้วย wo_no จะทำงานได้ถูกต้อง
+          นอกจากนี้ ระบบยังป้องกันการบันทึก wo_no ซ้ำได้ด้วย UNIQUE constraint</p>
+      </div>
+      <div class="test-result tr-pass">✓ ยืนยันแล้ว — UNIQUE constraint บน wo_no ทำงานถูกต้อง ห้ามบันทึกซ้ำ</div>
+      <div class="action">
+        <div class="a-head">การดำเนินการฝั่ง my-api — ขอปรับความเข้าใจ</div>
+        <p><strong>schema v2 ไม่ได้เปลี่ยน PK เป็น wo_no</strong> — ตาราง <code>work_orders</code> ยังมี <code>id SERIAL PRIMARY KEY</code> อยู่
+          และเพิ่ม <code>wo_no VARCHAR(50) NOT NULL UNIQUE</code> เป็นคีย์ธุรกิจควบคู่กัน (มีทั้งสองอย่าง)</p>
+        <p>ดังนั้นโค้ดที่ JOIN ด้วย <code>id</code> ยังใช้ได้ปกติ ไม่ต้อง refactor · ส่วนตารางลูกใช้ <code>wo_id</code> เก็บค่า wo_no แบบสตริงตามดีไซน์เดิม</p>
+        <p><strong>สิ่งที่แก้เพิ่ม:</strong> พบว่า <code>pre_wo_requests.wo_id</code> ในเอกสาร schema เขียนเป็น VARCHAR ทั้งที่ DB จริงเป็น
+          <code>INTEGER REFERENCES work_orders(id)</code> → แก้เอกสารให้ตรงกับของจริงแล้ว (กัน dev/prod ได้ชนิดต่างกัน)</p>
+      </div>
+    </div>
+
+    <div class="risk-card r-low">
+      <div class="risk-top">
+        <span class="risk-num">R9</span>
+        <span class="risk-badge bg-green">ผ่านการทดสอบ</span>
+        <span class="risk-title">สิทธิ์ผู้ใช้งานเปลี่ยนจาก 7 ระดับเป็น 3 ระดับ</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ปัญหาคืออะไร:</strong> Schema เก่ามีสิทธิ์ผู้ใช้งาน 7 ประเภท (PM, STORE, QC, QA, TECH, PD, ADMIN)
+          แต่ Schema ใหม่เรียบง่ายขึ้นเหลือแค่ 3 ระดับ: <code>ADMIN</code> (ผู้ดูแลระบบ), <code>MEMBER</code> (ผู้ใช้ทั่วไป), <code>VIEWER</code> (ผู้ดูอย่างเดียว)
+          โค้ดที่เช็คชื่อสิทธิ์เก่าจะทำงานผิดพลาด</p>
+        <p><strong>ผลกระทบ:</strong> ถ้าโค้ดเช็คว่า role เป็น 'STORE' หรือ 'QC' — ระบบจะตอบสนองผิดเพราะค่าพวกนี้ไม่มีอีกแล้ว
+          ฐานข้อมูลก็ป้องกันไม่ให้บันทึกค่าเก่าด้วย CHECK constraint</p>
+      </div>
+      <div class="test-result tr-pass">✓ ยืนยันแล้ว — ค่าเก่า 'STORE' ถูก reject โดย DB, ADMIN/MEMBER/VIEWER ผ่านปกติ</div>
+      <div class="action">
+        <div class="a-head">การดำเนินการฝั่ง my-api</div>
+        <p><strong>ใช้ 3 role ครบทุกจุดแล้ว</strong> — ทั้ง DB constraint, ระบบตรวจสิทธิ์, หน้าจัดการผู้ใช้ และ mock data
+          ใช้ <code>ADMIN / MEMBER / VIEWER</code> สอดคล้องกันหมด ไม่มี mismatch</p>
+        <p>ส่วน role ชุด 7 ค่า (PM/STORE/QC/QA/TECH/PD) ที่พบในโค้ด เป็นของ <code>backend/</code> ซึ่งใช้ตาราง <code>users</code>
+          และ ENUM <code>user_role</code> ในฐานข้อมูลของตัวเอง — คนละระบบกัน (ดูรายละเอียดหัวข้อ 3)</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. โค้ดที่ต้องแก้มือ -->
+  <div class="section">
+    <div class="section-title">3. โค้ดในระบบที่ต้องแก้มือ (พบจากการสแกน)</div>
+    <div class="section-intro">
+      หลังจากทดสอบ DB แล้ว ได้ทำการสแกนหาโค้ดในโฟลเดอร์ <code>backend/modules</code>
+      พบ 4 ไฟล์ที่ยังใช้ชื่อตารางหรือค่าสิทธิ์แบบเก่าอยู่ ซึ่งจะทำให้ระบบทำงานผิดพลาดเมื่อใช้กับ DB v2
+    </div>
+
+    <div class="action" style="margin-bottom:22px">
+      <div class="a-head">ผลการตรวจสอบเพิ่มเติม — 4 ไฟล์นี้ยัง "ไม่แก้" (และไม่ควรแก้)</div>
+      <p>ตรวจแล้วพบว่า <code>backend/</code> เป็นแอปแยกที่มี <strong>ฐานข้อมูลและ schema ของตัวเอง</strong> (<code>backend/schema.sql</code>)
+        ไม่ใช่แอปเดียวกับ <code>my-api</code> ที่ <code>database_schema.sql</code> (v2) นิยามไว้ — หลักฐานชัดเจน 2 ข้อ:</p>
+      <p><strong>1) ตาราง <code>work_orders</code> เป็นคนละตัวกัน</strong> คนละคอลัมน์เลย:</p>
+      <div class="code-line">backend : id BIGSERIAL, wo_number CHAR(6), part_no CHAR(12), qty_target NUMERIC, status work_order_status (ENUM), bom_header_id → master_bom_header
+my-api  : id SERIAL,    wo_no VARCHAR(50),  product_name VARCHAR(200), qty INTEGER, status VARCHAR(30)</div>
+      <p><strong>2) backend ต้องใช้ตารางที่ไม่มีใน schema v2 เลย</strong> —
+        <span class="pill">users</span><span class="pill">master_bom_header</span><span class="pill">wo_close_approvals</span><span class="pill">wo_bom_snapshot</span><span class="pill">wip_tracking</span><span class="pill">material_requisitions</span>
+        (ทั้งหมดมีใน backend/schema.sql แต่ไม่มีใน database_schema.sql)</p>
+      <p><strong>สรุป:</strong> การทดสอบครั้งนี้นำโค้ดของ <code>backend/</code> ไปตรวจกับ <code>test_mes_db</code> ที่สร้างจาก schema ของ <code>my-api</code>
+        จึงเห็นว่า "ตารางผิด / role ไม่มี" ทุกจุดโดยธรรมชาติ ทั้งที่โค้ดถูกต้องอยู่แล้วสำหรับฐานข้อมูลของตัวเอง
+        หากแก้ <code>users</code> → <code>app_users</code> ตามที่เสนอ จะทำให้ backend <strong>พังกับ DB ของตัวเอง</strong>
+        และก็ยังใช้กับ schema v2 ไม่ได้ (เพราะตารางอื่นและคอลัมน์ยังไม่ตรงอยู่ดี)</p>
+      <p>อีกประเด็น: คำว่า <code>users</code> ถูกใช้ <strong>13 จุดใน 8 ไฟล์</strong> รวมถึงระบบ login และ session
+        (<code>common/auth.js</code>, <code>modules/00_auth/auth.routes.js</code>) การแก้เพียง 4 ไฟล์จะทำให้ระบบไม่สอดคล้องกันมากกว่าเดิม</p>
+      <p><strong>ข้อเสนอ:</strong> ให้ <code>backend/</code> ใช้ DB ของตัวเองต่อไป (ตามที่ <code>.env.dev</code> ตั้งไว้)
+        และหากต้องการรวมผู้ใช้เป็นตารางเดียวจริง ควรทำเป็นงานแยกที่วางแผน permission ใหม่ทั้งระบบ ไม่ใช่เปลี่ยนชื่อค่า role</p>
+    </div>
+
+    <div class="risk-card r-code">
+      <div class="risk-top">
+        <span class="risk-badge bg-red">R8 — ตารางผิด</span>
+        <span class="risk-title">wo_polling.js — อ้างอิงตารางชื่อเก่า</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ที่อยู่:</strong> <code>backend/modules/03_wo_release/wo_polling.js</code> บรรทัด 75</p>
+        <p><strong>ปัญหา:</strong> โค้ดค้นหาข้อมูล user จากตาราง <code>users</code> ซึ่งเป็นชื่อตารางใน Schema เก่า
+          ใน Schema ใหม่เปลี่ยนชื่อเป็น <code>app_users</code> นอกจากนี้ยังค้นหา role <code>'PM'</code> ซึ่งไม่มีในระบบใหม่</p>
+        <div class="code-line"><span class="del">SELECT id FROM users WHERE role IN ('ADMIN','PM') ORDER BY id LIMIT 1</span></div>
+        <div class="code-line"><span class="add">SELECT id FROM app_users WHERE role = 'ADMIN' ORDER BY id LIMIT 1</span></div>
+      </div>
+      <div class="test-result tr-info">ℹ️ ตรวจแล้ว — ไม่ต้องแก้ · <code>users</code> คือตารางที่ถูกต้องของ DB ฝั่ง backend เอง</div>
+    </div>
+
+    <div class="risk-card r-code">
+      <div class="risk-top">
+        <span class="risk-badge bg-red">R9 — Role เก่า</span>
+        <span class="risk-title">admin.routes.js — เช็ค role แบบเก่า</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ที่อยู่:</strong> <code>backend/modules/15_admin/admin.routes.js</code> บรรทัด 11</p>
+        <p><strong>ปัญหา:</strong> เงื่อนไขการอนุญาตเข้าถึงหน้า Admin ยังเช็ค role <code>'PM'</code> ซึ่งไม่มีในระบบใหม่
+          ทำให้ user ระดับ ADMIN อาจถูกปฏิเสธถ้าเงื่อนไขนี้ทำงานไม่ถูกต้อง</p>
+        <div class="code-line"><span class="del">if (role === 'PM' || role === 'ADMIN')</span></div>
+        <div class="code-line"><span class="add">if (role === 'ADMIN')</span></div>
+      </div>
+      <div class="test-result tr-info">ℹ️ ตรวจแล้ว — ไม่ต้องแก้ · role 'PM' มีอยู่จริงใน DB ฝั่ง backend (ENUM user_role)</div>
+    </div>
+
+    <div class="risk-card r-code">
+      <div class="risk-top">
+        <span class="risk-badge bg-red">R9 — Role เก่า</span>
+        <span class="risk-title">close.routes.js — ระบบปิด WO ยังใช้ role เก่า</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ที่อยู่:</strong> <code>backend/modules/09_close/close.routes.js</code> บรรทัด 21, 63, 109, 298</p>
+        <p><strong>ปัญหา:</strong> กระบวนการปิด Work Order ต้องการการอนุมัติจาก role <code>'PM'</code> และ <code>'PD'</code>
+          ซึ่งทั้งสองค่าไม่มีในระบบใหม่ ทำให้ขั้นตอนการอนุมัติจะติดขัดหรือ error</p>
+        <div class="code-line"><span class="del">approver_role IN ('PM', 'PD')</span></div>
+        <div class="code-line"><span class="add">ต้องกำหนดใหม่ว่า role ไหนมีสิทธิ์อนุมัติการปิด WO ในระบบใหม่</span></div>
+      </div>
+      <div class="test-result tr-warn">⚠️ รอทีมตัดสินใจ — ถ้าจะรวมเป็น 3 role ต้องเลือกทาง A หรือ B (ดูด้านล่าง)</div>
+      <div class="action">
+        <div class="a-head">ผลตรวจเพิ่มเติม — ทำไมยังไม่กำหนด role ใหม่ทันที</div>
+        <p>ตรวจโค้ดแล้วพบว่าไม่สามารถ "เพิ่มค่า role" ได้ตรงๆ เพราะติด 2 เงื่อนไข:</p>
+        <p><strong>1) <code>approver_role</code> เป็นคอลัมน์ ENUM ไม่ใช่ข้อความอิสระ</strong></p>
+        <div class="code-line">CREATE TYPE user_role AS ENUM ('PM','STORE','QC','QA','TECH','PD','ADMIN');   -- schema.sql:5
+approver_role user_role NOT NULL,                                             -- :533
+CONSTRAINT chk_wo_close_approvals_role CHECK (approver_role IN ('PM','PD','ADMIN'))  -- :538</div>
+        <p>การใส่ค่าใหม่ (เช่น MEMBER) ต้อง <code>ALTER TYPE user_role ADD VALUE</code> ก่อน
+          ซึ่ง PostgreSQL <strong>ลบค่าออกจาก ENUM ภายหลังไม่ได้</strong> — เป็น migration ที่ย้อนกลับไม่ได้ จึงควรได้รับการยืนยันจากทีมก่อน
+          และต้องแก้ CHECK constraint ควบคู่ด้วย</p>
+        <p><strong>2) กระบวนการนี้ออกแบบเป็น "อนุมัติ 2 ชั้น" (dual sign-off)</strong></p>
+        <div class="code-line">function approvalReadyForClose(a) { return Boolean(a.pm &amp;&amp; a.pd); }   // ต้องครบทั้ง PM และ PD</div>
+        <p>ปิด WO ได้เมื่อ <strong>PM อนุมัติ + PD อนุมัติ</strong> (สองฝ่ายตรวจสอบกันเอง) แต่ในระบบ 3 role
+          มีเพียง ADMIN และ MEMBER ที่ทำรายการได้ และ <strong>ADMIN มีเส้นทางปิดแบบข้ามการอนุมัติอยู่แล้ว</strong> (<code>isAdminForce</code>)
+          จึงเหลือ MEMBER เติมได้เพียงชั้นเดียว → การควบคุม 2 ชั้นจะกลายเป็นชั้นเดียว ซึ่งเป็นการลดระดับการควบคุมคุณภาพ ไม่ใช่แค่เปลี่ยนชื่อค่า</p>
+        <p><strong>2 ทางเลือกให้ทีมพิจารณา:</strong></p>
+        <p>• <strong>ทางเลือก A (แนะนำ):</strong> คงกระบวนการเดิมไว้ — backend ใช้ฐานข้อมูลของตัวเองที่มี PM/PD อยู่จริง
+          โค้ดส่วนนี้ยังทำงานถูกต้องตามปกติ ไม่มีอะไรพัง</p>
+        <p>• <strong>ทางเลือก B:</strong> ถ้าต้องรวมเป็น 3 role จริง ควรเก็บ "2 ชั้น" ไว้แต่เปลี่ยนนิยามจาก role เป็นหน้าที่
+          (เช่น ชั้นที่ 1 = ฝ่ายผลิต, ชั้นที่ 2 = ฝ่ายวางแผน) แล้วกำหนดว่าใครมีสิทธิ์เติมแต่ละชั้นผ่านคอลัมน์ <code>permissions</code>
+          ของ app_users — วิธีนี้รวมผู้ใช้ได้โดยไม่เสียการควบคุม แต่เป็นงานออกแบบที่ต้องวางแผนร่วมกัน</p>
+      </div>
+    </div>
+
+    <div class="risk-card r-code">
+      <div class="risk-top">
+        <span class="risk-badge bg-red">R9 — Role เก่า</span>
+        <span class="risk-title">incoming.routes.js — ระบบรับวัสดุยังใช้ role เก่า</span>
+      </div>
+      <div class="risk-body">
+        <p><strong>ที่อยู่:</strong> <code>backend/modules/02_incoming/incoming.routes.js</code> บรรทัด 322, 538</p>
+        <p><strong>ปัญหา:</strong> ระบบรับวัสดุเข้าคลังตรวจสอบว่าผู้ใช้มี role เป็น <code>'STORE'</code> ซึ่งไม่มีในระบบใหม่
+          ทำให้ไม่มีใครมีสิทธิ์ทำงานในส่วนนี้ได้เลย</p>
+        <div class="code-line"><span class="del">if (actingRole !== 'STORE') return 403 Forbidden</span></div>
+        <div class="code-line"><span class="add">ต้องกำหนดใหม่ว่า role ไหนมีสิทธิ์รับวัสดุในระบบใหม่</span></div>
+      </div>
+      <div class="test-result tr-info">ℹ️ ตรวจแล้ว — ไม่ต้องแก้ · role 'STORE' มีอยู่จริงใน DB ฝั่ง backend ฟีเจอร์รับวัสดุใช้งานได้ปกติ</div>
+    </div>
+  </div>
+
+  <!-- 4. ผลการตรวจสอบ -->
+  <div class="section">
+    <div class="section-title">4. ผลการตรวจสอบ test_mes_db</div>
+    <div class="section-intro">
+      ตรวจสอบความสมบูรณ์ของ <code>test_mes_db</code> โดยตรวจ tables, constraints และ dump file
+    </div>
+
+    <table class="check">
+      <thead>
+        <tr><th>รายการตรวจสอบ</th><th style="text-align:center">ผล</th><th>รายละเอียด</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>จำนวนตาราง</td><td class="ok">✓ 26 ตาราง</td><td>ครบตาม Schema v2 ทุกตาราง</td></tr>
+        <tr><td>PRIMARY KEY</td><td class="ok">✓ 26 ตาราง</td><td>ทุกตารางมี PK ครบถ้วน</td></tr>
+        <tr><td>FOREIGN KEY</td><td class="ok">✓ 18 FK</td><td>รวม 11 deferred FK ที่แก้ R2 ไว้ครบ</td></tr>
+        <tr><td>UNIQUE constraints</td><td class="ok">✓ ครบ</td><td>app_users.username, work_orders.wo_no, boms.name_version, inventory_lots.uid ฯลฯ</td></tr>
+        <tr><td>CHECK constraints</td><td class="ok">✓ ครบ</td><td>role check, status check, qty check ครบทุกตาราง</td></tr>
+        <tr><td>ไฟล์ dump</td><td class="ok">✓ 61 KB</td><td><code>Downloads/test_mes_db.sql</code> — พร้อมใช้เป็น backup</td></tr>
+      </tbody>
+    </table>
+
+    <div class="infobox green">
+      <strong>สรุป: test_mes_db สมบูรณ์</strong> — โครงสร้างตรงตาม Schema v2 ทุกประการ
+      ใช้เป็น reference หรือ backup ก่อน deploy เข้า <code>mes_db</code> จริงได้
+    </div>
+  </div>
+
+  <!-- 5. สิ่งที่ต้องทำต่อ -->
+  <div class="section">
+    <div class="section-title">5. สิ่งที่ต้องทำต่อก่อน Deploy</div>
+    <div class="infobox orange">
+      <strong>ขั้นตอนที่แก้แล้วใน test_mes_db ยังไม่ได้ apply เข้า mes_db จริง</strong> —
+      ต้องนำ SQL script (INSERT synthetic WO + ALTER TABLE FK) ไปรันใน <code>mes_db</code> จริงก่อน Deploy
+    </div>
+
+    <div class="risk-card" style="border-left:4px solid var(--orange)">
+      <div class="risk-body checklist">
+        <p style="color:var(--txt);margin-bottom:14px"><strong>📋 Checklist ก่อน Deploy (เรียงตามลำดับความสำคัญ):</strong></p>
+        <p class="done"><span class="box done">✓</span><strong>แก้โค้ด 4 ไฟล์</strong> — wo_polling.js, admin.routes.js, close.routes.js, incoming.routes.js
+          <span class="note">✓ ไม่ต้องแก้ — ตรวจแล้วโค้ดทั้ง 4 ไฟล์ถูกต้องอยู่แล้วสำหรับฐานข้อมูลของ <code>backend/</code> เอง (มีตาราง users + ENUM 7 role ครบ) การแก้จะทำให้พังกับ DB ของมันเอง — รายละเอียดหัวข้อ 3</span></p>
+        <p><span class="box"></span><strong>กำหนด role ใหม่</strong> สำหรับ module ปิด WO และรับวัสดุ ว่าใคร (ADMIN/MEMBER) มีสิทธิ์ทำ
+          <span class="note-wait">จำเป็นเฉพาะกรณีที่ทีมตัดสินใจรวมผู้ใช้เป็นตารางเดียวจริง — ถ้าใช้ DB แยกกันต่อไปก็ไม่ต้องทำ · ถ้าจะรวม ต้องเลือกทาง A หรือ B ในหัวข้อ 3 ก่อน (การยุบ 7→3 role ทำให้การอนุมัติปิด WO 2 ชั้นเหลือชั้นเดียว)</span></p>
+        <p><span class="box"></span><strong>Apply SQL script R2</strong> (INSERT synthetic WO + enable FK 11 ตาราง) เข้า mes_db จริง
+          <span class="note-wait">รอดำเนินการ — ยังคงสถานะ DEFERRED เพราะ DB ที่ใช้งานจริงมีค่า wo_id ที่ไม่มีใน work_orders ปนอยู่ (ทั้งค่าสังเคราะห์ WORKFLOW/QC และค่าที่กรอกอิสระ) ต้อง normalize ก่อนจึงจะ ALTER TABLE ผ่าน</span></p>
+        <p class="done"><span class="box done">✓</span><strong>ทดสอบ frontend</strong> — dropdown Change Request (เพิ่ม Measurement, Environment)
+          <span class="note">✓ ตรวจแล้ว — dropdown มี 6 ค่าครบ (create + filter), backend validate 6 ค่า, DB constraint 6 ค่า</span></p>
+        <p class="done"><span class="box done">✓</span><strong>เพิ่ม null check</strong> ในโค้ดที่ใช้ notifications.user_id
+          <span class="note">✓ ไม่ต้องแก้ — ระบบ notification เป็น global ทั้งหมด โค้ดไม่อ่าน/ไม่ filter user_id เลย จึงไม่มีจุดที่ crash</span></p>
+        <p class="done"><span class="box done">✓</span><strong>ตรวจสอบ audit_logs</strong> ทุก module ให้ส่ง actor_id ที่มีใน app_users เสมอ
+          <span class="note">✓ ไม่ต้องแก้ — audit log ที่ใช้จริงบันทึกด้วยคอลัมน์ <code>actor</code> (ชื่อผู้ใช้ VARCHAR) ไม่ได้ใช้ actor_id FK จึงไม่เกิด FK error</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. สรุปการแก้ไขฝั่ง my-api -->
+  <div class="section">
+    <div class="section-title">6. สรุปการแก้ไขฝั่ง my-api หลังได้รับรายงานนี้</div>
+    <div class="section-intro">
+      จากรายงานข้างต้น ได้ตรวจสอบทุกข้อกับโค้ดและฐานข้อมูลที่ใช้งานจริง แล้วแก้เพิ่ม 5 จุด (แก้เฉพาะไฟล์ ไม่แตะข้อมูลใน DB)
+    </div>
+
+    <table class="check">
+      <thead><tr><th>สิ่งที่แก้</th><th>ไฟล์</th><th>เหตุผล</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>แก้ type <code>pre_wo_requests.wo_id</code></strong><br>VARCHAR(100) → INTEGER REFERENCES work_orders(id)</td>
+          <td><code>database_schema.sql</code></td>
+          <td>DB จริงเป็น INTEGER FK แต่เอกสารเขียน VARCHAR — ถ้า deploy ตามเอกสารจะได้ชนิดผิดและไม่มี FK (dev ≠ prod)</td>
+        </tr>
+        <tr>
+          <td><strong>เพิ่มคอลัมน์ <code>pp_projects.product_image</code></strong></td>
+          <td><code>database_schema.sql</code></td>
+          <td>ฟีเจอร์รูปสินค้ามีอยู่จริงในโค้ดและ DB แต่ตกหล่นในเอกสาร schema (เพิ่มแบบ additive ไม่กระทบของเดิม)</td>
+        </tr>
+        <tr>
+          <td><strong>ลบ CHECK บน <code>production_reports.status</code></strong></td>
+          <td><code>database_schema.sql</code></td>
+          <td>คอลัมน์นี้เก็บข้อความอิสระ (เช่น "SMT เสร็จ เหลือ Packing") ไม่ใช่ enum — ถ้าคง CHECK 4 ค่าไว้จะ reject ข้อมูลจริงตอน insert</td>
+        </tr>
+        <tr>
+          <td><strong>เพิ่ม validation จำนวน QC ใน API</strong><br>ตรวจ qty_pass + qty_fail = qty_checked</td>
+          <td><code>routes/records.js</code></td>
+          <td>DB มี CHECK เงื่อนไขนี้แต่ API ไม่ได้ตรวจ — เพิ่มแล้วจะตอบ 400 ที่สื่อความหมาย แทนที่จะเป็น error 500 ตอน insert</td>
+        </tr>
+        <tr>
+          <td><strong>สร้าง seed สำหรับ admin คนแรก</strong></td>
+          <td><code>seed_admin.sql</code> (ใหม่)</td>
+          <td>ตอน go-live ที่ไม่ใส่ข้อมูลตัวอย่าง จะไม่มีผู้ใช้ในระบบเลยและล็อกอินไม่ได้ — ไฟล์นี้สร้าง admin ตัวแรกแบบ idempotent</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="infobox green">
+      <strong>สิ่งที่ยังคงสถานะเดิม</strong> —
+      (1) <strong>FK ของ wo_id (R2)</strong> ยังเป็น DEFERRED เพราะ DB ที่ใช้จริงยังมีค่า wo_id ที่ไม่มีใน work_orders ปนอยู่ ต้อง normalize ก่อน ·
+      (2) <strong>โค้ด 4 ไฟล์ใน backend (หัวข้อ 3)</strong> ไม่แก้ เพราะเป็นแอปที่ใช้ฐานข้อมูลและ schema ของตัวเอง การแก้จะทำให้พังกับ DB ของมันเอง
+    </div>
+  </div>
+
+  <hr>
+  <div class="foot">
+    รายงานนี้จัดทำบนพื้นฐานการทดสอบจริงใน <code>test_mes_db</code> เท่านั้น
+    &nbsp;·&nbsp; ห้ามต่อ DB จริงของบริษัท
+    &nbsp;·&nbsp; 28 กรกฎาคม 2569
+  </div>
+
+</div>
+</body>
+</html>

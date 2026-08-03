@@ -1,61 +1,120 @@
-# Syntech Internship Project 2026
+# Syntech MES — Manufacturing Execution System
 
-Welcome to Syntech's internship repository!
+ระบบ MES (Manufacturing Execution System) ภายในของ **Synergy Technology Co., Ltd.** (โปรเจกต์ intern 2026)
+ครอบคลุม production planning, work orders, kitting, production/routing scan, QC/rework, OBA,
+notifications และ Jumbo traceability — มี React admin dashboard และเชื่อมต่อ jig-api / WMS / MRP
 
-## Overview
+> SCM Cases (module 12) ถอดออกจากรีโปเมื่อ 2026-07-27 — ดูเหตุผลใน [STATUS.md](STATUS.md#scm-cases-ถูกถอดออก-2026-07-27)
 
-This repo is the main workspace for the 2026 internship program at **Synergy Technology Co., Ltd.**
+---
 
-**หลักๆ ใช้สำหรับ:**
-- ส่ง Daily Report ทุกวันที่ทำงาน
-- เก็บ code งานที่ได้รับมอบหมาย
+## Architecture — ส่วนประกอบ
 
-## Quick Start
+| ส่วน | Stack | Port | หน้าที่ |
+| --- | --- | --- | --- |
+| `frontend/` | Vite + React 18 + TS | 5101 | Admin / PM / tester UI (Dashboard, PP Gantt, Work Orders, Station monitor…) |
+| `my-api/` | Express + `pg` | 5099 | Data API ให้ admin UI (WO/OBA/QC/PP/planning/station/workflow…) |
+| `backend/` | Express + knex · 14 modules | 5100 | MES backbone เต็ม (auth, integrations, MQTT, Jumbo) |
+| `postgres` | PostgreSQL 16 | 5432 | DB `productiondb` (schema `mes_core`) |
+
+**Dev data flow:** Browser → Vite `:5101` → proxy → my-api `:5099` → PostgreSQL `:5432`
+(บาง route backbone-only จะ proxy ไป `:5100`) · **Prod:** frontend build → เสิร์ฟที่ `/ui/` โดย backbone
+
+---
+
+## วิธีรัน (เหมือนกันทุกเครื่อง)
+
+ต้องมี: **Docker Desktop** + **Node 20+**
+
+**1) Backend ทั้งหมด** (DB + backbone + my-api) — รันที่ root ของโปรเจกต์:
 
 ```bash
-git clone https://github.com/Weradech/syntech-intern-2026.git
-cd syntech-intern-2026
+docker compose up -d --build
 ```
 
-อ่าน `docs/getting-started.md` ก่อนเริ่มงานวันแรกค่ะ
+ได้ครบ 3 service: postgres `:5432`, backbone `:5100`, my-api `:5099` (รัน `docker compose ps` เช็ก healthy)
 
-## Daily Report
-
-ส่งทุกวัน ก่อนเลิกงาน:
+**2) Frontend:**
 
 ```bash
-cp daily-reports/_template.md daily-reports/YYYY-MM-DD.md
-# กรอกให้ครบ แล้ว:
-git add . && git commit -m "daily: YYYY-MM-DD" && git push
+cd frontend
+npm install
+npm run dev
 ```
 
-## Folder Structure
+เปิด `http://localhost:5101` · login (demo): `admin` / `member1` / `viewer1`
+
+> แก้โค้ด backend ใน Docker: `docker cp` + `docker compose restart <service>` (ไฟล์ js/static ไม่ต้อง rebuild)
+
+---
+
+## Scripts ที่ใช้บ่อย
+
+### frontend/
+
+| คำสั่ง | ทำอะไร |
+| --- | --- |
+| `npm run dev` | dev server :5101 |
+| `npm run build` | build → `dist/` (sync ไป `backend/public/ui` อัตโนมัติ) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test` | Vitest (unit + Testing Library) |
+
+### backend/
+
+| คำสั่ง | ทำอะไร |
+| --- | --- |
+| `npm run migrate:status` · `migrate:latest` · `migrate:rollback` | knex migrations |
+| `npm run test:all` | e2e + jumbo + auth tests |
+
+---
+
+## Environment
+
+- **Backend / my-api:** `backend/envs/.env.{dev,test,prod,webtest}` — **gitignored** (ห้าม commit · ดู `.env.example`)
+- **Frontend:** `frontend/.env.{development,production}` (`VITE_JIGAPI_URL`, `VITE_DEMO_MODE`)
+- **DB (default ใน compose):** db `productiondb` · user `syntechdb` · schema `mes_core` · port `5432`
+
+> ⚠️ `pull`/`rebase` อาจลบไฟล์ `backend/envs/.env.*` (ถูก untrack) — **backup ก่อนทุกครั้ง**: `cp -a backend/envs backend/envs.bak`
+
+---
+
+## โครงสร้าง repo
 
 ```
 syntech-intern-2026/
-├── daily-reports/      # Daily report ทุกวัน (ส่งที่นี่)
-│   ├── _template.md    # Template — copy ก่อนใช้
-│   └── YYYY-MM-DD.md
-├── docs/               # คู่มือและ reference
-├── backend/            # Backend code (ถ้ามี task)
-├── frontend/           # Frontend code (ถ้ามี task)
-└── scripts/            # Scripts อื่นๆ
+├── frontend/        Vite+React admin UI (Dashboard, PP Gantt, WO, Station…)
+├── my-api/          Express data API (:5099) ให้ admin UI
+├── backend/         MES backbone (:5100)
+│   ├── modules/     00_auth … 13_jumbo (14 modules)
+│   ├── migrations/  knex migrations
+│   ├── schema.sql   full DB schema
+│   └── envs/        .env.* (gitignored)
+├── docs/            setup / api-reference / overview / mes_web_test answers
+├── docker-compose.yml
+├── STATUS.md        สถานะล่าสุด + ประวัติ session
+├── MES_DESIGN.md    architecture + integration spec
+└── daily-reports/   daily report ของ intern
 ```
 
-## Git Workflow
+---
 
-| Step | Command |
-|------|---------|
-| สร้าง branch | `git checkout -b feat/<task-name>` |
-| Commit | `git add . && git commit -m "feat: ..."` |
-| Push | `git push origin feat/<task-name>` |
-| PR | เปิด Pull Request บน GitHub → รอ review |
+## Git workflow
 
-> ห้าม push ตรงเข้า `main` — ต้องผ่าน Pull Request เท่านั้น
+Remotes: `origin` (syntech-intern-2026) · `draft` (syntech_mes_draft) · `demo` (mes-demo)
 
-## Contact
-
-- **Supervisor:** Weradech K. (NPI & System Engineering Manager)
+- ทำงานบน branch **`develop`** · `git push` → `draft/develop`
+- **ห้าม force push** (จะลบงานทีม) · diverged ให้ `rebase` ก่อน
+- backup env ก่อน pull เสมอ (ดูหัวข้อ Environment)
+- เปลี่ยนแปลงใหญ่ → เปิด **Pull Request** เข้า `main`
 
 ---
-*Synergy Technology Co., Ltd. — Internal use only*
+
+## เอกสารเพิ่มเติม
+
+- [STATUS.md](STATUS.md) — สถานะล่าสุด + ประวัติ handoff
+- [MES_DESIGN.md](MES_DESIGN.md) — architecture + integration
+- [docs/mes-dev-setup.md](docs/mes-dev-setup.md) · [docs/mes-api-reference.md](docs/mes-api-reference.md) · [docs/mes-overview.md](docs/mes-overview.md)
+- [backend/schema.sql](backend/schema.sql) — full DB schema
+
+---
+*Synergy Technology Co., Ltd. — Internal use only · Supervisor: Weradech K.*

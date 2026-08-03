@@ -88,20 +88,27 @@ async function request<T>(
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     payload = typeof body === 'string' ? body : JSON.stringify(body);
   }
+  const timeoutMs = 15000;
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+  const signal = config?.signal || timeoutController.signal;
+
   let res: globalThis.Response;
   try {
     res = await fetch(url, {
       method,
       headers,
       body: payload,
-      signal: config?.signal,
+      signal,
       credentials: API_ORIGIN ? 'omit' : 'include',
     });
+    clearTimeout(timeoutId);
   } catch (e: any) {
-    // Network error — backend not reachable.
-    // GET: throw → useQuery เข้า isError → หน้าโชว์ error+Retry (ไม่ใช่ "No data" เงียบๆ)
-    // อื่นๆ (mutation): คืน status 0 ให้ hook เดิมจัดการ throw เอง (คงพฤติกรรม/ข้อความเดิม)
-    if (e?.name === 'AbortError') throw e;
+    clearTimeout(timeoutId);
+    if (e?.name === 'AbortError') {
+      if (method === 'GET') throw new Error('การเชื่อมต่อหมดเวลา (Request Timeout)');
+      return { data: null as T, status: 0, headers: new Headers() };
+    }
     if (method === 'GET') throw new Error('Connection failed — cannot reach the server');
     return { data: null as T, status: 0, headers: new Headers() };
   }
@@ -115,7 +122,16 @@ async function request<T>(
   }
   if (!res.ok) {
     // 401 = token หมดอายุ/ไม่ถูกต้อง → แจ้ง app จัดการ session (ยกเว้น request login เอง)
-    if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/auth/login')) {
+    //
+    // ⚠️ ยกเว้น prefix ที่เป็นของ MES backbone (:5100) ด้วย — ระบบนี้เซ็น JWT คนละ secret
+    //    กับ my-api ที่เราล็อกอินอยู่ ดังนั้น token ของเราจะได้ 401 จากมันเป็นปกติ
+    //    ถ้าปล่อยให้ 401 ของ widget พวกนี้ dispatch app:unauthorized จะกลายเป็นว่า
+    //    "เปิด Dashboard แล้วเด้ง Session expired ทันที" ทั้งที่ session ยังดีอยู่
+    //    (FactoryOverview เรียก /api/jumbo/report/daily · StationMonitor เรียก /api/mes/stations/monitor)
+    //    → widget เหล่านั้นจะว่างเปล่าไปก่อนจนกว่าจะทำ SSO ระหว่าง 2 ระบบ แต่ที่เหลือใช้งานได้ปกติ
+    const OTHER_REALM_PREFIXES = ['/jumbo', '/mes', '/api/jumbo', '/api/mes'];
+    const isOtherRealm = OTHER_REALM_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
+    if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/auth/login') && !isOtherRealm) {
       window.dispatchEvent(new CustomEvent('app:unauthorized'));
     }
     // GET + server error (5xx) → throw ให้ useQuery เข้า isError (แยก "server ล่ม" ออกจาก "ไม่มีข้อมูล")

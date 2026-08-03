@@ -135,40 +135,9 @@ export function useJigRecords(code: string | undefined, resultFilter?: 'PASS' | 
   });
 }
 
-export interface JigRetest {
-  id: number;
-  projectCode: string;
-  serial: string;
-  status: string;
-  requestedBy: string;
-  requestedAt: string;
-}
-
-export function useJigRetests(code: string | undefined) {
-  return useQuery({
-    queryKey: ['jig-retests', code],
-    enabled: !!code,
-    queryFn: async (): Promise<JigRetest[]> => {
-      const res = await api.get(`/jig/projects/${code}/retests`);
-      return ((res.data as any)?.data ?? []).map((r: any) => ({
-        id: r.id, projectCode: r.project_code, serial: r.serial, status: r.status,
-        requestedBy: r.requested_by ?? '', requestedAt: r.requested_at,
-      }));
-    },
-  });
-}
-
-export function useJigRetestCreate(code: string | undefined) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (serial: string) => {
-      const res = await api.post(`/jig/projects/${code}/retest`, { serial });
-      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to request Retest');
-      return res.data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['jig-retests', code] }),
-  });
-}
+// ── Retest: ถอดออกจากระบบแล้ว ──
+// ตาราง jig_retest_requests + endpoint (GET retests / POST retest) ถูกลบ
+// ถ้าจะเอากลับ ต้องคืนทั้งตาราง · endpoint · hooks · ปุ่มในหน้า JigProjectPage
 
 export function useJigTimeseries(code: string | undefined) {
   return useQuery({

@@ -104,6 +104,30 @@ export function usePicNames() {
   });
 }
 
+// รูปสินค้า — แยก endpoint /image (ไม่รวมใน list กัน dashboard อืด)
+export function usePpImage(id: number | null | undefined) {
+  return useQuery({
+    queryKey: ['pp-image', id],
+    enabled: id != null,
+    queryFn: async (): Promise<string | null> => {
+      const res = await api.get(`/pp/projects/${id}/image`);
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Failed to load image');
+      return (res.data as any)?.data?.image ?? null;
+    },
+  });
+}
+export function usePpImageSave() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, image }: { id: number; image: string | null }) => {
+      const res = await api.put(`/pp/projects/${id}/image`, { image });
+      if (res.status >= 400 || res.status === 0) throw new Error((res.data as any)?.message || 'Save failed');
+      return res.data;
+    },
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['pp-image', v.id] }); },
+  });
+}
+
 export function usePpCreate() {
   const qc = useQueryClient();
   return useMutation({
@@ -140,7 +164,7 @@ export function usePpDelete() {
   });
 }
 
-// ประวัติการแก้ไข 1 record (ใคร/ตำแหน่ง/แก้อะไร/เมื่อไหร่) — จาก audit_logs (join app_users)
+// ประวัติการแก้ไข 1 record (ใคร/ตำแหน่ง/แก้อะไร/เมื่อไหร่) — จาก audit_logs (join users)
 export interface PpHistoryEntry {
   id: number; actor: string; actor_name: string | null; actor_role: string | null;
   action: string; detail: string; note: string | null; created_at: string;

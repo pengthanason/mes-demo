@@ -125,7 +125,7 @@ export function MultiPicInput({
               key={o}
               onMouseDown={e => { e.preventDefault(); add(o); }}
               style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
             >
               {o}
@@ -134,8 +134,8 @@ export function MultiPicInput({
           {canAddNew && (
             <div
               onMouseDown={e => { e.preventDefault(); add(current); }}
-              style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', fontSize: '0.85rem', color: '#0369a1', fontWeight: 600, borderTop: filtered.length ? '1px solid #f1f5f9' : undefined }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; }}
+              style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', fontSize: '0.85rem', color: '#0369a1', fontWeight: 600, borderTop: filtered.length ? '1px solid var(--surface-2)' : undefined }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
             >
               + Add “{current}”

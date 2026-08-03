@@ -4,7 +4,7 @@
 
 export type PermKey =
   | 'dashboard' | 'production_plan' | 'incoming' | 'work_orders' | 'jig_test'
-  | 'oba' | 'cr' | 'scm' | 'qc' | 'equipment' | 'notifications' | 'admin';
+  | 'oba' | 'cr' | 'qc' | 'equipment' | 'notifications' | 'admin' | 'settings';
 
 export const PERMISSIONS: { key: PermKey; label: string; route: string }[] = [
   { key: 'dashboard',       label: 'Dashboard',          route: '/dashboard' },
@@ -14,10 +14,10 @@ export const PERMISSIONS: { key: PermKey; label: string; route: string }[] = [
   { key: 'jig_test',        label: 'Jig Test',            route: '/jig-test' },
   { key: 'oba',             label: 'OBA',                 route: '/oba' },
   { key: 'cr',              label: '5M+1E Change',        route: '/4m-change' },
-  { key: 'scm',             label: 'SCM Cases',           route: '/scm-cases' },
   { key: 'qc',              label: 'QC',                  route: '/qc-board' },
   { key: 'equipment',       label: 'Equipment Borrow',    route: '/equipment-borrow' },
   { key: 'notifications',   label: 'Notifications',       route: '/notifications' },
+  { key: 'settings',        label: 'Settings',            route: '/settings' },
   { key: 'admin',           label: 'Admin Panel',         route: '/admin/panel' },
 ];
 
@@ -26,7 +26,8 @@ export const ALL_PERMS: PermKey[] = PERMISSIONS.map(p => p.key);
 // ค่าเริ่มต้นตาม role (ตรงกับ MEMBER_ITEMS/VIEWER_ITEMS เดิม)
 export const ROLE_DEFAULT_PERMS: Record<string, PermKey[]> = {
   admin: ALL_PERMS,
-  member: ['dashboard', 'production_plan', 'incoming', 'work_orders', 'jig_test', 'oba', 'cr', 'scm', 'qc', 'equipment', 'notifications'],
+  // MEMBER ได้ 'settings' ด้วย (มี Backup อยู่ในนั้น) — แต่ไฟล์ที่โหลดจะไม่มีตารางผู้ใช้/รหัสผ่าน (server ตัดออกให้)
+  member: ['dashboard', 'production_plan', 'incoming', 'work_orders', 'jig_test', 'oba', 'cr', 'qc', 'equipment', 'notifications', 'settings'],
   viewer: ['dashboard', 'cr', 'qc', 'jig_test', 'equipment', 'notifications'],
 };
 

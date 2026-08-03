@@ -3,6 +3,7 @@ import { useStock, useKittingIssues, useIssueMaterial } from '../lib/inventoryAp
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { WoInput } from '../components/WoInput';
 import { TableState, BlockState } from '../components/DataStates';
 
@@ -122,7 +123,15 @@ export function KittingPage() {
           Issue History {issues.length > 0 && `(${issues.length})`}
         </h3>
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-          <table className="table table-readonly" style={{ minWidth: 560, width: '100%' }}>
+          {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
+          <table className="table table-readonly" style={{ minWidth: 760, width: '100%', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '20%' }} />{/* WO */}
+              <col style={{ width: '15%' }} />{/* Part No */}
+              <col style={{ width: '20%' }} />{/* Lot Deducted */}
+              <col style={{ width: '10%' }} />{/* Qty */}
+              <col style={{ width: '35%' }} />{/* Time */}
+            </colgroup>
             <thead>
               <tr>
                 <th>WO</th>
@@ -137,15 +146,16 @@ export function KittingPage() {
                 <TableState colSpan={5} state="empty" emptyText="No issues yet — select goods from Stock above, enter a WO, then click “Issue to Line”" />
               ) : paged.map(i => (
                 <tr key={i.id}>
-                  <td style={{ fontWeight: 600 }}>{i.woId}</td>
-                  <td><code>{i.partNo}</code></td>
-                  <td><code style={{ fontSize: '0.85rem' }}>{i.lotNo}</code></td>
+                  <td style={{ height: ROW_H, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={i.woId}>{i.woId}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={i.partNo}><code>{i.partNo}</code></td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={i.lotNo}><code style={{ fontSize: '0.85rem' }}>{i.lotNo}</code></td>
                   <td style={{ textAlign: 'center' }}>{i.qty.toLocaleString()}</td>
                   <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                     {new Date(i.issuedAt).toLocaleString('en-GB')}
                   </td>
                 </tr>
               ))}
+              <FillerRows count={fillerCount(paged.length, PAGE_SIZE, totalPages)} cols={5} />
             </tbody>
           </table>
         </div>

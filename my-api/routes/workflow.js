@@ -60,6 +60,10 @@ router.post('/results', async (req, res) => {
   const r = (result === 'FAIL') ? 'FAIL' : 'PASS';
   const ln = (line === 'external' || line === 'mix') ? line : 'internal';
   const sn = String(serial).trim();
+  // จำกัดจำนวน step — body รับได้ถึง 8mb ถ้ายัดมาเป็นแสน step จะ INSERT ทีละตัวเป็นนาที ถือ connection ค้างทั้ง pool
+  if (Array.isArray(steps) && steps.length > 200) {
+    return res.status(400).json({ status: 'error', message: 'steps มากเกินไป (จำกัด 200 ขั้นตอน)' });
+  }
   try {
     const { rows } = await db.query(
       `INSERT INTO workflow_results (serial, customer, model, sequence, result, total_sec, line)

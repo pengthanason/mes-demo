@@ -18,18 +18,18 @@ const C = {
   wip: '#0ea5e9', wipBg: '#e0f2fe', wipFg: '#0369a1',
   rw: '#f59e0b', rwBg: '#fef3c7', rwFg: '#b45309',
   pass: '#10b981', passBg: '#d1fae5', passFg: '#047857',
-  muteBg: '#f1f5f9', muteFg: '#94a3b8',
+  muteBg: 'var(--surface-2)', muteFg: 'var(--ink-5)',
 };
-const COLS = '1.4fr 2fr 198px 46px';   // Station | Breakdown | WIP·RW·Pass | Updated
+const COLS = '160px 1fr 200px 52px';   // Station | Breakdown | WIP·RW·Pass | Updated
 
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
-const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', userSelect: 'none', cursor: 'default' };
+const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: 'var(--ink-1)', userSelect: 'none', cursor: 'default' };
 const SEARCH: React.CSSProperties = { fontSize: '0.85rem', padding: '7px 12px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 200, maxWidth: '45%' };
 
 // KPI มินิการ์ด (KPI strip ด้านบน)
 function Kpi({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div style={{ flex: 1, minWidth: 90, background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10, padding: '9px 13px' }}>
+    <div style={{ flex: 1, minWidth: 90, background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '9px 13px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ width: 8, height: 8, borderRadius: 999, background: color, flexShrink: 0 }} />
         <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value.toLocaleString()}</span>
@@ -86,7 +86,7 @@ export function StationMonitorWidget() {
         <>
           {/* KPI strip */}
           <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-            <Kpi label="Stations" value={data.length} color="#64748b" />
+            <Kpi label="Stations" value={data.length} color="var(--ink-4)" />
             <Kpi label="In WIP" value={summary.inWip} color={C.wip} />
             <Kpi label="Rework" value={summary.rework} color={C.rw} />
             <Kpi label="Pass" value={summary.pass} color={C.pass} />
@@ -98,7 +98,7 @@ export function StationMonitorWidget() {
               <span>Station</span>
               <span>Load breakdown</span>
               <span style={{ textAlign: 'center' }}>WIP · Rework · Pass</span>
-              <span style={{ textAlign: 'right' }}>Upd.</span>
+              <span style={{ textAlign: 'center' }}>Upd.</span>
             </div>
             {rows.map(s => {
               const wip = s.unitsInStation, rw = s.unitsReworkRequired, pass = s.scanOutPassCount;
@@ -107,12 +107,12 @@ export function StationMonitorWidget() {
               const segs = [{ v: wip, c: C.wip }, { v: rw, c: C.rw }, { v: pass, c: C.pass }].filter(x => x.v > 0);
               const segTotal = total || 1;
               // ไฟสถานะ: มี rework=เหลือง (ต้องสนใจ) / มี WIP=ฟ้า (กำลังทำ) / เหลือแต่ผ่าน=เขียว / ว่าง=เทา
-              const dot = rw > 0 ? C.rw : wip > 0 ? C.wip : pass > 0 ? C.pass : '#cbd5e1';
+              const dot = rw > 0 ? C.rw : wip > 0 ? C.wip : pass > 0 ? C.pass : 'var(--line-3)';
               return (
                 <div key={`${s.routeCode}-${s.stationName}`}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-1)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '9px 8px', borderRadius: 10, borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
+                  style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '9px 8px', borderRadius: 10, borderBottom: '1px solid var(--surface-2)', transition: 'background 0.15s' }}>
                   {/* Station + ไฟสถานะ */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: dot, flexShrink: 0 }} />
@@ -122,7 +122,7 @@ export function StationMonitorWidget() {
                     </div>
                   </div>
                   {/* บาร์ proportional บาง — ความยาว = โหลดเทียบสถานีสูงสุด, ในบาร์แบ่งสัดส่วน WIP/RW/Pass */}
-                  <div style={{ height: 8, background: '#eef2f7', borderRadius: 999, overflow: 'hidden' }} title={`In WIP ${wip} · Rework ${rw} · Pass ${pass}`}>
+                  <div style={{ height: 8, background: 'var(--line-1)', borderRadius: 999, overflow: 'hidden' }} title={`In WIP ${wip} · Rework ${rw} · Pass ${pass}`}>
                     <div style={{ display: 'flex', height: '100%', width: `${fillPct}%` }}>
                       {segs.map((x, i) => (
                         <div key={x.c} style={{ width: `${(x.v / segTotal) * 100}%`, background: x.c, borderRight: i < segs.length - 1 ? '1.5px solid #fff' : undefined }} />
@@ -136,7 +136,7 @@ export function StationMonitorWidget() {
                     <Chip label="PASS" n={pass} bg={C.passBg} fg={C.passFg} />
                   </div>
                   {/* เวลาอัปเดตล่าสุด */}
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>{ago(s.lastScanAt)}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', whiteSpace: 'nowrap' }}>{ago(s.lastScanAt)}</div>
                 </div>
               );
             })}

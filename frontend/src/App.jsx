@@ -20,13 +20,14 @@ import { NotificationsPage } from './pages/NotificationsPage.tsx';
 import { AdminPanelPage } from './pages/AdminPanelPage.tsx';
 import { JigProjectPage } from './pages/JigProjectPage.tsx';
 import { JigTestPage } from './pages/JigTestPage.tsx';
-import { ScmCasesPage } from './pages/ScmCasesPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
 import { IncomingKittingPage } from './pages/IncomingKittingPage.tsx';
 import { WorkOrdersPage } from './pages/WorkOrdersPage.tsx';
 import { QcPage } from './pages/QcPage.tsx';
 import { TraceabilityPage } from './pages/TraceabilityPage.tsx';
 import { DriftViewerPage } from './pages/DriftViewerPage.tsx';
+import { NotFoundPage } from './pages/NotFoundPage.tsx';
+import { SettingsPage } from './pages/SettingsPage.tsx';
 import { useUnreadCount, useNotifications, useMarkRead } from './lib/notificationsApi.ts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -58,15 +59,15 @@ const NAV_GROUPS = [
   ] },
   { title: 'Inventory & Supply', items: [
     { to: '/drift',     label: 'Stock vs Odoo' },
-    { to: '/scm-cases', label: 'SCM Cases' },
   ] },
   { title: 'System', items: [
     { to: '/equipment-borrow', label: 'Equipment Borrow' },
     { to: '/notifications',    label: 'Notifications' },
+    { to: '/settings',         label: 'Settings', perm: 'settings' },
     { to: '/admin/panel',      label: 'Admin Panel', sub: [
       { tab: 'users',      label: 'Manage Users' },
       { tab: 'activities', label: 'Activities' },
-      { tab: 'audit',      label: 'Audit Log' },
+      { tab: 'audit',      label: 'Account & Security' },
     ] },
   ] },
 ];
@@ -689,11 +690,11 @@ function ConfirmContainer() {
 // ชื่อหน้าแสดงบน header (map จาก route) — longest-prefix match
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard', '/work-orders': 'Work Orders', '/wo': 'Work Order',
-  '/scm-cases': 'SCM Cases', '/jig-test': 'Jig Test', '/production-plan': 'Production Plan',
+  '/jig-test': 'Jig Test', '/production-plan': 'Production Plan',
   '/oba': 'OBA', '/incoming': 'Incoming & Kitting', '/4m-change': '5M+1E Change',
   '/qc-board': 'QC', '/qc': 'QC Result', '/qa-verify': 'QA Verify', '/fai': 'FAI',
   '/notifications': 'Notifications', '/traceability': 'Traceability', '/drift': 'Drift Viewer',
-  '/admin/panel': 'Admin', '/equipment-borrow': 'Equipment Borrow', '/mes-auth': 'Login',
+  '/admin/panel': 'Admin', '/equipment-borrow': 'Equipment Borrow', '/mes-auth': 'Login', '/settings': 'Settings',
 };
 const _titleKeys = Object.keys(PAGE_TITLES).sort((a, b) => b.length - a.length);
 function titleForPath(p) {
@@ -847,16 +848,9 @@ function OfflineBanner() {
   );
 }
 
-// ─── 404 — ไม่พบหน้า (แทนการเด้งเงียบ) ───
+// ─── 404 — ไม่พบหน้า ───
 function NotFound() {
-  return (
-    <div className="panel" style={{ textAlign: 'center', padding: '3rem 1.5rem', maxWidth: 480, margin: '2rem auto' }}>
-      <div style={{ fontSize: '3rem', marginBottom: 8, lineHeight: 1 }}>🔍</div>
-      <h1 className="panel__title" style={{ marginBottom: 6 }}>Page not found</h1>
-      <p className="panel__subtitle">The link may be wrong, or this page was moved/deleted</p>
-      <Link to="/dashboard" className="btn" style={{ marginTop: 12, display: 'inline-flex' }}>← Back to Dashboard</Link>
-    </div>
-  );
+  return <NotFoundPage />;
 }
 
 // ─── Session watcher — 401 (token หมดอายุ) → เคลียร์ auth + แจ้ง + AuthGuard เด้ง login ───
@@ -897,7 +891,6 @@ export default function App() {
               <Route path="/wo-dashboard"      element={<Navigate to="/work-orders" replace />} />
               <Route path="/production-report" element={<Navigate to="/dashboard" replace />} />
               <Route path="/routing-history"   element={<Navigate to="/dashboard" replace />} />
-              <Route path="/scm-cases"         element={<PermGuard perm="scm"><ScmCasesPage /></PermGuard>} />
               <Route path="/jig-test"          element={<PermGuard perm="jig_test"><JigTestPage /></PermGuard>} />
               {/* active routes */}
               <Route path="/production-plan"   element={<PermGuard perm="production_plan"><ProductionPlanPage /></PermGuard>} />
@@ -918,6 +911,7 @@ export default function App() {
               <Route path="/jig-test/:projectCode" element={<PermGuard perm="jig_test"><JigProjectPage /></PermGuard>} />
               <Route path="/traceability"      element={<PermGuard perm="jig_test"><TraceabilityPage /></PermGuard>} />
               <Route path="/drift"             element={<AuthGuard><DriftViewerPage /></AuthGuard>} />
+              <Route path="/settings"          element={<PermGuard perm="settings"><SettingsPage /></PermGuard>} />
               <Route path="/admin/panel"       element={<PermGuard perm="admin"><AdminPanelPage /></PermGuard>} />
               <Route path="/equipment-borrow" element={<PermGuard perm="equipment"><EquipmentBorrowPage /></PermGuard>} />
               <Route path="*"                  element={<NotFound />} />

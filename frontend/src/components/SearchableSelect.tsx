@@ -77,10 +77,10 @@ export function SearchableSelect({
           width: '100%', boxSizing: 'border-box',
           padding: '0.45rem 2rem 0.45rem 0.7rem',
           border: '1px solid var(--border-color)', borderRadius: 6,
-          backgroundColor: disabled ? '#f1f5f9' : '#fff',
+          backgroundColor: disabled ? 'var(--surface-2)' : '#fff',
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.6rem center', backgroundSize: '10px 6px',
-          color: (current || value) ? 'var(--text-body)' : '#94a3b8',
+          color: (current || value) ? 'var(--text-body)' : 'var(--ink-5)',
           fontFamily: 'inherit', fontSize: '0.875rem', cursor: disabled ? 'default' : 'pointer', textAlign: 'left', userSelect: 'none',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}
@@ -113,13 +113,13 @@ export function SearchableSelect({
                 <div
                   onClick={() => { onChange(trimmed); setOpen(false); }}
                   style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', fontSize: '0.85rem', color: '#0369a1', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', borderBottom: filtered.length ? '1px solid var(--border-color)' : undefined }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
                 >
                   ➕ Use “{trimmed}”
                 </div>
               )}
-              {filtered.length === 0 && !showCustom && <div style={{ padding: '0.6rem 0.7rem', color: '#94a3b8', fontSize: '0.85rem' }}>No results for “{q}”</div>}
+              {filtered.length === 0 && !showCustom && <div style={{ padding: '0.6rem 0.7rem', color: 'var(--ink-5)', fontSize: '0.85rem' }}>No results for “{q}”</div>}
               {filtered.map(o => (
                 <div
                   key={o.value} onClick={() => { onChange(o.value); setOpen(false); }}
@@ -128,7 +128,7 @@ export function SearchableSelect({
                     background: o.value === value ? '#e0f2fe' : '#fff', color: o.value === value ? '#0369a1' : 'var(--text-body)',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}
-                  onMouseEnter={e => { if (o.value !== value) e.currentTarget.style.background = '#f1f5f9'; }}
+                  onMouseEnter={e => { if (o.value !== value) e.currentTarget.style.background = 'var(--surface-2)'; }}
                   onMouseLeave={e => { if (o.value !== value) e.currentTarget.style.background = '#fff'; }}
                 >
                   {o.label}

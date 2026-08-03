@@ -4,11 +4,12 @@ import { useCrList, useCrCreate, type MType, type CrState } from '../lib/crApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
+import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { TableState } from '../components/DataStates';
 import { WoInput } from '../components/WoInput';
 
 export const CR_STATE_STYLE: Record<CrState, { bg: string; text: string; border: string; label: string }> = {
-  DRAFT:       { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', label: 'DRAFT' },
+  DRAFT:       { bg: 'var(--surface-2)', text: 'var(--ink-3)', border: 'var(--line-3)', label: 'DRAFT' },
   G1_REVIEW:   { bg: '#fef9c3', text: '#854d0e', border: '#fde047', label: 'G1 REVIEW' },
   G2_APPROVED: { bg: '#dcfce7', text: '#166534', border: '#86efac', label: 'G2 APPROVED' },
   ACTIVE:      { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', label: 'ACTIVE' },
@@ -149,13 +150,22 @@ export function FourMChangePage() {
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
-          <table className="table table-readonly" style={{ minWidth: 700, width: '100%' }}>
+          {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
+          <table className="table table-readonly" style={{ minWidth: 800, width: '100%', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '20%' }} />{/* CR No. */}
+              <col style={{ width: '14%' }} />{/* Type */}
+              <col style={{ width: '16%' }} />{/* WO / Product */}
+              <col style={{ width: '22%' }} />{/* Details */}
+              <col style={{ width: '14%' }} />{/* State */}
+              <col style={{ width: '14%' }} />{/* Date Opened */}
+            </colgroup>
             <thead>
               <tr>
                 <th>CR No.</th>
                 <th style={{ textAlign: 'center' }}>Type</th>
                 <th>WO / Product</th>
-                <th style={{ width: '32%' }}>Details</th>
+                <th>Details</th>
                 <th style={{ textAlign: 'center' }}>State</th>
                 <th style={{ textAlign: 'center' }}>Date Opened</th>
               </tr>
@@ -168,13 +178,13 @@ export function FourMChangePage() {
               ) : (
                 filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(cr => (
                   <tr key={cr.id}>
-                    <td style={{ fontWeight: 600 }}>
+                    <td style={{ height: ROW_H, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Link to={`/4m-change/${cr.id}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{cr.crNo}</Link>
                     </td>
-                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{M_TYPE_ICON[cr.mType]} {cr.mType}</td>
-                    <td>{cr.woRef || '—'}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                      {cr.description.length > 80 ? cr.description.slice(0, 80) + '…' : cr.description}
+                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{M_TYPE_ICON[cr.mType]} {cr.mType}</td>
+                    <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cr.woRef || undefined}>{cr.woRef || '—'}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cr.description}>
+                      {cr.description}
                     </td>
                     <td style={{ textAlign: 'center' }}><CrStateBadge state={cr.state} /></td>
                     <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -183,6 +193,7 @@ export function FourMChangePage() {
                   </tr>
                 ))
               )}
+              <FillerRows count={fillerCount(Math.min(PAGE_SIZE, Math.max(0, filtered.length - (page - 1) * PAGE_SIZE)), PAGE_SIZE, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)))} cols={6} />
             </tbody>
           </table>
         </div>

@@ -110,11 +110,13 @@ router.get('/stock', async (req, res) => {
 router.post('/issue', async (req, res) => {
   const { wo_id, part_no, qty } = req.body;
   const need = Number(qty);
-  if (!wo_id || !part_no || !need || need <= 0) {
-    return res.status(400).json({ status: 'error', message: 'wo_id, part_no, qty(>0) required' });
+  // ต้องเป็นจำนวนเต็ม > 0 และไม่เกิน int4 — qty_available เป็น INTEGER ถ้าส่ง 2.5 มาจะ 500 กลาง transaction
+  if (!wo_id || !part_no || !Number.isInteger(need) || need <= 0 || need > 2147483647) {
+    return res.status(400).json({ status: 'error', message: 'wo_id, part_no, qty (จำนวนเต็ม > 0) required' });
   }
-  const client = await db.connect();
+  let client;
   try {
+    client = await db.connect();
     await client.query('BEGIN');
     // ดึงล็อต APPROVED ที่ยังมีของ เรียง FIFO (เก่าก่อน) + lock
     const { rows: lots } = await client.query(
@@ -147,10 +149,11 @@ router.post('/issue', async (req, res) => {
     await client.query('COMMIT');
     res.status(201).json({ status: 'success', data: issued });
   } catch (e) {
-    await client.query('ROLLBACK');
+    // ROLLBACK ต้องห่อ try เอง — ถ้า connection หลุด มันจะ throw ซ้ำแล้วหลุดออกนอก catch (request ค้าง ไม่มี response)
+    if (client) { try { await client.query('ROLLBACK'); } catch (e2) { console.error('[rollback failed]', e2?.message); } }
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

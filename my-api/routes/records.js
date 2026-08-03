@@ -23,12 +23,17 @@ router.post('/oba', async (req, res) => {
   if (result === 'FAIL' && !String(defect_note || '').trim()) {
     return res.status(400).json({ status: 'error', message: 'defect_note required when result is FAIL' });
   }
+  // DB มี CHECK (sample_qty > 0) + คอลัมน์ INTEGER — ถ้าไม่ดัก: -3 ผ่าน truthy → CHECK violation → 500 ดิบ
+  const sq = Number(sample_qty);
+  if (!Number.isInteger(sq) || sq <= 0 || sq > 2147483647) {
+    return res.status(400).json({ status: 'error', message: 'sample_qty ต้องเป็นจำนวนเต็มมากกว่า 0' });
+  }
   try {
     const { rows } = await db.query(
       `INSERT INTO oba_records (wo_id, lot_no, sample_qty, result, defect_note)
        VALUES ($1,$2,$3,$4,$5)
        RETURNING id, wo_id, lot_no, sample_qty, result, defect_note, created_at`,
-      [wo_id, lot_no, sample_qty, result, defect_note || null]
+      [wo_id, lot_no, sq, result, defect_note || null]
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {
@@ -78,26 +83,34 @@ router.get('/qc/history', async (req, res) => {
 });
 
 router.post('/qc', async (req, res) => {
-  const { sn, status, error } = req.body;
+  const { sn, status, error, scrapped } = req.body;
   if (!sn || !['PASS', 'FAIL'].includes(status)) {
     return res.status(400).json({ status: 'error', message: 'sn, status(PASS|FAIL) required' });
   }
+  // 2 insert ต้องอยู่ transaction เดียว — ถ้าพังขั้นที่ 2 จะมีผล QC แต่ไทม์ไลน์ traceability ของ serial ขาดหาย
+  let client;
   try {
-    const { rows } = await db.query(
+    client = await db.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
       `INSERT INTO qc_records (sn, status, error)
        VALUES ($1,$2,$3)
        RETURNING id, sn, status, error, created_at`,
       [sn, status, error || null]
     );
-    // ป้อนเข้า traceability: ผล QC = 1 จุดในไทม์ไลน์ของ serial
-    await db.query(
+    const noteText = scrapped ? `QC Scrap (WMS ADJ): ${error || 'scrapped'}` : (error ? `QC fail: ${error}` : 'QC scan');
+    await client.query(
       `INSERT INTO production_scans (wo_id, serial, station, result, operator, note)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      ['QC', sn, 'QC', status, '', error ? `QC fail: ${error}` : 'QC scan']
+      ['QC', sn, scrapped ? 'SCRAPPED' : 'QC', status, '', noteText]
     );
-    res.status(201).json({ status: 'success', data: rows[0] });
+    await client.query('COMMIT');
+    res.status(201).json({ status: 'success', data: { ...rows[0], scrapped: Boolean(scrapped) } });
   } catch (e) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (e2) { console.error('[rollback failed]', e2?.message); } }
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });
+  } finally {
+    if (client) client.release();
   }
 });
 
@@ -130,12 +143,29 @@ router.post('/qc/result', async (req, res) => {
   if ((overall === 'FAIL' || overall === 'PARTIAL') && !String(defect_desc || '').trim()) {
     return res.status(400).json({ status: 'error', message: 'defect_desc required when overall is FAIL or PARTIAL' });
   }
+  // ── ตรวจความสอดคล้องของจำนวน ให้ตรงกับ DB CHECK (qty_pass+qty_fail = qty_checked, ทั้งคู่ >= 0) ──
+  // prod (database_schema.sql) มี CHECK พวกนี้ → ถ้าไม่ดักที่นี่ จะเป็น 500 (constraint violation) บน prod
+  // ดักแล้วตอบ 400 ที่สื่อความหมาย + กันข้อมูลจำนวนเพี้ยนตั้งแต่ก่อนบันทึก (dev/prod พฤติกรรมตรงกัน)
+  const checkedN = Number(qty_checked), passN = Number(qty_pass) || 0, failN = Number(qty_fail) || 0;
+  if (!Number.isInteger(checkedN) || checkedN <= 0) {
+    return res.status(400).json({ status: 'error', message: 'qty_checked ต้องเป็นจำนวนเต็มมากกว่า 0' });
+  }
+  // เพดาน int4 — ถ้าไม่ดัก 2147483648 จะผ่าน Number.isInteger แล้วไป 500 'integer out of range' ที่ DB
+  if (checkedN > 2147483647 || passN > 2147483647 || failN > 2147483647) {
+    return res.status(400).json({ status: 'error', message: 'จำนวนมีค่ามากเกินไป' });
+  }
+  if (passN < 0 || failN < 0) {
+    return res.status(400).json({ status: 'error', message: 'qty_pass / qty_fail ต้องไม่ติดลบ' });
+  }
+  if (passN + failN !== checkedN) {
+    return res.status(400).json({ status: 'error', message: `จำนวนไม่สอดคล้อง: qty_pass (${passN}) + qty_fail (${failN}) ต้องเท่ากับ qty_checked (${checkedN})` });
+  }
   try {
     const { rows } = await db.query(
       `INSERT INTO qc_results (wo_id, lot_no, qty_checked, qty_pass, qty_fail, overall, defect_desc, remark)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        RETURNING id, wo_id, lot_no, qty_checked, qty_pass, qty_fail, overall, defect_desc, remark, created_at`,
-      [wo_id, lot_no, Number(qty_checked), Number(qty_pass) || 0, Number(qty_fail) || 0, overall, defect_desc || null, remark || null]
+      [wo_id, lot_no, checkedN, passN, failN, overall, defect_desc || null, remark || null]
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {

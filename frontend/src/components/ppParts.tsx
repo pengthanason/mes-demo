@@ -4,6 +4,7 @@ import { showToast } from '../lib/toast';
 import { confirmDialog } from '../lib/confirm';
 import { WoInput } from './WoInput';
 import { MultiPicInput } from './MultiPicInput';
+import { useWoBoard } from '../lib/woApi';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 
 // hex (#rrggbb) → ARGB ('FFRRGGBB') สำหรับ ExcelJS
@@ -82,13 +83,35 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
   );
 }
 
+// ใกล้ครบกำหนด (revised/expected date) ภายในกี่วัน → เตือนสีส้มอัตโนมัติ ก่อนจะกลายเป็นแดง (เดิมมีแค่ปุ่มเลือกสีเอง)
+// ปรับตัวเลขนี้ได้ตามที่ทีมตกลงกัน (transcript พูดถึงทั้ง 1-2 และ 1-3 วัน — ใช้ 3 เป็นค่าเริ่มต้น)
+export const DUE_SOON_DAYS = 3;
+
 // แสดงผลช่อง Status — status เก็บได้ทั้ง 4 สถานะ (DONE/ON_PROCESS/DELAY/CANCEL) หรือชื่อ process step (เช่น "SMT")
-// · ถ้าเป็น process step → โชว์ชื่อ step + สีเหลือง (เหมือน Delay) · status_color = สีที่กดเปลี่ยนเองในตาราง (ทับได้)
+// · ถ้าเป็น process step → โชว์ชื่อ step + สีเหลือง (เหมือน Delay) · status_color = สีที่กดเปลี่ยนเองในตาราง (ทับได้ ชนะทุกกรณี)
+// · ON_PROCESS ที่ยังไม่เลยกำหนดแต่เหลือ <= DUE_SOON_DAYS วัน (เทียบจาก revised_date ถ้ามี ไม่งั้น expected_date) → ขึ้นส้มอัตโนมัติ
+//   (ไม่แตะ DELAY/DONE/CANCEL ที่เป็นสถานะชัดเจนอยู่แล้ว — เฉพาะ ON_PROCESS ที่ยังไม่มีใครตั้งสีเองเท่านั้น)
+// ⚠️ ProjectFormModal auto-fill status_color = status ทุกครั้งที่บันทึกถ้าไม่ได้เลือกสีเอง (ดู ppParts.tsx ~1010)
+//    → status_color เกือบทุก record จะไม่ว่างเปล่าอยู่แล้ว เทียบแค่ "!empty" จะไม่มีทาง auto-orange ทำงานเลย
+//    ต้องเทียบว่า status_color ต่างจาก status จริงๆ (คนละสีกับ default) ถึงจะถือว่า "ตั้งสีเองไว้แล้ว"
 export function statusView(p: Partial<PpProject>): { label: string; colorKey: string } {
   const st = (p.status || '') as string;
   const isStd = (PP_STATUS as readonly string[]).includes(st);
   const label = PP_STATUS_LABEL[st] ?? st;
-  const colorKey = p.status_color || (isStd ? st : 'PROCESS');   // process step (ไม่ใช่ 4 สถานะ) = ฟ้าอมเขียว (teal)
+  const hasCustomColor = !!p.status_color && p.status_color !== st;
+  if (hasCustomColor) return { label, colorKey: p.status_color! };
+
+  if (st === 'ON_PROCESS') {
+    const dueStr = p.revised_date || p.expected_date;
+    const due = dueStr ? new Date(String(dueStr).slice(0, 10) + 'T00:00:00') : null;
+    if (due && !isNaN(due.getTime())) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const daysLeft = Math.round((due.getTime() - today.getTime()) / 86400000);
+      if (daysLeft >= 0 && daysLeft <= DUE_SOON_DAYS) return { label, colorKey: 'ORANGE' };
+    }
+  }
+
+  const colorKey = isStd ? st : 'PROCESS';   // process step (ไม่ใช่ 4 สถานะ) = ฟ้าอมเขียว (teal)
   return { label, colorKey };
 }
 
@@ -1005,8 +1028,25 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
   const create = usePpCreate();
   const update = usePpUpdate();
   const { data: picNames = [] } = usePicNames();   // รายชื่อ PIC ที่มีอยู่ → เติม dropdown (เพิ่มชื่อใหม่เองได้)
+  const { data: woBoard = [] } = useWoBoard();     // WO ที่มีอยู่ → เลือกแล้ว autofill ข้อมูลลงฟอร์ม
   const editing = !!initial;
   const set = (k: keyof PpProject, v: any) => { setF(p => ({ ...p, [k]: v })); setDirty(true); };
+  // เลือก WO ที่มีอยู่ → ดึง product/customer/qty/expected จาก WO นั้นมาเติมให้อัตโนมัติ (พิมพ์เอง/WO ใหม่ = ไม่ autofill)
+  const applyWoFrom = (v: string) => {
+    const wo = woBoard.find(w => w.woId === v);
+    setF(prev => {
+      const next: Partial<PpProject> = { ...prev, work_order: v };
+      if (wo) {
+        if (wo.productCode) { next.product_pn = wo.productCode; next.wo_name = wo.productCode; }
+        if (wo.customer && wo.customer !== '—') next.customer = wo.customer;
+        if (wo.qty != null) next.qty = wo.qty;
+        if (wo.expectedDate) next.expected_date = String(wo.expectedDate).slice(0, 10);
+      }
+      return next;
+    });
+    setDirty(true);
+    if (wo) showToast(`Autofilled from ${v}`, 'info');
+  };
 
   // ยิงบันทึกจริง — editNote = หมายเหตุการแก้ไข (เฉพาะตอนแก้ไข ส่งไปเก็บใน history)
   function doSave(editNote?: string) {
@@ -1014,9 +1054,25 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
     const today = todayLocal();
     const status = f.status || 'ON_PROCESS';
     const status_color = f.status_color || ((PP_STATUS as readonly string[]).includes(status) ? status : '');
-    const payload: any = editing
-      ? { ...f, id: initial!.id, status, status_color, ...(editNote ? { edit_note: editNote } : {}) }
-      : { ...f, status, status_color, date_record: f.date_record || today, wk: f.wk ?? isoWeek(f.date_record || today) };
+    // แก้ไข → ส่งเฉพาะ field ที่เปลี่ยนจริง (ไม่ยัดค่าเดิมทั้งฟอร์ม)
+    // เหตุผล: server มีกฎ "ปิดงานได้ต่อเมื่อผลิตครบ" ที่ trigger เมื่อ body ส่ง pd_finish_date/status=DONE มา
+    // ถ้าส่งค่าเดิมไปด้วยทุกครั้ง แถวที่มี pd_finish_date ค้างแต่ produce ยังไม่ครบ จะแก้ field อื่นไม่ได้เลย (ติด 400)
+    let payload: any;
+    if (editing) {
+      const base: any = initForm(initial!);
+      const next: any = { ...f, status, status_color };
+      const changed: any = {};
+      const cmp = (v: any) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+      for (const k of Object.keys(next)) if (cmp(next[k]) !== cmp(base[k])) changed[k] = next[k];
+      if (!Object.keys(changed).length) {   // ไม่มีอะไรเปลี่ยน → ไม่ต้องยิง API
+        showToast('ไม่มีการเปลี่ยนแปลง', 'info');
+        setAskRemark(false); setDirty(false); onSaved?.();
+        return;
+      }
+      payload = { id: initial!.id, ...changed, ...(editNote ? { edit_note: editNote } : {}) };
+    } else {
+      payload = { ...f, status, status_color, date_record: f.date_record || today, wk: f.wk ?? isoWeek(f.date_record || today) };
+    }
     mut.mutate(payload, {
       onSuccess: () => {
         showToast(editing ? 'Updated' : 'Project added', 'success');
@@ -1035,13 +1091,19 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
     const ds = f.pd_start_date || '', df = f.pd_finish_date || '', ex = f.expected_date || '';   // 'YYYY-MM-DD' เทียบ string ได้
     if (ds && df && df < ds) { errs.push('PD Done must be on/after PD Start'); bad.pd_finish_date = true; }
     if (ds && ex && ex < ds) { errs.push('Expected date must be on/after PD Start'); bad.expected_date = true; }
-    if (df && ex && ex < df) { errs.push('Expected date must be on/after PD Done'); bad.expected_date = true; }
+    // (เอาออก) PD Done หลัง Expected ได้ = ดีเลย์ — ไม่บล็อก
+    if (df && df > todayLocal()) { errs.push('PD Done cannot be a future date'); bad.pd_finish_date = true; }   // วันเสร็จจริง ห้ามอนาคต
     const qty = Number(f.qty) || 0, prod = Number(f.produce) || 0;
     if (qty < 0) { errs.push('Quantity cannot be negative'); bad.qty = true; }
     if (prod < 0) { errs.push('Produced cannot be negative'); bad.produce = true; }
     if (prod > qty) { errs.push('Produced cannot exceed Quantity'); bad.produce = true; }
-    if ((Number(f.total_ng) || 0) < 0) { errs.push('Total NG cannot be negative'); bad.total_ng = true; }
-    if ((Number(f.total_ok) || 0) < 0) { errs.push('Total FG cannot be negative'); bad.total_ok = true; }
+    const fg = Number(f.total_ok) || 0, ng = Number(f.total_ng) || 0;
+    if (ng < 0) { errs.push('Total NG cannot be negative'); bad.total_ng = true; }
+    if (fg < 0) { errs.push('Total FG cannot be negative'); bad.total_ok = true; }
+    if (fg > prod) { errs.push('Total FG cannot exceed Produced'); bad.total_ok = true; }   // FG ≤ Produced
+    if (ng > prod) { errs.push('Total NG cannot exceed Produced'); bad.total_ng = true; }   // NG ≤ Produced
+    // ปิดงาน (status DONE หรือมี PD Done) ได้ต่อเมื่อผลิตครบ
+    if ((f.status === 'DONE' || !!f.pd_finish_date) && prod < qty) { errs.push('Produced must be complete (= Quantity) before marking Done'); bad.produce = true; }
     return { errs, bad };
   }
 
@@ -1075,7 +1137,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
           <Section title="Main info" />
           {/* WO + Type (Internal/External) บนสุด */}
           <div className="grid-3col">
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>WO</span><WoInput value={f.work_order ?? ''} onChange={v => set('work_order', v)} placeholder="Select or type WO…" /></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>WO</span><WoInput value={f.work_order ?? ''} onChange={applyWoFrom} placeholder="Select or type WO…" /></label>
             <label className="field"><span>Type</span>
               <select value={(f as any).pp_type ?? 'internal'} onChange={txt('pp_type' as keyof PpProject)}>
                 <option value="internal">Internal</option>

@@ -87,14 +87,14 @@ export function QaVerifyPage() {
             { label: 'Pass',         value: String(qcResult.qtyPass) },
             { label: 'Fail',         value: String(qcResult.qtyFail) },
           ].map(({ label, value }) => (
-            <div key={label} style={{ padding: '0.875rem', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 10 }}>
+            <div key={label} style={{ padding: '0.875rem', background: 'var(--surface-1)', border: '1px solid var(--border-color)', borderRadius: 10 }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>{label}</div>
-              <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>{value}</div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--ink-1)' }}>{value}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1rem', padding: '0.75rem 1rem', background: '#f8fafc', borderRadius: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1rem', padding: '0.75rem 1rem', background: 'var(--surface-1)', borderRadius: 6 }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Overall Result:</span>
           <span style={{ fontWeight: 700, color: overallColor, fontSize: '1rem' }}>{qcResult.overall}</span>
         </div>
@@ -127,15 +127,15 @@ export function QaVerifyPage() {
           <h2 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>QA Verify</h2>
           <form onSubmit={handleSubmit} className="stack" style={{ gap: '0.75rem' }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem' }}>Verdict *</div>
+              <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: '0.6rem' }}>Verdict *</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <button
                   type="button"
                   onClick={() => setVerdict('APPROVED')}
                   style={{
-                    padding: '1rem', borderRadius: 8, border: `2px solid ${verdict === 'APPROVED' ? '#10b981' : '#cbd5e1'}`,
+                    padding: '1rem', borderRadius: 8, border: `2px solid ${verdict === 'APPROVED' ? '#10b981' : 'var(--line-3)'}`,
                     background: verdict === 'APPROVED' ? '#dcfce7' : '#fff',
-                    color: verdict === 'APPROVED' ? '#166534' : '#64748b',
+                    color: verdict === 'APPROVED' ? '#166534' : 'var(--ink-4)',
                     fontWeight: 700, fontSize: '1rem', cursor: 'pointer', transition: 'all 0.15s',
                   }}
                 >
@@ -145,9 +145,9 @@ export function QaVerifyPage() {
                   type="button"
                   onClick={() => setVerdict('REJECTED')}
                   style={{
-                    padding: '1rem', borderRadius: 8, border: `2px solid ${verdict === 'REJECTED' ? '#ef4444' : '#cbd5e1'}`,
+                    padding: '1rem', borderRadius: 8, border: `2px solid ${verdict === 'REJECTED' ? '#ef4444' : 'var(--line-3)'}`,
                     background: verdict === 'REJECTED' ? '#fee2e2' : '#fff',
-                    color: verdict === 'REJECTED' ? '#991b1b' : '#64748b',
+                    color: verdict === 'REJECTED' ? '#991b1b' : 'var(--ink-4)',
                     fontWeight: 700, fontSize: '1rem', cursor: 'pointer', transition: 'all 0.15s',
                   }}
                 >
