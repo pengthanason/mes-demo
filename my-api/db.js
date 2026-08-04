@@ -1,4 +1,14 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// ── DATE (OID 1082) → คืนเป็น string 'YYYY-MM-DD' ตรงๆ ห้ามแปลงเป็น JS Date ────────
+// 🔴 บทเรียน QA 2026-08-03: pg แปลง DATE เป็น JS Date ที่ "เที่ยงคืนตาม TZ ของ process"
+//    → JSON.stringify เรียก toISOString() = UTC → ฝั่ง UI ตัด slice(0,10)
+//    ถ้า process ไม่ได้อยู่ UTC (เช่นตั้ง TZ=Asia/Bangkok) ทุกวันที่จะ **เลื่อนย้อน 1 วันเงียบๆ**
+//    ทดลองแล้ว: TZ=+07 บันทึก 2026-09-15 → API คืน 2026-09-14T17:00:00.000Z → UI โชว์ 09-14
+//    ของเดิมถูกเพราะ container "บังเอิญ" เป็น UTC เท่านั้น = ระเบิดเวลารอคนตั้ง TZ
+//    DATE = วันปฏิทินล้วน ไม่มี timezone อยู่ในความหมาย → ส่งเป็น string จบเรื่อง ไม่ขึ้นกับ TZ ใดๆ
+//    (TIMESTAMPTZ/1184 ไม่แตะ — ตัวนั้นมี timezone จริงและ UI ต้องการเวลาแม่นยำ)
+types.setTypeParser(1082, (v) => v);
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
