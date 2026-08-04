@@ -1,5 +1,78 @@
 const router = require('express').Router();
 const db     = require('../db');
+const wms    = require('../wmsClient');
+
+// ── Stock vs Odoo (drift) — ของจริงจาก WMS ไม่ใช่ mock ────────────────────────
+// 2026-08-04 (หัวหน้าสั่ง "ต้องดึงจาก WMS หรือ Odoo"): เดิมหน้า /drift โชว์ mock 12 แถว
+// อยู่ในไฟล์ frontend — ตัวเลขปลอมที่ดูเหมือนจริง (อันตรายกว่าไม่มีข้อมูล)
+//
+// ทำไมไม่คิด drift เองที่นี่: WMS มี logic กัน false-drift สะสมมาหลายรอบ
+// (canonical location matching · mirror lag · live vs snapshot) การไปคิดใหม่ = ตัวเลขคนละชุด
+// กับที่ WMS ใช้ตัดสินใจ และเสี่ยงโชว์ drift ปลอมซ้ำรอยเดิม → เราเป็นแค่ผู้บริโภครายงาน
+//
+// contract ที่หน้าเว็บรอ (lib/driftApi.ts): { item_code, item_name, location, our_qty, odoo_qty, diff }
+// our_qty = WMS (คลังของเรา) · odoo_qty = Odoo · diff = our - odoo
+// cache สั้นๆ ในหน่วยความจำ: live read คุย Odoo จริง วัดได้ ~12 วิ · เปิดหน้าซ้ำ/หลายคน
+// ไม่ควรยิง Odoo ซ้ำทุกครั้ง (Odoo มีอาการ refuse เป็นคลื่นอยู่แล้ว) · TTL สั้นพอที่เลขไม่เก่าเกิน
+// และ meta.fetched_at บอกเวลาที่ดึงมาจริง เพื่อไม่ให้เข้าใจผิดว่าเป็นเลข ณ วินาทีนี้
+const DRIFT_CACHE_TTL_MS = 120000;
+const _driftCache = new Map();   // key = `${live}:${limit}` → { at, payload }
+
+router.get('/drift', async (req, res) => {
+  const live = String(req.query.live ?? 'true') !== 'false';
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+  const cacheKey = `${live}:${limit}`;
+  const hit = _driftCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < DRIFT_CACHE_TTL_MS) {
+    return res.json({ ...hit.payload, meta: { ...hit.payload.meta, cached: true, fetched_at: new Date(hit.at).toISOString() } });
+  }
+  const r = await wms.getQtyDrift({ live, limit });
+
+  if (!r.ok) {
+    // ⚠️ ห้าม fallback เป็นข้อมูลปลอม/ว่างเปล่าเงียบๆ — บอกให้ชัดว่าอ่านไม่ได้เพราะอะไร
+    // 404 = endpoint ฝั่ง WMS ยังไม่ได้ deploy · 403 = service account สิทธิ์ไม่พอ
+    const hint = r.status === 404
+      ? 'endpoint รายงาน drift ฝั่ง WMS ยังไม่ได้ deploy'
+      : r.status === 403
+        ? 'บัญชี service ของ MES ยังไม่มีสิทธิ์อ่านรายงาน WMS'
+        : r.error;
+    return res.status(503).json({ status: 'error', message: `อ่านข้อมูลเทียบสต็อกจาก WMS ไม่ได้ — ${hint}`, source: 'wms', wms_status: r.status || null });
+  }
+
+  const d = r.data || {};
+  // ใช้ระดับ "item + location" เป็นหลักตาม contract (location เป็นคอลัมน์ในตาราง)
+  // ถ้า WMS ไม่มี breakdown รายสถานที่ ให้ถอยไประดับ item แล้วบอกตรงๆ ว่า location = '(all)'
+  const locRows = Array.isArray(d.location_drift_items) ? d.location_drift_items : [];
+  const itemRows = Array.isArray(d.drift_items) ? d.drift_items : [];
+  const src = locRows.length ? locRows : itemRows;
+  const rows = src.map((x) => ({
+    item_code: String(x.sku ?? x.item_id ?? ''),
+    item_name: String(x.item_name ?? x.sku ?? ''),        // WMS ไม่ส่งชื่อสินค้ามาในรายงานนี้ → โชว์รหัสไปก่อน
+    location: String(x.location ?? '(all)'),
+    our_qty: Number(x.wms_qty ?? 0),
+    odoo_qty: Number(x.odoo_qty ?? 0),
+    diff: Number(x.diff ?? 0),
+  }));
+
+  const payload = {
+    status: 'success',
+    data: rows,
+    // meta ต้องส่งไปให้หน้าเว็บโชว์ได้ว่าเลขนี้ "สด" หรือ "snapshot" — ห้ามให้เข้าใจผิดว่าสดทั้งที่ค้าง
+    meta: {
+      source: d.source || null,                    // 'live' | 'snapshot'
+      live_unavailable: d.live_unavailable || null, // มีค่า = ขอสดแต่ Odoo ล่ม จึงถอยไป snapshot
+      snapshot_date: d.snapshot_date || null,
+      items_compared: d.items_compared ?? null,
+      drift_count: d.drift_count ?? null,
+      level: locRows.length ? 'item+location' : 'item',
+      truncated: Boolean(locRows.length ? d.location_truncated : d.truncated),
+      cached: false,
+      fetched_at: new Date().toISOString(),
+    },
+  };
+  _driftCache.set(cacheKey, { at: Date.now(), payload });
+  res.json(payload);
+});
 
 // ── Incoming: รับวัตถุดิบเข้า (ระดับล็อต — 1 ล็อต = 1 record) ──────────
 

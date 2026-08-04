@@ -128,7 +128,10 @@ function FileNamePromptModal({ defaultBase, onCancel, onConfirm }: { defaultBase
 type SortKey = 'code' | 'location' | 'our' | 'odoo' | 'diff';   // คอลัมน์ที่กดหัวตารางเพื่อเรียง
 
 export function DriftViewerPage() {
-  const { data: rows = [], isLoading, isError, refetch } = useDriftReport();
+  // hook คืน { rows, meta } — meta บอกว่าเลขที่เห็น "สด" หรือ "snapshot" ต้องโชว์ให้ผู้ใช้รู้
+  const { data, isLoading, isError, refetch } = useDriftReport();
+  const rows = data?.rows ?? [];
+  const meta = data?.meta ?? null;
   const [q, setQ] = useState('');
   const [loc, setLoc] = useState('');
   const [onlyDiff, setOnlyDiff] = useState(true);
@@ -174,6 +177,24 @@ export function DriftViewerPage() {
     <section className="stack-lg">
       <div className="panel">
         <h1 className="panel__title">Stock Drift — Our Stock vs Odoo</h1>
+
+        {/* ที่มาของเลข — ต้องบอกตรงๆ ว่าสดหรือ snapshot ไม่ให้เข้าใจผิดว่าเป็นเลข ณ วินาทีนี้
+            (เลขชุดนี้มาจากรายงานตัวเดียวกับที่ WMS ใช้ — ไม่ได้คิดใหม่ที่ MES) */}
+        {meta && (
+          <div style={{
+            marginTop: 10, padding: '8px 12px', borderRadius: 8, fontSize: '0.78rem',
+            background: meta.source === 'live' && !meta.live_unavailable ? '#f0fdf4' : '#fff7ed',
+            border: `1px solid ${meta.source === 'live' && !meta.live_unavailable ? '#bbf7d0' : '#fed7aa'}`,
+            color: meta.source === 'live' && !meta.live_unavailable ? '#166534' : '#9a3412',
+          }}>
+            {meta.source === 'live' && !meta.live_unavailable
+              ? <>✅ อ่านสดจาก Odoo · เทียบ {meta.items_compared?.toLocaleString()} รายการ</>
+              : <>⚠️ เลขนี้เป็น snapshot{meta.snapshot_date ? ` ของวันที่ ${meta.snapshot_date}` : ''} ไม่ใช่ค่าสด{meta.live_unavailable ? ` — อ่าน Odoo สดไม่ได้: ${meta.live_unavailable}` : ''}</>}
+            {meta.fetched_at && <> · ดึงเมื่อ {new Date(meta.fetched_at).toLocaleTimeString('th-TH')}{meta.cached ? ' (จากแคช 2 นาที)' : ''}</>}
+            {meta.truncated && <> · <b>แสดงไม่ครบ</b> (ตัดที่ {rows.length} แถวแรก เรียงตามส่วนต่างมากสุด)</>}
+            {meta.level === 'item' && <> · ไม่มีข้อมูลแยกตามสถานที่ — คอลัมน์ Location จะเป็น (all)</>}
+          </div>
+        )}
 
         {/* แถบสรุป */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: '1.1rem' }}>
