@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { GanttChart } from '../ppParts';
 import type { PpProject } from '../../lib/ppApi';
+import { DATE_YEAR_MIN, DATE_YEAR_MAX } from '../../lib/dateRange';
 
 // ── INC 2026-08-03 17:40 — Dashboard พังทั้งหน้า "Maximum call stack size exceeded" ────────
 // ต้นตอ: WO 102026 มี revised_date = '0001-04-11' (ปีพิมพ์ตกใน <input type="date">)
@@ -45,6 +46,18 @@ describe('GanttChart — วันที่ปีหลุดช่วง (INC 2
   it('ปีมากเกินไป (9999) ก็ต้องกันเหมือนกัน', () => {
     expect(() => render(<GanttChart rows={[{ ...base, expected_date: '9999-01-01' }]} />)).not.toThrow();
     expect(screen.getByText(/have a date outside/i)).toBeInTheDocument();
+  });
+
+  // ชั้นกันที่ต้นทาง: ช่องกรอกวันที่ต้องมี min/max ไม่งั้นพิมพ์ปีหลักเดียวได้เหมือนเดิม
+  // (เช็คที่ Gantt เพราะ render ได้โดยไม่ต้องมี API/auth — ค่ามาจาก lib/dateRange ตัวเดียวกับทุกฟอร์ม)
+  it('ช่องกรอกวันที่ต้องมี min/max ผูกกับช่วงปีที่ยอมรับ', () => {
+    const { container } = render(<GanttChart rows={[base]} />);
+    const dateInputs = Array.from(container.querySelectorAll('input[type="date"]'));
+    expect(dateInputs.length).toBeGreaterThan(0);
+    for (const el of dateInputs) {
+      expect(el.getAttribute('min')).toBe(`${DATE_YEAR_MIN}-01-01`);
+      expect(el.getAttribute('max')).toBe(`${DATE_YEAR_MAX}-12-31`);
+    }
   });
 
   it('วันที่ปกติ → ไม่ขึ้นคำเตือน', () => {

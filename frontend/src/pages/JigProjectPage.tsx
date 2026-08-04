@@ -4,6 +4,7 @@ import { useJigProject, useJigRecords, useJigTimeseries, useJigRecordCreate, Jig
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { BlockState } from '../components/DataStates';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../lib/dateRange';
 
 /* ──────── SVG Line Chart ──────── */
 function LineChart({ data }: { data: JigTimeseries[] }) {
@@ -304,7 +305,7 @@ export function JigProjectPage() {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             {!isViewer && <button type="button" className="btn" style={{ fontSize: '0.78rem', padding: '4px 12px' }} onClick={() => setShowAdd(true)}>+ Add Result</button>}
             <input
-              type="date"
+              type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX}
               value={dateFilter}
               onChange={e => setDateFilter(e.target.value)}
               className="form-input"

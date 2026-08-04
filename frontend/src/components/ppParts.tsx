@@ -6,6 +6,7 @@ import { WoInput } from './WoInput';
 import { MultiPicInput } from './MultiPicInput';
 import { useWoBoard } from '../lib/woApi';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX, DATE_YEAR_MIN, DATE_YEAR_MAX } from '../lib/dateRange';
 
 // hex (#rrggbb) → ARGB ('FFRRGGBB') สำหรับ ExcelJS
 const argb = (hex: string) => 'FF' + hex.replace('#', '').toUpperCase();
@@ -429,8 +430,9 @@ export function ChartCard({ title, children }: { title: string; children: React.
 //    ใน WO 102026) → ช่วงของ Gantt ถูกลากจากปี 1 ถึงปีนี้ = 739,741 วัน → หน้า Dashboard พังทั้งหน้า
 //    (Maximum call stack size exceeded ตอน spread array 7 แสนตัวเข้า Math.max)
 // ปีนอกช่วง = ถือว่าไม่มีค่า (คืน null) แล้วโชว์คำเตือนใต้ Gantt ให้คนไปแก้ — ไม่เงียบ
-const GANTT_YEAR_MIN = 2000;
-const GANTT_YEAR_MAX = new Date().getFullYear() + 10;
+// ใช้ตัวเลขชุดเดียวกับ min/max ของช่องกรอก (lib/dateRange) — แยกกันแล้วจะมีช่องที่หลุด
+const GANTT_YEAR_MIN = DATE_YEAR_MIN;
+const GANTT_YEAR_MAX = DATE_YEAR_MAX;
 // เพดานความกว้างของไทม์ไลน์ — กันไว้อีกชั้นเผื่อมีวันที่แปลกที่ยังอยู่ในช่วงปี (เช่น 2000 กับ 2036 ในชุดเดียวกัน)
 const GANTT_MAX_SPAN_DAYS = 1830;   // ~5 ปี
 
@@ -669,9 +671,9 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
       {/* ฟิลเตอร์ช่วงวันที่ */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', fontSize: '0.8rem', color: '#475569' }}>
         <span style={{ fontWeight: 600 }}>Date range:</span>
-        <input type="date" value={fromStr} onChange={e => setFromStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
+        <input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={fromStr} onChange={e => setFromStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
         <span>to</span>
-        <input type="date" value={toStr} onChange={e => setToStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
+        <input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={toStr} onChange={e => setToStr(e.target.value)} style={{ padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 6, fontFamily: 'inherit' }} />
         {(fromStr || toStr) && <button type="button" onClick={() => { setFromStr(''); setToStr(''); }} style={{ padding: '3px 10px', fontSize: '0.75rem', border: '1px solid var(--border-color)', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>Clear date range</button>}
         <button type="button" className="btn secondary" onClick={() => setShowHeatmap(true)} title="เปิด Heat map จำนวนงาน active ต่อวัน"
           style={{ marginLeft: 'auto', fontSize: '0.82rem' }}>🔥 Heatmap</button>
@@ -1154,9 +1156,9 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
                 {PROCESS_STEPS.map(s => <option key={s.key as string} value={s.label}>{s.label}</option>)}
               </select>
             </label>
-            <label className="field"><span>Date record</span><input type="date" value={f.date_record ?? ''} onChange={onDateRecord} /></label>
+            <label className="field"><span>Date record</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.date_record ?? ''} onChange={onDateRecord} /></label>
             <label className="field"><span>WW (Work Week)</span><input type="number" value={f.wk ?? ''} readOnly title="Auto-calculated from Date Record (ISO week)" placeholder="auto" style={{ background: '#f1f5f9' }} /></label>
-            <label className="field"><span>Bom Rec (BOM received date)</span><input type="date" value={(f as any).bom_rec_date ?? ''} onChange={txt('bom_rec_date' as keyof PpProject)} /></label>
+            <label className="field"><span>Bom Rec (BOM received date)</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={(f as any).bom_rec_date ?? ''} onChange={txt('bom_rec_date' as keyof PpProject)} /></label>
           </div>
 
           <Section title="Production Record" />
@@ -1171,9 +1173,9 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
           <Section title="PD PLAN" />
           <div className="grid-3col">
-            <label className="field"><span>PD Start</span><input type="date" value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} style={eb('pd_start_date')} /></label>
-            <label className="field"><span>PD Done</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} style={eb('pd_finish_date')} /></label>
-            <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} style={eb('expected_date')} /></label>
+            <label className="field"><span>PD Start</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} style={eb('pd_start_date')} /></label>
+            <label className="field"><span>PD Done</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} style={eb('pd_finish_date')} /></label>
+            <label className="field"><span>Expected date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.expected_date ?? ''} onChange={txt('expected_date')} style={eb('expected_date')} /></label>
             <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? 0} onChange={num('target_per_day')} placeholder="e.g. 40" /></label>
           </div>
 
@@ -1202,7 +1204,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
             <label className="field"><span>Sampling rate</span>
               <input type="text" value={f.qa_test_rate ?? ''} onChange={txt('qa_test_rate')} />
             </label>
-            <label className="field"><span>QA Finish date</span><input type="date" value={f.qa_finish_date ?? ''} onChange={txt('qa_finish_date')} /></label>
+            <label className="field"><span>QA Finish date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.qa_finish_date ?? ''} onChange={txt('qa_finish_date')} /></label>
             <label className="field"><span>QA Status</span>
               <select value={f.qa_status ?? ''} onChange={txt('qa_status')} title="QA status — separate from the job status">
                 <option value="">— None —</option>
@@ -1213,7 +1215,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
           <Section title="Store" />
           <div className="grid-3col">
-            <label className="field"><span>Received date</span><input type="date" value={f.store_received ?? ''} onChange={txt('store_received')} /></label>
+            <label className="field"><span>Received date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.store_received ?? ''} onChange={txt('store_received')} /></label>
           </div>
 
           <Section title="PIC" />
@@ -1224,7 +1226,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
           </div>
 
           <div className="grid-3col">
-            <label className="field"><span>Revised date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
+            <label className="field"><span>Revised date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
           </div>
           <label className="field"><span>Special request</span><textarea value={f.special_request ?? ''} onChange={txt('special_request')} rows={2} placeholder="e.g. urgent, QA first, etc." /></label>
           <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={4} /></label>

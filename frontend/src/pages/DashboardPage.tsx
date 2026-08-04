@@ -18,6 +18,7 @@ import {
 } from '../components/ppParts';
 import { StationMonitorWidget } from '../components/StationMonitorWidget';
 import { WoOverviewWidget } from '../components/WoOverviewWidget';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../lib/dateRange';
 
 // #3: pd_pic อาจเก็บหลายคนในช่องเดียว ("Run,Ice,Nile") — แตกเป็นรายคน เพื่อฟิลเตอร์ "ตามคน"
 const splitPics = (v: any): string[] => String(v ?? '').split(/[,/;]/).map(s => s.trim()).filter(Boolean);
@@ -298,7 +299,7 @@ function InlineDateCell({ value, green, title = 'Click to quick-edit date', onSa
   const display = iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
   if (editing) return (
     <td style={{ padding: 2, textAlign: 'center' }}>
-      <input ref={ref} type="date" value={iso}
+      <input ref={ref} type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={iso}
         onChange={e => { onSave(e.target.value); setEditing(false); setOk(true); setTimeout(() => setOk(false), 1000); }}
         onBlur={() => setEditing(false)}
         style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.76rem', padding: '2px', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none', background: '#fff' }} />
@@ -936,7 +937,7 @@ function ProcessEventPopup({ p, stepKey, onClose, onSave }: { p: PpProject; step
           </select>
         </label>
         <label className="field" style={{ marginTop: 10 }}><span>Date</span>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+          <input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={date} onChange={e => setDate(e.target.value)} />
         </label>
         <label className="field" style={{ marginTop: 10 }}><span>Remark</span>
           <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} />
@@ -1328,8 +1329,8 @@ export function DashboardPage() {
           <ColumnFilterField label="PIC" options={pics}
             selected={colFilters.pd_pic ?? new Set()} onToggle={v => toggleFilterValue('pd_pic', v)} onClear={() => clearFilterCol('pd_pic')}
             colKey="pd_pic" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
-          <label className="field"><span>From date</span><input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} /></label>
-          <label className="field"><span>To date</span><input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} /></label>
+          <label className="field"><span>From date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} /></label>
+          <label className="field"><span>To date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} /></label>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', margin: '12px 0 0.75rem' }}>

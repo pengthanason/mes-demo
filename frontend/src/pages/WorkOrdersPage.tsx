@@ -6,6 +6,7 @@ import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
 import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { TableState } from '../components/DataStates';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../lib/dateRange';
 
 const STEP_STYLE: Record<string, { label: string; bg: string; text: string; border: string }> = {
   DRAFT:        { label: 'Draft',          bg: 'var(--surface-2)', text: 'var(--ink-3)', border: 'var(--line-3)' },
@@ -94,7 +95,7 @@ export function WorkOrdersPage() {
                   {fErr.qty && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.qty}</span>}
                 </label>
                 <label className="field"><span>Expected date</span>
-                  <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
+                  <input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
                 </label>
               </div>
               {err && <div className="notice err">{err}</div>}
