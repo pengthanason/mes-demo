@@ -159,6 +159,15 @@ services:
       #    แล้ววันที่ทุกช่อง "เลื่อนย้อน 1 วัน" เงียบๆ (พิสูจน์ไว้ใน QA 2026-08-03)
       TZ: Asia/Bangkok
 
+      # ── WMS (อ่านล้วน) — หน้า "Stock vs Odoo" ดึงรายงาน drift จาก WMS ────────────
+      # ยิงทาง host.docker.internal เพราะ my-api ตั้งใจเกาะแค่ network ของ MES
+      # (2026-08-03: การ connect network เพิ่มไปแย่ง default route จนต่อ DB ไม่ได้ — ห้ามซ้ำ)
+      # ใช้ service account เดิม (role member มี permission `inventory` พอสำหรับ
+      # GET /ots/reports/qty-drift) — ไม่ต้องยกเป็น admin
+      WMS_API_URL: ${MY_API_WMS_URL:-http://host.docker.internal:8000}
+      WMS_SERVICE_USER: ${WMS_SERVICE_USER:-mes_service}
+      WMS_SERVICE_PIN: ${WMS_SERVICE_PIN:?ต้องตั้ง WMS_SERVICE_PIN ใน .env - my-api ใช้ล็อกอิน WMS เพื่ออ่านรายงาน drift}
+
       DB_HOST: host.docker.internal   # 🔴 ห้ามเป็น "postgres" (ไม่มี container นั้น)
       DB_PORT: "5432"
       DB_NAME: mesdb
