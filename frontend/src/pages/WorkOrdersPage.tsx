@@ -6,6 +6,7 @@ import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
 import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { TableState } from '../components/DataStates';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../lib/dateRange';
 
 // สี status ทั้งชุด (7 ขั้น) — ยึด convention เดียวกับทั้งแอป: เทา=ยังไม่เริ่ม, ฟ้า/ฟ้าเข้ม=กำลังทำงานปกติ,
 // ม่วง=รออนุมัติ, เขียว=เสร็จ · "เหลือง/ส้ม" สงวนไว้ให้แปลว่า "ต้องตามงาน/รอดำเนินการ" เท่านั้น (Incoming PENDING,
@@ -114,7 +115,7 @@ export function WorkOrdersPage() {
                   {fErr.qty && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.qty}</span>}
                 </label>
                 <label className="field"><span>Expected date</span>
-                  <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
+                  <input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
                 </label>
               </div>
               {err && <div className="notice err">{err}</div>}

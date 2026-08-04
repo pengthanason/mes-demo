@@ -12,6 +12,7 @@ import { WoInput } from '../components/WoInput';
 import { useWoLots, useScanSummary } from '../lib/lookups';
 import { TableState } from '../components/DataStates';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../lib/dateRange';
 
 const OVERALL_STYLE: Record<QcOverall, { bg: string; text: string; border: string }> = {
   PASS:    { bg: '#dcfce7', text: '#166534', border: '#86efac' },
@@ -68,7 +69,7 @@ function ReworkDialog({ qcResult, onClose }: { qcResult: QcResult; onClose: () =
           </label>
           <label className="field">
             <span>Due Date</span>
-            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            <input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </label>
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
             <button type="submit" className="btn" disabled={!defectType.trim() || reworkMut.isPending}

@@ -69,7 +69,11 @@ export async function apiLogin(username: string, password: string): Promise<{ ok
   const uname = username.trim();
   const isDemo = IS_DEMO;
   try {
-    const res = await fetch(`${API_BASE_URL || ''}/api/auth/login`, {
+    // ⚠️ ต้องผ่าน API_BASE_URL เหมือน api.ts ทุกเส้น — ห้าม hardcode '/api/...'
+    //    ของเดิม fetch('/api/auth/login') ตรงๆ ทำให้ตอนเสิร์ฟหน้าเว็บใต้ path prefix
+    //    (เช่น nginx /mes-api/ui/) ปุ่ม Login ยิงไป origin root แล้วได้ 404
+    //    → AuthGuard เด้งกลับหน้า login ทุก route = เข้าไม่ได้เลยสักหน้า ทั้งที่หน้าอื่นตั้ง base ถูกหมด
+    const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: uname, password }),

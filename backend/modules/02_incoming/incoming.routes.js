@@ -59,7 +59,7 @@ async function ensureIncomingChecklistInTx(client, woId) {
          d.part_no,
          d.qty_per AS qty_required
        FROM wo_ctx w
-       LEFT JOIN master_bom_detail d ON d.bom_header_id = w.bom_header_id
+       JOIN master_bom_detail d ON d.bom_header_id = w.bom_header_id
        WHERE NOT EXISTS (
          SELECT 1
          FROM wo_bom_snapshot snap2
@@ -93,7 +93,7 @@ async function ensureIncomingChecklistInTx(client, woId) {
        UNION
        SELECT d.line_no
        FROM wo_ctx w
-       LEFT JOIN master_bom_detail d ON d.bom_header_id = w.bom_header_id
+       JOIN master_bom_detail d ON d.bom_header_id = w.bom_header_id
        WHERE NOT EXISTS (
          SELECT 1
          FROM wo_bom_snapshot snap2

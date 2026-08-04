@@ -121,16 +121,54 @@ router.post('/api/bom/upload', requireRoles(['ADMIN']), async (req, res) => {
     return sendValidationError(res, 'bom detail validation failed', lineErrors);
   }
 
-  // BOM ภายนอกจาก mrp.bom_lines — local upload ไม่รองรับแล้ว
-  // 503 (ไม่ใช่ 404/400) = ฟีเจอร์ยังอยู่ในสัญญา API แต่ปลายทางย้ายไป MRP และยังไม่มี API เชื่อม
-  // เปลี่ยนพฤติกรรม prod → ประกาศไว้ที่ STATUS.md หัวข้อ "BOM ย้ายไปเป็นของ MRP"
-  return res.status(503).json({
-    status: 'error',
-    code: 'BOM_EXTERNAL_ONLY',
-    message: 'BOM is now managed externally via mrp.bom_lines. Local upload is no longer supported.',
-    hint: 'อัปโหลด/แก้ BOM ที่ระบบ MRP · ระบบ MES อ่าน BOM จาก mrp.bom_lines เท่านั้น · ดู STATUS.md',
-    request_id: reqId(res),
-  });
+  try {
+    const payload = await withTransaction(async (client) => {
+      const existing = await client.query('SELECT id FROM master_bom_header WHERE bom_code=$1 FOR UPDATE', [bomCode]);
+      let bomHeaderId;
+
+      if (existing.rows.length) {
+        bomHeaderId = Number(existing.rows[0].id);
+        await client.query(
+          `UPDATE master_bom_header
+           SET part_no=$2, customer=$3, model=$4, revision=$5, status='DRAFT', approved_by=NULL, approved_at=NULL, uploaded_by=$6, uploaded_at=NOW()
+           WHERE id=$1`,
+          [bomHeaderId, rootValidation.normalized, customer, model, revision, req.user.id]
+        );
+        await client.query('DELETE FROM master_bom_detail WHERE bom_header_id=$1', [bomHeaderId]);
+      } else {
+        const inserted = await client.query(
+          `INSERT INTO master_bom_header (bom_code, part_no, customer, model, revision, status, uploaded_by)
+           VALUES ($1, $2, $3, $4, $5, 'DRAFT', $6)
+           RETURNING id`,
+          [bomCode, rootValidation.normalized, customer, model, revision, req.user.id]
+        );
+        bomHeaderId = Number(inserted.rows[0].id);
+      }
+
+      for (const line of normalizedLines) {
+        await client.query(
+          `INSERT INTO master_bom_detail (bom_header_id, line_no, part_no, qty_per, uom, description)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [bomHeaderId, line.line_no, line.part_no, line.qty_per, line.uom, line.description]
+        );
+      }
+
+      return { bom_header_id: bomHeaderId, lines: normalizedLines.length };
+    });
+
+    return res.status(201).json({ status: 'success', ...payload, request_id: reqId(res) });
+  } catch (error) {
+    if (error?.code === '23505') {
+      return res.status(409).json({
+        status: 'error',
+        code: 'BOM_LINE_CONFLICT',
+        message: 'duplicate line_no in BOM details',
+        request_id: reqId(res),
+      });
+    }
+
+    return res.status(500).json({ status: 'error', code: 'BOM_UPLOAD_FAILED', message: error.message, request_id: reqId(res) });
+  }
 });
 
 router.get('/api/bom/:bomId/review', requireRoles(['PM', 'STORE', 'QC', 'QA', 'TECH', 'PD', 'ADMIN']), async (req, res) => {
@@ -241,8 +279,17 @@ router.put('/api/bom/:bomId/approve', requireRoles(['PM', 'ADMIN']), async (req,
 });
 
 router.get('/api/bom/headers', requireRoles(['PM', 'STORE', 'QC', 'QA', 'TECH', 'PD', 'ADMIN']), async (req, res) => {
-  // BOM ภายนอก — ยังไม่มี API เชื่อมต่อ ส่งกลับ array ว่างแทน error
-  return res.json({ status: 'success', boms: [], source: 'external_pending', request_id: reqId(res) });
+  try {
+    const result = await query(
+      `SELECT id, bom_code, part_no, customer, model, revision, status, uploaded_by, uploaded_at, approved_by, approved_at 
+       FROM master_bom_header 
+       ORDER BY uploaded_at DESC 
+       LIMIT 100`
+    );
+    return res.json({ status: 'success', boms: result.rows, request_id: reqId(res) });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', code: 'BOM_HEADERS_FETCH_FAILED', message: error.message, request_id: reqId(res) });
+  }
 });
 
 // --- NEW ONLINE BOM CRUD ENDPOINTS ---

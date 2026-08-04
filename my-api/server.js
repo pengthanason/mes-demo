@@ -39,18 +39,36 @@ if (CORS_ORIGINS.length) {
 app.use(express.json({ limit: '8mb' }));   // เผื่อรูปสินค้า (data URL) — default 100kb เล็กไป
 
 // ── Rate limit ─────────────────────────────────────────────────────
+// ตั้งค่าได้ทาง env — ตั้ง 0 = ปิดตัวนั้น (ใช้ตอน UAT ที่ผู้ทดสอบหลายคนออกจาก IP เดียวกัน
+// แล้วโดนล็อกทั้งกลุ่ม) · ค่า default ยังเป็นค่าที่ปลอดภัยเหมือนเดิม
+//
+// ⚠️ อย่าปล่อยปิดไว้ตอนขึ้นใช้จริง — เปิดกลับด้วยการลบ 2 env นี้ออก (หรือตั้งค่า > 0)
+//    ยิ่งตอนนี้ยังไม่ได้ตั้ง trust proxy ทำให้ทุกคนหลัง nginx นับเป็น IP เดียว
+//    limiter จึงเป็นดาบสองคม: กัน brute force ได้ แต่คนเดียวก็ล็อกคนทั้งบริษัทได้เหมือนกัน
+const LOGIN_RATE_MAX = Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10);
+const API_RATE_MAX = Number(process.env.API_RATE_LIMIT_MAX ?? 600);
+
 // login: กัน brute force รหัสผ่าน (ของเดิมยิงได้ไม่จำกัด)
-app.use('/api/auth/login', rateLimit({
-  windowMs: 15 * 60 * 1000, max: 10,
-  standardHeaders: true, legacyHeaders: false,
-  message: { status: 'error', message: 'Too many sign-in attempts, please wait 15 minutes' },
-}));
+if (LOGIN_RATE_MAX > 0) {
+  app.use('/api/auth/login', rateLimit({
+    windowMs: 15 * 60 * 1000, max: LOGIN_RATE_MAX,
+    standardHeaders: true, legacyHeaders: false,
+    message: { status: 'error', message: 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอ 15 นาที' },
+  }));
+} else {
+  console.warn('[rate-limit] ⚠️ ปิด limiter ของ /api/auth/login (LOGIN_RATE_LIMIT_MAX=0) — เปิดกลับก่อนขึ้นใช้จริง');
+}
+
 // ทั้ง API: กันยิงถล่มทำ DoS (ปกติผู้ใช้จริงไม่ถึง)
-app.use('/api', rateLimit({
-  windowMs: 60 * 1000, max: 600,
-  standardHeaders: true, legacyHeaders: false,
-  message: { status: 'error', message: 'Too many requests, please wait a moment' },
-}));
+if (API_RATE_MAX > 0) {
+  app.use('/api', rateLimit({
+    windowMs: 60 * 1000, max: API_RATE_MAX,
+    standardHeaders: true, legacyHeaders: false,
+    message: { status: 'error', message: 'มีการเรียกใช้บ่อยเกินไป กรุณารอสักครู่' },
+  }));
+} else {
+  console.warn('[rate-limit] ⚠️ ปิด limiter ของ /api ทั้งหมด (API_RATE_LIMIT_MAX=0) — เปิดกลับก่อนขึ้นใช้จริง');
+}
 
 // ── Health ─────────────────────────────────────────────────────────
 // liveness: แอปยังรันอยู่ไหม (ไม่แตะ DB — ใช้ให้ LB ไม่ restart ตอน DB สะดุด)

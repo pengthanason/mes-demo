@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
+const { firstBadYearError } = require('../dateGuard');
 
 const COLS = `id, pp_type, status, status_color, wk, date_record, product_pn, model, customer, qty, produce, syn_requestor,
   work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat, chk_env,
@@ -90,6 +91,9 @@ function validateData(data, changed = data) {   // data = ค่ารวม (be
       return `${k} is not a valid date (YYYY-MM-DD)`;
     }
   }
+  // ปีต้องอยู่ในช่วงที่เป็นไปได้ — '0001-04-11' parse ผ่านด่านบน แต่ทำ Gantt/Dashboard พังทั้งหน้า (INC 2026-08-03)
+  const yearErr = firstBadYearError(changed, DATE_FIELDS, FIELD_LABELS);
+  if (yearErr) return yearErr;
   if (data.produce != null && data.qty != null && data.produce !== '' && data.qty !== '' && Number(data.produce) > Number(data.qty)) {
     return 'produce cannot exceed qty';
   }

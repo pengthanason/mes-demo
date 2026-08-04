@@ -20,6 +20,7 @@ import { WoOverviewWidget } from '../components/WoOverviewWidget';
 import { splitPics, hdrStyle, colWidthPx, ColumnFilterField, rowOnProcessOnly, rowHasDelay, renderCell } from './dashboard/dashboardCells';
 import { ProductDetailModal } from './dashboard/ProductPopups';
 import { printPdf, KpiCard, FgNgByJob, smoothScrollTo, ProcessEventPopup, StatusColorPopup } from './dashboard/DashboardWidgets';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../lib/dateRange';
 
 export function DashboardPage() {
   const isViewer = useIsViewer();
@@ -344,8 +345,8 @@ export function DashboardPage() {
           <ColumnFilterField label="PIC" options={pics}
             selected={colFilters.pd_pic ?? new Set()} onToggle={v => toggleFilterValue('pd_pic', v)} onClear={() => clearFilterCol('pd_pic')}
             colKey="pd_pic" openKey={openFilterCol} setOpenKey={setOpenFilterCol} />
-          <label className="field"><span>From date</span><input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} /></label>
-          <label className="field"><span>To date</span><input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} /></label>
+          <label className="field"><span>From date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} /></label>
+          <label className="field"><span>To date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} /></label>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', margin: '12px 0 0.75rem' }}>

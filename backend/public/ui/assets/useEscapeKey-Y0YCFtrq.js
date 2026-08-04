@@ -1,0 +1,1 @@
+import{r as o}from"./index-DwCCs4Ie.js";function d(e,r){o.useEffect(()=>{if(!e)return;const n=t=>{t.key==="Escape"&&r()};return window.addEventListener("keydown",n),()=>window.removeEventListener("keydown",n)},[e,r])}export{d as u};

@@ -119,28 +119,6 @@ EXCEPTION
 END
 $$;
 
--- NEW SCM Enums
-DO $$
-BEGIN
-    CREATE TYPE scm_case_type AS ENUM (
-        'DOC_PENDING', 'NO_PO', 'INV_PO_MISMATCH', 'QTY_SHORT', 'QTY_OVER',
-        'WRONG_ITEM', 'DAMAGED', 'NG_QA'
-    );
-EXCEPTION
-    WHEN duplicate_object THEN NULL;
-END
-$$;
-
-DO $$
-BEGIN
-    CREATE TYPE scm_disposition_action AS ENUM (
-        'RTV', 'REPLACEMENT', 'USE_AS_IS', 'SCRAP', 'REWORK'
-    );
-EXCEPTION
-    WHEN duplicate_object THEN NULL;
-END
-$$;
-
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
@@ -620,8 +598,6 @@ CREATE TABLE IF NOT EXISTS pm_contracts (
     signed_date TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-
 
 CREATE INDEX IF NOT EXISTS idx_work_orders_status ON work_orders(status);
 CREATE INDEX IF NOT EXISTS idx_work_orders_wo_number ON work_orders(wo_number);

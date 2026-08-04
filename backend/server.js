@@ -237,6 +237,66 @@ function createApp() {
     return next();
   });
 
+  // ⚠️ proxy ต้องอยู่ 'ก่อน' express.json() — ถ้า body ถูก parse ไปแล้ว req.pipe() จะไม่มีอะไรส่ง
+  //    ปลายทางจะรอ body ค้างจน timeout (อาการ: POST /api/auth/login ตอบ 502 แต่ GET ผ่านปกติ)
+  // ── Proxy ไป my-api (:5099) สำหรับ prefix ที่ my-api เป็นเจ้าของ ──────────────
+  //
+  // ทำไมต้องมี: หน้าเว็บ (public/ui) ถูกเสิร์ฟจาก origin นี้ และ api client ยิงแบบ same-origin
+  // `/api/...` เสมอ แต่ endpoint ครึ่งหนึ่งอยู่ที่ my-api คนละ service → ถ้าไม่มีตัวนี้
+  // ผู้ใช้จะเปิดหน้าเว็บได้แต่ทุกหน้าที่ต้องใช้ my-api ตอบ 404 (Dashboard/PP/Settings/QC/WO ฯลฯ)
+  //
+  // ทำที่นี่แทน nginx เพราะ: ใช้ได้ทั้งเข้าตรง :5100 และผ่าน reverse proxy ข้างนอก
+  // ไม่ต้องแก้ 2 ที่ให้ตรงกัน และ deploy ที่อื่นก็ทำงานเหมือนกันโดยไม่ต้องตั้ง nginx ก่อน
+  //
+  // ⚠️ ต้องมาก่อน app.use(*Routes) ทั้งหมด — ไม่งั้น route ของ backbone ที่ชื่อชนกัน
+  //    (เช่น /api/planning/*) จะคว้าไปก่อน แล้ว proxy ไม่ได้ทำงาน
+  const MY_API_URL = process.env.MY_API_URL || '';
+  if (MY_API_URL) {
+    const { request: httpRequest } = require('http');
+    const { URL: NodeURL } = require('url');
+    // prefix ที่ my-api เป็นเจ้าของ — ที่เหลือทั้งหมดยังเป็นของ backbone ตามเดิม
+    const MY_API_PREFIXES = [
+      '/api/pp', '/api/wo', '/api/qc', '/api/oba', '/api/cr', '/api/rework',
+      '/api/jig', '/api/inventory', '/api/workflow', '/api/routing', '/api/report',
+      '/api/production', '/api/notifications', '/api/admin', '/api/auth', '/api/backup',
+      '/api/planning', '/api/bom',
+    ];
+    const base = new NodeURL(MY_API_URL);
+    app.use((req, res, next) => {
+      // เทียบด้วย path ที่ normalize แล้ว — Express routing ไม่สนตัวพิมพ์
+      // ถ้าเทียบ path ดิบ /API/... จะไม่เข้าเงื่อนไขแล้วหลุดไป backbone (บทเรียนจาก authz ของ my-api)
+      const p = String(req.path || '').toLowerCase();
+      const hit = MY_API_PREFIXES.some((x) => p === x || p.startsWith(x + '/'));
+      if (!hit) return next();
+
+      const proxyReq = httpRequest(
+        {
+          hostname: base.hostname,
+          port: base.port || 80,
+          path: req.originalUrl,
+          method: req.method,
+          headers: { ...req.headers, host: base.host },
+          timeout: 30000,
+        },
+        (proxyRes) => {
+          res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+          proxyRes.pipe(res);
+        }
+      );
+      // ปลายทางล่ม/ช้า = ตอบ 502 ให้ชัด ไม่ปล่อยค้างจน client timeout เอง
+      proxyReq.on('timeout', () => proxyReq.destroy(new Error('my-api timeout')));
+      proxyReq.on('error', (err) => {
+        console.error('[my-api proxy]', req.method, req.originalUrl, err.message);
+        if (!res.headersSent) {
+          res.status(502).json({ status: 'error', message: 'ระบบปลายทาง (my-api) ไม่ตอบสนอง' });
+        }
+      });
+      req.pipe(proxyReq);
+    });
+    console.log(`[my-api proxy] เปิดใช้งาน → ${MY_API_URL} (${MY_API_PREFIXES.length} prefix)`);
+  }
+
+
   app.use(express.json({ limit: '8mb' }));
 
   const ADMIN_DIR = path.join(__dirname, 'public/admin');

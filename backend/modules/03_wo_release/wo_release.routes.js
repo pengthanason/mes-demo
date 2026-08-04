@@ -119,8 +119,20 @@ router.post('/api/wo/convert', requireRoles(['PM', 'ADMIN']), async (req, res) =
           );
         }
       } else {
-        // Legacy local BOM flow — BOM เป็น optional แล้ว (external via mrp.bom_lines)
-        const bomHeaderId = requestedBomHeaderId || wo.bom_header_id || null;
+        // Legacy local BOM flow
+        const bomHeaderId = requestedBomHeaderId || wo.bom_header_id;
+        if (!bomHeaderId) {
+          return { conflict: 'bom_header_id or mrp_bom_no is required before convert' };
+        }
+
+        const bomResult = await client.query(
+          `SELECT id, status FROM master_bom_header WHERE id=$1 FOR UPDATE`,
+          [bomHeaderId]
+        );
+        if (!bomResult.rows.length) return { conflict: `BOM header ${bomHeaderId} not found` };
+        if (bomResult.rows[0].status !== 'APPROVED') {
+          return { conflict: `BOM must be APPROVED before WO convert (current=${bomResult.rows[0].status})` };
+        }
 
         await client.query(
           `UPDATE work_orders
@@ -130,18 +142,16 @@ router.post('/api/wo/convert', requireRoles(['PM', 'ADMIN']), async (req, res) =
           [woId, woNumber, bomHeaderId, req.user.id]
         );
 
-        if (bomHeaderId) {
-          await client.query('DELETE FROM wo_bom_snapshot WHERE wo_id=$1', [woId]);
-          await client.query(
-            `INSERT INTO wo_bom_snapshot
-               (wo_id, line_no, part_no, qty_required, uom, description, source_bom_id, source_detail_id)
-             SELECT $1, d.line_no, d.part_no, d.qty_per, d.uom, d.description, d.bom_header_id, d.id
-             FROM master_bom_detail d
-             WHERE d.bom_header_id=$2
-             ORDER BY d.line_no`,
-            [woId, bomHeaderId]
-          );
-        }
+        await client.query('DELETE FROM wo_bom_snapshot WHERE wo_id=$1', [woId]);
+        await client.query(
+          `INSERT INTO wo_bom_snapshot
+             (wo_id, line_no, part_no, qty_required, uom, description, source_bom_id, source_detail_id)
+           SELECT $1, d.line_no, d.part_no, d.qty_per, d.uom, d.description, d.bom_header_id, d.id
+           FROM master_bom_detail d
+           WHERE d.bom_header_id=$2
+           ORDER BY d.line_no`,
+          [woId, bomHeaderId]
+        );
       }
 
       const out = await client.query(
@@ -278,7 +288,6 @@ router.post('/api/wo/req', requireRoles(['PM', 'ADMIN']), async (req, res) => {
       const woResult = await client.query('SELECT status, bom_header_id FROM work_orders WHERE id=$1', [woId]);
       if (!woResult.rows.length) return { notFound: true };
       const wo = woResult.rows[0];
-      wo.bom_header_id = wo.bom_header_id ?? null;
 
       if (wo.status === 'DRAFT') {
         return { conflict: 'Cannot request materials for a DRAFT work order. Convert it first.' };

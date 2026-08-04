@@ -4,6 +4,7 @@ import type { PpProject } from '../../lib/ppApi';
 import {
   STATUS_STYLE, StatusBadge, statusView, PROCESS_STEPS, PROCESS_KEYS, PROC_STATUS_LABEL, type PpCol, type HeaderCell,
 } from '../../components/ppParts';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../../lib/dateRange';
 
 // #3: pd_pic อาจเก็บหลายคนในช่องเดียว ("Run,Ice,Nile") — แตกเป็นรายคน เพื่อฟิลเตอร์ "ตามคน"
 export const splitPics = (v: any): string[] => String(v ?? '').split(/[,/;]/).map(s => s.trim()).filter(Boolean);
@@ -286,7 +287,7 @@ function InlineDateCell({ value, green, title = 'Click to quick-edit date', note
   const display = iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
   if (editing) return (
     <td style={{ padding: 2, textAlign: 'center' }}>
-      <input ref={ref} type="date" value={iso}
+      <input ref={ref} type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={iso}
         onChange={e => { onSave(e.target.value); setEditing(false); setOk(true); setTimeout(() => setOk(false), 1000); }}
         onBlur={() => setEditing(false)}
         style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.76rem', padding: '2px', border: '1.5px solid var(--brand)', borderRadius: 4, outline: 'none', background: '#fff' }} />

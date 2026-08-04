@@ -7,6 +7,7 @@ import { MultiPicInput } from '../MultiPicInput';
 import { useWoBoard } from '../../lib/woApi';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import { isoWeek, PROCESS_STEPS } from './ppColumns';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../../lib/dateRange';
 
 /* ── Add/Edit Project Form (modal) — ปิดได้เฉพาะปุ่มยกเลิก ── */
 const EMPTY: Partial<PpProject> = {
@@ -207,9 +208,9 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
                 {PROCESS_STEPS.map(s => <option key={s.key as string} value={s.label}>{s.label}</option>)}
               </select>
             </label>
-            <label className="field"><span>Date record</span><input type="date" value={f.date_record ?? ''} onChange={onDateRecord} /></label>
+            <label className="field"><span>Date record</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.date_record ?? ''} onChange={onDateRecord} /></label>
             <label className="field"><span>WW (Work Week)</span><input type="number" value={f.wk ?? ''} readOnly title="Auto-calculated from Date Record (ISO week)" placeholder="auto" style={{ background: '#f1f5f9' }} /></label>
-            <label className="field"><span>Bom Rec (BOM received date)</span><input type="date" value={(f as any).bom_rec_date ?? ''} onChange={txt('bom_rec_date' as keyof PpProject)} /></label>
+            <label className="field"><span>Bom Rec (BOM received date)</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={(f as any).bom_rec_date ?? ''} onChange={txt('bom_rec_date' as keyof PpProject)} /></label>
           </div>
 
           <Section title="Production Record" />
@@ -224,9 +225,9 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
           <Section title="PD PLAN" />
           <div className="grid-3col">
-            <label className="field"><span>PD Start</span><input type="date" value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} style={eb('pd_start_date')} /></label>
-            <label className="field"><span>PD Done</span><input type="date" value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} style={eb('pd_finish_date')} /></label>
-            <label className="field"><span>Expected date</span><input type="date" value={f.expected_date ?? ''} onChange={txt('expected_date')} style={eb('expected_date')} /></label>
+            <label className="field"><span>PD Start</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} style={eb('pd_start_date')} /></label>
+            <label className="field"><span>PD Done</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} style={eb('pd_finish_date')} /></label>
+            <label className="field"><span>Expected date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.expected_date ?? ''} onChange={txt('expected_date')} style={eb('expected_date')} /></label>
             <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? 0} onChange={num('target_per_day')} placeholder="e.g. 40" /></label>
           </div>
 
@@ -255,7 +256,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
             <label className="field"><span>Sampling rate</span>
               <input type="text" value={f.qa_test_rate ?? ''} onChange={txt('qa_test_rate')} />
             </label>
-            <label className="field"><span>QA Finish date</span><input type="date" value={f.qa_finish_date ?? ''} onChange={txt('qa_finish_date')} /></label>
+            <label className="field"><span>QA Finish date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.qa_finish_date ?? ''} onChange={txt('qa_finish_date')} /></label>
             <label className="field"><span>QA Status</span>
               <select value={f.qa_status ?? ''} onChange={txt('qa_status')} title="QA status — separate from the job status">
                 <option value="">— None —</option>
@@ -266,7 +267,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
           <Section title="Store" />
           <div className="grid-3col">
-            <label className="field"><span>Received date</span><input type="date" value={f.store_received ?? ''} onChange={txt('store_received')} /></label>
+            <label className="field"><span>Received date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.store_received ?? ''} onChange={txt('store_received')} /></label>
           </div>
 
           <Section title="PIC" />
@@ -277,8 +278,8 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
           </div>
 
           <div className="grid-3col">
-            <label className="field"><span>Revised date</span><input type="date" value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
-            <label className="field"><span>Delivery date</span><input type="date" value={f.delivery_date ?? ''} onChange={txt('delivery_date')} /></label>
+            <label className="field"><span>Revised date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.revised_date ?? ''} onChange={txt('revised_date')} /></label>
+            <label className="field"><span>Delivery date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.delivery_date ?? ''} onChange={txt('delivery_date')} /></label>
           </div>
           {/* วันยังไม่ finalize → ใส่รายละเอียด/เหตุผลไว้ตรงนี้ โผล่เป็นดอกจัน (*) ให้เอาเมาส์ไปชี้ดูที่ช่อง Delivery date ในตาราง */}
           <label className="field"><span>Delivery remark <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(date not finalized yet? Add details here — shows as * to hover over in the table)</span></span>

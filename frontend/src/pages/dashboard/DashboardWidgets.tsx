@@ -7,6 +7,7 @@ import {
   STATUS_STYLE, statusView, buildHeaderRows, XLSX_COLUMNS, PROCESS_KEYS, PROCESS_STEPS, PROC_STATUS, PROC_STATUS_LABEL, todayLocal, StatCard,
 } from '../../components/ppParts';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../../assets/syntechLogo';
+import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../../lib/dateRange';
 
 /* ── พิมพ์เป็น PDF — โครงเดียวกับ Excel (XLSX_COLUMNS + หัวซ้อน 2 ชั้น) + โลโก้/สี SYNTECH ── */
 export function printPdf(rows: PpProject[], filename?: string) {
@@ -151,7 +152,7 @@ export function ProcessEventPopup({ p, stepKey, onClose, onSave }: { p: PpProjec
           </select>
         </label>
         <label className="field" style={{ marginTop: 10 }}><span>Date</span>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+          <input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={date} onChange={e => setDate(e.target.value)} />
         </label>
         <label className="field" style={{ marginTop: 10 }}><span>Remark</span>
           <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} />
