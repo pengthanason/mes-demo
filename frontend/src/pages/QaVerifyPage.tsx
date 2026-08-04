@@ -4,6 +4,7 @@ import { useQcResults, useTransferVerifyCreate, type TransferVerdict } from '../
 import { useIsViewer } from '../lib/useMockStore';
 import { useAdminUsers } from '../lib/adminApi';
 import { showToast } from '../lib/toast';
+import { ComboBoxInput } from '../components/ComboBoxInput';
 
 export function QaVerifyPage() {
   const { reqId } = useParams<{ reqId: string }>();
@@ -163,10 +164,8 @@ export function QaVerifyPage() {
 
             <label className="field">
               <span>QA Inspector Name *</span>
-              <input list="qa-verifier-options" value={verifiedBy} onChange={e => setVerifiedBy(e.target.value)} placeholder="Select/type a name..." required />
-              <datalist id="qa-verifier-options">
-                {users.map(u => <option key={u.id} value={u.fullName}>{u.username}</option>)}
-              </datalist>
+              <ComboBoxInput value={verifiedBy} onChange={setVerifiedBy} options={users.map(u => u.fullName)}
+                placeholder="Select/type a name..." required ariaLabel="QA Inspector Name" />
             </label>
 
             <button type="submit" className="btn" disabled={!verdict || !verifiedBy.trim() || verifyMut.isPending}

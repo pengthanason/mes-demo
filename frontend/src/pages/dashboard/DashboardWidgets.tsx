@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PP_STATUS, PP_STATUS_LABEL, type PpProject } from '../../lib/ppApi';
 import { showToast } from '../../lib/toast';
@@ -180,7 +180,20 @@ const STATUS_COLOR_LABEL: Record<string, string> = {
 /* ── Palette เลือก "สี" ของช่อง Status — ไม่มี backdrop/กล่อง popup แค่ลอยขึ้นมาให้กด (เหมือน dropdown filter) ── */
 export function StatusColorPopup({ p, pos, onClose, onPick }: { p: PpProject; pos: { top: number; left: number }; onClose: () => void; onPick: (color: string) => void }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [adjPos, setAdjPos] = useState(pos);
   const current = p.status_color || p.status || 'DONE';
+
+  // pos เดิมมาจากพิกัดคลิกตรงๆ ไม่เช็คขอบจอเลย → ล้นขอบขวา/ล่างได้บนจอแคบ วัดขนาดจริงหลัง mount แล้ว clamp ให้อยู่ในจอเสมอ
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) { setAdjPos(pos); return; }
+    const r = el.getBoundingClientRect();
+    setAdjPos({
+      left: Math.min(pos.left, Math.max(8, window.innerWidth - r.width - 8)),
+      top: Math.min(pos.top, Math.max(8, window.innerHeight - r.height - 8)),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos.top, pos.left]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => { if (!panelRef.current?.contains(e.target as Node)) onClose(); };
@@ -200,7 +213,7 @@ export function StatusColorPopup({ p, pos, onClose, onPick }: { p: PpProject; po
   return createPortal(
     <div ref={panelRef} style={{
       // กว้างพอดี = padding 12*2 + 6 ช่อง(28px) + gap 8*5 → กันสีล้นขอบ (แต่ก่อน 190 แคบไป)
-      position: 'fixed', top: pos.top, left: pos.left, zIndex: 1000,
+      position: 'fixed', top: adjPos.top, left: adjPos.left, zIndex: 1000,
       background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, boxShadow: '0 10px 28px rgba(15,23,42,0.18)',
       padding: 12, display: 'grid', gridTemplateColumns: 'repeat(6, 28px)', gap: 8, justifyContent: 'center',
     }}>

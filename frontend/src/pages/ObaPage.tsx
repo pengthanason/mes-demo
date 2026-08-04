@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useObaRecords, useObaCreate } from '../lib/recordsApi';
 import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
 import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { WoInput } from '../components/WoInput';
+import { ComboBoxInput } from '../components/ComboBoxInput';
 import { useWoLots } from '../lib/lookups';
 import { ResultBadge } from '../components/ResultBadge';
 import { BlockState } from '../components/DataStates';
@@ -15,8 +16,21 @@ export function ObaPage() {
 
   const [histPage, setHistPage] = useState(1);
   const HIST_PAGE_SIZE = 10;
-  const totalHistPages = Math.max(1, Math.ceil((data ?? []).length / HIST_PAGE_SIZE));
-  const pagedRecords = records.slice((histPage - 1) * HIST_PAGE_SIZE, histPage * HIST_PAGE_SIZE);
+  const [histQ, setHistQ] = useState('');
+  const [histResult, setHistResult] = useState<'' | 'PASS' | 'FAIL'>('');
+  const filteredRecords = useMemo(() => {
+    let list = records;
+    if (histResult) list = list.filter(r => r.result === histResult);
+    const s = histQ.trim().toLowerCase();
+    if (s) list = list.filter(r =>
+      r.woId.toLowerCase().includes(s) ||
+      r.lotNo.toLowerCase().includes(s) ||
+      (r.defectNote || '').toLowerCase().includes(s)
+    );
+    return list;
+  }, [records, histQ, histResult]);
+  const totalHistPages = Math.max(1, Math.ceil(filteredRecords.length / HIST_PAGE_SIZE));
+  const pagedRecords = filteredRecords.slice((histPage - 1) * HIST_PAGE_SIZE, histPage * HIST_PAGE_SIZE);
 
   const [woId,       setWoId]       = useState('');
   const [lotNo,      setLotNo]      = useState('');
@@ -67,11 +81,8 @@ export function ObaPage() {
           </label>
           <label className="field">
             <span>Lot No.</span>
-            <input className="oba-input" list="oba-lot-options" value={lotNo} onChange={e => setLotNo(e.target.value)}
+            <ComboBoxInput className="oba-input" value={lotNo} onChange={setLotNo} options={woLots} ariaLabel="Lot No."
               placeholder={woId.trim() ? 'Select/type Lot' : 'Enter WO first'} disabled={!woId.trim()} required />
-            <datalist id="oba-lot-options">
-              {woLots.map(l => <option key={l} value={l} />)}
-            </datalist>
           </label>
           <label className="field">
             <span>Sample Qty</span>
@@ -103,12 +114,30 @@ export function ObaPage() {
         <h3 className="panel__title panel__title--sm" style={{ marginBottom: '1rem' }}>
           OBA History {records.length > 0 && `(${records.length} items)`}
         </h3>
+        {records.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            <label className="field" style={{ flex: '1 1 220px' }}>
+              <span>Search</span>
+              <input value={histQ} onChange={e => { setHistQ(e.target.value); setHistPage(1); }} placeholder="WO / Lot No / Defect note..." />
+            </label>
+            <label className="field" style={{ flex: '0 1 160px' }}>
+              <span>Result</span>
+              <select value={histResult} onChange={e => { setHistResult(e.target.value as '' | 'PASS' | 'FAIL'); setHistPage(1); }}>
+                <option value="">All results</option>
+                <option value="PASS">✅ PASS</option>
+                <option value="FAIL">❌ FAIL</option>
+              </select>
+            </label>
+          </div>
+        )}
         {isLoading ? (
           <BlockState state="loading" />
         ) : isError ? (
           <BlockState state="error" onRetry={() => refetch()} />
         ) : records.length === 0 ? (
           <BlockState state="empty" emptyText="No history yet — save an OBA record to add data" />
+        ) : filteredRecords.length === 0 ? (
+          <BlockState state="empty" emptyText="No OBA records match the search/filter" />
         ) : (
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
             {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
@@ -149,7 +178,7 @@ export function ObaPage() {
             </table>
           </div>
         )}
-        <Paginator page={histPage} totalPages={totalHistPages} onPage={setHistPage} total={records.length} />
+        <Paginator page={histPage} totalPages={totalHistPages} onPage={setHistPage} total={filteredRecords.length} />
       </div>
     </div>
   );

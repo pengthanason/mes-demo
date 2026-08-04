@@ -23,7 +23,7 @@ function PassRateBar({ rate }: { rate: number }) {
   );
 }
 
-function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => void; onDelete?: () => void }) {
+function ProjectCard({ p, onClick, onDelete, busy }: { p: JigProject; onClick: () => void; onDelete?: () => void; busy?: boolean }) {
   const statusColor = p.isActive ? '#22c55e' : '#9ca3af';
   return (
     <div
@@ -47,9 +47,9 @@ function ProjectCard({ p, onClick, onDelete }: { p: JigProject; onClick: () => v
             {p.isActive ? 'ACTIVE' : 'INACTIVE'}
           </span>
           {onDelete && (
-            <button type="button" title="Delete project" aria-label="Delete project" className="tap-sm"
+            <button type="button" title="Delete project" aria-label="Delete project" className="tap-sm" disabled={busy}
               onClick={e => { e.stopPropagation(); onDelete(); }}
-              style={{ width: 26, height: 26, padding: 0, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, lineHeight: 1, flexShrink: 0 }}
+              style={{ width: 26, height: 26, padding: 0, borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: busy ? 'default' : 'pointer', fontSize: '0.8rem', fontWeight: 700, lineHeight: 1, flexShrink: 0, opacity: busy ? 0.6 : 1 }}
               onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; }}
             >✕</button>
@@ -211,7 +211,7 @@ export function JigTestPage() {
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
             {ict.length ? ict.map(p => (
-              <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} />
+              <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} busy={del.isPending && del.variables === p.projectCode} />
             )) : <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem' }}>— No ICT projects yet —</div>}
           </div>
         </div>
@@ -225,7 +225,7 @@ export function JigTestPage() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
             <TraceKnexCard />
             {fct.map(p => (
-              <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} />
+              <ProjectCard key={p.id} p={p} onClick={() => navigate(`/jig-test/${p.projectCode}`)} onDelete={isViewer ? undefined : () => handleDelete(p)} busy={del.isPending && del.variables === p.projectCode} />
             ))}
           </div>
         </div>

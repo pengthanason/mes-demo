@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
  * panel เป็น position:fixed (คำนวณจาก getBoundingClientRect) กันโดน overflow ของ modal ตัด
  */
 export function ComboBoxInput({
-  value, onChange, options, placeholder, required, disabled, style, ariaLabel,
+  value, onChange, options, placeholder, required, disabled, style, className, ariaLabel, autoFocus,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -15,7 +15,9 @@ export function ComboBoxInput({
   required?: boolean;
   disabled?: boolean;
   style?: React.CSSProperties;
+  className?: string;
   ariaLabel?: string;
+  autoFocus?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -58,6 +60,7 @@ export function ComboBoxInput({
   return (
     <div ref={wrapRef} style={{ position: 'relative', width: '100%', minWidth: 0 }}>
       <input
+        className={className}
         value={value}
         onChange={e => { onChange(e.target.value); if (!open) openIt(); }}
         onFocus={openIt}
@@ -68,6 +71,7 @@ export function ComboBoxInput({
         disabled={disabled}
         aria-label={ariaLabel}
         autoComplete="off"
+        autoFocus={autoFocus}
         style={{ width: '100%', boxSizing: 'border-box', ...style }}
       />
       {open && pos && !exact && filtered.length > 0 && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStock, useKittingIssues, useIssueMaterial } from '../lib/inventoryApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
@@ -19,8 +19,18 @@ export function KittingPage() {
 
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
-  const totalPages = Math.max(1, Math.ceil(issues.length / PAGE_SIZE));
-  const paged = issues.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const [histQ, setHistQ] = useState('');
+  const filteredIssues = useMemo(() => {
+    const s = histQ.trim().toLowerCase();
+    if (!s) return issues;
+    return issues.filter(i =>
+      i.woId.toLowerCase().includes(s) ||
+      i.partNo.toLowerCase().includes(s) ||
+      i.lotNo.toLowerCase().includes(s)
+    );
+  }, [issues, histQ]);
+  const totalPages = Math.max(1, Math.ceil(filteredIssues.length / PAGE_SIZE));
+  const paged = filteredIssues.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const selected = stock.find(s => s.partNo === partNo);
 
@@ -122,6 +132,12 @@ export function KittingPage() {
         <h3 className="panel__title panel__title--sm" style={{ marginTop: '1.75rem', marginBottom: '0.75rem' }}>
           Issue History {issues.length > 0 && `(${issues.length})`}
         </h3>
+        {issues.length > 0 && (
+          <label className="field" style={{ maxWidth: 320, marginBottom: '0.75rem' }}>
+            <span>Search</span>
+            <input value={histQ} onChange={e => { setHistQ(e.target.value); setPage(1); }} placeholder="WO / Part No / Lot..." />
+          </label>
+        )}
         <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           {/* tableLayout fixed + colgroup = คอลัมน์/ความสูงนิ่งเวลาเปลี่ยนหน้า (ดู components/TableFill.tsx) */}
           <table className="table table-readonly" style={{ minWidth: 760, width: '100%', tableLayout: 'fixed' }}>
@@ -143,7 +159,7 @@ export function KittingPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <TableState colSpan={5} state="empty" emptyText="No issues yet — select goods from Stock above, enter a WO, then click “Issue to Line”" />
+                <TableState colSpan={5} state="empty" emptyText={issues.length > 0 ? 'No issues match the search' : 'No issues yet — select goods from Stock above, enter a WO, then click “Issue to Line”'} />
               ) : paged.map(i => (
                 <tr key={i.id}>
                   <td style={{ height: ROW_H, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={i.woId}>{i.woId}</td>
@@ -159,7 +175,7 @@ export function KittingPage() {
             </tbody>
           </table>
         </div>
-        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={issues.length} />
+        <Paginator page={page} totalPages={totalPages} onPage={setPage} total={filteredIssues.length} />
       </div>
     </section>
   );

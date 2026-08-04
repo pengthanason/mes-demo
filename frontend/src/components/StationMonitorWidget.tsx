@@ -21,6 +21,7 @@ const C = {
   muteBg: 'var(--surface-2)', muteFg: 'var(--ink-5)',
 };
 const COLS = '160px 1fr 200px 52px';   // Station | Breakdown | WIP·RW·Pass | Updated
+const ROW_MIN_W = 600;   // กันคอลัมน์ยุบจนอ่านไม่ได้บนจอแคบ — ล้นแล้ว scroll แนวนอนแทน (ดู overflowX ของ container ด้านล่าง)
 
 const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1.15rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
 const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: 'var(--ink-1)', userSelect: 'none', cursor: 'default' };
@@ -93,8 +94,8 @@ export function StationMonitorWidget() {
           </div>
 
           {/* ตาราง: หัว sticky + แถว อยู่ใน scroll เดียวกัน + scrollbar-gutter คงที่ → คอลัมน์ตรงกันเสมอ, ขอบขวาตรงกันทั้ง 2 การ์ด */}
-          <div style={{ maxHeight: 360, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable', marginTop: 12 }}>
-            <div style={{ position: 'sticky', top: 0, zIndex: 1, background: '#fff', display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '0 8px 7px', fontSize: '0.6rem', fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ maxHeight: 360, overflowY: 'auto', overflowX: 'auto', scrollbarGutter: 'stable', marginTop: 12 }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 1, background: '#fff', display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '0 8px 7px', fontSize: '0.6rem', fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', minWidth: ROW_MIN_W }}>
               <span>Station</span>
               <span>Load breakdown</span>
               <span style={{ textAlign: 'center' }}>WIP · Rework · Pass</span>
@@ -112,7 +113,7 @@ export function StationMonitorWidget() {
                 <div key={`${s.routeCode}-${s.stationName}`}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-1)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '9px 8px', borderRadius: 10, borderBottom: '1px solid var(--surface-2)', transition: 'background 0.15s' }}>
+                  style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '9px 8px', borderRadius: 10, borderBottom: '1px solid var(--surface-2)', transition: 'background 0.15s', minWidth: ROW_MIN_W }}>
                   {/* Station + ไฟสถานะ */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: dot, flexShrink: 0 }} />

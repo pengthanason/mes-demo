@@ -86,6 +86,14 @@ router.put('/users/:id', async (req, res) => {
 
 router.delete('/users/:id', async (req, res) => {
   try {
+    // กันเผลอลบ admin ตอนเทสในเครื่องตัวเอง — เปิดเฉพาะผ่าน docker-compose.override.yml (gitignore, local เท่านั้น)
+    // ไม่มีผลกับ shared/prod เพราะ env var นี้ไม่ถูกตั้งที่ไหนนอกจากไฟล์ local override
+    if (process.env.PROTECT_LOCAL_ADMIN === 'true') {
+      const { rows: target } = await db.query('SELECT username FROM users WHERE id=$1', [req.params.id]);
+      if (target[0]?.username === 'admin') {
+        return res.status(400).json({ status: 'error', message: 'Cannot delete admin (local safeguard — set PROTECT_LOCAL_ADMIN=false in docker-compose.override.yml to allow)' });
+      }
+    }
     const { rows, rowCount } = await db.query(
       'DELETE FROM users WHERE id=$1 RETURNING username', [req.params.id]
     );

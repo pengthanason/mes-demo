@@ -69,6 +69,28 @@ function ImageLightboxModal({ src, alt, onClose }: { src: string; alt: string; o
 
   const handleMouseUp = () => setIsDragging(false);
 
+  // เทียบเท่า mouse pan สำหรับแท็บเล็ต/มือถือ (นิ้วเดียว) — เดิมมีแค่ mouse event เลื่อนรูปที่ซูมค้างด้วยนิ้วไม่ได้เลย
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (scale <= 1 || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setIsDragging(true);
+    dragStartRef.current = { x: t.clientX, y: t.clientY };
+    posStartRef.current = { ...position };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - dragStartRef.current.x;
+    const dy = t.clientY - dragStartRef.current.y;
+    setPosition({
+      x: posStartRef.current.x + dx,
+      y: posStartRef.current.y + dy,
+    });
+  };
+
+  const handleTouchEnd = () => setIsDragging(false);
+
   const handleWheel = (e: React.WheelEvent) => {
     if (e.deltaY < 0) {
       zoomIn();
@@ -182,6 +204,9 @@ function ImageLightboxModal({ src, alt, onClose }: { src: string; alt: string; o
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           onWheel={handleWheel}
           style={{
             width: '100%',
@@ -222,7 +247,7 @@ function ImageLightboxModal({ src, alt, onClose }: { src: string; alt: string; o
             pointerEvents: 'none',
           }}
         >
-          💡 Press +/- or scroll to zoom · once zoomed, click and drag to pan the image
+          💡 Press +/- or scroll to zoom · once zoomed, drag (or touch and drag) to pan the image
         </div>
       </div>
     </div>,

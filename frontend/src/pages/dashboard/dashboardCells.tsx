@@ -56,16 +56,27 @@ export function ColumnFilterField({
   const panelRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState('');
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; width: number; maxH: number }>({ left: 0, width: 0, maxH: 320 });
   // ตำแหน่ง submenu ที่ผายออกไปด้านข้าง (เหมือนคลิกขวาบน Windows) — null = ปิดอยู่
   const [submenuPos, setSubmenuPos] = useState<{ top: number; left: number } | null>(null);
   const isOpen = openKey === colKey;
   const active = selected.size > 0;
 
+  // คลิกใกล้ขอบจอ (มือถือ/แท็บเล็ตจอแคบ) → กันไม่ให้ panel ล้นขอบขวา/ล่าง (เดิมยึด rect.bottom/rect.left ตรงๆ ไม่เช็คขอบจอเลย)
   useEffect(() => {
     if (!isOpen) return;
     const rect = btnRef.current?.getBoundingClientRect();
-    if (rect) setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    if (rect) {
+      const width = Math.max(230, rect.width);
+      const left = Math.min(rect.left, Math.max(8, window.innerWidth - width - 8));
+      const below = window.innerHeight - rect.bottom - 8;
+      const above = rect.top - 8;
+      const openUp = below < 200 && above > below;
+      const maxH = Math.max(150, Math.min(320, openUp ? above : below));
+      setPos(openUp
+        ? { bottom: window.innerHeight - rect.top + 4, left, width: rect.width, maxH }
+        : { top: rect.bottom + 4, left, width: rect.width, maxH });
+    }
     setQ('');
     setSubmenuPos(null);
   }, [isOpen]);
@@ -118,7 +129,8 @@ export function ColumnFilterField({
       </button>
       {isOpen && createPortal(
         <div ref={panelRef} style={{
-          position: 'fixed', top: pos.top, left: pos.left, zIndex: 1000, width: Math.max(230, pos.width), maxHeight: 320,
+          position: 'fixed', ...(pos.top != null ? { top: pos.top } : { bottom: pos.bottom }),
+          left: pos.left, zIndex: 1000, width: Math.max(230, pos.width), maxHeight: pos.maxH,
           background: '#fff', border: '1px solid var(--border-color)', borderRadius: 8, boxShadow: '0 10px 28px rgba(15,23,42,0.18)',
           display: 'flex', flexDirection: 'column', fontWeight: 400, fontSize: '0.82rem', color: '#1e293b', textAlign: 'left',
         }}>

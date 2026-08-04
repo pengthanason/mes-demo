@@ -86,7 +86,7 @@ function PasswordField({ label, value, onChange, placeholder, required }: { labe
   );
 }
 
-function UserRow({ u, onEdit, onToggle, onDelete }: { u: AppUser; onEdit: (u: AppUser) => void; onToggle: (u: AppUser) => void; onDelete: (u: AppUser) => void }) {
+function UserRow({ u, onEdit, onToggle, onDelete, busy }: { u: AppUser; onEdit: (u: AppUser) => void; onToggle: (u: AppUser) => void; onDelete: (u: AppUser) => void; busy?: boolean }) {
   return (
     <tr>
       <td style={{ padding: '0.6rem 0.75rem' }}><code style={{ fontSize: '0.85rem' }}>{u.username}</code></td>
@@ -103,10 +103,10 @@ function UserRow({ u, onEdit, onToggle, onDelete }: { u: AppUser; onEdit: (u: Ap
       <td style={{ padding: '0.6rem 0.75rem' }}>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onEdit(u)}>Edit</button>
-          <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onToggle(u)}>
+          <button type="button" className="btn secondary" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onToggle(u)} disabled={busy}>
             {u.isActive ? 'Disable' : 'Enable'}
           </button>
-          <button type="button" className="btn danger" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onDelete(u)}>Delete</button>
+          <button type="button" className="btn danger" style={{ padding: '3px 10px', fontSize: '0.78rem' }} onClick={() => onDelete(u)} disabled={busy}>Delete</button>
         </div>
       </td>
     </tr>
@@ -266,7 +266,8 @@ function UsersTab() {
             </thead>
             <tbody>
               {users.map(u => (
-                <UserRow key={u.id} u={u} onEdit={setEditUser} onToggle={handleToggle} onDelete={handleDelete} />
+                <UserRow key={u.id} u={u} onEdit={setEditUser} onToggle={handleToggle} onDelete={handleDelete}
+                  busy={(updateUser.isPending && updateUser.variables?.id === u.id) || (deleteUser.isPending && deleteUser.variables === u.id)} />
               ))}
             </tbody>
           </table>

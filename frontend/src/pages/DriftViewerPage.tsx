@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { useDriftReport, type DriftRow } from '../lib/driftApi';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import { TableState } from '../components/DataStates';
+import { useEscapeKey } from '../lib/useEscapeKey';
 
 // ระดับความรุนแรง — คิดเป็น "สัดส่วน %" ของ Odoo (ยุติธรรมกว่าค่าสัมบูรณ์ เพราะ 20 ชิ้นของ 60 = เยอะ แต่ของ 5000 = จิ๋ว)
 type Sev = 'ok' | 'warn' | 'crit';
@@ -102,6 +103,7 @@ async function exportDriftXlsx(rows: DriftRow[], filename: string) {
 function FileNamePromptModal({ defaultBase, onCancel, onConfirm }: { defaultBase: string; onCancel: () => void; onConfirm: (name: string) => void }) {
   const [name, setName] = useState(`${defaultBase}.xlsx`);
   const ref = useRef<HTMLInputElement>(null);
+  useEscapeKey(true, onCancel);
   useEffect(() => {
     const el = ref.current; if (!el) return;
     el.focus(); const dot = name.lastIndexOf('.'); el.setSelectionRange(0, dot > 0 ? dot : name.length);
@@ -114,7 +116,7 @@ function FileNamePromptModal({ defaultBase, onCancel, onConfirm }: { defaultBase
         <h3 className="panel__title panel__title--sm" style={{ marginTop: 0 }}>⬇️ Save as Excel</h3>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Enter a file name and click “OK” to download</p>
         <input ref={ref} value={name} onChange={e => setName(e.target.value)} aria-label="File name" placeholder="filename.xlsx"
-          onKeyDown={e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') onCancel(); }}
+          onKeyDown={e => { if (e.key === 'Enter') confirm(); }}
           style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.95rem' }} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: '1.2rem' }}>
           <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>

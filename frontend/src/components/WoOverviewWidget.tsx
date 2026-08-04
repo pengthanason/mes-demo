@@ -6,6 +6,7 @@ const CARD: React.CSSProperties = { background: '#fff', border: '1px solid var(-
 const TITLE: React.CSSProperties = { fontSize: '1.1rem', fontWeight: 800, color: 'var(--ink-1)', userSelect: 'none', cursor: 'default' };
 const SEARCH: React.CSSProperties = { fontSize: '0.85rem', padding: '7px 12px', border: '1px solid var(--border-color)', borderRadius: 8, outline: 'none', width: 200, maxWidth: '45%' };
 const COLS = '160px 1fr 90px 140px';   // Work order | Progress | Yield | Status
+const ROW_MIN_W = 550;   // กันคอลัมน์ยุบจนอ่านไม่ได้บนจอแคบ — ล้นแล้ว scroll แนวนอนแทน (ดู overflowX ของ container ด้านล่าง)
 
 const ST_STYLE: Record<string, { bg: string; text: string; border: string; bar: string; label: string }> = {
   PENDING:     { bg: 'var(--surface-2)', text: 'var(--ink-3)', border: 'var(--line-3)', bar: 'var(--ink-5)', label: 'Pending' },
@@ -78,8 +79,8 @@ export function WoOverviewWidget() {
           </div>
 
           {/* ตาราง: หัว sticky + แถว อยู่ใน scroll เดียวกัน + scrollbar-gutter คงที่ → ขอบขวาตรงกับ Station Status */}
-          <div style={{ maxHeight: 340, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable', marginTop: 12 }}>
-            <div style={{ position: 'sticky', top: 0, zIndex: 1, background: '#fff', display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '0 8px 7px', fontSize: '0.6rem', fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ maxHeight: 340, overflowY: 'auto', overflowX: 'auto', scrollbarGutter: 'stable', marginTop: 12 }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 1, background: '#fff', display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '0 8px 7px', fontSize: '0.6rem', fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', minWidth: ROW_MIN_W }}>
               <span>Work order</span>
               <span>Progress</span>
               <span style={{ textAlign: 'center' }}>Yield</span>
@@ -94,7 +95,7 @@ export function WoOverviewWidget() {
                 <div key={w.id}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-1)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '9px 8px', borderRadius: 10, borderBottom: '1px solid var(--surface-2)', transition: 'background 0.15s' }}>
+                  style={{ display: 'grid', gridTemplateColumns: COLS, gap: 14, alignItems: 'center', padding: '9px 8px', borderRadius: 10, borderBottom: '1px solid var(--surface-2)', transition: 'background 0.15s', minWidth: ROW_MIN_W }}>
                   {/* Work order + จุดสถานะ (mirror Station: dot + 2 บรรทัด) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: st.bar, flexShrink: 0 }} />

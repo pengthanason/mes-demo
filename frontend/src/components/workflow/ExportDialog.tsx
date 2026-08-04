@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useEscapeKey } from '../../lib/useEscapeKey';
 
 // ── ป็อปอัพก่อน Export PDF — flow: กรอกข้อมูลเอกสาร+ชื่อไฟล์ · gantt: ชื่อไฟล์อย่างเดียว ──
 export type ExportForm = { filename: string; customer: string; model: string; pn: string; issuedBy: string; checkedBy: string; approvedBy: string; revNo: string; revDesc: string };
@@ -6,6 +7,7 @@ export function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'fl
   const [f, setF] = useState<ExportForm>({ ...initial, filename: `${initial.filename}.pdf` });
   const set = (k: keyof ExportForm, v: string) => setF(p => ({ ...p, [k]: v }));
   const nameRef = useRef<HTMLInputElement>(null);
+  useEscapeKey(true, onCancel);
   // เปิดมา → คลุม(ไฮไลต์)เฉพาะส่วนชื่อ ไม่รวม ".pdf" (เหมือนหน้า Dashboard)
   useEffect(() => {
     const el = nameRef.current; if (!el) return;
@@ -26,7 +28,7 @@ export function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'fl
         <div className="stack" style={{ marginTop: '0.9rem', gap: '0.75rem' }}>
           <label className="field"><span>File name (.pdf)</span>
             <input ref={nameRef} value={f.filename} onChange={e => set('filename', e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } else if (e.key === 'Escape') onCancel(); }} />
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } }} />
           </label>
           {mode === 'flow' && (
             <>

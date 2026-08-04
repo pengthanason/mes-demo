@@ -9,6 +9,7 @@ import { showToast } from '../lib/toast';
 import { Paginator } from '../components/Paginator';
 import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { WoInput } from '../components/WoInput';
+import { ComboBoxInput } from '../components/ComboBoxInput';
 import { useWoLots, useScanSummary } from '../lib/lookups';
 import { TableState } from '../components/DataStates';
 import { useEscapeKey } from '../lib/useEscapeKey';
@@ -185,11 +186,8 @@ export function QcResultPage() {
                 </label>
                 <label className="field">
                   <span>Lot No *</span>
-                  <input list="qc-lot-options" value={lotNo} onChange={e => setLotNo(e.target.value)}
+                  <ComboBoxInput value={lotNo} onChange={setLotNo} options={woLots} ariaLabel="Lot No"
                     placeholder={woId.trim() ? 'Select/type Lot' : 'Enter WO first'} disabled={!woId.trim()} required />
-                  <datalist id="qc-lot-options">
-                    {woLots.map(l => <option key={l} value={l} />)}
-                  </datalist>
                 </label>
               </div>
 
@@ -250,10 +248,8 @@ export function QcResultPage() {
         <div style={{ marginTop: '1.5rem', marginBottom: '1rem', maxWidth: 320 }}>
           <label className="field">
             <span>Filter by WO</span>
-            <input list="wo-filter-options" value={woFilter} onChange={e => { setWoFilter(e.target.value); setPage(1); }} placeholder="Type WO to filter..." />
-            <datalist id="wo-filter-options">
-              {[...new Set(allResults.map(r => r.woId).filter(Boolean))].map(w => <option key={w} value={w} />)}
-            </datalist>
+            <ComboBoxInput value={woFilter} onChange={v => { setWoFilter(v); setPage(1); }}
+              options={[...new Set(allResults.map(r => r.woId).filter(Boolean))]} placeholder="Type WO to filter..." ariaLabel="Filter by WO" />
           </label>
         </div>
 

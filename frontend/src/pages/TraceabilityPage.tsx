@@ -5,6 +5,7 @@ import {
   type TraceStep, type DailyReport,
 } from '../lib/traceApi';
 import { TableState, BlockState } from '../components/DataStates';
+import { ComboBoxInput } from '../components/ComboBoxInput';
 
 // ── helpers ──
 const fmt = (s: string) => { try { return new Date(s).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }); } catch { return s; } };
@@ -65,25 +66,13 @@ function SearchTab({ sn, setSn, goBox }: { sn: string; setSn: (s: string) => voi
   return (
     <div className="stack" style={{ marginTop: '1.25rem' }}>
       <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input list="trace-serials" value={q} onChange={e => setQ(e.target.value)} placeholder="Enter / scan Serial Number e.g. SN-A100-0001" aria-label="Search Serial Number"
-          style={{ flex: 1, minWidth: 220, padding: '0.6rem 0.8rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.95rem' }} autoFocus />
-        <datalist id="trace-serials">{serials.map(s => <option key={s} value={s} />)}</datalist>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <ComboBoxInput value={q} onChange={setQ} options={serials} autoFocus
+            placeholder="Enter / scan Serial Number e.g. SN-A100-0001" ariaLabel="Search Serial Number"
+            style={{ padding: '0.6rem 0.8rem', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.95rem' }} />
+        </div>
         <button type="submit" className="btn" disabled={!q.trim()} style={{ fontWeight: 600 }}>🔍 Search</button>
       </form>
-
-      {!sn && (
-        <div style={{ padding: '1rem', background: 'var(--surface-1)', border: '1px dashed var(--line-3)', borderRadius: 8, color: 'var(--ink-4)', fontSize: '0.88rem' }}>
-          Type or scan a Serial and press Search — you will see the history of that item across every station
-          {serials.length > 0 && (
-            <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {serials.slice(0, 8).map(s => (
-                <button key={s} type="button" onClick={() => { setQ(s); setSn(s); }}
-                  style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid var(--line-3)', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--ink-2)' }}>{s}</button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {sn && isLoading && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Searching...</div>}
 

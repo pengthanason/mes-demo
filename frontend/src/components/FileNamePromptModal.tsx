@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useEscapeKey } from '../lib/useEscapeKey';
 
 /**
  * ป๊อปอัพตั้งชื่อไฟล์ก่อนดาวน์โหลด
@@ -16,6 +17,7 @@ export function FileNamePromptModal({ title, subtitle, defaultBase, ext, onConfi
 }) {
   const [name, setName] = useState(`${defaultBase}.${ext}`);
   const inputRef = useRef<HTMLInputElement>(null);
+  useEscapeKey(true, onCancel);
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -36,7 +38,7 @@ export function FileNamePromptModal({ title, subtitle, defaultBase, ext, onConfi
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>{subtitle || 'Name the file, then click “OK” to download'}</p>
         <label className="field"><span>File name</span>
           <input ref={inputRef} value={name} onChange={e => setName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } else if (e.key === 'Escape') onCancel(); }} />
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm(); } }} />
         </label>
         <div className="modal-actions" style={{ marginTop: '1.2rem' }}>
           <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
