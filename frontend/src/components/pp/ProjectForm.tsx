@@ -18,6 +18,19 @@ const EMPTY: Partial<PpProject> = {
   special_request: '', remark: '',
 };
 
+/* ── ช่องตัวเลขที่ปล่อยว่างได้ตอนพิมพ์ (state = undefined) ─────────────────
+   ต้อง coerce เป็น 0 "ก่อนส่ง" ทุกครั้ง เพราะ JSON.stringify ตัด key ที่เป็น undefined ทิ้ง
+   → ตอนแก้ไข: ล้างช่อง 5 ให้ว่างแล้วเซฟ จะได้ body ที่ไม่มี field นั้น = server คงค่า 5 ไว้
+     แต่ frontend เด้ง "Updated" (ข้อมูลไม่ถูกบันทึกแบบไม่มีใครรู้)
+   → ถ้าล้างแต่ช่องตัวเลขช่องเดียว body จะว่างจนเหลือ edit_note = server ตอบ 400 "no data"
+   ⚠️ ต้องเป็น 0 ไม่ใช่ '' — คอลัมน์เป็น INTEGER ('' → invalid input syntax → 500) */
+const NUM_KEYS = ['qty', 'produce', 'total_ok', 'total_ng', 'target_per_day'] as const;
+const zeroBlankNums = <T extends Record<string, any>>(o: T): T => {
+  const out: any = { ...o };
+  for (const k of NUM_KEYS) if (out[k] === undefined || out[k] === '' || Number.isNaN(out[k])) out[k] = 0;
+  return out;
+};
+
 // วันที่ "วันนี้" ตามเวลาท้องถิ่น (YYYY-MM-DD) — เลี่ยง toISOString() ที่เป็น UTC ทำให้คนไทย (UTC+7) กรอกตอนดึกได้วันผิด
 export const todayLocal = (): string => {
   const d = new Date();
@@ -114,7 +127,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
     let payload: any;
     if (editing) {
       const base: any = initForm(initial!);
-      const next: any = { ...f, status, status_color };
+      const next: any = zeroBlankNums({ ...f, status, status_color });   // ช่องตัวเลขที่ล้างให้ว่าง = 0 (ไม่ใช่ undefined ที่จะหลุดหายตอน stringify)
       const changed: any = {};
       const cmp = (v: any) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
       for (const k of Object.keys(next)) if (cmp(next[k]) !== cmp(base[k])) changed[k] = next[k];
@@ -125,7 +138,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
       }
       payload = { id: initial!.id, ...changed, ...(editNote ? { edit_note: editNote } : {}) };
     } else {
-      payload = { ...f, status, status_color, date_record: f.date_record || today, wk: f.wk ?? isoWeek(f.date_record || today) };
+      payload = zeroBlankNums({ ...f, status, status_color, date_record: f.date_record || today, wk: f.wk ?? isoWeek(f.date_record || today) });
     }
     mut.mutate(payload, {
       onSuccess: () => {

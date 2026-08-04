@@ -1,4 +1,6 @@
 node_modules/
+# ไม่มี / ด้วย — กันเคส symlink ชื่อ node_modules (เคยหลุดเข้า git มาแล้ว) ที่ "node_modules/" ไม่ครอบ
+node_modules
 __pycache__/
 *.pyc
 # env files — never commit (contain DB password / JWT secret)

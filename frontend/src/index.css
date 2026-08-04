@@ -300,8 +300,30 @@ textarea {
   user-select: text;
   caret-color: #000;   /* สีเคอร์เซอร์พิมพ์ (I-beam ตอนพิมพ์) — คนละอันกับตัวชี้เมาส์ด้านล่าง */
   /* ตัวชี้เมาส์ (mouse pointer) ตอนเอาเมาส์ชี้ช่องกรอก — ปกติเป็น I-beam ที่ OS/เบราว์เซอร์คุมสีเอง
-     บางเครื่องตั้งเป็นสีขาว มองไม่เห็นบนพื้นขาว → วาดไอคอนดำเองแทนด้วย SVG (แทนที่จะพึ่งของ OS) */
+     บางเครื่องตั้งเป็นสีขาว มองไม่เห็นบนพื้นขาว → วาดไอคอนดำเองแทนด้วย SVG (แทนที่จะพึ่งของ OS)
+     specificity ต่ำไว้ตั้งใจ (0,0,1) เพื่อให้ input[readonly]/:disabled ด้านบนยังชนะได้ */
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='16'><rect width='6' height='1' fill='black'/><rect x='2.5' width='1' height='16' fill='black'/><rect y='15' width='6' height='1' fill='black'/></svg>") 3 8, text;
+}
+
+/* คืนเคอร์เซอร์ปกติให้ <input> ที่ "กด/เลือก" ไม่ใช่ "พิมพ์" — ไม่งั้นกฎ input ด้านบน
+   ทำให้ checkbox/radio/ปุ่ม/date/file (31 จุดในแอป) กลายเป็นเคอร์เซอร์พิมพ์ข้อความ
+   selector มี [type] → specificity (0,1,1) ชนะกฎ input ด้านบน (0,0,1) */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+input[type="color"],
+input[type="file"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+}
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"],
+input[type="week"] {
+  cursor: default;
 }
 
 /* ปิดปุ่มขึ้น/ลง (spinner) ของ <input type="number"> ทั้งแอป — พิมพ์เลขตรงๆ แทน */

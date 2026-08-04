@@ -357,11 +357,13 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
               const open = hasSub && (openKey === item.to || parentActive);   // กางเมื่อ hover เมนูแม่ หรือกำลังอยู่หน้านั้น
               const effTab = searchTab || (item.sub ? item.sub[0].tab : null);
               return (
+                // เมาส์ชี้หัวข้อ = กาง dropdown ของหัวข้อนั้น (ไม่ใช่การกางแถบ — แถบเปิด/ปิดด้วยการกดเท่านั้น)
                 <div key={item.to} onMouseEnter={() => { if (canHover) setOpenKey(item.to); }}>
                   <SidebarItem to={item.to} label={item.label} external={item.external} expanded={expanded}
                     onClick={(e) => {
                       // ไม่มี hover (แตะ = มือถือ/แท็บเล็ต ทุกทิศจอ): หัวข้อที่มีเมนูย่อย → แตะกาง/ยุบ dropdown (ไม่เข้าหน้า) · มีเมาส์: กดเข้าหน้าได้ (กางด้วย hover)
                       if (hasSub && !canHover) { e.preventDefault(); setOpenKey(k => (k === item.to ? null : item.to)); }
+                      // กดเมนูแล้ว: มือถือ (ไม่มี hover) = ยุบแถบให้พ้นทาง · เดสก์ท็อป = คงเปิดไว้ ปิดเองด้วยปุ่มสามขีด
                       else setExpanded(canHover);
                     }}
                     innerRef={setItemRef(item.to)}
