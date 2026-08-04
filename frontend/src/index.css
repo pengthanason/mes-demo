@@ -1,3 +1,7 @@
+/* แอปนี้เป็นธีมสว่างอย่างเดียว (ไม่มี dark mode) — ถ้าไม่ประกาศไว้ เบราว์เซอร์ที่ตั้ง OS เป็น dark
+   จะเรนเดอร์ text caret ของ input ที่ไม่ได้ตั้งสีเอง (เช่นช่องตัวเลข) เป็นสีขาว ทำให้มองไม่เห็นบนพื้นขาว */
+:root { color-scheme: light; }
+
 /* ─── Design tokens ──────────────────────────────────────────────── */
 :root {
   --bg-dark:        #0f172a;
@@ -294,7 +298,21 @@ input,
 textarea {
   -webkit-user-select: text;
   user-select: text;
-  cursor: auto;
+  caret-color: #000;   /* สีเคอร์เซอร์พิมพ์ (I-beam ตอนพิมพ์) — คนละอันกับตัวชี้เมาส์ด้านล่าง */
+  /* ตัวชี้เมาส์ (mouse pointer) ตอนเอาเมาส์ชี้ช่องกรอก — ปกติเป็น I-beam ที่ OS/เบราว์เซอร์คุมสีเอง
+     บางเครื่องตั้งเป็นสีขาว มองไม่เห็นบนพื้นขาว → วาดไอคอนดำเองแทนด้วย SVG (แทนที่จะพึ่งของ OS) */
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='16'><rect width='6' height='1' fill='black'/><rect x='2.5' width='1' height='16' fill='black'/><rect y='15' width='6' height='1' fill='black'/></svg>") 3 8, text;
+}
+
+/* ปิดปุ่มขึ้น/ลง (spinner) ของ <input type="number"> ทั้งแอป — พิมพ์เลขตรงๆ แทน */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* ─── ช่องเสิร์ชใน dropdown filter — บางเบา ไม่มีกรอบเต็มกล่อง (แทน input ปกติที่กรอบหนา + focus-visible เขียวหนา) ─── */

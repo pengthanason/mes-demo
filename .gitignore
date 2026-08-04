@@ -11,3 +11,6 @@ build/
 *.log
 tmp/
 *.db
+
+# local-only overrides for docker compose (personal dev settings — never shared/committed)
+docker-compose.override.yml

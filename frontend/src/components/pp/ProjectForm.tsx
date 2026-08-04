@@ -12,8 +12,8 @@ import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../../lib/dateRange';
 /* ── Add/Edit Project Form (modal) — ปิดได้เฉพาะปุ่มยกเลิก ── */
 const EMPTY: Partial<PpProject> = {
   status: 'ON_PROCESS', work_order: '', model: '', product_pn: '', customer: '', syn_requestor: '',
-  qty: 0, produce: 0, total_ng: 0, total_ok: 0,
-  target_per_day: 0, qa_test_rate: '', qa_status: '', pd_pic: '', pic_responsible: '',
+  // qty/produce/total_ng/total_ok/target_per_day: ไม่ตั้งไว้ (undefined) ให้ฟอร์มใหม่ว่างจริงๆ แทนที่จะโชว์ 0 ค้าง
+  qa_test_rate: '', qa_status: '', pd_pic: '', pic_responsible: '',
   pc_prpo: '', pc_wait: '', pc_incoming: '', pc_smt: '', pc_thr: '', pc_test: '', pc_bbas: '', pc_packing: '', process_log: [],
   special_request: '', remark: '',
 };
@@ -174,7 +174,8 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
   // ไฮไลต์ขอบแดงช่องที่ผิด · เคลียร์สถานะผิดของช่องนั้นเมื่อผู้ใช้เริ่มพิมพ์แก้
   const errBorder = { borderColor: '#dc2626', boxShadow: '0 0 0 2px rgba(220,38,38,0.15)' } as React.CSSProperties;
   const eb = (k: string): React.CSSProperties | undefined => (bad[k] ? errBorder : undefined);
-  const num = (k: keyof PpProject) => (e: any) => { set(k, e.target.value === '' ? 0 : Number(e.target.value)); if (bad[k]) setBad(b => ({ ...b, [k]: false })); };
+  // ปล่อยว่างได้ตอนพิมพ์ (ไม่บังคับเป็น 0 ทันที) — ค่อยกลายเป็น 0 ตอน validate/save ถ้ายังว่างอยู่
+  const num = (k: keyof PpProject) => (e: any) => { set(k, e.target.value === '' ? undefined : Number(e.target.value)); if (bad[k]) setBad(b => ({ ...b, [k]: false })); };
   const txt = (k: keyof PpProject) => (e: any) => { set(k, e.target.value); if (bad[k]) setBad(b => ({ ...b, [k]: false })); };
   // เลือก Date Record → คำนวณ WW (ISO week) ให้อัตโนมัติ
   const onDateRecord = (e: any) => {
@@ -215,11 +216,11 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
           <Section title="Production Record" />
           <div className="grid-3col">
-            <label className="field"><span>Quantity</span><input type="number" value={f.qty ?? 0} onChange={num('qty')} style={eb('qty')} /></label>
-            <label className="field"><span>Produced</span><input type="number" min="0" value={f.produce ?? 0} onChange={num('produce')} placeholder="0" style={eb('produce')} /></label>
+            <label className="field"><span>Quantity</span><input type="number" value={f.qty ?? ''} onChange={num('qty')} placeholder="0" style={eb('qty')} /></label>
+            <label className="field"><span>Produced</span><input type="number" min="0" value={f.produce ?? ''} onChange={num('produce')} placeholder="0" style={eb('produce')} /></label>
             <label className="field"><span>Balance</span><input value={(Number(f.qty) || 0) - (Number(f.produce) || 0)} readOnly title="Quantity − Produced (auto)" style={{ background: '#f1f5f9' }} /></label>
-            <label className="field"><span>Total FG</span><input type="number" value={f.total_ok ?? 0} onChange={num('total_ok')} style={eb('total_ok')} /></label>
-            <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? 0} onChange={num('total_ng')} style={eb('total_ng')} /></label>
+            <label className="field"><span>Total FG</span><input type="number" value={f.total_ok ?? ''} onChange={num('total_ok')} placeholder="0" style={eb('total_ok')} /></label>
+            <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? ''} onChange={num('total_ng')} placeholder="0" style={eb('total_ng')} /></label>
             <label className="field"><span>Yield (FG ÷ (FG+NG) × 100)</span><input value={ppYield({ total_ok: f.total_ok ?? 0, total_ng: f.total_ng ?? 0 })?.toFixed(2) ?? '—'} readOnly style={{ background: '#f1f5f9' }} /></label>
           </div>
 
@@ -228,7 +229,7 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
             <label className="field"><span>PD Start</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} style={eb('pd_start_date')} /></label>
             <label className="field"><span>PD Done</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} style={eb('pd_finish_date')} /></label>
             <label className="field"><span>Expected date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.expected_date ?? ''} onChange={txt('expected_date')} style={eb('expected_date')} /></label>
-            <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? 0} onChange={num('target_per_day')} placeholder="e.g. 40" /></label>
+            <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? ''} onChange={num('target_per_day')} placeholder="e.g. 40" /></label>
           </div>
 
           <Section title="Owner / Customer" />
