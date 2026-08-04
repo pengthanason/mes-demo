@@ -279,10 +279,8 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
 
   return (
     <div
-      // เดสก์ท็อป: เอาเมาส์ชี้เข้าแถบ = กางอัตโนมัติ · ออก = ยุบ + ปิด accordion
-      onMouseEnter={() => { if (isDesktop) setExpanded(true); }}
-      onMouseLeave={() => { if (isDesktop) { setExpanded(false); setOpenKey(null); } }}
-      onClick={() => { if (!expanded) setExpanded(true); }}   // มือถือ (ไม่มี hover): แตะที่แถบตอนยุบ = เปิด
+      // เปิด/ปิดด้วยการกด (ไม่ใช่ hover แล้ว) — กดปุ่มสามขีด/โลโก้เพื่อสลับเปิด-ปิด · แถบยุบ = กดตรงไหนก็ได้เพื่อเปิด
+      onClick={() => { if (!expanded) setExpanded(true); }}
       style={{
         position: 'fixed',
         left: 0, top: 0, bottom: 0,
@@ -302,7 +300,7 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
     >
       {/* โลโก้/หัว sidebar — กดปุ่มสามขีดเพื่อเปิด/ปิด (ทั้งคอม+มือถือ) */}
       <div
-        onClick={() => setExpanded(v => !v)}
+        onClick={() => setExpanded(v => { const next = !v; if (!next) setOpenKey(null); return next; })}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -329,7 +327,7 @@ function Sidebar({ expanded, setExpanded, isDesktop }) {
         )}
       </div>
 
-      {/* ลูกศร hint ตอนยุบ — บอกว่าเอาเมาส์มาชี้/แตะแล้วแถบจะกางออก · พอกางแล้วค่อยๆ จางหาย */}
+      {/* ลูกศร hint ตอนยุบ — บอกว่ากดแถบเพื่อกางออก · พอกางแล้วค่อยๆ จางหาย */}
       <div aria-hidden="true" style={{
         position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
         color: 'rgba(255,255,255,0.55)', fontSize: 30, lineHeight: 1, pointerEvents: 'none',
@@ -755,7 +753,7 @@ function TopBar({ isDesktop, setExpanded }) {
 function Shell({ children }) {
   const location = useLocation();
   const isDesktop = useMediaQuery('(min-width: 768px)');
-  const [expanded, setExpanded] = useState(false);   // เริ่มยุบเสมอ — เดสก์ท็อป: เอาเมาส์ชี้เข้าแถบ = กางอัตโนมัติ · มือถือ: แตะเปิด
+  const [expanded, setExpanded] = useState(false);   // เริ่มยุบเสมอ — กดปุ่มสามขีด/แถบเพื่อเปิด-ปิด (ทั้งเดสก์ท็อปและมือถือ)
   // เปิด sidebar = เนื้อหาขยับขวา "นิดเดียว" (SHIFT_ON_OPEN) ไม่ดันเต็มความกว้าง sidebar · sidebar กางทับส่วนที่เหลือแบบ drawer
   // เนื้อหายังอยู่กึ่งกลาง (margin auto) · ปรับเลข SHIFT_ON_OPEN เพื่อเพิ่ม/ลดระยะขยับ (0 = ไม่ขยับเลย)
   const SHIFT_ON_OPEN =  150;
