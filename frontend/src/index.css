@@ -345,11 +345,17 @@ input[type="number"] {
   padding: 4px 2px;
   font-size: 0.85rem;
 }
-.filter-search-input:focus,
-.filter-search-input:focus-visible {
+.filter-search-input:focus {
   outline: none;
   border-bottom-color: var(--primary);
   box-shadow: none;
+}
+/* คีย์บอร์ด (Tab) ต้องเห็น focus ring เหมือน input อื่นทั้งแอป — เดิม outline:none ทับ global :focus-visible
+   ทิ้งไว้ (specificity ของ class ชนะ) ทำให้ช่องนี้จางกว่าที่อื่นตอนกดคีย์บอร์ด */
+.filter-search-input:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-bottom-color: var(--primary);
 }
 
 /* ─── Table ──────────────────────────────────────────────────────── */

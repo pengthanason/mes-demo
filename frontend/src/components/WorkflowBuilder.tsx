@@ -14,7 +14,7 @@ import {
   type Step, type Role, type TimeScope, type FailAction, type ExtKey, type FormProc,
   ROLE_CFG, SMT_DEFAULT, DEFAULT_CUSTOM, EXT_GROUPS, isSetupName, SETUP_OPTS,
   MAIN_OPTS, MACHINE_DEFAULT, isBuiltinProc, FORM_PROCS, FORM_PROC_MAP,
-  uid, makeStep, initialSteps, inferRole, fmtTime, ROLE_DOT, fmtDateTime, FAIL_OPTS,
+  uid, makeStep, initialSteps, inferRole, fmtTime, ROLE_DOT, fmtDateTime, FAIL_OPTS, MAX_STATIONS,
 } from './workflow/workflowCore';
 import { categorize, toMermaid } from './workflow/categorize';
 import { PresetSelect } from './workflow/PresetSelect';
@@ -186,7 +186,7 @@ export function WorkflowBuilder() {
 
   // เวลามาตรฐาน (ประมาณการ): once = ครั้งเดียว · per_unit = × จำนวน ÷ เครื่อง · SMT คูณจำนวนรอบ (repeat)
   const qtyN = Number(qty) || 0;
-  const stationsOf = (s: Step) => Math.max(1, Number(s.stations) || 1);
+  const stationsOf = (s: Step) => Math.min(MAX_STATIONS, Math.max(1, Number(s.stations) || 1));
   const effSec = (s: Step) => Number(s.seconds) || 0;
   const unitSec = (s: Step) => effSec(s);
   const setupSec   = steps.reduce((sum, s) => sum + (s.timeScope === 'once' ? effSec(s) : 0), 0);
@@ -275,7 +275,7 @@ export function WorkflowBuilder() {
         failAction: s.kind === 'checkpoint' ? s.failAction : 'rework',
         backToIndex: s.failAction === 'back' && s.backToId ? steps.findIndex(x => x.id === s.backToId) : null,
         maxRetry: Math.max(0, Number(s.maxRetry) || 0),
-        stations: s.timeScope === 'once' ? 1 : Math.max(1, Number(s.stations) || 1),
+        stations: s.timeScope === 'once' ? 1 : Math.min(MAX_STATIONS, Math.max(1, Number(s.stations) || 1)),
         machine: s.machine || '',
       })),
     }, {
@@ -301,7 +301,7 @@ export function WorkflowBuilder() {
         timeScope: setupLike ? 'once' : c.timeScope,
         failAction: (['rework', 'back', 'scrap', 'hold'].includes(s.failAction as string) ? s.failAction : 'rework') as FailAction,
         backToId: '', maxRetry: Math.max(0, Number(s.maxRetry) || 0), holdMin: Math.max(0, Number((s as any).holdMin) || 0),
-        stations: Number(s.stations) > 0 ? Number(s.stations) : 1,
+        stations: Number(s.stations) > 0 ? Math.min(MAX_STATIONS, Number(s.stations)) : 1,
         machine: (s as any).machine || '',
       };
     });

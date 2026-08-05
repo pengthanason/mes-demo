@@ -91,6 +91,10 @@ export type Step = {
   machine: string;                         // ชื่อเครื่อง/สถานี (เลือกจากดรอปดาวในแถว)
 };
 
+// เพดานจำนวนเครื่องขนานต่อ process — เดิมไม่มี max เลย พิมพ์เลขมหาศาลเข้าไปแล้ว svgBuilders.ts
+// เอาไปทำ `new Array(p.m)` ตรงๆ (โครงสร้างเดียวกับบัค Gantt วันที่ปีมั่ว แค่มาจากช่องตัวเลขแทนวันที่)
+export const MAX_STATIONS = 50;
+
 export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.round(performance.now())}`);
 
 export const makeStep = (role: Role, process: string): Step => {

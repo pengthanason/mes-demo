@@ -30,13 +30,17 @@ function ClickCard({ to, icon, label, value, accent, external }: { to: string; i
 }
 
 export function FactoryOverview() {
-  const { data: daily = [] } = useDailyReport();
-  const { data: jig = [] } = useJigProjects();
-  const { data: lots = [] } = useInventoryLots();
-  const { data: cr = [] } = useCrList();
-  const { data: rework = [] } = useReworkList();
-  const { data: oba = [] } = useObaRecords();
-  const { data: wfResults = [] } = useWorkflowResults();
+  const { data: daily = [], isError: dailyErr, refetch: refetchDaily } = useDailyReport();
+  const { data: jig = [], isError: jigErr, refetch: refetchJig } = useJigProjects();
+  const { data: lots = [], isError: lotsErr, refetch: refetchLots } = useInventoryLots();
+  const { data: cr = [], isError: crErr, refetch: refetchCr } = useCrList();
+  const { data: rework = [], isError: reworkErr, refetch: refetchRework } = useReworkList();
+  const { data: oba = [], isError: obaErr, refetch: refetchOba } = useObaRecords();
+  const { data: wfResults = [], isError: wfErr, refetch: refetchWf } = useWorkflowResults();
+  // เดิม 7 query นี้ไม่เช็ค error เลยสักตัว — ถ้าตัวไหนล้มเหลว data จะ default เป็น [] เงียบๆ
+  // ทำให้เห็น "0%/—" เหมือนระบบปกติแค่ไม่มีข้อมูล ทั้งที่จริงๆ ดึงข้อมูลไม่สำเร็จ
+  const hasError = dailyErr || jigErr || lotsErr || crErr || reworkErr || obaErr || wfErr;
+  const retryAll = () => { refetchDaily(); refetchJig(); refetchLots(); refetchCr(); refetchRework(); refetchOba(); refetchWf(); };
 
   const m = useMemo(() => {
     // production (trace daily)
@@ -92,6 +96,13 @@ export function FactoryOverview() {
       <div className="panel">
         <h1 className="panel__title">🏭 Factory Overview</h1>
         <p className="panel__subtitle">Real-time summary of all modules — Production · QC · Jig · Inventory · 4M</p>
+
+        {hasError && (
+          <div className="notice err" style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <span>⚠️ Some data failed to load — the numbers below may be incomplete</span>
+            <button type="button" className="btn secondary" onClick={retryAll}>Retry</button>
+          </div>
+        )}
 
         {/* KPI ข้ามโมดูล */}
         <div className="dash-grid-4" style={{ marginTop: '1.5rem' }}>

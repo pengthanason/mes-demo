@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useMockAuth } from '../lib/useMockStore';
 import { confirmDialog } from '../lib/confirm';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import {
   useAdminUsers, useAdminUserCreate, useAdminUserUpdate, useAdminUserDelete,
   useAuditLogs, AppRole, AppUser,
@@ -117,7 +118,9 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({ username: '', fullName: '', role: 'MEMBER' as AppRole, password: '', permissions: [] as string[] });
   const create = useAdminUserCreate();
   const [err, setErr] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -130,7 +133,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 480px)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label="Add New User" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 480px)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
           <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: 'rgba(59,130,246,0.12)' }}>👤</span>
           <div>
@@ -158,7 +161,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
             <PermChecklist role={form.role} value={form.permissions} onChange={v => setForm(f => ({ ...f, permissions: v }))} />
           </div>
           <PasswordField label="Password *" value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} required />
-          {err && <div className="notice err">{err}</div>}
+          {err && <div role="alert" className="notice err">{err}</div>}
           <div className="modal-actions" style={{ marginTop: '0.25rem' }}>
             <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn" disabled={create.isPending || form.password.length < 4}>
@@ -175,7 +178,9 @@ function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }
   const [form, setForm] = useState({ fullName: user.fullName, role: user.role, password: '', permissions: user.permissions ?? [] });
   const update = useAdminUserUpdate();
   const [err, setErr] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -188,7 +193,7 @@ function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }
 
   return (
     <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 480px)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label={`Edit User ${user.username}`} onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 480px)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
           <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: 'rgba(59,130,246,0.12)' }}>✏️</span>
           <div>
@@ -212,7 +217,7 @@ function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }
             <PermChecklist role={form.role} value={form.permissions} onChange={v => setForm(f => ({ ...f, permissions: v }))} />
           </div>
           <PasswordField label="Set/reset new password (leave blank = unchanged)" value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} />
-          {err && <div className="notice err">{err}</div>}
+          {err && <div role="alert" className="notice err">{err}</div>}
           <div className="modal-actions" style={{ marginTop: '0.25rem' }}>
             <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn" disabled={update.isPending}>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   useQcResults, useQcResultCreate, useReworkCreate,
@@ -13,6 +13,7 @@ import { ComboBoxInput } from '../components/ComboBoxInput';
 import { useWoLots, useScanSummary } from '../lib/lookups';
 import { TableState } from '../components/DataStates';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../lib/dateRange';
 
 const OVERALL_STYLE: Record<QcOverall, { bg: string; text: string; border: string }> = {
@@ -31,7 +32,9 @@ function OverallBadge({ overall }: { overall: QcOverall }) {
 }
 
 function ReworkDialog({ qcResult, onClose }: { qcResult: QcResult; onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
   const [defectType,  setDefectType]  = useState(qcResult.defectDesc ?? '');
   const [assignedTo,  setAssignedTo]  = useState('');
   const [dueDate,     setDueDate]     = useState('');
@@ -54,7 +57,7 @@ function ReworkDialog({ qcResult, onClose }: { qcResult: QcResult; onClose: () =
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div className="panel" style={{ maxWidth: 480, width: '100%' }}>
+      <div ref={modalRef} className="panel" role="dialog" aria-modal="true" aria-label="Open Rework Ticket" style={{ maxWidth: 480, width: '100%' }}>
         <h3 className="panel__title">Open Rework Ticket</h3>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>
           WO: <strong>{qcResult.woId}</strong> · Lot: {qcResult.lotNo} · NG: {qcResult.qtyFail} pcs
@@ -222,7 +225,7 @@ export function QcResultPage() {
               {needsDefect && (
                 <label className="field">
                   <span>Defect Description *</span>
-                  <textarea value={defectDesc} onChange={e => setDefectDesc(e.target.value)} rows={2}
+                  <textarea value={defectDesc} onChange={e => setDefectDesc(e.target.value)} rows={2} maxLength={2000}
                     placeholder="Clearly specify the location / nature of the defect..." required />
                 </label>
               )}
@@ -230,7 +233,7 @@ export function QcResultPage() {
               {needsDefect && (
                 <label className="field">
                   <span>Remark</span>
-                  <textarea value={remark} onChange={e => setRemark(e.target.value)} rows={2}
+                  <textarea value={remark} onChange={e => setRemark(e.target.value)} rows={2} maxLength={2000}
                     placeholder="Additional remark (optional) — e.g. preliminary cause, follow-up..." />
                 </label>
               )}

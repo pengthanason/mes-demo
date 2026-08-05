@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePpImage, usePpImageSave, PP_STATUS_LABEL, ppYield, type PpProject } from '../../lib/ppApi';
 import { showToast } from '../../lib/toast';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 import { STATUS_STYLE, StatusBadge, statusView, EditHistory, PROCESS_STEPS } from '../../components/ppParts';
 
 // ย่อรูปก่อนเก็บ (max 1000px, JPEG 0.85) → ไฟล์เล็ก เก็บ DB/โหลดเร็ว ไม่ว่าไฟล์ต้นทางใหญ่แค่ไหน
@@ -99,13 +100,9 @@ function ImageLightboxModal({ src, alt, onClose }: { src: string; alt: string; o
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
 
   return createPortal(
     <div
@@ -125,6 +122,10 @@ function ImageLightboxModal({ src, alt, onClose }: { src: string; alt: string; o
       }}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Image viewer"
         style={{
           position: 'relative',
           width: '90vw',
@@ -141,9 +142,16 @@ function ImageLightboxModal({ src, alt, onClose }: { src: string; alt: string; o
           style={{
             position: 'absolute',
             top: 10,
+            // จอแคบ (มือถือ/แท็บเล็ต) — เดิมไม่ตั้ง left/right เลย ปุ่ม 7 ตัวในแถวเดียวล้นออกนอก 90vw ได้
+            // ล็อกกลางจอด้วย left+translateX แทนพึ่ง static position + จำกัดความกว้าง + ห่อบรรทัดถ้าไม่พอ
+            left: '50%',
+            transform: 'translateX(-50%)',
+            maxWidth: 'calc(100vw - 16px)',
             zIndex: 2010,
             display: 'flex',
             alignItems: 'center',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
             gap: 10,
             background: 'rgba(15, 23, 42, 0.85)',
             padding: '8px 16px',
@@ -354,7 +362,9 @@ function ProductImageBox({ p }: { p: PpProject }) {
 
 /* ── Popup รายละเอียดสินค้า — คลิก Product P/N ในตาราง → รูป (แนบไฟล์ได้) + ข้อมูลทั้งหมดของรายการ ── */
 export function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
   const y = ppYield(p);
   const fmtD = (v: string | null | undefined) => { if (!v) return '—'; const d = new Date(String(v).slice(0, 10) + 'T00:00:00'); return isNaN(+d) ? String(v) : d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }); };
   const val = (v: any) => (v === null || v === undefined || v === '' ? '—' : v);
@@ -381,7 +391,7 @@ export function ProductDetailModal({ p, onClose }: { p: PpProject; onClose: () =
   const sectionTitle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 700, color: '#475569', margin: '16px 0 8px' };
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 680px)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label={`Product details: ${p.product_pn || p.model || ''}`} onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 680px)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', wordBreak: 'break-word' }}>{p.product_pn || '—'}</div>

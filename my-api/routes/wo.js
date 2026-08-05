@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
+const { badYear, YEAR_MIN, YEAR_MAX } = require('../dateGuard');
 
 const INT4_MAX = 2147483647;
 // ตรวจจำนวนเต็มก่อนยิงลง DB — คอลัมน์เป็น INTEGER + มี CHECK (qty > 0) ถ้าไม่ดักที่นี่จะกลายเป็น 500 ดิบ
@@ -85,6 +86,10 @@ router.post('/board', async (req, res) => {
   if (qtyErr) return res.status(400).json({ status: 'error', message: qtyErr });
   if (due_date && isNaN(Date.parse(due_date))) {
     return res.status(400).json({ status: 'error', message: 'due_date is not a valid date' });
+  }
+  // ปีต้องอยู่ในช่วงที่เป็นไปได้ — parse ผ่านด่านบนได้ แต่ "0001-04-11" ยังเป็นปีมั่ว (เหมือน INC 2026-08-03 ของ pp_projects)
+  if (due_date && badYear(due_date)) {
+    return res.status(400).json({ status: 'error', message: `due_date: year must be between ${YEAR_MIN}-${YEAR_MAX} (got "${due_date}")` });
   }
   // retry เมื่อชน UNIQUE(wo_no) — 2 คนกด Create พร้อมกันจะได้เลขเดียวกัน ถ้าไม่ retry คนที่ 2 จะเจอ 500
   for (let attempt = 1; attempt <= 5; attempt++) {

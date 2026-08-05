@@ -3,6 +3,13 @@ const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'admin';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxgq75HbQ2RGde7WkpXTcYS8NQ6PfWLjtZgQsWtw17HM6HdLOED2a7N9d1-kA7ElNl3/exec';
 
+// Escape user text before interpolating into innerHTML — ค่าที่ผู้ใช้พิมพ์ (name/surname/email/equipment/notes)
+// ต้อง escape ก่อนเสมอ ไม่งั้นพิมพ์ <img src=x onerror=...> ในช่อง Notes แล้วรันเป็นโค้ดจริงในเบราว์เซอร์คนอื่นที่มาดู
+function escHtml(val) {
+  const s = String(val === null || val === undefined ? '' : val);
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // Helper to get local date string YYYY-MM-DD
 function getLocalDateString(dateObj = new Date()) {
   const year = dateObj.getFullYear();
@@ -343,18 +350,18 @@ function renderDashboardData() {
 
       // Name cell — clickable if has selfie
       const nameHtml = rec.selfiePhoto
-        ? `<span class="photo-link" data-photo-key="${rec.id}_selfie" title="Click to view photo"><i class="fa-solid fa-camera" style="font-size:0.7rem;margin-right:3px;opacity:0.7"></i>${rec.name}</span>`
-        : `<span style="font-weight:500">${rec.name}</span>`;
+        ? `<span class="photo-link" data-photo-key="${rec.id}_selfie" title="Click to view photo"><i class="fa-solid fa-camera" style="font-size:0.7rem;margin-right:3px;opacity:0.7"></i>${escHtml(rec.name)}</span>`
+        : `<span style="font-weight:500">${escHtml(rec.name)}</span>`;
 
       // Equipment cell — make items clickable if has photo
-      let equipHtml = rec.equipment;
+      let equipHtml = escHtml(rec.equipment);
       if (rec.equipmentPhotos) {
         try {
           const photos = JSON.parse(rec.equipmentPhotos);
           const parts = rec.equipment.split(', ');
           equipHtml = parts.map((part, i) => photos[i]
-            ? `<span class="photo-link" data-photo-key="${rec.id}_eq_${i}" title="Click to view equipment photo">${part}</span>`
-            : part
+            ? `<span class="photo-link" data-photo-key="${rec.id}_eq_${i}" title="Click to view equipment photo">${escHtml(part)}</span>`
+            : escHtml(part)
           ).join(', ');
         } catch(e) {}
       }
@@ -367,9 +374,9 @@ function renderDashboardData() {
             <i class="fa-regular fa-clock"></i> ${formatThaiDate(rec.timestamp.split('T')[0])}
           </div>
         </td>
-        <td class="col-name" title="${rec.name}">${nameHtml}</td>
-        <td>${rec.surname || '-'}</td>
-        <td style="font-size:0.82rem;color:var(--text-muted)">${rec.email || '-'}</td>
+        <td class="col-name" title="${escHtml(rec.name)}">${nameHtml}</td>
+        <td>${rec.surname ? escHtml(rec.surname) : '-'}</td>
+        <td style="font-size:0.82rem;color:var(--text-muted)">${rec.email ? escHtml(rec.email) : '-'}</td>
         <td>
           <div style="font-weight: 500; color: var(--primary-color);">
             ${equipHtml}
@@ -379,8 +386,8 @@ function renderDashboardData() {
         <td>${formatThaiDate(rec.returnDate)}</td>
         <td style="text-align: center;">${badgeHtml}</td>
         <td>
-          <div class="notes-text" title="${rec.notes || '-'}">
-            ${rec.notes || '<span style="color:#cbd5e1">-</span>'}
+          <div class="notes-text" title="${rec.notes ? escHtml(rec.notes) : '-'}">
+            ${rec.notes ? escHtml(rec.notes) : '<span style="color:#cbd5e1">-</span>'}
           </div>
         </td>
         <td style="text-align: center;">

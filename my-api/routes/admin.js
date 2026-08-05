@@ -17,7 +17,8 @@ router.get('/users', async (req, res) => {
 
 router.post('/users', async (req, res) => {
   const { username, full_name, role, password, permissions } = req.body;
-  if (!username || !full_name || !['ADMIN','MEMBER','VIEWER'].includes(role)) {
+  // .trim() ก่อนเช็ก — ของเดิมเช็คแค่ truthy ผ่าน "   " (ช่องว่างล้วน) ได้ แล้วไปโดน trim() เหลือ '' ตอน insert ด้านล่างแบบเงียบๆ
+  if (!String(username || '').trim() || !String(full_name || '').trim() || !['ADMIN','MEMBER','VIEWER'].includes(role)) {
     return res.status(400).json({ status: 'error', message: 'username, full_name, role(ADMIN|MEMBER|VIEWER) required' });
   }
   if (!password || String(password).length < 8) {

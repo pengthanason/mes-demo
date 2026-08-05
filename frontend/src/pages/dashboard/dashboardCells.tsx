@@ -110,7 +110,9 @@ export function ColumnFilterField({
     if (submenuPos) { setSubmenuPos(null); return; }
     const rect = e.currentTarget.getBoundingClientRect();
     const overflowsRight = pos.left + panelWidth + SUBMENU_W + 4 > window.innerWidth;
-    setSubmenuPos({ top: rect.top, left: overflowsRight ? pos.left - SUBMENU_W - 4 : pos.left + panelWidth + 4 });
+    // พลิกซ้ายแล้วยังล้นขอบซ้ายได้บนจอแคบ (panel เองอยู่ใกล้ขอบซ้ายอยู่แล้ว) — clamp ไม่ให้ติดลบ
+    const left = overflowsRight ? Math.max(8, pos.left - SUBMENU_W - 4) : pos.left + panelWidth + 4;
+    setSubmenuPos({ top: rect.top, left });
   };
 
   return (

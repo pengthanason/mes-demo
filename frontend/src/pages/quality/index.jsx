@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CheckCircle2, XCircle, Scan } from 'lucide-react';
 import { useQcHistory, useQcCreate } from '../../lib/recordsApi';
 import { useIsViewer } from '../../lib/useMockStore';
 import { showToast } from '../../lib/toast';
 import { TableState } from '../../components/DataStates';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 // สี badge ตามสถานะ (PASS=เขียว, REPAIRED=เหลืองอำพัน, NG/อื่นๆ=แดง) — #51 status = PASS/NG/REPAIRED
 function badgeStyle(st) {
@@ -23,7 +24,9 @@ export default function QcBoard() {
   const history = data ?? [];
   const isLoading = createMut.isPending;
   const [globalError, setGlobalError] = useState('');
+  const failModalRef = useRef(null);
   useEscapeKey(showFailModal, () => setShowFailModal(false));
+  useFocusTrap(showFailModal, failModalRef);
 
   const submitQc = (result, isScrap = false) => {
     if (isViewer) return;
@@ -125,7 +128,7 @@ export default function QcBoard() {
       {/* FAIL Option Modal */}
       {showFailModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="panel" style={{ maxWidth: 460, width: '100%', border: '1px solid rgba(239, 68, 68, 0.4)', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
+          <div ref={failModalRef} className="panel" role="dialog" aria-modal="true" aria-label="Result: FAIL (NG)" style={{ maxWidth: 460, width: '100%', border: '1px solid rgba(239, 68, 68, 0.4)', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <div style={{ padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px' }}>
                 <XCircle color="#ef4444" size={26} />

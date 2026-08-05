@@ -104,15 +104,15 @@ export function WorkOrdersPage() {
             <form onSubmit={submit} className="stack" style={{ marginTop: '0.75rem', gap: '0.85rem' }}>
               <div className="grid-4col">
                 <label className="field"><span>Product Code *</span>
-                  <input value={productCode} onChange={e => { setProductCode(e.target.value); if (fErr.productCode) setFErr(p => ({ ...p, productCode: undefined })); }} placeholder="e.g. PCB-A100" autoFocus aria-required="true" aria-invalid={!!fErr.productCode} style={fErr.productCode ? { borderColor: '#dc2626' } : undefined} />
-                  {fErr.productCode && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.productCode}</span>}
+                  <input value={productCode} onChange={e => { setProductCode(e.target.value); if (fErr.productCode) setFErr(p => ({ ...p, productCode: undefined })); }} placeholder="e.g. PCB-A100" autoFocus aria-required="true" aria-invalid={!!fErr.productCode} aria-describedby={fErr.productCode ? 'wo-err-productCode' : undefined} style={fErr.productCode ? { borderColor: '#dc2626' } : undefined} />
+                  {fErr.productCode && <span id="wo-err-productCode" role="alert" style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.productCode}</span>}
                 </label>
                 <label className="field"><span>Customer</span>
                   <input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="e.g. Toyota TH" />
                 </label>
                 <label className="field"><span>Qty *</span>
-                  <input type="number" value={qty} onChange={e => { setQty(e.target.value); if (fErr.qty) setFErr(p => ({ ...p, qty: undefined })); }} placeholder="e.g. 200" aria-required="true" aria-invalid={!!fErr.qty} style={fErr.qty ? { borderColor: '#dc2626' } : undefined} />
-                  {fErr.qty && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.qty}</span>}
+                  <input type="number" value={qty} onChange={e => { setQty(e.target.value); if (fErr.qty) setFErr(p => ({ ...p, qty: undefined })); }} placeholder="e.g. 200" aria-required="true" aria-invalid={!!fErr.qty} aria-describedby={fErr.qty ? 'wo-err-qty' : undefined} style={fErr.qty ? { borderColor: '#dc2626' } : undefined} />
+                  {fErr.qty && <span id="wo-err-qty" role="alert" style={{ color: '#dc2626', fontSize: '0.75rem' }}>{fErr.qty}</span>}
                 </label>
                 <label className="field"><span>Expected date</span>
                   <input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />

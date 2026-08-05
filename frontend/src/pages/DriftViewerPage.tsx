@@ -3,6 +3,7 @@ import { useDriftReport, type DriftRow } from '../lib/driftApi';
 import { SYNTECH_LOGO_PNG_BASE64 } from '../assets/syntechLogo';
 import { TableState } from '../components/DataStates';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { useFocusTrap } from '../lib/useFocusTrap';
 
 // ระดับความรุนแรง — คิดเป็น "สัดส่วน %" ของ Odoo (ยุติธรรมกว่าค่าสัมบูรณ์ เพราะ 20 ชิ้นของ 60 = เยอะ แต่ของ 5000 = จิ๋ว)
 type Sev = 'ok' | 'warn' | 'crit';
@@ -103,7 +104,9 @@ async function exportDriftXlsx(rows: DriftRow[], filename: string) {
 function FileNamePromptModal({ defaultBase, onCancel, onConfirm }: { defaultBase: string; onCancel: () => void; onConfirm: (name: string) => void }) {
   const [name, setName] = useState(`${defaultBase}.xlsx`);
   const ref = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onCancel);
+  useFocusTrap(true, modalRef);
   useEffect(() => {
     const el = ref.current; if (!el) return;
     el.focus(); const dot = name.lastIndexOf('.'); el.setSelectionRange(0, dot > 0 ? dot : name.length);
@@ -112,7 +115,7 @@ function FileNamePromptModal({ defaultBase, onCancel, onConfirm }: { defaultBase
   const confirm = () => { let n = name.trim(); if (!n) return; if (!/\.xlsx$/i.test(n)) n += '.xlsx'; onConfirm(n); };
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={onCancel}>
-      <div className="panel" style={{ width: 'min(100%, 440px)' }} onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className="panel" role="dialog" aria-modal="true" aria-label="Save as Excel" style={{ width: 'min(100%, 440px)' }} onClick={e => e.stopPropagation()}>
         <h3 className="panel__title panel__title--sm" style={{ marginTop: 0 }}>⬇️ Save as Excel</h3>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Enter a file name and click “OK” to download</p>
         <input ref={ref} value={name} onChange={e => setName(e.target.value)} aria-label="File name" placeholder="filename.xlsx"

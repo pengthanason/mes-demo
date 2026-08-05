@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { type Step } from './workflowCore';
+import { type Step, MAX_STATIONS } from './workflowCore';
 
 // ── Dropdown กลาง — ใช้ทุกช่อง (setup/SMT/เครื่อง) ให้หน้าตาเหมือนกันหมด ──
 // groups = แยกเป็นหัวข้อได้ (เช่น Set up / Custom process) · item.deletable = มี ✕ ลบในตัว · onAdd = ปุ่ม "+ เพิ่ม"
@@ -150,8 +150,8 @@ export function MachineCell({ step, isViewer, setStep, machineGroups, onAddMachi
           onAdd={onAddMachine} addLabel="➕ Add machine..." onDelete={onDeleteMachine} />
       </div>
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap' }} title="Number of parallel machines">
-        ×<input type="number" min="1" value={step.stations || 1} disabled={isViewer}
-          onChange={e => setStep(step.id, { stations: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} style={{ ...NUMBOX, width: 46 }} /> machines
+        ×<input type="number" min="1" max={MAX_STATIONS} value={step.stations || 1} disabled={isViewer}
+          onChange={e => setStep(step.id, { stations: Math.min(MAX_STATIONS, Math.max(1, Math.floor(Number(e.target.value)) || 1)) })} style={{ ...NUMBOX, width: 46 }} /> machines
       </label>
     </div>
   );

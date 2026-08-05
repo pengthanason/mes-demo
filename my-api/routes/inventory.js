@@ -94,15 +94,17 @@ router.get('/lots', async (req, res) => {
 
 router.post('/receive', async (req, res) => {
   const { part_no, part_name, lot_no, qty } = req.body;
-  if (!part_no || !lot_no || !Number(qty) || Number(qty) <= 0) {
-    return res.status(400).json({ status: 'error', message: 'part_no, lot_no, qty(>0) required' });
+  const n = Number(qty);
+  // ต้องเป็นจำนวนเต็ม > 0 และไม่เกิน int4 — qty_received/qty_available เป็น INTEGER เหมือน /issue (ของเดิมเช็คแค่ !Number(qty) ผ่านทศนิยม/เลข scientific notation ได้แล้วไป 500 กลางทาง)
+  if (!part_no || !lot_no || !Number.isInteger(n) || n <= 0 || n > 2147483647) {
+    return res.status(400).json({ status: 'error', message: 'part_no, lot_no, qty (integer > 0) required' });
   }
   try {
     const { rows } = await db.query(
       `INSERT INTO inventory_lots (part_no, part_name, lot_no, qty_received, qty_available, status)
        VALUES ($1,$2,$3,$4,$4,'PENDING')
        RETURNING id, part_no, part_name, lot_no, qty_received, qty_available, status, note, received_at, reviewed_at, uid`,
-      [part_no, part_name || '', lot_no, Number(qty)]
+      [part_no, part_name || '', lot_no, n]
     );
     res.status(201).json({ status: 'success', data: rows[0] });
   } catch (e) {

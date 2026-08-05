@@ -1,7 +1,7 @@
 // ── SVG diagram builders (FlowChart + Gantt) ──
 // แยกจาก WorkflowBuilder.tsx เดิม — ย้ายโค้ด ไม่เปลี่ยนพฤติกรรม
 
-import { type Step, fmtTime } from './workflowCore';
+import { type Step, fmtTime, MAX_STATIONS } from './workflowCore';
 import { categorize } from './categorize';
 
 /* ── วาด flowchart ขาว-ดำ สไตล์ฟอร์ม FM 05 (รองรับหลายคอลัมน์) ──
@@ -218,7 +218,8 @@ export const CURSOR_GRABBING = 'pointer';
 export function buildGanttSvg(steps: Step[], qty: number, zoom: number = 1, fitW: number = 1000): { label: string; chart: string; full: string } {
   const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const sec = (s: Step) => Number(s.seconds) || 0;
-  const mach = (s: Step) => Math.max(1, Number(s.stations) || 1);
+  // เพดานบนกันช่อง "จำนวนเครื่องขนาน" พิมพ์เลขมหาศาลแล้ว new Array(p.m) ด้านล่างพัง/ค้างทั้งหน้า (โครงสร้างเดียวกับบัค Gantt วันที่ปีมั่ว)
+  const mach = (s: Step) => Math.min(MAX_STATIONS, Math.max(1, Number(s.stations) || 1));
   const N = Math.max(1, Math.floor(qty) || 1);
 
   type Row = { label: string; t: number; m: number; start: number; end: number; once: boolean };

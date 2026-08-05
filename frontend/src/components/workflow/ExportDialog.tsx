@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 
 // ── ป็อปอัพก่อน Export PDF — flow: กรอกข้อมูลเอกสาร+ชื่อไฟล์ · gantt: ชื่อไฟล์อย่างเดียว ──
 export type ExportForm = { filename: string; customer: string; model: string; pn: string; issuedBy: string; checkedBy: string; approvedBy: string; revNo: string; revDesc: string };
@@ -7,7 +8,9 @@ export function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'fl
   const [f, setF] = useState<ExportForm>({ ...initial, filename: `${initial.filename}.pdf` });
   const set = (k: keyof ExportForm, v: string) => setF(p => ({ ...p, [k]: v }));
   const nameRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onCancel);
+  useFocusTrap(true, modalRef);
   // เปิดมา → คลุม(ไฮไลต์)เฉพาะส่วนชื่อ ไม่รวม ".pdf" (เหมือนหน้า Dashboard)
   useEffect(() => {
     const el = nameRef.current; if (!el) return;
@@ -22,7 +25,7 @@ export function ExportDialog({ mode, initial, onCancel, onConfirm }: { mode: 'fl
   };
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 760px)' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label={`Export ${mode === 'flow' ? 'Process Flow Chart' : 'Gantt'} PDF`} onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 760px)' }}>
         <h2 className="panel__title" style={{ marginBottom: 4 }}>🖨️ Export {mode === 'flow' ? 'Process Flow Chart (PDF)' : 'Gantt (PDF)'}</h2>
         <p className="panel__subtitle" style={{ marginTop: 0 }}>{mode === 'flow' ? 'Name the file + fill in document info (optional) then press Export' : 'Name the file then press Export'}</p>
         <div className="stack" style={{ marginTop: '0.9rem', gap: '0.75rem' }}>

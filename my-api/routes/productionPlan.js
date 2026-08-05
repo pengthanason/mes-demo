@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
-const { firstBadYearError } = require('../dateGuard');
+const { firstBadYearError, badYear, YEAR_MIN, YEAR_MAX } = require('../dateGuard');
 
 const COLS = `id, pp_type, status, status_color, wk, date_record, product_pn, model, customer, qty, produce, syn_requestor,
   work_order, wo_name, matl_coming, chk_man, chk_mac, chk_med, chk_mat, chk_env,
@@ -59,6 +59,10 @@ function clean(body) {
       let arr = v;
       if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch { arr = undefined; } }
       if (!Array.isArray(arr)) { out.__bad_process_log = true; continue; }
+      // ปีของแต่ละ log entry ก็ต้องเช็คเหมือน DATE_FIELDS อื่น — เดิมเช็คแค่โครงสร้าง (ต้องเป็น array)
+      // ไม่เช็คปี ทำให้ log.date ปีมั่ว (เช่น 0001) หลุดเข้า DB ได้ · GanttChart กรองทิ้งเองตอน render
+      // อยู่แล้วเลยไม่พัง แต่ backend ควรกันซ้ำ (defense-in-depth) ไม่ปล่อยให้ frontend รับผิดชอบฝ่ายเดียว
+      if (arr.some(entry => entry && typeof entry === 'object' && badYear(entry.date))) { out.__bad_process_log_date = true; continue; }
       v = JSON.stringify(arr);
     }
     out[k] = v;
@@ -78,7 +82,8 @@ function validateData(data, changed = data) {   // data = ค่ารวม (be
   for (const k of NUM_FIELDS) {
     if (data[k] == null || data[k] === '') continue;
     const n = Number(data[k]);
-    if (!Number.isFinite(n)) return `${k} must be a number`;
+    // isInteger ไม่ใช่แค่ isFinite — คอลัมน์เป็น INTEGER ทั้งหมด เดิมเช็คแค่ isFinite ผ่านทศนิยม (5.5) ได้แล้วไป 500 กลางทางที่ DB แทน
+    if (!Number.isInteger(n)) return `${k} must be a whole number`;
     if (n < 0) return `${k} cannot be negative`;
     if (n > INT4_MAX) return `${k} is too large`;
   }
@@ -150,6 +155,7 @@ router.get('/projects', async (req, res) => {
 router.post('/projects', async (req, res) => {
   const data = clean(req.body);
   if (data.__bad_process_log) return res.status(400).json({ status: 'error', message: 'process_log must be an array' });
+  if (data.__bad_process_log_date) return res.status(400).json({ status: 'error', message: `process_log date: year must be between ${YEAR_MIN}-${YEAR_MAX}` });
   if (!data.product_pn && !data.model) {
     return res.status(400).json({ status: 'error', message: 'Must have at least one of Product P/N or Model' });
   }
@@ -173,6 +179,7 @@ router.post('/projects', async (req, res) => {
 router.put('/projects/:id', async (req, res) => {
   const data = clean(req.body);
   if (data.__bad_process_log) return res.status(400).json({ status: 'error', message: 'process_log must be an array' });
+  if (data.__bad_process_log_date) return res.status(400).json({ status: 'error', message: `process_log date: year must be between ${YEAR_MIN}-${YEAR_MAX}` });
   const keys = Object.keys(data);
   if (!keys.length) return res.status(400).json({ status: 'error', message: 'no data' });
   const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');

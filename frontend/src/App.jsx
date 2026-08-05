@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } f
 import { useMockAuth } from './lib/useMockStore.ts';
 import { mockLogout, getAuth } from './lib/mockStore.ts';
 import { showToast } from './lib/toast.ts';
+import { useFocusTrap } from './lib/useFocusTrap.ts';
 import { SYNTECH_LOGO_PNG_BASE64 } from './assets/syntechLogo.ts';
 import { ROLE_COLOR } from './lib/roles.ts';
 import { PERMISSIONS, effectivePerms, hasPerm } from './lib/permissions.ts';
@@ -462,7 +463,8 @@ class ErrorBoundary extends React.Component {
 const NOTIF_ICON = { WO_OPEN: '🔧', QC_FAIL: '❌', CR_APPROVED: '✅', WO_CLOSED: '✔️', REWORK: '🔨' };
 
 function NotificationBell() {
-  const { data: count = 0 } = useUnreadCount();
+  // isError เดิมไม่เช็คเลย — ถ้า poll ล้มเหลวซ้ำๆ (เน็ต/API ล่ม) ผู้ใช้ไม่รู้เลยว่าเลขนี้อาจไม่อัปเดตแล้ว
+  const { data: count = 0, isError: countErr } = useUnreadCount();
   const { data: notifs = [] } = useNotifications(false);
   const markRead = useMarkRead();
   const navigate = useNavigate();
@@ -490,8 +492,8 @@ function NotificationBell() {
     <div ref={wrapRef} style={{ position: 'relative', flexShrink: 0 }}>
       <button
         type="button"
-        title="Notifications"
         onClick={() => setOpen(v => !v)}
+        title={countErr ? 'Notifications (couldn\'t refresh — count may be out of date)' : 'Notifications'}
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
           width: 36, height: 36, borderRadius: 8, flexShrink: 0, border: 'none', cursor: 'pointer',
@@ -512,6 +514,14 @@ function NotificationBell() {
           }}>
             {count > 99 ? '99+' : count}
           </span>
+        )}
+        {/* จุดเตือนเล็กๆ ตอน poll ล้มเหลว — บอกว่าตัวเลขนี้อาจไม่ทันสมัยแล้ว (คนละอันกับ badge จำนวนสีแดง) */}
+        {countErr && (
+          <span aria-hidden="true" style={{
+            position: 'absolute', bottom: 3, right: 3,
+            width: 8, height: 8, borderRadius: 99,
+            background: '#f59e0b', border: '1.5px solid #162d4a',
+          }} />
         )}
       </button>
 
@@ -654,6 +664,7 @@ function ToastContainer() {
 // ─── Confirm dialog (แทน window.confirm) — ฟัง event 'app:confirm' แล้วเด้ง modal ในธีมเว็บ ───
 function ConfirmContainer() {
   const [dlg, setDlg] = useState(null);   // { message, opts, resolve }
+  const modalRef = useRef(null);
   useEffect(() => {
     const handler = (e) => setDlg(e.detail);
     window.addEventListener('app:confirm', handler);
@@ -668,19 +679,20 @@ function ConfirmContainer() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [dlg]);
+  useFocusTrap(!!dlg, modalRef);
   if (!dlg) return null;
   const { message, opts = {}, resolve } = dlg;
   const done = (v) => { resolve(v); setDlg(null); };
   const danger = opts.danger !== false;   // ค่าเริ่มต้น = ปุ่มยืนยันสีแดง (ส่วนใหญ่เป็นการลบ)
   return (
     <div onClick={() => done(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.3)', width: 'min(100%, 420px)', overflow: 'hidden', animation: 'toastIn 0.18s ease' }}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label={opts.title || 'Confirm action'} onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.3)', width: 'min(100%, 420px)', overflow: 'hidden', animation: 'toastIn 0.18s ease' }}>
         <div style={{ padding: '1.25rem 1.25rem 0.75rem' }}>
           <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b', marginBottom: 6 }}>{opts.title || 'Confirm action'}</div>
           <div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-line', lineHeight: 1.55 }}>{message}</div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '0.5rem 1.25rem 1.15rem' }}>
-          <button type="button" className="btn secondary" onClick={() => done(false)}>{opts.cancelText || 'Cancel'}</button>
+          <button type="button" className="btn secondary" autoFocus onClick={() => done(false)}>{opts.cancelText || 'Cancel'}</button>
           <button type="button" className="btn" onClick={() => done(true)}
             style={danger ? { background: '#dc2626', borderColor: '#dc2626', color: '#fff' } : undefined}>
             {opts.confirmText || 'Confirm'}

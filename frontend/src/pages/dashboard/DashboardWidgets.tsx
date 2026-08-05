@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { PP_STATUS, PP_STATUS_LABEL, type PpProject } from '../../lib/ppApi';
 import { showToast } from '../../lib/toast';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 import {
   STATUS_STYLE, statusView, buildHeaderRows, XLSX_COLUMNS, PROCESS_KEYS, PROCESS_STEPS, PROC_STATUS, PROC_STATUS_LABEL, todayLocal, StatCard,
 } from '../../components/ppParts';
@@ -131,7 +132,9 @@ export function smoothScrollTo(targetY: number, duration: number) {
 
 /* ── Popup บันทึก process 1 step (เลือกสถานะ + วันที่) → เก็บลง process_log เพื่อวาด Gantt หลายสี ── */
 export function ProcessEventPopup({ p, stepKey, onClose, onSave }: { p: PpProject; stepKey: string; onClose: () => void; onSave: (status: string, date: string, note: string) => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
   const step = PROCESS_STEPS.find(s => (s.key as string) === stepKey);
   const [status, setStatus] = useState<string>((p as any)[stepKey] || '');
   // วันที่ default = ต่อจาก event ล่าสุดใน log → ถ้าไม่มีใช้ PD Start → ถ้าไม่มีใช้วันนี้ (จะได้ไม่กองที่วันนี้หมด)
@@ -142,7 +145,7 @@ export function ProcessEventPopup({ p, stepKey, onClose, onSave }: { p: PpProjec
   const [note, setNote] = useState(lastEv?.note || '');
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 380px)' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label={`Process: ${step?.label ?? stepKey}`} onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 380px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>Process: {step?.label ?? stepKey}</h2>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Select a status + the date it happened (saved to history for the Gantt)</p>
         <label className="field"><span>Status</span>
@@ -182,6 +185,7 @@ export function StatusColorPopup({ p, pos, onClose, onPick }: { p: PpProject; po
   const panelRef = useRef<HTMLDivElement>(null);
   const [adjPos, setAdjPos] = useState(pos);
   const current = p.status_color || p.status || 'DONE';
+  useFocusTrap(true, panelRef);
 
   // pos เดิมมาจากพิกัดคลิกตรงๆ ไม่เช็คขอบจอเลย → ล้นขอบขวา/ล่างได้บนจอแคบ วัดขนาดจริงหลัง mount แล้ว clamp ให้อยู่ในจอเสมอ
   useLayoutEffect(() => {
@@ -211,7 +215,7 @@ export function StatusColorPopup({ p, pos, onClose, onPick }: { p: PpProject; po
   }, [onClose]);
 
   return createPortal(
-    <div ref={panelRef} style={{
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Choose status color" style={{
       // กว้างพอดี = padding 12*2 + 6 ช่อง(28px) + gap 8*5 → กันสีล้นขอบ (แต่ก่อน 190 แคบไป)
       position: 'fixed', top: adjPos.top, left: adjPos.left, zIndex: 1000,
       background: '#fff', border: '1px solid var(--border-color)', borderRadius: 12, boxShadow: '0 10px 28px rgba(15,23,42,0.18)',

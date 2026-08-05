@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
+const { badYear, YEAR_MIN, YEAR_MAX } = require('../dateGuard');
 
 router.get('/list', async (req, res) => {
   try {
@@ -23,6 +24,10 @@ router.post('/repair', async (req, res) => {
   // due_date ส่งเข้าคอลัมน์ DATE ตรงๆ — ถ้าไม่เช็ก "เดือนหน้า" จะกลายเป็น invalid input syntax for type date → 500
   if (due_date && isNaN(Date.parse(due_date))) {
     return res.status(400).json({ status: 'error', message: 'due_date is not a valid date (YYYY-MM-DD)' });
+  }
+  // ปีต้องอยู่ในช่วงที่เป็นไปได้ — parse ผ่านด่านบนได้ แต่ "0001-04-11" ยังเป็นปีมั่ว (เหมือน INC 2026-08-03 ของ pp_projects)
+  if (due_date && badYear(due_date)) {
+    return res.status(400).json({ status: 'error', message: `due_date: year must be between ${YEAR_MIN}-${YEAR_MAX} (got "${due_date}")` });
   }
   try {
     const check = await db.query('SELECT id, wo_id FROM qc_results WHERE id=$1', [qc_result_id]);

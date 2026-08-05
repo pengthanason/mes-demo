@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useJigProjects, useJigProjectCreate, useJigProjectDelete, JigProject } from '../lib/jigApi';
 import { useIsViewer } from '../lib/useMockStore';
@@ -7,6 +7,7 @@ import { confirmDialog } from '../lib/confirm';
 import { TRACE_URL } from '../lib/jigTrace';   // KNEX_GW — URL Traceability ภายนอก (จาก env, ไม่ hardcode)
 import { BlockState } from '../components/DataStates';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { useFocusTrap } from '../lib/useFocusTrap';
 
 function PassRateBar({ rate }: { rate: number }) {
   const color = rate >= 95 ? '#22c55e' : rate >= 80 ? '#f59e0b' : '#ef4444';
@@ -122,7 +123,9 @@ function TraceKnexCard() {
 }
 
 function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
   const [projectCode, setProjectCode] = useState('');
   const [name, setName] = useState('');
   const [jigId, setJigId] = useState('');
@@ -143,7 +146,7 @@ function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label="Add Jig Project" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '1rem' }}>Add Jig Project</h2>
         <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>
           <label className="field"><span>Project Code *</span>

@@ -6,6 +6,7 @@ import { WoInput } from '../WoInput';
 import { MultiPicInput } from '../MultiPicInput';
 import { useWoBoard } from '../../lib/woApi';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 import { isoWeek, PROCESS_STEPS } from './ppColumns';
 import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../../lib/dateRange';
 
@@ -187,6 +188,8 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
   // ไฮไลต์ขอบแดงช่องที่ผิด · เคลียร์สถานะผิดของช่องนั้นเมื่อผู้ใช้เริ่มพิมพ์แก้
   const errBorder = { borderColor: '#dc2626', boxShadow: '0 0 0 2px rgba(220,38,38,0.15)' } as React.CSSProperties;
   const eb = (k: string): React.CSSProperties | undefined => (bad[k] ? errBorder : undefined);
+  // ผูกช่องที่ผิดกับสรุป error ด้านล่าง (#pf-err) ให้ screen reader ประกาศ/หาข้อความได้ — เดิมมีแค่ขอบแดง ไม่มีการผูกโปรแกรมเลย
+  const aria = (k: string) => ({ 'aria-invalid': !!bad[k], 'aria-describedby': bad[k] ? 'pf-err' : undefined });
   // ปล่อยว่างได้ตอนพิมพ์ (ไม่บังคับเป็น 0 ทันที) — ค่อยกลายเป็น 0 ตอน validate/save ถ้ายังว่างอยู่
   const num = (k: keyof PpProject) => (e: any) => { set(k, e.target.value === '' ? undefined : Number(e.target.value)); if (bad[k]) setBad(b => ({ ...b, [k]: false })); };
   const txt = (k: keyof PpProject) => (e: any) => { set(k, e.target.value); if (bad[k]) setBad(b => ({ ...b, [k]: false })); };
@@ -214,8 +217,8 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
             </label>
           </div>
           <div className="grid-3col">
-            <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." style={eb('model')} /></label>
-            <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." style={eb('product_pn')} /></label>
+            <label className="field"><span>Model</span><input value={f.model ?? ''} onChange={txt('model')} placeholder="Water Level Rice..." style={eb('model')} {...aria('model')} /></label>
+            <label className="field"><span>Product P/N</span><input value={f.product_pn ?? ''} onChange={txt('product_pn')} placeholder="1E7D..." style={eb('product_pn')} {...aria('product_pn')} /></label>
             <label className="field"><span>Status</span>
               <select value={f.status} onChange={txt('status')}>
                 {PP_STATUS.map(s => <option key={s} value={s}>{PP_STATUS_LABEL[s]}</option>)}
@@ -229,19 +232,19 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
           <Section title="Production Record" />
           <div className="grid-3col">
-            <label className="field"><span>Quantity</span><input type="number" value={f.qty ?? ''} onChange={num('qty')} placeholder="0" style={eb('qty')} /></label>
-            <label className="field"><span>Produced</span><input type="number" min="0" value={f.produce ?? ''} onChange={num('produce')} placeholder="0" style={eb('produce')} /></label>
+            <label className="field"><span>Quantity</span><input type="number" value={f.qty ?? ''} onChange={num('qty')} placeholder="0" style={eb('qty')} {...aria('qty')} /></label>
+            <label className="field"><span>Produced</span><input type="number" min="0" value={f.produce ?? ''} onChange={num('produce')} placeholder="0" style={eb('produce')} {...aria('produce')} /></label>
             <label className="field"><span>Balance</span><input value={(Number(f.qty) || 0) - (Number(f.produce) || 0)} readOnly title="Quantity − Produced (auto)" style={{ background: '#f1f5f9' }} /></label>
-            <label className="field"><span>Total FG</span><input type="number" value={f.total_ok ?? ''} onChange={num('total_ok')} placeholder="0" style={eb('total_ok')} /></label>
-            <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? ''} onChange={num('total_ng')} placeholder="0" style={eb('total_ng')} /></label>
+            <label className="field"><span>Total FG</span><input type="number" value={f.total_ok ?? ''} onChange={num('total_ok')} placeholder="0" style={eb('total_ok')} {...aria('total_ok')} /></label>
+            <label className="field"><span>Total NG</span><input type="number" value={f.total_ng ?? ''} onChange={num('total_ng')} placeholder="0" style={eb('total_ng')} {...aria('total_ng')} /></label>
             <label className="field"><span>Yield (FG ÷ (FG+NG) × 100)</span><input value={ppYield({ total_ok: f.total_ok ?? 0, total_ng: f.total_ng ?? 0 })?.toFixed(2) ?? '—'} readOnly style={{ background: '#f1f5f9' }} /></label>
           </div>
 
           <Section title="PD PLAN" />
           <div className="grid-3col">
-            <label className="field"><span>PD Start</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} style={eb('pd_start_date')} /></label>
-            <label className="field"><span>PD Done</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} style={eb('pd_finish_date')} /></label>
-            <label className="field"><span>Expected date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.expected_date ?? ''} onChange={txt('expected_date')} style={eb('expected_date')} /></label>
+            <label className="field"><span>PD Start</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_start_date ?? ''} onChange={txt('pd_start_date')} style={eb('pd_start_date')} {...aria('pd_start_date')} /></label>
+            <label className="field"><span>PD Done</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.pd_finish_date ?? ''} onChange={txt('pd_finish_date')} style={eb('pd_finish_date')} {...aria('pd_finish_date')} /></label>
+            <label className="field"><span>Expected date</span><input type="date" min={DATE_INPUT_MIN} max={DATE_INPUT_MAX} value={f.expected_date ?? ''} onChange={txt('expected_date')} style={eb('expected_date')} {...aria('expected_date')} /></label>
             <label className="field"><span>CAP / DAY</span><input type="number" min="0" value={f.target_per_day ?? ''} onChange={num('target_per_day')} placeholder="e.g. 40" /></label>
           </div>
 
@@ -297,13 +300,13 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
           </div>
           {/* วันยังไม่ finalize → ใส่รายละเอียด/เหตุผลไว้ตรงนี้ โผล่เป็นดอกจัน (*) ให้เอาเมาส์ไปชี้ดูที่ช่อง Delivery date ในตาราง */}
           <label className="field"><span>Delivery remark <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(date not finalized yet? Add details here — shows as * to hover over in the table)</span></span>
-            <textarea value={f.delivery_remark ?? ''} onChange={txt('delivery_remark')} rows={2} placeholder="e.g. Awaiting customer confirmation, rough target not locked yet" /></label>
-          <label className="field"><span>Special request</span><textarea value={f.special_request ?? ''} onChange={txt('special_request')} rows={2} placeholder="e.g. urgent, QA first, etc." /></label>
-          <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={4} /></label>
+            <textarea value={f.delivery_remark ?? ''} onChange={txt('delivery_remark')} rows={2} maxLength={2000} placeholder="e.g. Awaiting customer confirmation, rough target not locked yet" /></label>
+          <label className="field"><span>Special request</span><textarea value={f.special_request ?? ''} onChange={txt('special_request')} rows={2} maxLength={2000} placeholder="e.g. urgent, QA first, etc." /></label>
+          <label className="field"><span>Remark</span><textarea value={f.remark ?? ''} onChange={txt('remark')} rows={4} maxLength={2000} /></label>
 
           {editing && initial && <><Section title="Edit history" /><EditHistory id={initial.id} /></>}
 
-          {err && <div className="notice err">{err}</div>}
+          {err && <div id="pf-err" role="alert" className="notice err">{err}</div>}
           <div className="modal-actions">
             {onCancel && <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>}
             <button type="submit" className="btn" disabled={create.isPending || update.isPending}>
@@ -318,15 +321,17 @@ export function ProjectForm({ initial, onSaved, onCancel, onDirtyChange, default
 
 // popup กรอกหมายเหตุตอนกด Save (แก้ไข) — หมายเหตุจะไปอยู่ในประวัติของ record ชิ้นนี้เท่านั้น
 function SaveRemarkPopup({ saving, onCancel, onConfirm }: { saving: boolean; onCancel: () => void; onConfirm: (note: string) => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onCancel);
+  useFocusTrap(true, modalRef);
   const [note, setNote] = useState('');
   return (
     <div className="modal-overlay" style={{ zIndex: 1200 }} onClick={onCancel}>
-      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label="Save — add a remark" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 420px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>Save — add a remark</h2>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>Note what/why you changed (kept in this item's edit history). You can leave it blank.</p>
         <label className="field"><span>Remark (this edit)</span>
-          <textarea autoFocus value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="e.g. moved expected date after customer request" />
+          <textarea autoFocus value={note} onChange={e => setNote(e.target.value)} rows={3} maxLength={2000} placeholder="e.g. moved expected date after customer request" />
         </label>
         <div className="modal-actions" style={{ marginTop: '1.2rem' }}>
           <button type="button" className="btn secondary" onClick={onCancel} disabled={saving}>Cancel</button>
@@ -340,14 +345,16 @@ function SaveRemarkPopup({ saving, onCancel, onConfirm }: { saving: boolean; onC
 /** ป๊อปอัพแก้ไข (wrap ProjectForm) — ปิดแล้วเตือนถ้ามีข้อมูลค้าง (unsaved) */
 export function ProjectFormModal({ initial, onClose, defaultType }: { initial: PpProject | null; onClose: () => void; defaultType?: string }) {
   const dirtyRef = useRef(false);
+  const modalRef = useRef<HTMLDivElement>(null);
   const guardedClose = async () => {
     if (dirtyRef.current && !(await confirmDialog('Discard unsaved changes?', { title: 'Discard changes', confirmText: 'Discard', danger: true }))) return;
     onClose();
   };
   useEscapeKey(true, guardedClose);
+  useFocusTrap(true, modalRef);
   return (
     <div className="modal-overlay" onClick={guardedClose}>
-      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 860px)', maxHeight: '94vh', overflowY: 'auto' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label={initial ? 'Edit Project' : 'Add Project'} onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 860px)', maxHeight: '94vh', overflowY: 'auto' }}>
         <h2 className="panel__title" style={{ marginBottom: '1rem' }}>{initial ? 'Edit Project' : `Add Project${defaultType === 'external' ? ' — External' : ''}`}</h2>
         <ProjectForm initial={initial} defaultType={defaultType} onSaved={onClose} onCancel={guardedClose} onDirtyChange={d => { dirtyRef.current = d; }} />
       </div>

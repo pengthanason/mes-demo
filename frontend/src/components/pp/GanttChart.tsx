@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PP_STATUS_LABEL, type PpProject } from '../../lib/ppApi';
 import { showToast } from '../../lib/toast';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 import { STATUS_STYLE, PROCESS_STEPS, PROC_STATUS_LABEL } from './ppColumns';
 import { DATE_INPUT_MIN, DATE_INPUT_MAX, DATE_YEAR_MIN, DATE_YEAR_MAX } from '../../lib/dateRange';
 
@@ -171,7 +172,9 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
   const [toStr, setToStr] = useState('');
   const [showHeatmap, setShowHeatmap] = useState(false);   // #4: popup "จำนวนงาน active ต่อวัน"
   const [heatTip, setHeatTip] = useState<{ x: number; y: number; label: string; n: number } | null>(null);   // #4: tooltip เซลล์ heatmap
+  const heatmapModalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(showHeatmap, () => { setShowHeatmap(false); setHeatTip(null); });
+  useFocusTrap(showHeatmap, heatmapModalRef);
   const leftRef = useRef<HTMLDivElement>(null);   // แผงชื่อ (sync เลื่อนแนวตั้งกับ timeline)
   const timelineRef = useRef<HTMLDivElement>(null);   // แผง timeline (เลื่อนแนวนอน) — auto-scroll ไปวันนี้ตอนเข้าหน้า
   const didScrollToday = useRef(false);           // scroll ไปวันนี้ครั้งเดียวตอนข้อมูลพร้อม
@@ -305,7 +308,7 @@ export function GanttChart({ rows }: { rows: PpProject[] }) {
 
         return (
           <div className="modal-overlay" onClick={close}>
-            <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 840px)', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div ref={heatmapModalRef} className="modal" role="dialog" aria-modal="true" aria-label="Active jobs per day heatmap" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 840px)', maxHeight: '92vh', overflowY: 'auto' }}>
               {/* header */}
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
                 <div>

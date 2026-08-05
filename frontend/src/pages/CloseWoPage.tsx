@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useWoBoard, useWoPatch } from '../lib/woApi';
 import { showToast } from '../lib/toast';
+import { BlockState } from '../components/DataStates';
 
 export function CloseWoPage() {
   const { woId }   = useParams();
   const navigate   = useNavigate();
-  const { data: woList } = useWoBoard();
+  const { data: woList, isLoading, isError, refetch } = useWoBoard();
   const patchMut   = useWoPatch();
   const wo         = (woList ?? []).find(w => w.woId === woId) ?? null;
   const targetQty  = wo?.qty;
@@ -37,6 +38,25 @@ export function CloseWoPage() {
         <h2 style={{ color: 'var(--success)', marginBottom: '1rem' }}>✅ Closed successfully</h2>
         <p style={{ marginBottom: '2rem' }}>Work Order: <strong>{woId}</strong> has been closed</p>
         <button type="button" className="btn" onClick={() => navigate('/wo-dashboard')}>Back to WO Board</button>
+      </div>
+    );
+  }
+
+  // ต้องรอโหลด WO ให้เสร็จ/สำเร็จก่อนโชว์ฟอร์ม — เดิมถ้า fetch ล้มเหลว wo=null → targetQty=undefined
+  // แล้วเงื่อนไข "qty > targetQty" ใน handleSubmit เทียบกับ undefined ได้ false เสมอ = ข้าม validation ไปเงียบๆ
+  if (isLoading || isError) {
+    return (
+      <div className="panel">
+        <h2 className="panel__title">Close Work Order (M09)</h2>
+        <BlockState state={isLoading ? 'loading' : 'error'} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+  if (!wo) {
+    return (
+      <div className="panel stack" style={{ textAlign: 'center', padding: '2rem' }}>
+        <p className="notice err">Work Order "{woId}" not found</p>
+        <Link to="/work-orders" className="btn secondary" style={{ alignSelf: 'center' }}>← Back to Work Orders</Link>
       </div>
     );
   }

@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useWoBoard, useWoPatch } from '../lib/woApi';
 import { showToast } from '../lib/toast';
+import { BlockState } from '../components/DataStates';
 
 export function FaiPage() {
   const { woId } = useParams();
   const navigate = useNavigate();
-  const { data: woList } = useWoBoard();
+  const { data: woList, isLoading, isError, refetch } = useWoBoard();
   const patchMut = useWoPatch();
   const wo = (woList ?? []).find(w => w.woId === woId) ?? null;
 
@@ -21,6 +22,15 @@ export function FaiPage() {
   const isChecklistComplete = Object.values(checklist).every(v => v !== '');
   const isDualKeyValid = inspectorId.trim() !== '' && approverId.trim() !== '' && inspectorId !== approverId;
 
+  // แยก "โหลดไม่สำเร็จ" (เน็ต/API ล่ม) ออกจาก "หา WO ไม่เจอจริง" — เดิมรวมเป็นข้อความ "WO Not Found" เดียวกันหมด
+  // ทำให้เข้าใจผิดว่า WO ไม่มีอยู่จริง ทั้งที่จริงๆ แค่โหลดไม่สำเร็จ กด Retry แล้วน่าจะเจอ
+  if (isLoading || isError) {
+    return (
+      <div className="panel">
+        <BlockState state={isLoading ? 'loading' : 'error'} onRetry={() => refetch()} />
+      </div>
+    );
+  }
   if (!wo) {
     return (
       <div className="notice err" style={{ margin: '2rem' }}>

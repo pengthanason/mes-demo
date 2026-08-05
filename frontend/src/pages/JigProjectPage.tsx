@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useJigProject, useJigRecords, useJigTimeseries, useJigRecordCreate, JigTimeseries, JigRecord } from '../lib/jigApi';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
 import { BlockState } from '../components/DataStates';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import { DATE_INPUT_MIN, DATE_INPUT_MAX } from '../lib/dateRange';
 
 /* ──────── SVG Line Chart ──────── */
@@ -119,7 +120,9 @@ function RecordsTable({ records, onSelect }: { records: JigRecord[]; onSelect: (
 /* ──────── Detail Modal (drill-down) ──────── */
 // ฟีเจอร์ "Request Retest" ถูกถอดออกจากระบบ (ตาราง jig_retest_requests + endpoint ถูกลบ)
 function RecordDetailModal({ record, onClose }: { record: JigRecord; onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
   const isFail = record.result === 'FAIL';
   const rows: [string, any][] = [
     ['Serial', record.serial],
@@ -133,7 +136,7 @@ function RecordDetailModal({ record, onClose }: { record: JigRecord; onClose: ()
   ];
   return (
     <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label={`Test Details: ${record.serial}`} onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
           <span style={{ fontSize: '1.4rem', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: isFail ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)' }}>{isFail ? '❌' : '✅'}</span>
           <div>
@@ -161,7 +164,9 @@ function RecordDetailModal({ record, onClose }: { record: JigRecord; onClose: ()
 
 /* ──────── Add Record Modal (กรอกผลทดสอบมือ) ──────── */
 function AddRecordModal({ code, onClose }: { code: string; onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onClose);
+  useFocusTrap(true, modalRef);
   const [serial, setSerial] = useState('');
   const [result, setResult] = useState<'PASS' | 'FAIL'>('PASS');
   const [voltage, setVoltage] = useState('');
@@ -185,7 +190,7 @@ function AddRecordModal({ code, onClose }: { code: string; onClose: () => void }
 
   return (
     <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 460px)' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-label="Record Jig Test Result" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 460px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '1rem' }}>Record Jig Test Result</h2>
         <form onSubmit={submit} className="stack" style={{ gap: '0.85rem' }}>
           <label className="field"><span>Serial *</span>

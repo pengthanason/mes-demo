@@ -99,7 +99,7 @@ export function ObaPage() {
           {result === 'FAIL' && (
             <label className="field">
               <span>Defect Note <span style={{ color: 'var(--danger)' }}>*</span></span>
-              <textarea className="oba-input" value={defectNote} onChange={e => setDefectNote(e.target.value)} placeholder="Describe the defect..." required />
+              <textarea className="oba-input" value={defectNote} onChange={e => setDefectNote(e.target.value)} maxLength={2000} placeholder="Describe the defect..." required />
             </label>
           )}
           <button className="btn" type="submit" disabled={!woId || !lotNo || !sampleQty || !result || createMut.isPending}

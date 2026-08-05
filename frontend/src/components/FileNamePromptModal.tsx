@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { useFocusTrap } from '../lib/useFocusTrap';
 
 /**
  * ป๊อปอัพตั้งชื่อไฟล์ก่อนดาวน์โหลด
@@ -17,7 +18,9 @@ export function FileNamePromptModal({ title, subtitle, defaultBase, ext, onConfi
 }) {
   const [name, setName] = useState(`${defaultBase}.${ext}`);
   const inputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   useEscapeKey(true, onCancel);
+  useFocusTrap(true, modalRef);
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -33,7 +36,7 @@ export function FileNamePromptModal({ title, subtitle, defaultBase, ext, onConfi
   };
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()} style={{ width: 'min(100%, 440px)' }}>
         <h2 className="panel__title" style={{ marginBottom: '0.3rem' }}>{title}</h2>
         <p className="panel__subtitle" style={{ marginBottom: '1rem' }}>{subtitle || 'Name the file, then click “OK” to download'}</p>
         <label className="field"><span>File name</span>

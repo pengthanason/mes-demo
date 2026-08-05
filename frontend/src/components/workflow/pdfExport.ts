@@ -1,7 +1,7 @@
 // ── flowchart (SVG) → พิมพ์ (Save as PDF) ──
 // แยกจาก WorkflowBuilder.tsx เดิม — ย้ายโค้ด ไม่เปลี่ยนพฤติกรรม
 
-import { type Step, fmtTime } from './workflowCore';
+import { type Step, fmtTime, MAX_STATIONS } from './workflowCore';
 import { showToast } from '../../lib/toast';
 
 export type ExportMeta = {
@@ -16,7 +16,7 @@ export type ExportMeta = {
 /* ── หน้า 2 ของ PDF: ตารางรายละเอียดเวลา (แต่ละขั้นใช้เท่าไหร่ + สรุป setup/ต่อชิ้น/คอขวด/รวมทั้งล็อต) ── */
 export function buildTimeDetailHtml(steps: Step[], qty: number): string {
   const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const stationsOf = (s: Step) => Math.max(1, Number(s.stations) || 1);
+  const stationsOf = (s: Step) => Math.min(MAX_STATIONS, Math.max(1, Number(s.stations) || 1));
   const effSec = (s: Step) => Number(s.seconds) || 0;
   const setupSec = steps.reduce((a, s) => a + (s.timeScope === 'once' ? effSec(s) : 0), 0);
   const perUnitSteps = steps.filter(s => s.timeScope !== 'once');

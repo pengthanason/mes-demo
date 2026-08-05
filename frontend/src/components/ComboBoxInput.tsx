@@ -22,6 +22,9 @@ export function ComboBoxInput({
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; width: number; maxH: number } | null>(null);
+  // autoFocus ทำให้เบราว์เซอร์ focus() ให้เองตอน mount → onFocus ทำงานทันที เปิด dropdown เองทั้งที่ไม่มีใครคลิก/แตะเลย
+  // (แถมตำแหน่งตอนนั้น layout อาจยังไม่นิ่ง เห็นเด้งไปผิดที่แว้บนึงก่อนกลับมาถูก) → ข้าม onFocus ครั้งแรกที่มาจาก autoFocus ครั้งเดียว
+  const skipNextFocusOpen = useRef(!!autoFocus);
 
   const needle = value.trim().toLowerCase();
   // พิมพ์อยู่ → กรองตามคำ · ถ้าตรงเป๊ะกับตัวเลือกเดียว ไม่ต้องโชว์ dropdown (เลือกเสร็จแล้ว)
@@ -63,7 +66,7 @@ export function ComboBoxInput({
         className={className}
         value={value}
         onChange={e => { onChange(e.target.value); if (!open) openIt(); }}
-        onFocus={openIt}
+        onFocus={() => { if (skipNextFocusOpen.current) { skipNextFocusOpen.current = false; return; } openIt(); }}
         onClick={openIt}
         onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
         placeholder={placeholder}
