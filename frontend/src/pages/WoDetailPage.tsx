@@ -21,7 +21,7 @@ const ADVANCE_LABEL: Partial<Record<WoStep, string>> = {
 
 export function WoDetailPage() {
   const { woId } = useParams();
-  const { data: woList, isLoading } = useWoBoard();
+  const { data: woList, isLoading, isError, refetch } = useWoBoard();
   const patchMut = useWoPatch();
   const { data: qcResults = [] } = useQcResults(woId);
   const { data: kitting = [] } = useKittingIssues(woId);
@@ -38,6 +38,15 @@ export function WoDetailPage() {
 
   if (isLoading) {
     return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
+  }
+
+  // แยก "โหลดไม่สำเร็จ" ออกจาก "หา WO ไม่เจอจริง" — เดิมรวมเป็น "WO Not Found" เดียวกันหมด
+  if (isError) {
+    return (
+      <div className="panel" style={{ margin: '2rem' }}>
+        <BlockState state="error" onRetry={() => refetch()} />
+      </div>
+    );
   }
 
   if (!wo) {

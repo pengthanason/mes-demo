@@ -65,7 +65,9 @@ function stepToStatus(step) {
 router.get('/board', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT ${BOARD_FIELDS} FROM work_orders ORDER BY created_at DESC`
+      // LIMIT กันตารางโตไม่มีเพดาน ดึงทั้งตารางเข้า memory ทุก request — ยิ่งข้อมูลสะสมมากขึ้นยิ่งช้า/กิน RAM
+      // block event loop เดี่ยวของ Node ระหว่าง query ตัวเดียว ทำให้ request อื่นทั้งระบบค้างไปด้วย
+      `SELECT ${BOARD_FIELDS} FROM work_orders ORDER BY created_at DESC LIMIT 5000`
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {

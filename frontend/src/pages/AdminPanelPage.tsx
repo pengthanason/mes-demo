@@ -12,6 +12,7 @@ import { PERMISSIONS, ROLE_DEFAULT_PERMS } from '../lib/permissions';
 import { Paginator } from '../components/Paginator';
 import { ROW_H, fillerCount, FillerRows } from '../components/TableFill';
 import { showToast } from '../lib/toast';
+import { BlockState } from '../components/DataStates';
 
 const ROLES: AppRole[] = ['ADMIN', 'MEMBER', 'VIEWER'];
 const ROLE_BADGE: Record<AppRole, string> = { ADMIN: '#ef4444', MEMBER: '#3b82f6', VIEWER: '#6b7280' };
@@ -231,7 +232,7 @@ function EditUserModal({ user, onClose }: { user: AppUser; onClose: () => void }
 }
 
 function UsersTab() {
-  const { data: users = [], isLoading } = useAdminUsers();
+  const { data: users = [], isLoading, isError, refetch } = useAdminUsers();
   const updateUser = useAdminUserUpdate();
   const deleteUser = useAdminUserDelete();
   const [showCreate, setShowCreate] = useState(false);
@@ -259,6 +260,8 @@ function UsersTab() {
       </div>
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading...</div>
+      ) : isError ? (
+        <BlockState state="error" onRetry={() => refetch()} />
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.87rem' }}>
@@ -319,7 +322,7 @@ function ActivityTable({ withFilter, kind, emptyText }: { withFilter: boolean; k
   const [actor, setActor] = useState('');
   const [page, setPage] = useState(1);
   const PAGE = 15;
-  const { data: logs = [], isLoading } = useAuditLogs({ kind, ...(actor ? { actor } : {}) });
+  const { data: logs = [], isLoading, isError, refetch } = useAuditLogs({ kind, ...(actor ? { actor } : {}) });
   useEffect(() => { setPage(1); }, [actor, logs.length]);
   const totalPages = Math.max(1, Math.ceil(logs.length / PAGE));
   const paged = logs.slice((page - 1) * PAGE, page * PAGE);
@@ -344,6 +347,8 @@ function ActivityTable({ withFilter, kind, emptyText }: { withFilter: boolean; k
       )}
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading...</div>
+      ) : isError ? (
+        <BlockState state="error" onRetry={() => refetch()} />
       ) : (
         <>
           <div style={{ overflowX: 'auto' }}>

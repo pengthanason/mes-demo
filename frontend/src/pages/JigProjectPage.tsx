@@ -243,8 +243,8 @@ export function JigProjectPage() {
   const isViewer = useIsViewer();
 
   const { data: project, isLoading: loadingProject, error: projError } = useJigProject(projectCode);
-  const { data: records = [], isLoading: loadingRecords } = useJigRecords(projectCode, resultFilter);
-  const { data: timeseries = [], isLoading: loadingTs } = useJigTimeseries(projectCode);
+  const { data: records = [], isLoading: loadingRecords, isError: recordsError, refetch: refetchRecords } = useJigRecords(projectCode, resultFilter);
+  const { data: timeseries = [], isLoading: loadingTs, isError: tsError, refetch: refetchTs } = useJigTimeseries(projectCode);
   // filter วันที่ (client-side ตามวันที่ทดสอบ)
   const shownRecords = useMemo(
     () => (dateFilter ? records.filter(r => r.testedAt.slice(0, 10) === dateFilter) : records),
@@ -299,6 +299,8 @@ export function JigProjectPage() {
         <h2 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>Pass Rate Trend (Daily)</h2>
         {loadingTs ? (
           <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading...</div>
+        ) : tsError ? (
+          <BlockState state="error" onRetry={() => refetchTs()} />
         ) : (
           <LineChart data={timeseries} />
         )}
@@ -339,6 +341,8 @@ export function JigProjectPage() {
         </div>
         {loadingRecords ? (
           <BlockState state="loading" />
+        ) : recordsError ? (
+          <BlockState state="error" onRetry={() => refetchRecords()} />
         ) : shownRecords.length === 0 ? (
           <BlockState state="empty" emptyText={`No data found${dateFilter ? ` for ${dateFilter}` : ''}`} />
         ) : (

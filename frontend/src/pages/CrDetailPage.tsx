@@ -4,6 +4,7 @@ import { useCrList, useCrApproveGate, type CrState, type ChangeRequest } from '.
 import { CrStateBadge } from './FourMChangePage';
 import { useIsViewer } from '../lib/useMockStore';
 import { showToast } from '../lib/toast';
+import { BlockState } from '../components/DataStates';
 
 type GateKey = 'g1' | 'g2' | 'g3';
 
@@ -24,7 +25,7 @@ function gateInfo(cr: ChangeRequest, key: GateKey) {
 export function CrDetailPage() {
   const { crId } = useParams();
   const isViewer = useIsViewer();
-  const { data, isLoading } = useCrList();
+  const { data, isLoading, isError, refetch } = useCrList();
   const approveMut = useCrApproveGate();
   const cr = (data ?? []).find(c => String(c.id) === crId) ?? null;
 
@@ -32,6 +33,15 @@ export function CrDetailPage() {
 
   if (isLoading) {
     return <div className="panel" style={{ margin: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
+  }
+
+  // แยก "โหลดไม่สำเร็จ" ออกจาก "หา CR ไม่เจอจริง" — เดิมรวมเป็น "Change Request not found" เดียวกันหมด
+  if (isError) {
+    return (
+      <div className="panel" style={{ margin: '2rem' }}>
+        <BlockState state="error" onRetry={() => refetch()} />
+      </div>
+    );
   }
 
   if (!cr) {

@@ -10,7 +10,7 @@ import { TableState, BlockState } from '../components/DataStates';
 export function KittingPage() {
   const isViewer = useIsViewer();
   const { data: stock = [], isLoading: stockLoading } = useStock();
-  const { data: issues = [] } = useKittingIssues();
+  const { data: issues = [], isLoading: issuesLoading, isError: issuesError, refetch: refetchIssues } = useKittingIssues();
   const issueMut = useIssueMaterial();
 
   const [woId,   setWoId]   = useState('');
@@ -158,7 +158,11 @@ export function KittingPage() {
               </tr>
             </thead>
             <tbody>
-              {paged.length === 0 ? (
+              {issuesLoading ? (
+                <TableState colSpan={5} state="loading" />
+              ) : issuesError ? (
+                <TableState colSpan={5} state="error" onRetry={() => refetchIssues()} />
+              ) : paged.length === 0 ? (
                 <TableState colSpan={5} state="empty" emptyText={issues.length > 0 ? 'No issues match the search' : 'No issues yet — select goods from Stock above, enter a WO, then click “Issue to Line”'} />
               ) : paged.map(i => (
                 <tr key={i.id}>

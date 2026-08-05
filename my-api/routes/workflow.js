@@ -5,7 +5,7 @@ const db     = require('../db');
 router.get('/', async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, name, customer, model, steps, created_at FROM workflows ORDER BY created_at DESC'
+      'SELECT id, name, customer, model, steps, created_at FROM workflows ORDER BY created_at DESC LIMIT 5000'
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
@@ -44,7 +44,9 @@ router.delete('/:id', async (req, res) => {
 router.get('/results', async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, serial, customer, model, sequence, result, total_sec, line, created_at FROM workflow_results ORDER BY created_at DESC'
+      // LIMIT กันดึงทั้งตารางเข้า memory ทุก request — ตารางนี้เพิ่มแถวทุกครั้งที่เดินสายผลิตเสร็จ 1 รอบ
+      // สะสมได้เร็วกว่า workflows (preset) ด้านบน
+      'SELECT id, serial, customer, model, sequence, result, total_sec, line, created_at FROM workflow_results ORDER BY created_at DESC LIMIT 5000'
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {

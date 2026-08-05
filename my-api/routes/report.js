@@ -8,7 +8,7 @@ const FIELDS = `id, code, customer, status, stage, qty,
 router.get('/list', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT ${FIELDS} FROM production_reports ORDER BY created_at DESC`
+      `SELECT ${FIELDS} FROM production_reports ORDER BY created_at DESC LIMIT 5000`
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {

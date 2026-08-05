@@ -17,7 +17,7 @@ const NEXT: Partial<Record<ReworkStatus, { to: ReworkStatus; label: string; colo
 
 export function ReworkPage() {
   const isViewer = useIsViewer();
-  const { data: tickets = [], isLoading } = useReworkList();
+  const { data: tickets = [], isLoading, isError, refetch } = useReworkList();
   const statusMut = useReworkStatus();
 
   const advance = (id: number, to: ReworkStatus) => {
@@ -46,6 +46,8 @@ export function ReworkPage() {
           <tbody>
             {isLoading ? (
               <TableState colSpan={isViewer ? 8 : 9} state="loading" />
+            ) : isError ? (
+              <TableState colSpan={isViewer ? 8 : 9} state="error" onRetry={() => refetch()} />
             ) : tickets.length === 0 ? (
               <TableState colSpan={isViewer ? 8 : 9} state="empty" emptyText="No Rework yet — open one from the QC Result tab (rows with FAIL/PARTIAL result)" />
             ) : tickets.map(t => {

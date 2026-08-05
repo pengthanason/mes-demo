@@ -25,6 +25,11 @@ const SENSITIVE_TABLES = new Set(['users']);
 // เกิน cap นี้ = backup ไม่ครบ ต้อง flag ให้เห็นชัด ไม่ใช่ตัดทิ้งเงียบๆ
 const ROW_CAP = 50000;
 
+// ยก control กลับให้ event loop ระหว่างตาราง — ของเดิม loop ทุกตาราง/ทุกแถวรวดเดียวแบบ synchronous
+// ยิ่งข้อมูลสะสมมาก (สูงสุด ROW_CAP × ~20 ตาราง) ยิ่ง block นานขึ้น ระหว่างนั้น request อื่นทั้งระบบค้างหมด
+// (Node เป็น single thread) — คั่นด้วย setImmediate ให้ request อื่นได้คิวแทรกระหว่างตารางได้
+const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
+
 const pad = (n) => String(n).padStart(2, '0');
 // ชื่อไฟล์ใช้เวลาไทย (UTC+7) ให้ตรงกับที่ผู้ใช้เห็นบนหน้าจอ
 function stampTH() {
@@ -186,6 +191,7 @@ router.get('/export', async (req, res) => {
         }
       }
       L.push('');
+      await yieldToEventLoop();   // คั่นระหว่างตาราง — ตารางเดียวบล็อกได้ ไม่ใช่ทั้ง export รวดเดียว
     }
     L.push('SET session_replication_role = DEFAULT;');
     L.push('');

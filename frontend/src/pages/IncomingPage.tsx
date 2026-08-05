@@ -44,7 +44,7 @@ function StatCard({ icon, label, value, accent }: { icon: string; label: string;
 
 export function IncomingPage() {
   const isViewer = useIsViewer();
-  const { data: lots = [], isLoading } = useInventoryLots();
+  const { data: lots = [], isLoading, isError, refetch } = useInventoryLots();
   const receiveMut = useReceiveLot();
   const reviewMut  = useReviewLot();
   const deleteMut  = useDeleteLot();
@@ -225,6 +225,8 @@ export function IncomingPage() {
             <tbody>
               {isLoading ? (
                 <TableState colSpan={isViewer ? 7 : 8} state="loading" />
+              ) : isError ? (
+                <TableState colSpan={isViewer ? 7 : 8} state="error" onRetry={() => refetch()} />
               ) : paged.length === 0 ? (
                 <TableState colSpan={isViewer ? 7 : 8} state="empty" emptyText={statusFilter ? 'No lots match the filter — select “All” to see all lots' : 'No material lots yet — click “+ Receive Goods” to start receiving'} />
               ) : paged.map(lot => (

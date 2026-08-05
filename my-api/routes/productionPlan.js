@@ -145,7 +145,8 @@ router.get('/projects', async (req, res) => {
     if (date_from)  { vals.push(date_from);         conds.push(`date_record >= $${vals.length}`); }
     if (date_to)    { vals.push(date_to);           conds.push(`date_record <= $${vals.length}`); }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-    const { rows } = await db.query(`SELECT ${COLS} FROM pp_projects ${where} ORDER BY date_record DESC NULLS LAST, id DESC`, vals);
+    // LIMIT กันดึงทั้งตารางเข้า memory ทุก request เมื่อข้อมูลสะสมมากขึ้น (เหมือนเหตุผลเดียวกับ wo.js /board)
+    const { rows } = await db.query(`SELECT ${COLS} FROM pp_projects ${where} ORDER BY date_record DESC NULLS LAST, id DESC LIMIT 5000`, vals);
     res.json({ status: 'success', data: rows });
   } catch (e) {
     console.error(e); res.status(500).json({ status: 'error', message: 'Server error, please try again' });

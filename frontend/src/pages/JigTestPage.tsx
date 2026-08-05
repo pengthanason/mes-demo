@@ -177,7 +177,7 @@ function CreateJigProjectModal({ onClose }: { onClose: () => void }) {
 
 export function JigTestPage() {
   const navigate = useNavigate();
-  const { data: projects = [], isLoading, error } = useJigProjects();
+  const { data: projects = [], isLoading, error, refetch } = useJigProjects();
   const [showCreate, setShowCreate] = useState(false);
   const isViewer = useIsViewer();
   const del = useJigProjectDelete();
@@ -205,7 +205,7 @@ export function JigTestPage() {
       {showCreate && <CreateJigProjectModal onClose={() => setShowCreate(false)} />}
 
       {isLoading && <BlockState state="loading" />}
-      {error && <BlockState state="error" />}
+      {error && <BlockState state="error" onRetry={() => refetch()} />}
 
       {!isLoading && (
         <div style={{ marginTop: '1.75rem' }}>

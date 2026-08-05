@@ -70,6 +70,20 @@ if (API_RATE_MAX > 0) {
   console.warn('[rate-limit] ⚠️ ปิด limiter ของ /api ทั้งหมด (API_RATE_LIMIT_MAX=0) — เปิดกลับก่อนขึ้นใช้จริง');
 }
 
+// /api/backup/export หนักกว่า endpoint อื่นมาก (ดึงทั้งระบบ + serialize เป็น JSON/SQL แบบ synchronous
+// ทั้งก้อน — บล็อก event loop เดี่ยวของ Node ระหว่างนั้น request อื่นทั้งระบบค้างไปด้วย)
+// จำกัดแยกต่างหากให้แน่นกว่า limiter รวมของ /api ด้านบน กันคนกดรัวๆ ซ้ำแล้วค้างซ้อนกัน
+const BACKUP_EXPORT_RATE_MAX = Number(process.env.BACKUP_EXPORT_RATE_LIMIT_MAX ?? 3);
+if (BACKUP_EXPORT_RATE_MAX > 0) {
+  app.use('/api/backup/export', rateLimit({
+    windowMs: 5 * 60 * 1000, max: BACKUP_EXPORT_RATE_MAX,
+    standardHeaders: true, legacyHeaders: false,
+    message: { status: 'error', message: 'ดาวน์โหลด backup บ่อยเกินไป กรุณารอ 5 นาที' },
+  }));
+} else {
+  console.warn('[rate-limit] ⚠️ ปิด limiter ของ /api/backup/export (BACKUP_EXPORT_RATE_LIMIT_MAX=0) — เปิดกลับก่อนขึ้นใช้จริง');
+}
+
 // ── Health ─────────────────────────────────────────────────────────
 // liveness: แอปยังรันอยู่ไหม (ไม่แตะ DB — ใช้ให้ LB ไม่ restart ตอน DB สะดุด)
 app.get('/api/health', (req, res) => {

@@ -24,7 +24,9 @@ function Row({ label, desc, children }: { label: string; desc?: React.ReactNode;
 const ctrl: React.CSSProperties = { fontSize: '0.83rem', padding: '0.35rem 0.8rem', minHeight: 32, whiteSpace: 'nowrap' };
 
 export function SettingsPage() {
-  const { data } = useBackupSummary();
+  // isError เดิมไม่เช็คเลย — ปุ่ม Backup ยังกดได้ปกติต่อให้ query นี้ล้มเหลว (ไม่ block หน้า)
+  // แค่ไม่มีจำนวน tables/rows ให้โชว์ เพิ่มแค่ข้อความเตือนเบาๆ ให้รู้ว่าไม่ใช่ "ยังไม่มีข้อมูล" แต่ "ดึงไม่สำเร็จ"
+  const { data, isError } = useBackupSummary();
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -46,7 +48,9 @@ export function SettingsPage() {
           label="Backup"
           desc={data
             ? `Download all system data to your computer — ${data.tables.length} tables · ${data.total_rows.toLocaleString()} rows`
-            : 'Download all system data to your computer'}
+            : isError
+              ? 'Download all system data to your computer (could not load the table/row summary)'
+              : 'Download all system data to your computer'}
         >
           <button type="button" className="btn" style={ctrl} disabled={busy} onClick={() => setAsk(true)}>
             {busy ? 'Preparing file...' : '💾 Backup'}

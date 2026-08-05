@@ -30,7 +30,7 @@ export function CrStateBadge({ state }: { state: CrState }) {
 
 export function FourMChangePage() {
   const isViewer = useIsViewer();
-  const { data, isLoading } = useCrList();
+  const { data, isLoading, isError, refetch } = useCrList();
   const createMut = useCrCreate();
   const crList = data ?? [];
 
@@ -173,6 +173,8 @@ export function FourMChangePage() {
             <tbody>
               {isLoading ? (
                 <TableState colSpan={6} state="loading" />
+              ) : isError ? (
+                <TableState colSpan={6} state="error" onRetry={() => refetch()} />
               ) : filtered.length === 0 ? (
                 <TableState colSpan={6} state="empty" emptyText={(stateFilter || typeFilter) ? 'No items match the filters — clear the filters to see all' : 'No Change Requests yet — click “+ New CR” at the top right to start'} />
               ) : (

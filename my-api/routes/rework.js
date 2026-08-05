@@ -5,10 +5,11 @@ const { badYear, YEAR_MIN, YEAR_MAX } = require('../dateGuard');
 router.get('/list', async (req, res) => {
   try {
     const { rows } = await db.query(
+      // LIMIT กันดึงทั้งตารางเข้า memory ทุก request เมื่อข้อมูลสะสมมากขึ้น
       `SELECT rw.*, qr.lot_no, qr.overall AS qc_overall
        FROM rework_tickets rw
        JOIN qc_results qr ON qr.id = rw.qc_result_id
-       ORDER BY rw.created_at DESC`
+       ORDER BY rw.created_at DESC LIMIT 5000`
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {

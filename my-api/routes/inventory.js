@@ -80,10 +80,11 @@ router.get('/lots', async (req, res) => {
   try {
     const { status } = req.query;
     const { rows } = await db.query(
+      // LIMIT กันดึงทั้งตารางเข้า memory ทุก request เมื่อข้อมูลสะสมมากขึ้น
       `SELECT id, part_no, part_name, lot_no, qty_received, qty_available, status, note, received_at, reviewed_at, uid
        FROM inventory_lots
        ${status ? 'WHERE status = $1' : ''}
-       ORDER BY received_at DESC`,
+       ORDER BY received_at DESC LIMIT 5000`,
       status ? [status] : []
     );
     res.json({ status: 'success', data: rows });

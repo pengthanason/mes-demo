@@ -6,8 +6,9 @@ const db     = require('../db');
 router.get('/oba/list', async (req, res) => {
   try {
     const { rows } = await db.query(
+      // LIMIT กันดึงทั้งตารางเข้า memory ทุก request เมื่อข้อมูลสะสมมากขึ้น
       `SELECT id, wo_id, lot_no, sample_qty, result, defect_note, created_at
-       FROM oba_records ORDER BY created_at DESC`
+       FROM oba_records ORDER BY created_at DESC LIMIT 5000`
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
@@ -46,7 +47,7 @@ router.post('/oba', async (req, res) => {
 router.get('/qc/list', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, sn, status, error, created_at FROM qc_records ORDER BY created_at DESC`
+      `SELECT id, sn, status, error, created_at FROM qc_records ORDER BY created_at DESC LIMIT 5000`
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
@@ -126,7 +127,7 @@ router.get('/qc/results', async (req, res) => {
        FROM qc_results qr
        LEFT JOIN transfer_verifications tv ON tv.qc_result_id = qr.id
        ${wo_id ? 'WHERE qr.wo_id = $1' : ''}
-       ORDER BY qr.created_at DESC`,
+       ORDER BY qr.created_at DESC LIMIT 5000`,
       wo_id ? [wo_id] : []
     );
     res.json({ status: 'success', data: rows });
@@ -220,7 +221,7 @@ router.get('/routing/list', async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT id, wo_id, serial, sequence, result, total_sec, created_at
-       FROM routing_records ORDER BY created_at DESC`
+       FROM routing_records ORDER BY created_at DESC LIMIT 5000`
     );
     res.json({ status: 'success', data: rows });
   } catch (e) {
